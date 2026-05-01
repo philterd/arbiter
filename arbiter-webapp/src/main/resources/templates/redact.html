@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Arbiter - Review Redactions</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .container { max-width: 1000px; margin-top: 30px; }
+        .redacted-area { 
+            background-color: white; 
+            padding: 20px; 
+            border: 1px solid #dee2e6; 
+            border-radius: 5px; 
+            font-family: monospace; 
+            white-space: pre-wrap; 
+            line-height: 2;
+            max-height: 600px;
+            overflow-y: auto;
+        }
+        .pdf-container {
+            display: none;
+            height: 600px;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+        }
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .redaction { 
+            background-color: #ffeb3b; 
+            padding: 2px 4px; 
+            border-radius: 3px; 
+            cursor: pointer; 
+            transition: background-color 0.2s;
+            position: relative;
+        }
+        .redaction:hover { background-color: #fdd835; }
+        .redaction-tooltip {
+            visibility: hidden;
+            width: 120px;
+            background-color: black;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px 0;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -60px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .redaction:hover .redaction-tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+        #typeSelector {
+            display: none;
+            position: absolute;
+            z-index: 1000;
+            background: white;
+            border: 1px solid #ccc;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+            padding: 5px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="typeSelector">
+            <select id="piiTypeSelect" class="form-select form-select-sm" onchange="confirmManualRedaction()">
+                <option value="">Select Type...</option>
+                <option value="ssn">SSN</option>
+                <option value="person">Person</option>
+                <option value="location">Location</option>
+                <option value="organization">Organization</option>
+                <option value="email">Email</option>
+                <option value="phone">Phone</option>
+                <option value="date">Date</option>
+            </select>
+        </div>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Review Redactions</h1>
+            <div>
+                <button id="toggleViewBtn" onclick="toggleView()" class="btn btn-outline-primary me-2" style="display: none;">View PDF</button>
+                <a th:href="@{/}" class="btn btn-outline-secondary me-2">Start Over</a>
+                <button onclick="downloadRedacted()" class="btn btn-success">Download Redacted</button>
+            </div>
+        </div>
+
+        <div class="alert alert-info" role="alert">
+            Click on a highlighted redaction to remove it. Highlight text to add a new redaction.
+        </div>
+
+        <div id="textView">
+            <div id="redactedContent" class="redacted-area" th:attr="data-filename=${fileName}, data-content-type=${contentType}">
+                <!-- Content will be injected by JavaScript -->
+            </div>
+        </div>
+
+        <div id="pdfView" class="pdf-container">
+            <iframe id="pdfFrame"></iframe>
+        </div>
+
+        <form id="downloadForm" th:action="@{/download}" method="post" style="display: none;">
+            <input type="hidden" name="redactedText" id="finalRedactedText">
+            <input type="hidden" name="fileName" th:value="${fileName}">
+            <input type="hidden" name="contentType" th:value="${contentType}">
+        </form>
+    </div>
+
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        const redactionResponse = /*[[${redactionResponse}]]*/ {};
+        const originalText = redactionResponse.originalText;
+        const redactedTextFromPhilter = redactionResponse.redactedText;
+        let redactions = redactionResponse.redactions;
+        let selectedRange = null;
+        let isPdfView = false;
+
+        async function toggleView() {
+            const textView = document.getElementById('textView');
+            const pdfView = document.getElementById('pdfView');
+            const toggleBtn = document.getElementById('toggleViewBtn');
+            const container = document.getElementById('redactedContent');
+            const fileName = container.getAttribute('data-filename');
+            const contentType = container.getAttribute('data-content-type');
+
+            if (isPdfView) {
+                textView.style.display = 'block';
+                pdfView.style.display = 'none';
+                toggleBtn.innerText = 'View PDF';
+            } else {
+                // Update PDF preview before showing
+                await updatePdfPreview(fileName, contentType);
+                textView.style.display = 'none';
+                pdfView.style.display = 'block';
+                toggleBtn.innerText = 'View Text';
+            }
+            isPdfView = !isPdfView;
+        }
+
+        async function updatePdfPreview(fileName, contentType) {
+            const frame = document.getElementById('pdfFrame');
+            
+            // We need to send the current redactions to the server to get the redacted PDF
+            const payload = {
+                originalText: originalText,
+                redactedText: redactionResponse.redactedText,
+                redactions: redactions
+            };
+
+            const response = await fetch(`/preview?redactedText=${encodeURIComponent(redactionResponse.redactedText)}&fileName=${encodeURIComponent(fileName)}&contentType=${encodeURIComponent(contentType)}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const url = URL.createObjectURL(blob);
+                frame.src = url + '#toolbar=0&navpanes=0&scrollbar=0';
+            } else {
+                alert('Failed to generate PDF preview.');
+            }
+        }
+
+        function handleMouseUp(event) {
+            const selection = window.getSelection();
+            const selectedText = selection.toString().trim();
+            
+            if (selectedText.length > 0) {
+                const container = document.getElementById('redactedContent');
+                if (container.contains(selection.anchorNode)) {
+                    const range = selection.getRangeAt(0);
+                    selectedRange = {
+                        text: selectedText,
+                        start: getOffsetRelativeToContainer(container, range.startContainer, range.startOffset),
+                        end: getOffsetRelativeToContainer(container, range.endContainer, range.endOffset)
+                    };
+                    
+                    showTypeSelector(event.pageX, event.pageY);
+                }
+            } else {
+                hideTypeSelector();
+            }
+        }
+
+        function getOffsetRelativeToContainer(container, node, offset) {
+            let totalOffset = 0;
+            const walker = document.createTreeWalker(container, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, null, false);
+            let currentNode = walker.nextNode();
+            
+            while (currentNode) {
+                if (currentNode.nodeType === Node.TEXT_NODE) {
+                    const span = currentNode.parentElement.closest('.redaction');
+                    if (span) {
+                        const id = span.getAttribute('data-id');
+                        const r = redactions.find(red => red.id === id);
+                        if (r) {
+                            if (currentNode === node) {
+                                // If we are in the main text of the span, return start + offset
+                                // BUT we don't know if we are in the tooltip or the main text.
+                                // Tooltip is a child span.
+                                if (node.parentElement.classList.contains('redaction-tooltip')) {
+                                     // Selection in tooltip - ignore or return start
+                                     return r.start;
+                                }
+                                
+                                // If redaction index is clicked, currentNode.textContent might be the pattern.
+                                // redactedText ALWAYS contains the pattern. 
+                                return r.start + offset;
+                            }
+                            // Move walker to after the span
+                            totalOffset = r.end;
+                            while (currentNode && (span.contains(currentNode) || currentNode === span)) {
+                                currentNode = walker.nextNode();
+                            }
+                            continue;
+                        }
+                    }
+
+                    if (currentNode === node) {
+                        totalOffset += offset;
+                        break;
+                    }
+                    totalOffset += currentNode.textContent.length;
+                }
+                currentNode = walker.nextNode();
+            }
+            return totalOffset;
+        }
+
+        function showTypeSelector(x, y) {
+            const selector = document.getElementById('typeSelector');
+            selector.style.left = x + 'px';
+            selector.style.top = y + 'px';
+            selector.style.display = 'block';
+            document.getElementById('piiTypeSelect').value = '';
+        }
+
+        function hideTypeSelector() {
+            document.getElementById('typeSelector').style.display = 'none';
+        }
+
+        function confirmManualRedaction() {
+            const typeSelect = document.getElementById('piiTypeSelect');
+            const type = typeSelect.value;
+            
+            if (type && selectedRange) {
+                // Check for overlaps with existing redactions
+                const overlap = redactions.find(r => {
+                    return (selectedRange.start < r.end && selectedRange.end > r.start);
+                });
+
+                if (overlap) {
+                    // Check if the selected range covers exactly the same range as an existing redaction
+                    if (selectedRange.start === overlap.start && selectedRange.end === overlap.end) {
+                        // Exactly same range, maybe user wants to change type? 
+                        // Let's remove the old one first.
+                        redactions = redactions.filter(r => r.id !== overlap.id);
+                        // No need to restore text since it will be replaced immediately.
+                    } else {
+                        alert('The selection overlaps with an active redaction.');
+                        hideTypeSelector();
+                        window.getSelection().removeAllRanges();
+                        selectedRange = null;
+                        return;
+                    }
+                }
+
+                const id = 'manual-' + Date.now();
+                const replacement = type.toUpperCase();
+                
+                // We need to update the text to include the placeholder
+                const text = redactionResponse.redactedText;
+                const before = text.substring(0, selectedRange.start);
+                const after = text.substring(selectedRange.end);
+                
+                redactionResponse.redactedText = before + replacement + after;
+                
+                const newRedaction = {
+                    id: id,
+                    text: selectedRange.text,
+                    start: selectedRange.start,
+                    end: selectedRange.start + replacement.length,
+                    type: type
+                };
+                
+                // Adjust existing redactions that come after this one
+                const shift = replacement.length - (selectedRange.end - selectedRange.start);
+                redactions.forEach(r => {
+                    if (r.start >= selectedRange.end) {
+                        r.start += shift;
+                        r.end += shift;
+                    }
+                });
+                
+                // Add and sort
+                redactions.push(newRedaction);
+                redactions.sort((a, b) => a.start - b.start);
+                
+                renderContent();
+                
+                // Clear selection
+                window.getSelection().removeAllRanges();
+                selectedRange = null;
+            }
+            hideTypeSelector();
+        }
+
+        function renderContent() {
+            const container = document.getElementById('redactedContent');
+            redactions.sort((a, b) => a.start - b.start);
+
+            let contentHtml = '';
+            let lastIdx = 0;
+            const text = redactionResponse.redactedText;
+            
+            for (let i = 0; i < redactions.length; i++) {
+                const r = redactions[i];
+                contentHtml += escapeHtml(text.substring(lastIdx, r.start));
+                
+                const displayText = text.substring(r.start, r.end);
+                
+                contentHtml += `<span class="redaction" data-id="${r.id}" onclick="toggleRedaction('${r.id}')">${escapeHtml(displayText)}<span class="redaction-tooltip">${r.type}</span></span>`;
+                lastIdx = r.end;
+            }
+            contentHtml += escapeHtml(text.substring(lastIdx));
+            container.innerHTML = contentHtml;
+        }
+
+        function toggleRedaction(id) {
+            const index = redactions.findIndex(red => red.id === id);
+            if (index !== -1) {
+                const r = redactions[index];
+                
+                // Remove the redaction and restore original text in redactedText
+                const text = redactionResponse.redactedText;
+                const before = text.substring(0, r.start);
+                const after = text.substring(r.end);
+                
+                redactionResponse.redactedText = before + r.text + after;
+                
+                const shift = r.text.length - (r.end - r.start);
+                
+                // Remove it from the list
+                redactions.splice(index, 1);
+                
+                // Adjust all subsequent redactions
+                redactions.forEach(red => {
+                    if (red.start >= r.end) {
+                        red.start += shift;
+                        red.end += shift;
+                    }
+                });
+                
+                renderContent();
+            }
+        }
+
+        function downloadRedacted() {
+            // Since we now update redactionResponse.redactedText in real-time, 
+            // and we remove redactions completely, the redactedText always contains the final version.
+            document.getElementById('finalRedactedText').value = redactionResponse.redactedText;
+            
+            // If it's a PDF, we should also include the redactions in the form
+            // so the server can apply them to the original PDF.
+            if (redactionResponse.redactions) {
+                redactions.forEach((r, index) => {
+                    const input = document.createElement('input');
+                    input.type = 'hidden';
+                    input.name = `redactions[${index}].id`;
+                    input.value = r.id;
+                    document.getElementById('downloadForm').appendChild(input);
+                    
+                    const textInput = document.createElement('input');
+                    textInput.type = 'hidden';
+                    textInput.name = `redactions[${index}].text`;
+                    textInput.value = r.text;
+                    document.getElementById('downloadForm').appendChild(textInput);
+                    
+                    const startInput = document.createElement('input');
+                    startInput.type = 'hidden';
+                    startInput.name = `redactions[${index}].start`;
+                    startInput.value = r.start;
+                    document.getElementById('downloadForm').appendChild(startInput);
+                    
+                    const endInput = document.createElement('input');
+                    endInput.type = 'hidden';
+                    endInput.name = `redactions[${index}].end`;
+                    endInput.value = r.end;
+                    document.getElementById('downloadForm').appendChild(endInput);
+                    
+                    const typeInput = document.createElement('input');
+                    typeInput.type = 'hidden';
+                    typeInput.name = `redactions[${index}].type`;
+                    typeInput.value = r.type;
+                    document.getElementById('downloadForm').appendChild(typeInput);
+
+                    const pageInput = document.createElement('input');
+                    pageInput.type = 'hidden';
+                    pageInput.name = `redactions[${index}].pageNumber`;
+                    pageInput.value = r.pageNumber;
+                    document.getElementById('downloadForm').appendChild(pageInput);
+
+                    const llxInput = document.createElement('input');
+                    llxInput.type = 'hidden';
+                    llxInput.name = `redactions[${index}].lowerLeftX`;
+                    llxInput.value = r.lowerLeftX;
+                    document.getElementById('downloadForm').appendChild(llxInput);
+
+                    const llyInput = document.createElement('input');
+                    llyInput.type = 'hidden';
+                    llyInput.name = `redactions[${index}].lowerLeftY`;
+                    llyInput.value = r.lowerLeftY;
+                    document.getElementById('downloadForm').appendChild(llyInput);
+
+                    const urxInput = document.createElement('input');
+                    urxInput.type = 'hidden';
+                    urxInput.name = `redactions[${index}].upperRightX`;
+                    urxInput.value = r.upperRightX;
+                    document.getElementById('downloadForm').appendChild(urxInput);
+
+                    const uryInput = document.createElement('input');
+                    uryInput.type = 'hidden';
+                    uryInput.name = `redactions[${index}].upperRightY`;
+                    uryInput.value = r.upperRightY;
+                    document.getElementById('downloadForm').appendChild(uryInput);
+                });
+            }
+
+            document.getElementById('downloadForm').submit();
+        }
+
+        function escapeHtml(unsafe) {
+            return unsafe
+                 .replace(/&/g, "&amp;")
+                 .replace(/</g, "&lt;")
+                 .replace(/>/g, "&gt;")
+                 .replace(/"/g, "&quot;")
+                 .replace(/'/g, "&#039;");
+         }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderContent();
+            
+            const container = document.getElementById('redactedContent');
+            const contentType = container.getAttribute('data-content-type');
+            if (contentType === 'application/pdf') {
+                document.getElementById('toggleViewBtn').style.display = 'inline-block';
+            }
+
+            document.getElementById('redactedContent').addEventListener('mouseup', handleMouseUp);
+            // Hide selector when clicking elsewhere
+            document.addEventListener('mousedown', (e) => {
+                if (!document.getElementById('typeSelector').contains(e.target) && 
+                    !document.getElementById('redactedContent').contains(e.target)) {
+                    hideTypeSelector();
+                }
+            });
+        });
+        /*]]>*/
+    </script>
+</body>
+</html>

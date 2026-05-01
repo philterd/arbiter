@@ -1,0 +1,69 @@
+# Arbiter
+
+Arbiter is a web application that provides the ability to upload text and documents for redaction by [Philter](https://www.philterd.ai/philter) via Philter's API or [Phileas](https://github.com/philterd/phileas) directly.
+
+## Features
+
+- **Multi-format Support**: Redact plain text and searchable PDF documents.
+- **Interactive Redaction**: Review and modify redactions in a modern web interface.
+- **Manual Redaction**: Highlight text to add custom redactions with specific PII types.
+- **Dual Redaction Engines**:
+    - **Philter**: Uses a remote Philter instance via its API.
+    - **Phileas**: Uses the Phileas library directly within the application.
+- **PDF Preview**: View redacted PDF documents directly in the browser.
+- **Download**: Export redacted documents in their original format.
+
+## Project Structure
+
+Arbiter is a multi-module Maven project:
+
+- `arbiter-core`: Contains common data models for redactions and responses.
+- `arbiter-philter-client`: Client implementation for interacting with the Philter API.
+- `arbiter-service`: Core service logic and Phileas integration.
+- `arbiter-webapp`: Spring Boot web application with Thymeleaf templates.
+
+## Getting Started
+
+### Prerequisites
+
+- Java 17 or higher
+- Maven 3.6 or higher
+
+### Configuration
+
+The application can be configured to use either a remote Philter instance or local Phileas. This is controlled by the `philter.url` property in `arbiter-webapp/src/main/resources/application.properties`.
+
+- **To use Philter**: Set `philter.url` to your Philter endpoint (e.g., `http://localhost:8080`).
+- **To use Phileas**: Leave `philter.url` empty or commented out.
+
+### Building the Project
+
+From the root directory, run:
+
+```bash
+mvn clean install
+```
+
+### Running the Application
+
+After building, you can run the web application:
+
+```bash
+mvn spring-boot:run -pl arbiter-webapp
+```
+
+The application will be available at `http://localhost:8081`.
+
+## Usage
+
+1. **Upload**: Select a `.txt` or `.pdf` file to upload.
+2. **Review**: The application will show the redacted text. Highlights indicate PII that has been found.
+3. **Modify**:
+    - Click a highlighted redaction to remove it and restore the original text.
+    - Select any text to add a manual redaction. A floating menu will allow you to choose the PII type.
+4. **Preview**: For PDF files, use the "View PDF" toggle to see how the redacted PDF looks.
+5. **Download**: Click "Download Redacted Document" to get the final version.
+
+## License
+
+Apache License 2.0
