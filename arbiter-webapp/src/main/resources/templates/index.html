@@ -18,26 +18,23 @@
 <head>
     <meta charset="UTF-8">
     <title>Arbiter - Document Redaction</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body { background-color: #f8f9fa; }
-        .container { max-width: 800px; margin-top: 50px; }
-        .card { padding: 20px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-    </style>
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <div class="container">
-        <div class="card text-center">
-            <h1 class="mb-4">Arbiter</h1>
-            <p class="lead">Upload a document for redaction</p>
-            <form th:action="@{/redact}" method="post" enctype="multipart/form-data">
-                <div class="mb-3">
-                    <input class="form-control" type="file" name="file" id="fileInput" required>
+<body class="bg-gray-50">
+    <div class="max-w-3xl mx-auto mt-12 px-4">
+        <div class="bg-white p-8 rounded-xl shadow-md text-center border border-gray-100">
+            <h1 class="text-4xl font-bold mb-4 text-gray-900">Arbiter</h1>
+            <p class="text-xl text-gray-600 mb-8">Upload a document for redaction</p>
+            <form th:action="@{/redact}" method="post" enctype="multipart/form-data" class="space-y-6">
+                <div>
+                    <input class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 p-2.5" type="file" name="file" id="fileInput" required>
                 </div>
-                <button type="submit" class="btn btn-primary btn-lg">Redact Document</button>
+                <button type="submit" class="w-full sm:w-auto px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition duration-200">
+                    Redact Document
+                </button>
             </form>
-            <div class="mt-4 text-muted">
-                <small>Supported formats: .txt, .pdf (searchable)</small>
+            <div class="mt-8 text-sm text-gray-500">
+                <p>Supported formats: .txt, .pdf (searchable)</p>
             </div>
         </div>
     </div>

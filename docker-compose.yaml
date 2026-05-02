@@ -1,0 +1,26 @@
+services:
+
+  mongodb:
+    image: mongo:latest
+    container_name: arbiter-mongodb
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.runCommand({ping:1})"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  arbiter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: arbiter-app
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/arbiter
+    depends_on:
+      mongodb:
+        condition: service_healthy

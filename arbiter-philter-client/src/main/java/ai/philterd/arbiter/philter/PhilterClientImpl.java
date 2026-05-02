@@ -112,6 +112,7 @@ public class PhilterClientImpl implements PhilterClient {
                     r.setStart(startInFinal);
                     r.setEnd(startInFinal + replacement.length());
                     r.setType(type);
+                    r.setConfidence((Double) exp.getOrDefault("confidence", 0.0));
                     redactions.add(r);
 
                     offset += (replacement.length() - (end - start));

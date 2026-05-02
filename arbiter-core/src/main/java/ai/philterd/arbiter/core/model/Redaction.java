@@ -21,6 +21,7 @@ public class Redaction {
     private int start;
     private int end;
     private String type;
+    private double confidence;
     private int pageNumber;
     private float lowerLeftX;
     private float lowerLeftY;
@@ -28,6 +29,29 @@ public class Redaction {
     private float upperRightY;
 
     public Redaction() {
+    }
+
+    public Redaction(String id, String text, int start, int end, String type, double confidence) {
+        this.id = id;
+        this.text = text;
+        this.start = start;
+        this.end = end;
+        this.type = type;
+        this.confidence = confidence;
+    }
+
+    public Redaction(String id, String text, int start, int end, String type, double confidence, int pageNumber, float lowerLeftX, float lowerLeftY, float upperRightX, float upperRightY) {
+        this.id = id;
+        this.text = text;
+        this.start = start;
+        this.end = end;
+        this.type = type;
+        this.confidence = confidence;
+        this.pageNumber = pageNumber;
+        this.lowerLeftX = lowerLeftX;
+        this.lowerLeftY = lowerLeftY;
+        this.upperRightX = upperRightX;
+        this.upperRightY = upperRightY;
     }
 
     public Redaction(String id, String text, int start, int end, String type) {
@@ -89,6 +113,14 @@ public class Redaction {
 
     public void setType(String type) {
         this.type = type;
+    }
+
+    public double getConfidence() {
+        return confidence;
+    }
+
+    public void setConfidence(double confidence) {
+        this.confidence = confidence;
     }
 
     public int getPageNumber() {
