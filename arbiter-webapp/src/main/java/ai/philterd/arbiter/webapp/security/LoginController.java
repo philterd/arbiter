@@ -13,17 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package ai.philterd.arbiter.philter;
+package ai.philterd.arbiter.webapp.security;
 
-import ai.philterd.arbiter.core.model.RedactionResponse;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
 
-import java.io.IOException;
-import java.util.List;
-import java.util.Map;
+@Controller
+public class LoginController {
 
-public interface PhilterClient {
-    RedactionResponse redact(String text, String context) throws IOException;
-    RedactionResponse redactPdf(byte[] pdfBytes, String context) throws IOException;
-    Map<String, Object> explain(String text, String context) throws IOException;
-    String redact(String text, String context, List<ai.philterd.arbiter.core.model.Redaction> approvedSpans) throws IOException;
+    @GetMapping("/login")
+    public String login() {
+        return "login";
+    }
 }

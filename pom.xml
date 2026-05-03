@@ -38,7 +38,9 @@
         <module>arbiter-core</module>
         <module>arbiter-philter-client</module>
         <module>arbiter-service</module>
+        <module>arbiter-data</module>
         <module>arbiter-webapp</module>
+        <module>arbiter-api</module>
     </modules>
 
     <properties>
@@ -73,6 +75,16 @@
             <dependency>
                 <groupId>ai.philterd.arbiter</groupId>
                 <artifactId>arbiter-service</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ai.philterd.arbiter</groupId>
+                <artifactId>arbiter-data</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ai.philterd.arbiter</groupId>
+                <artifactId>arbiter-api</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

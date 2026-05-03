@@ -20,17 +20,12 @@ import ai.philterd.arbiter.core.model.RedactionResponse;
 import ai.philterd.arbiter.philter.PhilterClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.pdfbox.Loader;
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.text.PDFTextStripper;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.List;
 import java.util.Properties;
 import java.util.UUID;
 

@@ -34,6 +34,7 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.UUID;
 
@@ -172,5 +173,38 @@ public class PhileasClient implements PhilterClient {
         } catch (Exception e) {
             throw new IOException("Failed to redact PDF via Phileas", e);
         }
+    }
+    @Override
+    public Map<String, Object> explain(String text, String context) throws IOException {
+        // Mocking explain for Phileas local
+        RedactionResponse response = redact(text, context);
+        List<Map<String, Object>> explanation = response.getRedactions().stream().map(r -> {
+            Map<String, Object> map = new java.util.HashMap<>();
+            map.put("text", r.getText());
+            map.put("type", r.getType());
+            map.put("characterStart", r.getStart());
+            map.put("characterEnd", r.getEnd());
+            map.put("confidence", 1.0);
+            return map;
+        }).collect(java.util.stream.Collectors.toList());
+
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("filteredText", response.getRedactedText());
+        result.put("explanation", explanation);
+        return result;
+    }
+
+    @Override
+    public String redact(String text, String context, List<ai.philterd.arbiter.core.model.Redaction> approvedSpans) throws IOException {
+        // Mocking manual redaction for Phileas local
+        StringBuilder sb = new StringBuilder(text);
+        List<ai.philterd.arbiter.core.model.Redaction> sortedSpans = new ArrayList<>(approvedSpans);
+        sortedSpans.sort((a, b) -> b.getStart() - a.getStart());
+
+        for (ai.philterd.arbiter.core.model.Redaction span : sortedSpans) {
+            sb.replace(span.getStart(), span.getEnd(), span.getType().toUpperCase());
+        }
+
+        return sb.toString();
     }
 }

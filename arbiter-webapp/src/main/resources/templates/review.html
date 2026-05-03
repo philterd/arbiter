@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Arbiter - Review Document</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .text-pane {
+            background-color: white;
+            padding: 20px;
+            border: 1px solid #e5e7eb;
+            border-radius: 0.5rem;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            white-space: pre-wrap;
+            line-height: 1.8;
+            min-height: 400px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+        .original-pane { background-color: #f9fafb; }
+        .redaction {
+            background-color: #fef08a;
+            padding: 0 4px;
+            border-radius: 0.25rem;
+            position: relative;
+            cursor: help;
+        }
+        .redaction:hover { background-color: #fde047; }
+        .redaction-tooltip {
+            visibility: hidden;
+            background-color: #111827;
+            color: #fff;
+            text-align: center;
+            border-radius: 0.375rem;
+            padding: 4px 8px;
+            position: absolute;
+            z-index: 10;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            opacity: 0;
+            transition: opacity 200ms;
+            font-size: 0.75rem;
+            white-space: nowrap;
+        }
+        .redaction:hover .redaction-tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="flex min-h-screen">
+        <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
+            <div class="px-6 py-5 border-b border-gray-200">
+                <h1 class="text-2xl font-bold text-gray-900">Arbiter</h1>
+            </div>
+            <nav class="flex-1 px-3 py-4 space-y-1">
+                <a th:href="@{/}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path>
+                    </svg>
+                    Queue
+                </a>
+                <a th:href="@{/upload}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12"></path>
+                    </svg>
+                    Upload
+                </a>
+            </nav>
+            <div class="px-3 py-4 border-t border-gray-200 text-sm text-gray-600">
+                <div class="px-3 mb-2">Signed in as <span class="font-medium" sec:authentication="name">user</span></div>
+                <form th:action="@{/logout}" method="post">
+                    <button type="submit" class="w-full text-left px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100">
+                        Sign out
+                    </button>
+                </form>
+            </div>
+        </aside>
+
+        <main class="flex-1 p-8">
+            <div class="flex justify-between items-start mb-6 gap-4">
+                <div>
+                    <a th:href="@{/}" class="text-sm text-blue-600 hover:text-blue-800 mb-2 inline-block">&larr; Back to queue</a>
+                    <h2 class="text-3xl font-bold text-gray-900" th:text="${document.filename}">Document</h2>
+                    <div class="text-sm text-gray-600 mt-1 space-x-3">
+                        <span>Status: <span class="font-medium" th:text="${document.status}">STATUS</span></span>
+                        <span>Risk Score: <span class="font-medium" th:text="${#numbers.formatDecimal(document.riskScore, 1, 2)}">0.00</span></span>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-2"
+                     th:with="terminal=${ {'APPROVED','REJECTED','FAILED'} }">
+                    <div th:if="${terminal.contains(document.status)}" class="text-sm text-gray-500">
+                        Decision recorded: <span class="font-medium" th:text="${document.status}">STATUS</span>
+                    </div>
+                    <form th:if="${!terminal.contains(document.status)}"
+                          th:action="@{/review/{id}/reject(id=${document.id})}" method="post" class="inline">
+                        <button type="submit"
+                                class="px-4 py-2 border border-red-600 text-red-600 hover:bg-red-50 font-medium rounded-lg transition duration-200">
+                            Reject
+                        </button>
+                    </form>
+                    <form th:if="${!terminal.contains(document.status)}"
+                          th:action="@{/review/{id}/approve(id=${document.id})}" method="post" class="inline">
+                        <button type="submit"
+                                class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-200">
+                            Approve
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <h3 class="text-lg font-semibold mb-2 text-gray-800">Original</h3>
+                    <div id="originalPane" class="text-pane original-pane"></div>
+                </div>
+                <div>
+                    <h3 class="text-lg font-semibold mb-2 text-gray-800">Redacted</h3>
+                    <div id="redactedPane" class="text-pane"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        const originalText = /*[[${originalText}]]*/ '';
+        const redactedText = /*[[${redactedText}]]*/ '';
+        const originalRedactions = /*[[${originalRedactions}]]*/ [];
+        const redactedRedactions = /*[[${redactedRedactions}]]*/ [];
+
+        function escapeHtml(unsafe) {
+            return String(unsafe)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        function renderHighlighted(container, text, items) {
+            const sorted = [...items].sort((a, b) => a.start - b.start);
+            let html = '';
+            let cursor = 0;
+            for (const item of sorted) {
+                if (item.start < cursor) continue;
+                html += escapeHtml(text.substring(cursor, item.start));
+                const display = escapeHtml(text.substring(item.start, item.end));
+                const tooltip = `${escapeHtml(item.type)} · ${(item.confidence * 100).toFixed(0)}%`;
+                html += `<span class="redaction">${display}<span class="redaction-tooltip">${tooltip}</span></span>`;
+                cursor = item.end;
+            }
+            html += escapeHtml(text.substring(cursor));
+            container.innerHTML = html;
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            renderHighlighted(document.getElementById('originalPane'), originalText, originalRedactions);
+            renderHighlighted(document.getElementById('redactedPane'), redactedText, redactedRedactions);
+
+            const left = document.getElementById('originalPane');
+            const right = document.getElementById('redactedPane');
+            let syncing = null;
+            left.addEventListener('scroll', () => {
+                if (syncing === 'right') return;
+                syncing = 'left';
+                right.scrollTop = left.scrollTop;
+                requestAnimationFrame(() => { syncing = null; });
+            });
+            right.addEventListener('scroll', () => {
+                if (syncing === 'left') return;
+                syncing = 'right';
+                left.scrollTop = right.scrollTop;
+                requestAnimationFrame(() => { syncing = null; });
+            });
+        });
+        /*]]>*/
+    </script>
+</body>
+</html>

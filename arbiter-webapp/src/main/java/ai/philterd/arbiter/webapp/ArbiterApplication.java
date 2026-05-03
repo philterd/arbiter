@@ -17,12 +17,18 @@ package ai.philterd.arbiter.webapp;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.ComponentScan;
+import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
 
 @SpringBootApplication
 @ComponentScan(basePackages = "ai.philterd.arbiter")
+@EntityScan(basePackages = "ai.philterd.arbiter.model")
+@EnableMongoRepositories(basePackages = "ai.philterd.arbiter.repository")
 public class ArbiterApplication {
+
     public static void main(String[] args) {
         SpringApplication.run(ArbiterApplication.class, args);
     }
+
 }

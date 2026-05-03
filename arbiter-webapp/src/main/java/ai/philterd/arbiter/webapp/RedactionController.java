@@ -46,7 +46,12 @@ public class RedactionController {
     }
 
     @GetMapping("/")
-    public String index() {
+    public String dashboard() {
+        return "dashboard";
+    }
+
+    @GetMapping("/upload")
+    public String upload() {
         return "index";
     }
 
@@ -124,4 +129,5 @@ public class RedactionController {
                 .contentType(MediaType.parseMediaType(contentType))
                 .body(resource);
     }
+
 }

@@ -55,6 +55,53 @@ public class PhilterClientImpl implements PhilterClient {
     }
 
     @Override
+    public Map<String, Object> explain(String text, String context) throws IOException {
+        String explainUrl = philterUrl + "/api/explain?context=" + context;
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.TEXT_PLAIN);
+        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+
+        HttpEntity<String> explainRequest = new HttpEntity<>(text, headers);
+
+        try {
+            return restTemplate.postForObject(explainUrl, explainRequest, Map.class);
+        } catch (Exception e) {
+            log.error("Error calling Philter explain API", e);
+            throw new IOException("Failed to explain text via Philter", e);
+        }
+    }
+
+    @Override
+    public String redact(String text, String context, List<ai.philterd.arbiter.core.model.Redaction> approvedSpans) throws IOException {
+        // In a real Philter API, we might send the spans to be redacted.
+        // Philter's /api/filter accepts an optional list of spans to redact OR we just let Philter do its thing.
+        // But for HITL, we only want to redact the APPROVED spans.
+        // Philter has an endpoint where you can provide the spans.
+        
+        // For this implementation, let's assume we send a POST to /api/filter with the spans in a specific format if supported,
+        // or we manually redact them if the API doesn't support passing specific spans.
+        
+        // Let's assume Philter has a /api/redact endpoint that takes text and a list of spans.
+        String redactUrl = philterUrl + "/api/redact?context=" + context;
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        
+        Map<String, Object> body = Map.of(
+            "text", text,
+            "spans", approvedSpans
+        );
+        
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+        
+        try {
+            return restTemplate.postForObject(redactUrl, request, String.class);
+        } catch (Exception e) {
+            log.error("Error calling Philter redact API", e);
+            throw new IOException("Failed to redact text via Philter", e);
+        }
+    }
+
+    @Override
     public RedactionResponse redact(String text, String context) throws IOException {
         String url = philterUrl + "/api/filter?context=" + context;
 

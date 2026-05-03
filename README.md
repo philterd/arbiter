@@ -21,6 +21,7 @@ Arbiter is a multi-module Maven project:
 - `arbiter-philter-client`: Client implementation for interacting with the Philter API.
 - `arbiter-service`: Core service logic and Phileas integration.
 - `arbiter-webapp`: Spring Boot web application with Thymeleaf templates.
+- `arbiter-api`: REST API for programmatic access to Arbiter's redaction services.
 
 ## Getting Started
 

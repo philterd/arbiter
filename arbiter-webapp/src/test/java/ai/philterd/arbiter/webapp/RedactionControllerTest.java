@@ -17,12 +17,20 @@ package ai.philterd.arbiter.webapp;
 
 import ai.philterd.arbiter.core.model.Redaction;
 import ai.philterd.arbiter.core.model.RedactionResponse;
+import ai.philterd.arbiter.repository.BatchRepository;
+import ai.philterd.arbiter.repository.DocumentRepository;
+import ai.philterd.arbiter.repository.SpanRepository;
+import ai.philterd.arbiter.repository.UserRepository;
 import ai.philterd.arbiter.service.RedactionService;
+import ai.philterd.arbiter.webapp.security.MongoUserDetailsService;
+import ai.philterd.arbiter.webapp.security.SecurityConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.context.annotation.Import;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
@@ -30,11 +38,14 @@ import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(RedactionController.class)
+@Import({SecurityConfig.class, MongoUserDetailsService.class})
+@WithMockUser
 public class RedactionControllerTest {
 
     @Autowired
@@ -43,9 +54,28 @@ public class RedactionControllerTest {
     @MockBean
     private RedactionService redactionService;
 
+    @MockBean
+    private SpanRepository spanRepository;
+
+    @MockBean
+    private DocumentRepository documentRepository;
+
+    @MockBean
+    private BatchRepository batchRepository;
+
+    @MockBean
+    private UserRepository userRepository;
+
     @Test
-    public void testIndex() throws Exception {
+    public void testDashboard() throws Exception {
         mockMvc.perform(get("/"))
+                .andExpect(status().isOk())
+                .andExpect(view().name("dashboard"));
+    }
+
+    @Test
+    public void testUpload() throws Exception {
+        mockMvc.perform(get("/upload"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("index"));
     }
@@ -61,7 +91,7 @@ public class RedactionControllerTest {
 
         MockMultipartFile file = new MockMultipartFile("file", "test.txt", "text/plain", text.getBytes());
 
-        mockMvc.perform(multipart("/redact").file(file))
+        mockMvc.perform(multipart("/redact").file(file).with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(view().name("redact"))
                 .andExpect(model().attributeExists("redactionResponse"))
