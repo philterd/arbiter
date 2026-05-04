@@ -13,14 +13,22 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package ai.philterd.arbiter.service;
+package ai.philterd.arbiter.philter;
 
-import ai.philterd.arbiter.core.model.RedactionResponse;
-import java.io.IOException;
-import java.io.InputStream;
+import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
-public interface RedactionService {
-    RedactionResponse redactText(String text, String philterInstanceId) throws IOException;
-    RedactionResponse redactPdf(InputStream inputStream, String philterInstanceId) throws IOException;
-    byte[] getRedactedPdf(InputStream originalPdf, RedactionResponse redactionResponse, String philterInstanceId) throws IOException;
+@Service
+public class DefaultPhilterClientFactory implements PhilterClientFactory {
+
+    private final RestTemplate restTemplate;
+
+    public DefaultPhilterClientFactory(RestTemplate restTemplate) {
+        this.restTemplate = restTemplate;
+    }
+
+    @Override
+    public PhilterClient create(String philterUrl) {
+        return new PhilterClientImpl(restTemplate, philterUrl);
+    }
 }

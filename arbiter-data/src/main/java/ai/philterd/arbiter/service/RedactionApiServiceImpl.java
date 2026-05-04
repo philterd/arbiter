@@ -4,10 +4,13 @@ import ai.philterd.arbiter.model.Batch;
 import ai.philterd.arbiter.model.Document;
 import ai.philterd.arbiter.model.IngestStatus;
 import ai.philterd.arbiter.model.Location;
+import ai.philterd.arbiter.model.PhilterInstance;
 import ai.philterd.arbiter.model.Span;
 import ai.philterd.arbiter.philter.PhilterClient;
+import ai.philterd.arbiter.philter.PhilterClientFactory;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
+import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import ai.philterd.arbiter.repository.SpanRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -18,6 +21,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -26,19 +30,50 @@ public class RedactionApiServiceImpl implements RedactionApiService {
 
     private static final Logger log = LoggerFactory.getLogger(RedactionApiServiceImpl.class);
 
-    private final PhilterClient philterClient;
+    private final PhilterClient phileasClient;
+    private final PhilterClientFactory philterClientFactory;
+    private final PhilterInstanceRepository philterInstanceRepository;
     private final DocumentRepository documentRepository;
     private final SpanRepository spanRepository;
     private final BatchRepository batchRepository;
 
-    public RedactionApiServiceImpl(@Qualifier("philterClient") PhilterClient philterClient,
+    public RedactionApiServiceImpl(@Qualifier("phileasClient") PhilterClient phileasClient,
+                                   PhilterClientFactory philterClientFactory,
+                                   PhilterInstanceRepository philterInstanceRepository,
                                    DocumentRepository documentRepository,
                                    SpanRepository spanRepository,
                                    BatchRepository batchRepository) {
-        this.philterClient = philterClient;
+        this.phileasClient = phileasClient;
+        this.philterClientFactory = philterClientFactory;
+        this.philterInstanceRepository = philterInstanceRepository;
         this.documentRepository = documentRepository;
         this.spanRepository = spanRepository;
         this.batchRepository = batchRepository;
+    }
+
+    private PhilterClient philterClient(Batch batch) {
+        String instanceId = batch == null ? null : batch.getPhilterInstanceId();
+        if (instanceId == null || instanceId.isBlank()) {
+            log.info("Batch \"{}\" uses Embedded Philter (local Phileas).",
+                    batch == null ? "?" : batch.getName());
+            return phileasClient;
+        }
+        Optional<PhilterInstance> instance = philterInstanceRepository.findById(instanceId);
+        if (instance.isEmpty()) {
+            log.warn("Philter instance {} configured on batch \"{}\" no longer exists; "
+                    + "falling back to Embedded Philter.", instanceId, batch.getName());
+            return phileasClient;
+        }
+        return philterClientFactory.create(baseUrl(instance.get()));
+    }
+
+    private static String baseUrl(PhilterInstance instance) {
+        String host = instance.getEndpoint();
+        if (host == null || host.isBlank()) host = "localhost";
+        if (!host.startsWith("http://") && !host.startsWith("https://")) {
+            host = "http://" + host;
+        }
+        return host + ":" + instance.getPort();
     }
 
     @Override
@@ -48,7 +83,7 @@ public class RedactionApiServiceImpl implements RedactionApiService {
         double threshold = batch == null ? 0.8 : batch.getConfidenceThreshold();
 
         String contextId = UUID.randomUUID().toString();
-        Map<String, Object> explanation = philterClient.explain(text, contextId);
+        Map<String, Object> explanation = philterClient(batch).explain(text, contextId);
 
         List<Map<String, Object>> explanationSpans = (List<Map<String, Object>>) explanation.get("explanation");
 
@@ -84,6 +119,7 @@ public class RedactionApiServiceImpl implements RedactionApiService {
     @Override
     public String finalizeRedaction(String documentId) throws IOException {
         Document document = documentRepository.findById(documentId).orElseThrow();
+        Batch batch = batchRepository.findById(document.getBatchId() == null ? "" : document.getBatchId()).orElse(null);
         List<Span> spans = spanRepository.findByDocumentId(documentId);
 
         List<ai.philterd.arbiter.core.model.Redaction> approvedSpans = spans.stream()
@@ -100,7 +136,7 @@ public class RedactionApiServiceImpl implements RedactionApiService {
 
         String originalText = "Original text placeholder";
 
-        String finalizedText = philterClient.redact(originalText, document.getPhilterContextId(), approvedSpans);
+        String finalizedText = philterClient(batch).redact(originalText, document.getPhilterContextId(), approvedSpans);
 
         document.setStatus("AUTO_APPROVED");
         documentRepository.save(document);

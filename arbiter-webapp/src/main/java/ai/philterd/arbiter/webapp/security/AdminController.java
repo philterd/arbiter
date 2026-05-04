@@ -15,10 +15,12 @@
  */
 package ai.philterd.arbiter.webapp.security;
 
+import ai.philterd.arbiter.model.NotificationSettings;
 import ai.philterd.arbiter.model.Roles;
 import ai.philterd.arbiter.model.User;
 import ai.philterd.arbiter.repository.UserRepository;
 import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.service.NotificationSettingsService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
@@ -43,13 +45,19 @@ public class AdminController {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuditLogService auditLogService;
+    private final NotificationSettingsService notificationSettingsService;
+    private final UserNotificationService userNotificationService;
 
     public AdminController(UserRepository userRepository,
                            PasswordEncoder passwordEncoder,
-                           AuditLogService auditLogService) {
+                           AuditLogService auditLogService,
+                           NotificationSettingsService notificationSettingsService,
+                           UserNotificationService userNotificationService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.auditLogService = auditLogService;
+        this.notificationSettingsService = notificationSettingsService;
+        this.userNotificationService = userNotificationService;
     }
 
     @GetMapping("/users")
@@ -57,8 +65,10 @@ public class AdminController {
         List<User> users = userRepository.findAll();
         users.sort(Comparator.comparing(
                 (User u) -> u.getEmail() == null ? "" : u.getEmail().toLowerCase()));
+        NotificationSettings notifications = notificationSettingsService.load();
         model.addAttribute("users", users);
         model.addAttribute("currentEmail", authentication == null ? null : authentication.getName());
+        model.addAttribute("notificationsEnabled", notifications.isEnabled());
         return "admin-users";
     }
 
@@ -66,6 +76,7 @@ public class AdminController {
     public String create(@RequestParam("email") String email,
                          @RequestParam("password") String password,
                          @RequestParam(value = "admin", defaultValue = "false") boolean admin,
+                         @RequestParam(value = "sendEmail", defaultValue = "false") boolean sendEmail,
                          RedirectAttributes redirectAttributes) {
         String trimmed = email == null ? "" : email.trim().toLowerCase();
         if (trimmed.isEmpty()) {
@@ -92,8 +103,28 @@ public class AdminController {
         user.setRoles(rolesFor(admin));
         userRepository.save(user);
         auditLogService.log("USER_CREATE", "User", user.getId(),
-                Map.of("email", trimmed, "admin", admin));
-        redirectAttributes.addFlashAttribute("success", "User \"" + trimmed + "\" created.");
+                Map.of("email", trimmed, "admin", admin, "sendEmail", sendEmail));
+
+        String success = "User \"" + trimmed + "\" created.";
+        if (sendEmail) {
+            NotificationSettings settings = notificationSettingsService.load();
+            if (!settings.isEnabled()) {
+                redirectAttributes.addFlashAttribute("error",
+                        "User created, but outbound email is not enabled, so no welcome email was sent.");
+                return "redirect:/admin/users";
+            }
+            boolean sent = userNotificationService.sendNewUserCredentials(trimmed, password);
+            if (sent) {
+                auditLogService.log("USER_CREATE_EMAIL_SENT", "User", user.getId(),
+                        Map.of("email", trimmed));
+                success += " Welcome email sent.";
+            } else {
+                redirectAttributes.addFlashAttribute("error",
+                        "User created, but the welcome email could not be sent. Check the SMTP settings under Admin → Notifications.");
+                return "redirect:/admin/users";
+            }
+        }
+        redirectAttributes.addFlashAttribute("success", success);
         return "redirect:/admin/users";
     }
 

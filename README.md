@@ -32,10 +32,10 @@ Arbiter is a multi-module Maven project:
 
 ### Configuration
 
-The application can be configured to use either a remote Philter instance or local Phileas. This is controlled by the `philter.url` property in `arbiter-webapp/src/main/resources/application.properties`.
+The application can be configured to use either a remote Philter instance or its bundled local Phileas library. Philter instances are managed at runtime by an administrator under **Admin → Philter** in the web UI:
 
-- **To use Philter**: Set `philter.url` to your Philter endpoint (e.g., `http://localhost:8080`).
-- **To use Phileas**: Leave `philter.url` empty or commented out.
+- **To use Philter**: Sign in as an admin, register one or more Philter instances (name, endpoint, port), then choose one as the default. Documents are then redacted via that instance.
+- **To use Phileas**: Leave the default Philter instance unset. Arbiter falls back to the bundled local Phileas library.
 
 ### Building the Project
 

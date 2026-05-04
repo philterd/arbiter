@@ -19,11 +19,9 @@ import ai.philterd.arbiter.core.model.Redaction;
 import ai.philterd.arbiter.core.model.RedactionResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
-import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
@@ -32,7 +30,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-@Service("philterClient")
 public class PhilterClientImpl implements PhilterClient {
 
     private static final Logger log = LoggerFactory.getLogger(PhilterClientImpl.class);
@@ -40,7 +37,7 @@ public class PhilterClientImpl implements PhilterClient {
     private final RestTemplate restTemplate;
     private final String philterUrl;
 
-    public PhilterClientImpl(RestTemplate restTemplate, @Value("${philter.url:http://localhost:8080}") String philterUrl) {
+    public PhilterClientImpl(RestTemplate restTemplate, String philterUrl) {
         this.restTemplate = restTemplate;
         this.philterUrl = philterUrl;
     }

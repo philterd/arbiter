@@ -17,6 +17,8 @@ package ai.philterd.arbiter.webapp;
 
 import ai.philterd.arbiter.model.Batch;
 import ai.philterd.arbiter.model.Group;
+import ai.philterd.arbiter.model.PhilterDefaults;
+import ai.philterd.arbiter.model.PhilterInstance;
 import ai.philterd.arbiter.model.PiiTypes;
 import ai.philterd.arbiter.model.PiiWeights;
 import ai.philterd.arbiter.model.WeightSet;
@@ -24,8 +26,10 @@ import ai.philterd.arbiter.model.Document;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.GroupRepository;
+import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import ai.philterd.arbiter.repository.WeightSetRepository;
 import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.service.PhilterDefaultsService;
 import ai.philterd.arbiter.service.UserGroupsService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -60,19 +64,25 @@ public class BatchController {
     private final UserGroupsService userGroupsService;
     private final AuditLogService auditLogService;
     private final WeightSetRepository weightSetRepository;
+    private final PhilterInstanceRepository philterInstanceRepository;
+    private final PhilterDefaultsService philterDefaultsService;
 
     public BatchController(BatchRepository batchRepository,
                            DocumentRepository documentRepository,
                            GroupRepository groupRepository,
                            UserGroupsService userGroupsService,
                            AuditLogService auditLogService,
-                           WeightSetRepository weightSetRepository) {
+                           WeightSetRepository weightSetRepository,
+                           PhilterInstanceRepository philterInstanceRepository,
+                           PhilterDefaultsService philterDefaultsService) {
         this.batchRepository = batchRepository;
         this.documentRepository = documentRepository;
         this.groupRepository = groupRepository;
         this.userGroupsService = userGroupsService;
         this.auditLogService = auditLogService;
         this.weightSetRepository = weightSetRepository;
+        this.philterInstanceRepository = philterInstanceRepository;
+        this.philterDefaultsService = philterDefaultsService;
     }
 
     private static boolean isAdmin(Authentication auth) {
@@ -117,6 +127,11 @@ public class BatchController {
         assignableGroups.sort(Comparator.comparing(
                 (Group g) -> g.getName() == null ? "" : g.getName().toLowerCase()));
 
+        Map<String, String> philterInstanceNamesById = new LinkedHashMap<>();
+        for (PhilterInstance i : philterInstanceRepository.findAll()) {
+            philterInstanceNamesById.put(i.getId(), i.getName());
+        }
+
         PageRequest firstByFilename = PageRequest.of(0, 1, Sort.by("filename", "id"));
         List<Map<String, Object>> rows = new ArrayList<>();
         for (Batch batch : batches) {
@@ -133,6 +148,12 @@ public class BatchController {
             row.put("queuedCount", total - terminal);
             row.put("groupId", batch.getGroupId());
             row.put("groupName", batch.getGroupId() == null ? null : groupNamesById.get(batch.getGroupId()));
+            row.put("philterInstanceId", batch.getPhilterInstanceId());
+            String philterName = batch.getPhilterInstanceId() == null
+                    ? "Embedded Philter"
+                    : philterInstanceNamesById.getOrDefault(batch.getPhilterInstanceId(), "(missing)");
+            row.put("philterInstanceName", philterName);
+            row.put("policyName", batch.getPolicyName());
             row.put("closed", batch.isClosed());
             row.put("closedAt", batch.getClosedAt());
             String firstUnreviewedId = null;
@@ -152,8 +173,16 @@ public class BatchController {
         boolean ascending = "asc".equalsIgnoreCase(dir);
         rows.sort(comparatorFor(activeSort, ascending));
 
+        List<PhilterInstance> philterInstances = new ArrayList<>(philterInstanceRepository.findAll());
+        philterInstances.sort(Comparator.comparing(
+                (PhilterInstance i) -> i.getName() == null ? "" : i.getName().toLowerCase()));
+
+        PhilterDefaults philterDefaults = philterDefaultsService.load();
+
         model.addAttribute("batches", rows);
         model.addAttribute("groups", assignableGroups);
+        model.addAttribute("philterInstances", philterInstances);
+        model.addAttribute("defaultPhilterInstanceId", philterDefaults.getDefaultInstanceId());
         model.addAttribute("isAdmin", admin);
         model.addAttribute("myGroupsOnly", myGroupsOnly);
         model.addAttribute("currentSort", activeSort);
@@ -182,6 +211,8 @@ public class BatchController {
                          @RequestParam(value = "confidenceThreshold", required = false) Double confidenceThreshold,
                          @RequestParam(value = "documentThreshold", required = false) Double documentThreshold,
                          @RequestParam("groupId") String groupId,
+                         @RequestParam(value = "philterInstanceId", required = false) String philterInstanceId,
+                         @RequestParam(value = "policyName", required = false) String policyName,
                          Authentication authentication,
                          RedirectAttributes redirectAttributes) {
         if (!isAdmin(authentication)) {
@@ -207,6 +238,11 @@ public class BatchController {
             redirectAttributes.addFlashAttribute("error", "A valid group must be selected.");
             return "redirect:/batches";
         }
+        String trimmedPhilterId = philterInstanceId == null ? "" : philterInstanceId.trim();
+        if (!trimmedPhilterId.isEmpty() && !philterInstanceRepository.existsById(trimmedPhilterId)) {
+            redirectAttributes.addFlashAttribute("error", "Selected Philter instance no longer exists.");
+            return "redirect:/batches";
+        }
         if (batchRepository.findByName(trimmed).isPresent()) {
             redirectAttributes.addFlashAttribute("error",
                     "A batch named \"" + trimmed + "\" already exists.");
@@ -218,6 +254,9 @@ public class BatchController {
         batch.setCreatedAt(LocalDateTime.now());
         batch.setOwnerId(authentication == null ? "unknown" : authentication.getName());
         batch.setGroupId(groupId);
+        batch.setPhilterInstanceId(trimmedPhilterId.isEmpty() ? null : trimmedPhilterId);
+        String trimmedPolicy = policyName == null ? "" : policyName.trim();
+        batch.setPolicyName(trimmedPolicy.isEmpty() ? null : trimmedPolicy);
         if (normalizedPii != null) {
             batch.setConfidenceThreshold(normalizedPii);
         }
@@ -234,9 +273,53 @@ public class BatchController {
         }
         auditLogService.log("BATCH_CREATE", "Batch", batch.getId(),
                 Map.of("name", trimmed, "groupId", groupId,
+                        "philterInstanceId", trimmedPhilterId.isEmpty() ? "embedded" : trimmedPhilterId,
+                        "policyName", trimmedPolicy,
                         "confidenceThreshold", batch.getConfidenceThreshold(),
                         "documentThreshold", batch.getDocumentThreshold()));
         redirectAttributes.addFlashAttribute("success", "Batch \"" + trimmed + "\" created.");
+        return "redirect:/batches";
+    }
+
+    @PostMapping("/{batchId}/philter")
+    public String changePhilter(@PathVariable String batchId,
+                                @RequestParam(value = "philterInstanceId", required = false) String philterInstanceId,
+                                @RequestParam(value = "policyName", required = false) String policyName,
+                                Authentication authentication,
+                                RedirectAttributes redirectAttributes) {
+        if (!isAdmin(authentication)) {
+            redirectAttributes.addFlashAttribute("error", "Only administrators can modify batches.");
+            return "redirect:/batches";
+        }
+        Batch batch = batchRepository.findById(batchId).orElse(null);
+        if (batch == null) {
+            redirectAttributes.addFlashAttribute("error", "Batch not found.");
+            return "redirect:/batches";
+        }
+        String trimmed = philterInstanceId == null ? "" : philterInstanceId.trim();
+        if (!trimmed.isEmpty() && !philterInstanceRepository.existsById(trimmed)) {
+            redirectAttributes.addFlashAttribute("error", "Selected Philter instance no longer exists.");
+            return "redirect:/batches";
+        }
+        String trimmedPolicy = policyName == null ? "" : policyName.trim();
+
+        String previousId = batch.getPhilterInstanceId();
+        String previousPolicy = batch.getPolicyName();
+        batch.setPhilterInstanceId(trimmed.isEmpty() ? null : trimmed);
+        batch.setPolicyName(trimmedPolicy.isEmpty() ? null : trimmedPolicy);
+        batchRepository.save(batch);
+        auditLogService.log("BATCH_PHILTER_CHANGE", "Batch", batch.getId(),
+                Map.of("previousPhilterInstanceId", previousId == null ? "embedded" : previousId,
+                        "newPhilterInstanceId", trimmed.isEmpty() ? "embedded" : trimmed,
+                        "previousPolicyName", previousPolicy == null ? "" : previousPolicy,
+                        "newPolicyName", trimmedPolicy));
+        String instanceName = trimmed.isEmpty() ? "Embedded Philter"
+                : philterInstanceRepository.findById(trimmed)
+                        .map(PhilterInstance::getName).orElse(trimmed);
+        String policyLabel = trimmedPolicy.isEmpty() ? "no policy" : "policy \"" + trimmedPolicy + "\"";
+        redirectAttributes.addFlashAttribute("success",
+                "Batch \"" + batch.getName() + "\" now uses \"" + instanceName
+                        + "\" with " + policyLabel + ".");
         return "redirect:/batches";
     }
 
@@ -245,17 +328,17 @@ public class BatchController {
                               @RequestParam("groupId") String groupId,
                               Authentication authentication,
                               RedirectAttributes redirectAttributes) {
+        if (!isAdmin(authentication)) {
+            redirectAttributes.addFlashAttribute("error", "Only administrators can modify batches.");
+            return "redirect:/batches";
+        }
         Batch batch = batchRepository.findById(batchId).orElse(null);
-        if (batch == null || !canAccessBatch(authentication, batch)) {
+        if (batch == null) {
             redirectAttributes.addFlashAttribute("error", "Batch not found.");
             return "redirect:/batches";
         }
         if (groupId == null || groupId.isBlank() || !groupRepository.existsById(groupId)) {
             redirectAttributes.addFlashAttribute("error", "A valid group must be selected.");
-            return "redirect:/batches";
-        }
-        if (!isAdmin(authentication) && !userGroupIds(authentication).contains(groupId)) {
-            redirectAttributes.addFlashAttribute("error", "You can only assign batches to groups you belong to.");
             return "redirect:/batches";
         }
         String previousGroupId = batch.getGroupId();
@@ -320,8 +403,12 @@ public class BatchController {
                               @RequestParam(value = "weightSetId", required = false) String weightSetId,
                               Authentication authentication,
                               RedirectAttributes redirectAttributes) {
+        if (!isAdmin(authentication)) {
+            redirectAttributes.addFlashAttribute("error", "Only administrators can modify batches.");
+            return "redirect:/batches";
+        }
         Batch batch = batchRepository.findById(batchId).orElse(null);
-        if (batch == null || !canAccessBatch(authentication, batch)) {
+        if (batch == null) {
             redirectAttributes.addFlashAttribute("error", "Batch not found.");
             return "redirect:/batches";
         }
@@ -385,8 +472,12 @@ public class BatchController {
                                  @RequestParam(value = "auditSamplingRate", required = false) Double auditSamplingRate,
                                  Authentication authentication,
                                  RedirectAttributes redirectAttributes) {
+        if (!isAdmin(authentication)) {
+            redirectAttributes.addFlashAttribute("error", "Only administrators can modify batches.");
+            return "redirect:/batches";
+        }
         Batch batch = batchRepository.findById(batchId).orElse(null);
-        if (batch == null || !canAccessBatch(authentication, batch)) {
+        if (batch == null) {
             redirectAttributes.addFlashAttribute("error", "Batch not found.");
             return "redirect:/batches";
         }

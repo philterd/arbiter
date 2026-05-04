@@ -24,8 +24,12 @@ import ai.philterd.arbiter.repository.AuditLogRepository;
 import ai.philterd.arbiter.repository.DocumentCommentRepository;
 import ai.philterd.arbiter.repository.GroupRepository;
 import ai.philterd.arbiter.repository.LlmJudgeDefaultsRepository;
+import ai.philterd.arbiter.repository.GeneralSettingsRepository;
 import ai.philterd.arbiter.repository.NotificationSettingsRepository;
 import ai.philterd.arbiter.repository.OllamaInstanceRepository;
+import ai.philterd.arbiter.repository.PhilterDefaultsRepository;
+import ai.philterd.arbiter.repository.PhilterInstanceRepository;
+import ai.philterd.arbiter.repository.PolicyRepository;
 import ai.philterd.arbiter.repository.UserSettingsRepository;
 import ai.philterd.arbiter.repository.WeightSetRepository;
 import ai.philterd.arbiter.repository.SpanRepository;
@@ -87,7 +91,19 @@ public class RedactionControllerTest {
     private NotificationSettingsRepository notificationSettingsRepository;
 
     @MockBean
+    private GeneralSettingsRepository generalSettingsRepository;
+
+    @MockBean
     private OllamaInstanceRepository ollamaInstanceRepository;
+
+    @MockBean
+    private PhilterInstanceRepository philterInstanceRepository;
+
+    @MockBean
+    private PhilterDefaultsRepository philterDefaultsRepository;
+
+    @MockBean
+    private PolicyRepository policyRepository;
 
     @MockBean
     private DocumentCommentRepository documentCommentRepository;
@@ -130,7 +146,7 @@ public class RedactionControllerTest {
         batch.setId("batch-1");
         batch.setName("Test batch");
 
-        when(redactionService.redactText(any())).thenReturn(response);
+        when(redactionService.redactText(any(), any())).thenReturn(response);
         when(batchRepository.findById("batch-1")).thenReturn(Optional.of(batch));
 
         MockMultipartFile file = new MockMultipartFile("file", "test.txt", "text/plain", text.getBytes());

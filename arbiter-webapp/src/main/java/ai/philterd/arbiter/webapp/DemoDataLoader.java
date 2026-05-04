@@ -23,12 +23,14 @@ import ai.philterd.arbiter.model.Document;
 import ai.philterd.arbiter.model.Group;
 import ai.philterd.arbiter.model.IngestStatus;
 import ai.philterd.arbiter.model.Location;
+import ai.philterd.arbiter.model.Policy;
 import ai.philterd.arbiter.model.RiskScore;
 import ai.philterd.arbiter.model.Span;
 import ai.philterd.arbiter.model.User;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.GroupRepository;
+import ai.philterd.arbiter.repository.PolicyRepository;
 import ai.philterd.arbiter.repository.SpanRepository;
 import ai.philterd.arbiter.repository.UserRepository;
 import ai.philterd.arbiter.service.RedactionService;
@@ -68,6 +70,7 @@ public class DemoDataLoader implements ApplicationRunner {
     private final SpanRepository spanRepository;
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
+    private final PolicyRepository policyRepository;
     private final RedactionService redactionService;
     private final String sampleFilesDirectory;
 
@@ -76,6 +79,7 @@ public class DemoDataLoader implements ApplicationRunner {
                           SpanRepository spanRepository,
                           GroupRepository groupRepository,
                           UserRepository userRepository,
+                          PolicyRepository policyRepository,
                           RedactionService redactionService,
                           @Value("${arbiter.demo-data.directory:sample-files}") String sampleFilesDirectory) {
         this.batchRepository = batchRepository;
@@ -83,12 +87,15 @@ public class DemoDataLoader implements ApplicationRunner {
         this.spanRepository = spanRepository;
         this.groupRepository = groupRepository;
         this.userRepository = userRepository;
+        this.policyRepository = policyRepository;
         this.redactionService = redactionService;
         this.sampleFilesDirectory = sampleFilesDirectory;
     }
 
     @Override
     public void run(ApplicationArguments args) {
+        ensureDefaultPolicy();
+
         if (batchRepository.count() > 0 || documentRepository.count() > 0 || spanRepository.count() > 0) {
             log.info("Demo data not loaded: existing data found in batches/documents/spans collections.");
             return;
@@ -137,6 +144,33 @@ public class DemoDataLoader implements ApplicationRunner {
                 loaded, spanRepository.count());
     }
 
+    private void ensureDefaultPolicy() {
+        if (policyRepository.count() > 0) {
+            return;
+        }
+        Policy policy = new Policy();
+        policy.setId(UUID.randomUUID().toString());
+        policy.setName("Default");
+        policy.setContent(DEFAULT_POLICY_JSON);
+        policyRepository.save(policy);
+        log.info("Seeded default Phileas policy.");
+    }
+
+    private static final String DEFAULT_POLICY_JSON = """
+            {
+              "name": "Default",
+              "identifiers": {
+                "age": { "ageFilterStrategies": [{"strategy": "REDACT"}] },
+                "creditCard": { "creditCardFilterStrategies": [{"strategy": "REDACT"}] },
+                "date": { "dateFilterStrategies": [{"strategy": "REDACT"}] },
+                "emailAddress": { "emailAddressFilterStrategies": [{"strategy": "REDACT"}] },
+                "ipAddress": { "ipAddressFilterStrategies": [{"strategy": "REDACT"}] },
+                "phoneNumber": { "phoneNumberFilterStrategies": [{"strategy": "REDACT"}] },
+                "ssn": { "ssnFilterStrategies": [{"strategy": "REDACT"}] }
+              }
+            }
+            """;
+
     private Group ensureDemoGroup() {
         return groupRepository.findByName(DEMO_GROUP_NAME).orElseGet(() -> {
             Group group = new Group();
@@ -172,7 +206,7 @@ public class DemoDataLoader implements ApplicationRunner {
 
         List<Span> spans = new ArrayList<>();
         try {
-            RedactionResponse response = redactionService.redactText(text);
+            RedactionResponse response = redactionService.redactText(text, batch.getPhilterInstanceId());
             List<Redaction> ordered = new ArrayList<>(response.getRedactions());
             ordered.sort(Comparator.comparingInt(Redaction::getStart));
             int cursor = 0;

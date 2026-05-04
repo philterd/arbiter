@@ -13,14 +13,8 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package ai.philterd.arbiter.service;
+package ai.philterd.arbiter.philter;
 
-import ai.philterd.arbiter.core.model.RedactionResponse;
-import java.io.IOException;
-import java.io.InputStream;
-
-public interface RedactionService {
-    RedactionResponse redactText(String text, String philterInstanceId) throws IOException;
-    RedactionResponse redactPdf(InputStream inputStream, String philterInstanceId) throws IOException;
-    byte[] getRedactedPdf(InputStream originalPdf, RedactionResponse redactionResponse, String philterInstanceId) throws IOException;
+public interface PhilterClientFactory {
+    PhilterClient create(String philterUrl);
 }

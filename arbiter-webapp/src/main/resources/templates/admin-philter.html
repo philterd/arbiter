@@ -17,7 +17,7 @@
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
-    <title>Arbiter - Admin Groups</title>
+    <title>Arbiter - Philter</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-50">
@@ -102,11 +102,11 @@
             <nav class="flex border-b border-gray-200 mb-6 text-sm">
                 <a th:href="@{/admin/general}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">General</a>
                 <a th:href="@{/admin/users}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Users</a>
-                <a th:href="@{/admin/groups}" class="px-4 py-2 text-blue-700 font-medium border-b-2 border-blue-600">Groups</a>
+                <a th:href="@{/admin/groups}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Groups</a>
                 <a th:href="@{/admin/audit}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Audit log</a>
                 <a th:href="@{/admin/notifications}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Notifications</a>
                 <a th:href="@{/admin/llm-judge}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">LLM-as-a-Judge</a>
-                <a th:href="@{/admin/philter}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Philter</a>
+                <a th:href="@{/admin/philter}" class="px-4 py-2 text-blue-700 font-medium border-b-2 border-blue-600">Philter</a>
                 <a th:href="@{/admin/weights}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Weight Sets</a>
             </nav>
 
@@ -115,79 +115,100 @@
             <div th:if="${success}" class="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700"
                  th:text="${success}">Success</div>
 
-            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-6 max-w-2xl">
-                <h3 class="text-lg font-semibold text-gray-900 mb-1">Create group</h3>
-                <p class="text-xs text-gray-500 mb-3">Pick at least one user. Groups must always have at least one member.</p>
-                <form th:action="@{/admin/groups}" method="post" class="space-y-3">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-6 max-w-3xl">
+                <h3 class="text-lg font-semibold text-gray-900 mb-1">Default Philter instance</h3>
+                <p class="text-xs text-gray-500 mb-4">
+                    Choose which Philter instance is pre-selected when new batches are created. The
+                    "Embedded Philter" option uses Arbiter's bundled local Phileas library.
+                </p>
+                <form th:action="@{/admin/philter/defaults}" method="post" class="space-y-4">
                     <div>
-                        <label for="newGroupName" class="block text-xs font-medium text-gray-600 mb-1">Name</label>
-                        <input id="newGroupName" name="name" type="text" required
+                        <label for="defaultInstanceId"
+                               class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
+                            Default instance
+                        </label>
+                        <select id="defaultInstanceId" name="defaultInstanceId"
+                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="" th:selected="${defaults.defaultInstanceId == null}">Embedded Philter</option>
+                            <option th:each="i : ${instances}"
+                                    th:value="${i.id}"
+                                    th:text="${i.name}"
+                                    th:selected="${defaults.defaultInstanceId != null and i.id == defaults.defaultInstanceId}">
+                                instance
+                            </option>
+                        </select>
+                    </div>
+                    <div class="flex justify-end">
+                        <button type="submit"
+                                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                            Save default
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-6 max-w-3xl">
+                <h3 class="text-lg font-semibold text-gray-900 mb-1">Add Philter instance</h3>
+                <p class="text-xs text-gray-500 mb-3">
+                    Register a Philter server that Arbiter can call for redaction. Names must be unique.
+                </p>
+                <form th:action="@{/admin/philter}" method="post"
+                      class="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_8rem_auto] gap-2 items-end">
+                    <div>
+                        <label for="philterName" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Name</label>
+                        <input id="philterName" name="name" type="text" required placeholder="philter-prod"
                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
-                        <span class="block text-xs font-medium text-gray-600 mb-1">Members</span>
-                        <div th:if="${#lists.isEmpty(allUsers)}" class="text-sm text-gray-500">
-                            No users exist yet. Create users first under the Users tab.
-                        </div>
-                        <div th:unless="${#lists.isEmpty(allUsers)}" class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-44 overflow-y-auto border border-gray-200 rounded-md p-2">
-                            <label th:each="u : ${allUsers}" class="inline-flex items-center text-sm">
-                                <input type="checkbox" name="userIds" th:value="${u.id}" class="mr-1.5">
-                                <span th:text="${u.email}">user</span>
-                            </label>
-                        </div>
+                        <label for="philterEndpoint" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Endpoint</label>
+                        <input id="philterEndpoint" name="endpoint" type="text" required placeholder="philter or 192.168.1.20"
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="philterPort" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Port</label>
+                        <input id="philterPort" name="port" type="number" required min="1" max="65535" value="8080"
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <button type="submit"
-                            th:disabled="${#lists.isEmpty(allUsers)}"
-                            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
-                        Create group
+                            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                        Add
                     </button>
                 </form>
             </div>
 
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden max-w-3xl">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Group</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Members</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Endpoint</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Port</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1">Actions</th>
                         </tr>
                     </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        <tr th:if="${#lists.isEmpty(groups)}">
-                            <td colspan="3" class="px-6 py-8 text-center text-sm text-gray-500">No groups yet.</td>
-                        </tr>
-                        <tr th:each="g : ${groups}" class="hover:bg-gray-50 align-top">
-                            <td class="px-6 py-4 align-top w-64">
-                                <form th:action="@{/admin/groups/{id}/edit(id=${g.id})}" th:id="'edit-' + ${g.id}" method="post" class="space-y-3">
-                                    <div>
-                                        <input type="text" name="name" th:value="${g.name}" required
-                                               class="block w-full rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    </div>
-                                    <div class="grid grid-cols-1 gap-1 max-h-44 overflow-y-auto border border-gray-200 rounded-md p-2">
-                                        <label th:each="u : ${allUsers}" class="inline-flex items-center text-sm">
-                                            <input type="checkbox" name="userIds" th:value="${u.id}"
-                                                   th:checked="${g.userIds.contains(u.id)}" class="mr-1.5">
-                                            <span th:text="${u.email}">user</span>
-                                        </label>
-                                    </div>
-                                    <button type="submit"
-                                            class="px-3 py-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 border border-blue-600 rounded-md">
-                                        Save
-                                    </button>
-                                </form>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        <tr th:if="${#lists.isEmpty(instances)}">
+                            <td colspan="4" class="px-6 py-8 text-center text-sm text-gray-500">
+                                No Philter instances registered yet.
                             </td>
-                            <td class="px-6 py-4 text-sm text-gray-700">
-                                <span th:if="${#lists.isEmpty(g.memberNames)}" class="text-gray-400">(none)</span>
-                                <span th:each="name, it : ${g.memberNames}">
-                                    <span class="inline-block bg-gray-100 text-gray-800 text-xs font-medium rounded px-2 py-0.5 mr-1 mb-1"
-                                          th:text="${name}">user</span>
+                        </tr>
+                        <tr th:each="i : ${instances}" class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                <span th:text="${i.name}">name</span>
+                                <span th:if="${defaults.defaultInstanceId != null and i.id == defaults.defaultInstanceId}"
+                                      class="ml-2 text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">
+                                    default
                                 </span>
                             </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono" th:text="${i.endpoint}">endpoint</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700" th:text="${i.port}">8080</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                <form th:action="@{/admin/groups/{id}/delete(id=${g.id})}" method="post" class="inline"
-                                      onsubmit="return confirm('Delete this group?');">
-                                    <button type="submit" class="text-red-600 hover:text-red-800 font-medium">Delete</button>
+                                <form th:action="@{/admin/philter/{id}/test(id=${i.id})}" method="post" class="inline mr-3">
+                                    <button type="submit" class="text-blue-600 hover:text-blue-800 font-medium">Test</button>
+                                </form>
+                                <form th:action="@{/admin/philter/{id}/delete(id=${i.id})}" method="post" class="inline"
+                                      onsubmit="return confirm('Remove this Philter instance?');">
+                                    <button type="submit" class="text-red-600 hover:text-red-800 font-medium">Remove</button>
                                 </form>
                             </td>
                         </tr>

@@ -17,15 +17,18 @@ package ai.philterd.arbiter.service;
 
 import ai.philterd.arbiter.core.model.Redaction;
 import ai.philterd.arbiter.core.model.RedactionResponse;
+import ai.philterd.arbiter.model.PhilterInstance;
 import ai.philterd.arbiter.philter.PhilterClient;
+import ai.philterd.arbiter.philter.PhilterClientFactory;
+import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
 
@@ -34,52 +37,67 @@ public class RedactionServiceImpl implements RedactionService {
 
     private static final Logger log = LoggerFactory.getLogger(RedactionServiceImpl.class);
 
-    private final PhilterClient philterClient;
     private final PhilterClient phileasClient;
+    private final PhilterClientFactory philterClientFactory;
+    private final PhilterInstanceRepository philterInstanceRepository;
 
-    @Value("${philter.url:}")
-    private String philterUrl;
-
-    public RedactionServiceImpl(@Qualifier("philterClient") PhilterClient philterClient,
-                                @Qualifier("phileasClient") PhilterClient phileasClient) {
-        this.philterClient = philterClient;
+    public RedactionServiceImpl(@Qualifier("phileasClient") PhilterClient phileasClient,
+                                PhilterClientFactory philterClientFactory,
+                                PhilterInstanceRepository philterInstanceRepository) {
         this.phileasClient = phileasClient;
+        this.philterClientFactory = philterClientFactory;
+        this.philterInstanceRepository = philterInstanceRepository;
     }
 
-    private PhilterClient getClient() {
-        if (philterUrl != null && !philterUrl.isBlank()) {
-            log.info("Using Philter remote instance at {}", philterUrl);
-            return philterClient;
-        } else {
-            log.info("Using local Phileas library");
-            return phileasClient;
+    private PhilterClient getClient(String philterInstanceId) {
+        if (philterInstanceId != null && !philterInstanceId.isBlank()) {
+            Optional<PhilterInstance> instance = philterInstanceRepository.findById(philterInstanceId);
+            if (instance.isPresent()) {
+                String url = baseUrl(instance.get());
+                log.info("Using Philter remote instance \"{}\" at {}", instance.get().getName(), url);
+                return philterClientFactory.create(url);
+            }
+            log.warn("Philter instance {} not found; falling back to local Phileas.", philterInstanceId);
         }
+        log.info("Using local Phileas library");
+        return phileasClient;
+    }
+
+    private static String baseUrl(PhilterInstance instance) {
+        String host = instance.getEndpoint();
+        if (host == null || host.isBlank()) host = "localhost";
+        if (!host.startsWith("http://") && !host.startsWith("https://")) {
+            host = "http://" + host;
+        }
+        return host + ":" + instance.getPort();
     }
 
     @Override
-    public RedactionResponse redactText(String text) throws IOException {
+    public RedactionResponse redactText(String text, String philterInstanceId) throws IOException {
         String context = UUID.randomUUID().toString();
-        return getClient().redact(text, context);
+        return getClient(philterInstanceId).redact(text, context);
     }
 
     @Override
-    public RedactionResponse redactPdf(InputStream inputStream) throws IOException {
+    public RedactionResponse redactPdf(InputStream inputStream, String philterInstanceId) throws IOException {
         byte[] bytes = inputStream.readAllBytes();
         String context = UUID.randomUUID().toString();
-        return getClient().redactPdf(bytes, context);
+        return getClient(philterInstanceId).redactPdf(bytes, context);
     }
 
     @Override
-    public byte[] getRedactedPdf(InputStream originalPdf, RedactionResponse redactionResponse) throws IOException {
+    public byte[] getRedactedPdf(InputStream originalPdf, RedactionResponse redactionResponse,
+                                 String philterInstanceId) throws IOException {
         // Apply redactions back to the PDF.
         byte[] pdfBytes = originalPdf.readAllBytes();
-        
-        if (getClient() == phileasClient) {
+
+        PhilterClient client = getClient(philterInstanceId);
+        if (client == phileasClient) {
             try {
                 Properties properties = new Properties();
                 ai.philterd.phileas.PhileasConfiguration phileasConfiguration = new ai.philterd.phileas.PhileasConfiguration(properties);
                 ai.philterd.phileas.services.filters.filtering.PdfFilterService filterService = new ai.philterd.phileas.services.filters.filtering.PdfFilterService(phileasConfiguration, null, null, null);
-                
+
                 // Convert our Redaction objects back to Phileas Spans
                 java.util.List<ai.philterd.phileas.model.filtering.Span> spans = new java.util.ArrayList<>();
                 for (Redaction r : redactionResponse.getRedactions()) {
@@ -97,7 +115,7 @@ public class RedactionServiceImpl implements RedactionService {
                         spans.add(span);
                     }
                 }
-                
+
                 // Phileas apply() needs a non-null Policy if it uses it for anything, but PdfFilterService.apply usually doesn't.
                 // However, let's provide a basic one just in case.
                 ai.philterd.phileas.policy.Policy policy = new ai.philterd.phileas.policy.Policy();

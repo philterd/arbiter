@@ -98,8 +98,57 @@ public class RedactionController {
     }
 
     @GetMapping("/")
-    public String dashboard() {
+    public String dashboard(Authentication authentication, Model model) {
+        boolean admin = isAdmin(authentication);
+        Set<String> myGroupIds = admin
+                ? Set.of()
+                : userGroupsService.groupIdsForEmail(authentication == null ? null : authentication.getName());
+
+        List<Batch> batches = batchRepository.findAll();
+        if (!admin) {
+            batches.removeIf(b -> b.getGroupId() == null || !myGroupIds.contains(b.getGroupId()));
+        }
+
+        long totalBatches = batches.size();
+        long openBatches = batches.stream().filter(b -> !b.isClosed()).count();
+        long closedBatches = totalBatches - openBatches;
+
+        long totalDocuments = 0;
+        long needsReview = 0;
+        long autoApproved = 0;
+        long approved = 0;
+        long pending = 0;
+        long failed = 0;
+        for (Batch b : batches) {
+            totalDocuments += documentRepository.countByBatchId(b.getId());
+            needsReview += documentRepository.countByBatchIdAndStatusIn(
+                    b.getId(), Set.of("REVIEW_REQUIRED", "AUDIT_REQUIRED"));
+            autoApproved += documentRepository.countByBatchIdAndStatusIn(
+                    b.getId(), Set.of("AUTO_APPROVED"));
+            approved += documentRepository.countByBatchIdAndStatusIn(
+                    b.getId(), Set.of("APPROVED"));
+            pending += documentRepository.countByBatchIdAndStatusIn(
+                    b.getId(), Set.of("PENDING"));
+            failed += documentRepository.countByBatchIdAndStatusIn(
+                    b.getId(), Set.of("FAILED", "REJECTED"));
+        }
+
+        model.addAttribute("totalBatches", totalBatches);
+        model.addAttribute("openBatches", openBatches);
+        model.addAttribute("closedBatches", closedBatches);
+        model.addAttribute("totalDocuments", totalDocuments);
+        model.addAttribute("needsReview", needsReview);
+        model.addAttribute("autoApproved", autoApproved);
+        model.addAttribute("approved", approved);
+        model.addAttribute("pending", pending);
+        model.addAttribute("failed", failed);
+        model.addAttribute("isAdmin", admin);
         return "dashboard";
+    }
+
+    @GetMapping("/queue")
+    public String queue() {
+        return "queue";
     }
 
     @GetMapping("/upload")
@@ -139,14 +188,15 @@ public class RedactionController {
         String contentType = file.getContentType();
         byte[] fileBytes = file.getBytes();
         session.setAttribute("originalFile", fileBytes);
+        session.setAttribute("philterInstanceId", batch.getPhilterInstanceId());
 
         RedactionResponse response;
 
         if (MediaType.APPLICATION_PDF_VALUE.equals(contentType)) {
-            response = redactionService.redactPdf(new ByteArrayInputStream(fileBytes));
+            response = redactionService.redactPdf(new ByteArrayInputStream(fileBytes), batch.getPhilterInstanceId());
         } else {
             String text = new String(fileBytes, StandardCharsets.UTF_8);
-            response = redactionService.redactText(text);
+            response = redactionService.redactText(text, batch.getPhilterInstanceId());
         }
 
         Document persisted = persistDocument(batch, file.getOriginalFilename(), response);
@@ -225,8 +275,10 @@ public class RedactionController {
 
         if (MediaType.APPLICATION_PDF_VALUE.equals(contentType)) {
             byte[] originalFile = (byte[]) session.getAttribute("originalFile");
+            String philterInstanceId = (String) session.getAttribute("philterInstanceId");
             if (originalFile != null) {
-                byte[] redactedPdf = redactionService.getRedactedPdf(new ByteArrayInputStream(originalFile), redactionResponse);
+                byte[] redactedPdf = redactionService.getRedactedPdf(
+                        new ByteArrayInputStream(originalFile), redactionResponse, philterInstanceId);
                 ByteArrayResource resource = new ByteArrayResource(redactedPdf);
                 return ResponseEntity.ok()
                         .contentType(MediaType.APPLICATION_PDF)
@@ -248,8 +300,10 @@ public class RedactionController {
         byte[] content;
         if (MediaType.APPLICATION_PDF_VALUE.equals(contentType)) {
             byte[] originalFile = (byte[]) session.getAttribute("originalFile");
+            String philterInstanceId = (String) session.getAttribute("philterInstanceId");
             if (originalFile != null) {
-                content = redactionService.getRedactedPdf(new ByteArrayInputStream(originalFile), redactionResponse);
+                content = redactionService.getRedactedPdf(
+                        new ByteArrayInputStream(originalFile), redactionResponse, philterInstanceId);
             } else {
                 content = redactedText.getBytes(StandardCharsets.UTF_8);
                 fileName = fileName.replace(".pdf", "_redacted.txt");

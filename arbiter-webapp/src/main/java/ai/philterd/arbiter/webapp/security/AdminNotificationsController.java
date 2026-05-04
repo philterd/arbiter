@@ -18,12 +18,14 @@ package ai.philterd.arbiter.webapp.security;
 import ai.philterd.arbiter.model.NotificationSettings;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.NotificationSettingsService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.LinkedHashMap;
@@ -34,11 +36,14 @@ import java.util.Map;
 public class AdminNotificationsController {
 
     private final NotificationSettingsService notificationSettingsService;
+    private final UserNotificationService userNotificationService;
     private final AuditLogService auditLogService;
 
     public AdminNotificationsController(NotificationSettingsService notificationSettingsService,
+                                        UserNotificationService userNotificationService,
                                         AuditLogService auditLogService) {
         this.notificationSettingsService = notificationSettingsService;
+        this.userNotificationService = userNotificationService;
         this.auditLogService = auditLogService;
     }
 
@@ -107,6 +112,75 @@ public class AdminNotificationsController {
 
         redirectAttributes.addFlashAttribute("success", "Notification settings saved.");
         return "redirect:/admin/notifications";
+    }
+
+    @PostMapping("/test")
+    @ResponseBody
+    public ResponseEntity<Map<String, Object>> test(
+            @RequestParam("recipient") String recipient,
+            @RequestParam(value = "host", required = false) String host,
+            @RequestParam(value = "port", required = false) Integer port,
+            @RequestParam(value = "username", required = false) String username,
+            @RequestParam(value = "password", required = false) String password,
+            @RequestParam(value = "fromAddress", required = false) String fromAddress,
+            @RequestParam(value = "fromName", required = false) String fromName,
+            @RequestParam(value = "useStartTls", defaultValue = "false") boolean useStartTls,
+            @RequestParam(value = "useSsl", defaultValue = "false") boolean useSsl) {
+
+        String to = recipient == null ? "" : recipient.trim();
+        if (to.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "ok", false,
+                    "message", "Recipient email is required."));
+        }
+        if (useStartTls && useSsl) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "ok", false,
+                    "message", "Choose either STARTTLS or implicit SSL/TLS, not both."));
+        }
+
+        NotificationSettings probe = new NotificationSettings();
+        probe.setHost(trimOrNull(host));
+        if (port != null) probe.setPort(port);
+        probe.setUsername(trimOrNull(username));
+        probe.setFromAddress(trimOrNull(fromAddress));
+        probe.setFromName(trimOrNull(fromName));
+        probe.setUseStartTls(useStartTls);
+        probe.setUseSsl(useSsl);
+
+        // If the form sent no password, fall back to the saved password (the field is left
+        // empty in the form to avoid leaking it back to the browser).
+        String formPassword = trimOrNull(password);
+        if (formPassword != null) {
+            probe.setPassword(formPassword);
+        } else {
+            probe.setPassword(notificationSettingsService.load().getPassword());
+        }
+
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("recipient", to);
+        details.put("host", probe.getHost() == null ? "" : probe.getHost());
+        details.put("port", probe.getPort());
+        details.put("useStartTls", probe.isUseStartTls());
+        details.put("useSsl", probe.isUseSsl());
+
+        try {
+            userNotificationService.sendTestEmail(probe, to);
+            details.put("ok", true);
+            auditLogService.log("NOTIFICATION_SETTINGS_TEST", "Settings",
+                    NotificationSettings.SINGLETON_ID, details);
+            return ResponseEntity.ok(Map.of(
+                    "ok", true,
+                    "message", "Test email sent to " + to + "."));
+        } catch (Exception e) {
+            details.put("ok", false);
+            details.put("error", e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage());
+            auditLogService.log("NOTIFICATION_SETTINGS_TEST", "Settings",
+                    NotificationSettings.SINGLETON_ID, details);
+            return ResponseEntity.status(502).body(Map.of(
+                    "ok", false,
+                    "message", "Could not send test email: " + details.get("error")));
+        }
     }
 
     private static String trimOrNull(String value) {

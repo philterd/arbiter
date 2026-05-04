@@ -16,14 +16,17 @@
 package ai.philterd.arbiter.service;
 
 import ai.philterd.arbiter.core.model.RedactionResponse;
+import ai.philterd.arbiter.model.PhilterInstance;
 import ai.philterd.arbiter.philter.PhilterClient;
+import ai.philterd.arbiter.philter.PhilterClientFactory;
+import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.ArrayList;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -32,58 +35,70 @@ import static org.mockito.Mockito.*;
 public class RedactionServiceSwitchTest {
 
     @Mock
-    private PhilterClient philterClient;
+    private PhilterClient phileasClient;
 
     @Mock
-    private PhilterClient phileasClient;
+    private PhilterClient remotePhilterClient;
+
+    @Mock
+    private PhilterClientFactory philterClientFactory;
+
+    @Mock
+    private PhilterInstanceRepository philterInstanceRepository;
 
     private RedactionServiceImpl redactionService;
 
     @BeforeEach
     public void setup() {
         MockitoAnnotations.openMocks(this);
-        redactionService = new RedactionServiceImpl(philterClient, phileasClient);
+        redactionService = new RedactionServiceImpl(phileasClient, philterClientFactory,
+                philterInstanceRepository);
     }
 
     @Test
-    public void testUsePhilterWhenUrlSet() throws Exception {
-        ReflectionTestUtils.setField(redactionService, "philterUrl", "http://some-philter-url");
-        
-        RedactionResponse philterResponse = new RedactionResponse("test", "philter", new ArrayList<>());
-        when(philterClient.redact(anyString(), anyString())).thenReturn(philterResponse);
+    public void testUsePhilterWhenInstanceProvided() throws Exception {
+        PhilterInstance instance = new PhilterInstance();
+        instance.setId("philter-1");
+        instance.setName("primary");
+        instance.setEndpoint("philter");
+        instance.setPort(8080);
 
-        RedactionResponse response = redactionService.redactText("test");
+        when(philterInstanceRepository.findById("philter-1")).thenReturn(Optional.of(instance));
+        when(philterClientFactory.create("http://philter:8080")).thenReturn(remotePhilterClient);
+
+        RedactionResponse philterResponse = new RedactionResponse("test", "philter", new ArrayList<>());
+        when(remotePhilterClient.redact(anyString(), anyString())).thenReturn(philterResponse);
+
+        RedactionResponse response = redactionService.redactText("test", "philter-1");
 
         assertEquals("philter", response.getRedactedText());
-        verify(philterClient, times(1)).redact(anyString(), anyString());
+        verify(remotePhilterClient, times(1)).redact(anyString(), anyString());
         verify(phileasClient, never()).redact(anyString(), anyString());
     }
 
     @Test
-    public void testUsePhileasWhenUrlNotSet() throws Exception {
-        ReflectionTestUtils.setField(redactionService, "philterUrl", "");
-        
+    public void testUsePhileasWhenNoInstanceProvided() throws Exception {
         RedactionResponse phileasResponse = new RedactionResponse("test", "phileas", new ArrayList<>());
         when(phileasClient.redact(anyString(), anyString())).thenReturn(phileasResponse);
 
-        RedactionResponse response = redactionService.redactText("test");
+        RedactionResponse response = redactionService.redactText("test", null);
 
         assertEquals("phileas", response.getRedactedText());
         verify(phileasClient, times(1)).redact(anyString(), anyString());
-        verify(philterClient, never()).redact(anyString(), anyString());
+        verify(philterClientFactory, never()).create(anyString());
     }
 
     @Test
-    public void testUsePhileasWhenUrlIsNull() throws Exception {
-        ReflectionTestUtils.setField(redactionService, "philterUrl", null);
-        
+    public void testUsePhileasWhenInstanceMissing() throws Exception {
+        when(philterInstanceRepository.findById("ghost")).thenReturn(Optional.empty());
+
         RedactionResponse phileasResponse = new RedactionResponse("test", "phileas", new ArrayList<>());
         when(phileasClient.redact(anyString(), anyString())).thenReturn(phileasResponse);
 
-        RedactionResponse response = redactionService.redactText("test");
+        RedactionResponse response = redactionService.redactText("test", "ghost");
 
         assertEquals("phileas", response.getRedactedText());
         verify(phileasClient, times(1)).redact(anyString(), anyString());
-        verify(philterClient, never()).redact(anyString(), anyString());
+        verify(philterClientFactory, never()).create(anyString());
     }
 }

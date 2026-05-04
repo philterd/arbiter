@@ -23,6 +23,8 @@ public class Batch {
     private double auditSamplingRate = 0.10;
     private Map<String, Integer> piiTypeWeights;
     private String weightSetId;
+    private String philterInstanceId;
+    private String policyName;
     private boolean closed;
     private LocalDateTime closedAt;
     private String closedBy;
@@ -116,6 +118,22 @@ public class Batch {
 
     public void setWeightSetId(String weightSetId) {
         this.weightSetId = weightSetId;
+    }
+
+    public String getPhilterInstanceId() {
+        return philterInstanceId;
+    }
+
+    public void setPhilterInstanceId(String philterInstanceId) {
+        this.philterInstanceId = philterInstanceId;
+    }
+
+    public String getPolicyName() {
+        return policyName;
+    }
+
+    public void setPolicyName(String policyName) {
+        this.policyName = policyName;
     }
 
     public boolean isClosed() {

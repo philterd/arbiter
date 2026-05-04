@@ -24,6 +24,7 @@ nav:
   - Home: index.md
   - Getting started: getting-started.md
   - Concepts: concepts.md
+  - Workflow: workflow.md
   - User guide:
       - Queue: user-guide/queue.md
       - Uploading: user-guide/uploading.md

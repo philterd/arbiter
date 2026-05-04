@@ -1,17 +1,5 @@
 services:
 
-  mongodb:
-    image: mongo:latest
-    container_name: arbiter-mongodb
-    ports:
-      - "27017:27017"
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.runCommand({ping:1})"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
   arbiter:
     build:
       context: .
@@ -26,3 +14,23 @@ services:
     depends_on:
       mongodb:
         condition: service_healthy
+    networks:
+      - arbiter
+
+  mongodb:
+    image: mongo:latest
+    container_name: arbiter-mongodb
+    ports:
+      - "27017:27017"
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.runCommand({ping:1})"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - arbiter
+
+networks:
+  arbiter:
+    driver: bridge
