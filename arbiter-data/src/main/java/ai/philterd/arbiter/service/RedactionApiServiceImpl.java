@@ -96,7 +96,8 @@ public class RedactionApiServiceImpl implements RedactionApiService {
                 span.setType((String) exp.get("type"));
                 double confidence = (Double) exp.getOrDefault("confidence", 0.0);
                 span.setConfidence(confidence);
-                span.setStatus(confidence >= threshold ? "APPROVED" : "PENDING");
+                span.setCreatedAt(java.time.LocalDateTime.now());
+                span.changeStatus(confidence >= threshold ? "APPROVED" : "PENDING");
 
                 int start = (Integer) exp.get("characterStart");
                 int end = (Integer) exp.get("characterEnd");
@@ -112,7 +113,7 @@ public class RedactionApiServiceImpl implements RedactionApiService {
         boolean needsReview = !persistedSpans.isEmpty()
                 && persistedSpans.stream().anyMatch(s -> "PENDING".equals(s.getStatus()));
         document.setPhilterContextId(contextId);
-        document.setStatus(IngestStatus.pick(batch, needsReview));
+        document.changeStatus(IngestStatus.pick(batch, needsReview));
         documentRepository.save(document);
     }
 
@@ -138,7 +139,7 @@ public class RedactionApiServiceImpl implements RedactionApiService {
 
         String finalizedText = philterClient(batch).redact(originalText, document.getPhilterContextId(), approvedSpans);
 
-        document.setStatus("AUTO_APPROVED");
+        document.changeStatus("AUTO_APPROVED");
         documentRepository.save(document);
 
         return finalizedText;

@@ -1,5 +1,7 @@
 package ai.philterd.arbiter.model;
 
+import java.time.LocalDateTime;
+
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -17,8 +19,13 @@ public class PhilterInstance {
 
     private int port = 8080;
 
+    private LocalDateTime createdAt;
+
     public PhilterInstance() {
     }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
 
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }

@@ -3,6 +3,8 @@ package ai.philterd.arbiter.model;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
+import java.time.LocalDateTime;
+
 @Document(collection = "spans")
 public class Span {
 
@@ -15,6 +17,8 @@ public class Span {
     private String status;
     private Location location;
     private boolean manuallyCreated;
+    private LocalDateTime createdAt;
+    private LocalDateTime statusChangedAt;
 
     public Span() {
     }
@@ -81,5 +85,27 @@ public class Span {
 
     public void setManuallyCreated(boolean manuallyCreated) {
         this.manuallyCreated = manuallyCreated;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getStatusChangedAt() {
+        return statusChangedAt;
+    }
+
+    public void setStatusChangedAt(LocalDateTime statusChangedAt) {
+        this.statusChangedAt = statusChangedAt;
+    }
+
+    /** Set both the status and its change timestamp atomically. */
+    public void changeStatus(String newStatus) {
+        this.status = newStatus;
+        this.statusChangedAt = LocalDateTime.now();
     }
 }

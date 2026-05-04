@@ -33,6 +33,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.ArrayList;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -88,6 +89,7 @@ public class AdminWeightSetController {
         }
 
         WeightSet set = new WeightSet();
+        set.setCreatedAt(LocalDateTime.now());
         set.setId(UUID.randomUUID().toString());
         set.setName(trimmed);
         // Seed with the current default weight for every PII type so the

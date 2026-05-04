@@ -30,6 +30,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.ArrayList;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -112,6 +113,7 @@ public class AdminGroupController {
         }
 
         Group group = new Group();
+        group.setCreatedAt(LocalDateTime.now());
         group.setId(UUID.randomUUID().toString());
         group.setName(trimmed);
         group.setUserIds(validUserIds);

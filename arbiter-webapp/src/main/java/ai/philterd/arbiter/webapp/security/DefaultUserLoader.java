@@ -26,6 +26,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.util.Set;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Component
@@ -47,6 +48,7 @@ public class DefaultUserLoader implements ApplicationRunner {
             return;
         }
         User admin = new User();
+        admin.setCreatedAt(LocalDateTime.now());
         admin.setId(UUID.randomUUID().toString());
         admin.setEmail("admin@philterd.ai");
         admin.setPasswordHash(passwordEncoder.encode("admin"));

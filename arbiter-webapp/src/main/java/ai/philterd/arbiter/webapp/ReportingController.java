@@ -30,6 +30,8 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -63,14 +65,26 @@ public class ReportingController {
     }
 
     @GetMapping("/reporting")
-    public String view(@RequestParam(name = "myGroupsOnly", defaultValue = "true") boolean myGroupsOnly,
+    public String view(@RequestParam(name = "start", required = false) String start,
+                       @RequestParam(name = "end", required = false) String end,
                        Authentication authentication,
                        Model model) {
         boolean admin = isAdmin(authentication);
-        boolean restrict = !admin || myGroupsOnly;
+        boolean restrict = !admin;
         Set<String> myGroupIds = restrict
                 ? userGroupsService.groupIdsForEmail(authentication == null ? null : authentication.getName())
                 : Set.of();
+
+        // Date range — default to the past 30 days (inclusive of today).
+        LocalDate today = LocalDate.now();
+        LocalDate endDate = parseDateOr(end, today);
+        LocalDate startDate = parseDateOr(start, today.minusDays(30));
+        if (endDate.isBefore(startDate)) {
+            // Swap silently rather than refuse — this is a forgiving filter.
+            LocalDate tmp = endDate; endDate = startDate; startDate = tmp;
+        }
+        LocalDateTime rangeStart = startDate.atStartOfDay();
+        LocalDateTime rangeEndExclusive = endDate.plusDays(1).atStartOfDay();
 
         List<Batch> batches = batchRepository.findAll();
         if (restrict) {
@@ -105,7 +119,16 @@ public class ReportingController {
             if (batch.isClosed()) closedBatches++;
             else openBatches++;
 
-            List<Document> docs = documentRepository.findByBatchId(batch.getId());
+            List<Document> allDocs = documentRepository.findByBatchId(batch.getId());
+            // Restrict to documents whose createdAt falls within the selected range. Documents
+            // with null createdAt (legacy data created before the field existed) are kept so they
+            // aren't silently dropped from totals.
+            final LocalDateTime rs = rangeStart;
+            final LocalDateTime re = rangeEndExclusive;
+            List<Document> docs = allDocs.stream()
+                    .filter(d -> d.getCreatedAt() == null
+                            || (!d.getCreatedAt().isBefore(rs) && d.getCreatedAt().isBefore(re)))
+                    .toList();
             Map<String, Long> statusCounts = new LinkedHashMap<>();
             for (String s : KNOWN_STATUSES) statusCounts.put(s, 0L);
 
@@ -221,8 +244,18 @@ public class ReportingController {
         model.addAttribute("batchRows", batchRows);
         model.addAttribute("knownStatuses", KNOWN_STATUSES);
         model.addAttribute("isAdmin", admin);
-        model.addAttribute("myGroupsOnly", myGroupsOnly);
+        model.addAttribute("startDate", startDate.toString());
+        model.addAttribute("endDate", endDate.toString());
         return "reporting";
+    }
+
+    private static LocalDate parseDateOr(String value, LocalDate fallback) {
+        if (value == null || value.isBlank()) return fallback;
+        try {
+            return LocalDate.parse(value);
+        } catch (Exception e) {
+            return fallback;
+        }
     }
 
     private static boolean isAdmin(Authentication auth) {

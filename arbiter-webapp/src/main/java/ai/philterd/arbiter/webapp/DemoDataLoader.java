@@ -152,6 +152,7 @@ public class DemoDataLoader implements ApplicationRunner {
         policy.setId(UUID.randomUUID().toString());
         policy.setName("Default");
         policy.setContent(DEFAULT_POLICY_JSON);
+        policy.setCreatedAt(LocalDateTime.now());
         policyRepository.save(policy);
         log.info("Seeded default Phileas policy.");
     }
@@ -176,6 +177,7 @@ public class DemoDataLoader implements ApplicationRunner {
             Group group = new Group();
             group.setId(UUID.randomUUID().toString());
             group.setName(DEMO_GROUP_NAME);
+            group.setCreatedAt(LocalDateTime.now());
             Set<String> userIds = new HashSet<>();
             for (User u : userRepository.findAll()) {
                 if (u.getId() != null) {
@@ -224,10 +226,10 @@ public class DemoDataLoader implements ApplicationRunner {
             }
             boolean needsReview = !spans.isEmpty()
                     && spans.stream().anyMatch(s -> "PENDING".equals(s.getStatus()));
-            document.setStatus(IngestStatus.pick(batch, needsReview));
+            document.changeStatus(IngestStatus.pick(batch, needsReview));
         } catch (Exception e) {
             log.warn("Redaction failed for {}: {}. Storing as PENDING.", file.getFileName(), e.getMessage());
-            document.setStatus("PENDING");
+            document.changeStatus("PENDING");
             spans.clear();
         }
 
@@ -244,13 +246,15 @@ public class DemoDataLoader implements ApplicationRunner {
     }
 
     private static Span toSpan(String documentId, Redaction redaction, int originalStart, int originalEnd, double threshold) {
+        LocalDateTime now = LocalDateTime.now();
         Span span = new Span();
         span.setId(redaction.getId() != null ? redaction.getId() : UUID.randomUUID().toString());
         span.setDocumentId(documentId);
         span.setType(redaction.getType());
         span.setText(redaction.getText());
         span.setConfidence(redaction.getConfidence());
-        span.setStatus(redaction.getConfidence() >= threshold ? "APPROVED" : "PENDING");
+        span.setCreatedAt(now);
+        span.changeStatus(redaction.getConfidence() >= threshold ? "APPROVED" : "PENDING");
         span.setLocation(new Location(
                 originalStart,
                 originalEnd,

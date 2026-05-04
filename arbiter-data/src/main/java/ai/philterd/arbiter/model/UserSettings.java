@@ -22,7 +22,7 @@ public class UserSettings {
 
     private boolean skipCompletedInReview = false;
 
-    private boolean advanceToNextOnApprove = false;
+    private boolean advanceToNextOnApprove = true;
 
     public UserSettings() {
     }

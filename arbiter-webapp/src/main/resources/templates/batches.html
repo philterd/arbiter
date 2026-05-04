@@ -98,13 +98,6 @@
         <main class="flex-1 p-8">
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-3xl font-bold text-gray-900">Batches</h2>
-                <label th:if="${isAdmin}" class="inline-flex items-center cursor-pointer text-sm text-gray-700">
-                    <input type="checkbox"
-                           th:checked="${myGroupsOnly}"
-                           onchange="const u = new URL(window.location.href); u.searchParams.set('myGroupsOnly', this.checked); window.location = u;"
-                           class="mr-2">
-                    Limit to my groups
-                </label>
             </div>
 
             <div th:if="${error}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
@@ -194,7 +187,7 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 th:with="active=${currentSort == 'name'},
                                          nextDir=${active and currentDir == 'asc'} ? 'desc' : 'asc'">
-                                <a th:href="@{/batches(myGroupsOnly=${myGroupsOnly},sort='name',dir=${nextDir})}"
+                                <a th:href="@{/batches(sort='name',dir=${nextDir})}"
                                    class="inline-flex items-center gap-1 hover:text-gray-700"
                                    th:classappend="${active} ? 'text-gray-700'">
                                     Name
@@ -204,7 +197,7 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 th:with="active=${currentSort == 'createdAt'},
                                          nextDir=${active and currentDir == 'desc'} ? 'asc' : 'desc'">
-                                <a th:href="@{/batches(myGroupsOnly=${myGroupsOnly},sort='createdAt',dir=${nextDir})}"
+                                <a th:href="@{/batches(sort='createdAt',dir=${nextDir})}"
                                    class="inline-flex items-center gap-1 hover:text-gray-700"
                                    th:classappend="${active} ? 'text-gray-700'">
                                     Created
@@ -214,7 +207,7 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                                 th:with="active=${currentSort == 'documentCount'},
                                          nextDir=${active and currentDir == 'desc'} ? 'asc' : 'desc'">
-                                <a th:href="@{/batches(myGroupsOnly=${myGroupsOnly},sort='documentCount',dir=${nextDir})}"
+                                <a th:href="@{/batches(sort='documentCount',dir=${nextDir})}"
                                    class="inline-flex items-center gap-1 hover:text-gray-700"
                                    th:classappend="${active} ? 'text-gray-700'">
                                     Documents
@@ -271,9 +264,21 @@
                                     </button>
                                 </form>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
-                                <span th:if="${b.domain != null}" th:text="${b.domain}">Domain</span>
-                                <span th:if="${b.domain == null}" class="text-gray-400">—</span>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <form th:action="@{/batches/{id}/domain(id=${b.id})}" method="post" class="flex items-center gap-1">
+                                    <select name="domain"
+                                            class="rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <option value="" disabled th:selected="${b.domain == null}">— select —</option>
+                                        <option th:each="d : ${domains}"
+                                                th:value="${d}"
+                                                th:selected="${d == b.domain}"
+                                                th:text="${d}">Domain</option>
+                                    </select>
+                                    <button type="submit"
+                                            class="text-xs font-medium text-blue-600 hover:text-blue-800 px-2 py-1">
+                                        Save
+                                    </button>
+                                </form>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <div class="text-gray-900" th:text="${b.philterInstanceName}">Embedded Philter</div>

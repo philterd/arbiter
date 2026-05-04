@@ -1,0 +1,64 @@
+package ai.philterd.arbiter.service;
+
+import ai.philterd.arbiter.model.GeneralSettings;
+import ai.philterd.arbiter.repository.GeneralSettingsRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
+
+class GeneralSettingsServiceTest {
+
+    private GeneralSettingsRepository repository;
+    private GeneralSettingsService service;
+
+    @BeforeEach
+    void setUp() {
+        repository = mock(GeneralSettingsRepository.class);
+        when(repository.findById(any())).thenReturn(Optional.empty());
+        service = new GeneralSettingsService(repository, 9090);
+    }
+
+    @Test
+    void loadReturnsDefaultsWhenNothingSaved() {
+        GeneralSettings settings = service.load();
+        assertNotNull(settings);
+        assertNotNull(settings.getArbiterUrl());
+        assertTrue(settings.getArbiterUrl().startsWith("http://"),
+                "default URL should include scheme: " + settings.getArbiterUrl());
+        assertTrue(settings.getArbiterUrl().endsWith(":9090"),
+                "default URL should include configured port: " + settings.getArbiterUrl());
+        assertEquals("UTC", settings.getTimezone());
+    }
+
+    @Test
+    void loadFillsInDefaultsForBlankFields() {
+        GeneralSettings stored = new GeneralSettings();
+        stored.setArbiterUrl("");
+        stored.setTimezone(null);
+        when(repository.findById(GeneralSettings.SINGLETON_ID)).thenReturn(Optional.of(stored));
+
+        GeneralSettings out = service.load();
+        assertTrue(out.getArbiterUrl().endsWith(":9090"));
+        assertEquals("UTC", out.getTimezone());
+    }
+
+    @Test
+    void loadKeepsStoredValues() {
+        GeneralSettings stored = new GeneralSettings();
+        stored.setArbiterUrl("https://arbiter.example.com");
+        stored.setTimezone("America/New_York");
+        when(repository.findById(GeneralSettings.SINGLETON_ID)).thenReturn(Optional.of(stored));
+
+        GeneralSettings out = service.load();
+        assertEquals("https://arbiter.example.com", out.getArbiterUrl());
+        assertEquals("America/New_York", out.getTimezone());
+    }
+}

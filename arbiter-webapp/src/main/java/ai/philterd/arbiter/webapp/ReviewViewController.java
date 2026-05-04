@@ -214,6 +214,8 @@ public class ReviewViewController {
     @PostMapping("/review/{documentId}/unapprove")
     public String unapprove(@PathVariable String documentId, Authentication authentication) {
         updateStatus(documentId, "REVIEW_REQUIRED", authentication);
+        auditLogService.log("DOCUMENT_UNAPPROVE", "Document", documentId,
+                Map.of("actor", authentication == null ? "" : authentication.getName()));
         return "redirect:/review/" + documentId;
     }
 
@@ -244,7 +246,7 @@ public class ReviewViewController {
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + documentId));
         requireAccess(authentication, document);
         String previous = document.getStatus();
-        document.setStatus(status);
+        document.changeStatus(status);
         documentRepository.save(document);
         auditLogService.log("DOCUMENT_STATUS_CHANGE", "Document", documentId,
                 Map.of("previous", previous == null ? "" : previous, "current", status));

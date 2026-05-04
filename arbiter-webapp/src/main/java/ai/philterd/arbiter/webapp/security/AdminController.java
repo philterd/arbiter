@@ -33,6 +33,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.util.Comparator;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -97,6 +98,7 @@ public class AdminController {
         }
 
         User user = new User();
+        user.setCreatedAt(LocalDateTime.now());
         user.setId(UUID.randomUUID().toString());
         user.setEmail(trimmed);
         user.setPasswordHash(passwordEncoder.encode(password));

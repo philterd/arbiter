@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -73,6 +74,14 @@ public class ReviewController {
         }
     }
 
+    /** Spans on an APPROVED document are read-only — the document must be unapproved first. */
+    private static void requireEditable(Document document) {
+        if ("APPROVED".equals(document.getStatus())) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
+                    "Document is APPROVED. Unapprove it before adding, editing, or deleting spans.");
+        }
+    }
+
     private static boolean isAdmin(Authentication auth) {
         if (auth == null) return false;
         for (GrantedAuthority a : auth.getAuthorities()) {
@@ -114,6 +123,7 @@ public class ReviewController {
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND,
                         "Document not found: " + documentId));
         requireDocumentAccess(authentication, document);
+        requireEditable(document);
         String original = document.getOriginalText() == null ? "" : document.getOriginalText();
         if (end > original.length()) {
             throw new ResponseStatusException(BAD_REQUEST, "Range exceeds document length.");
@@ -129,9 +139,10 @@ public class ReviewController {
         span.setType(normalized);
         span.setText(text);
         span.setConfidence(1.0);
-        span.setStatus("APPROVED");
         span.setLocation(new Location(start, end, 1, new Coordinates(0, 0, 0, 0)));
         span.setManuallyCreated(true);
+        span.setCreatedAt(LocalDateTime.now());
+        span.changeStatus("APPROVED");
         Span saved = spanRepository.save(span);
 
         auditLogService.log("SPAN_CREATE", "Span", saved.getId(),
@@ -156,6 +167,7 @@ public class ReviewController {
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND,
                         "Document not found: " + span.getDocumentId()));
         requireDocumentAccess(authentication, document);
+        requireEditable(document);
 
         Map<String, Object> changes = new LinkedHashMap<>();
         if (request.status() != null) {
@@ -164,7 +176,7 @@ public class ReviewController {
             }
             changes.put("previousStatus", span.getStatus() == null ? "" : span.getStatus());
             changes.put("status", request.status());
-            span.setStatus(request.status());
+            span.changeStatus(request.status());
         }
         if (request.type() != null) {
             String normalized = request.type().trim().toLowerCase();
@@ -189,6 +201,7 @@ public class ReviewController {
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND,
                         "Document not found: " + span.getDocumentId()));
         requireDocumentAccess(authentication, document);
+        requireEditable(document);
 
         if (!span.isManuallyCreated()) {
             throw new ResponseStatusException(BAD_REQUEST,
@@ -216,6 +229,7 @@ public class ReviewController {
         Document document = documentRepository.findById(source.getDocumentId())
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + source.getDocumentId()));
         requireDocumentAccess(authentication, document);
+        requireEditable(document);
         String haystack = document.getOriginalText();
         if (haystack == null || haystack.isEmpty()) {
             return Map.of("created", 0, "approved", 0);
@@ -232,7 +246,7 @@ public class ReviewController {
             existingRanges.add(new long[]{start, end});
         }
 
-        source.setStatus("APPROVED");
+        source.changeStatus("APPROVED");
         spanRepository.save(source);
 
         List<Span> toSave = new ArrayList<>();
@@ -251,7 +265,7 @@ public class ReviewController {
 
             Span exact = byRange.get(((long) idx << 32) | (end & 0xFFFFFFFFL));
             if (exact != null) {
-                exact.setStatus("APPROVED");
+                exact.changeStatus("APPROVED");
                 exact.setType(source.getType());
                 toSave.add(exact);
                 approved++;
@@ -268,9 +282,10 @@ public class ReviewController {
             fresh.setType(source.getType());
             fresh.setText(needle);
             fresh.setConfidence(1.0);
-            fresh.setStatus("APPROVED");
             fresh.setLocation(new Location(idx, end, 1, new Coordinates(0, 0, 0, 0)));
             fresh.setManuallyCreated(true);
+            fresh.setCreatedAt(LocalDateTime.now());
+            fresh.changeStatus("APPROVED");
             toSave.add(fresh);
             existingRanges.add(new long[]{idx, end});
             created++;

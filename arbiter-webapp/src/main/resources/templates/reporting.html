@@ -84,14 +84,39 @@
         <main class="flex-1 p-8">
             <div class="flex items-center justify-between mb-6">
                 <h2 class="text-3xl font-bold text-gray-900">Reports</h2>
-                <label th:if="${isAdmin}" class="inline-flex items-center cursor-pointer text-sm text-gray-700">
-                    <input type="checkbox"
-                           th:checked="${myGroupsOnly}"
-                           onchange="const u = new URL(window.location.href); u.searchParams.set('myGroupsOnly', this.checked); window.location = u;"
-                           class="mr-2">
-                    Limit to my groups
-                </label>
             </div>
+
+            <!-- Date range filter -->
+            <form th:action="@{/reporting}" method="get"
+                  class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 flex flex-wrap items-end gap-3">
+                <div>
+                    <label for="startDate" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Start date</label>
+                    <input id="startDate" name="start" type="date" required
+                           th:value="${startDate}"
+                           class="rounded-lg border border-gray-300 bg-white text-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label for="endDate" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">End date</label>
+                    <input id="endDate" name="end" type="date" required
+                           th:value="${endDate}"
+                           class="rounded-lg border border-gray-300 bg-white text-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <button type="submit"
+                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                    Apply
+                </button>
+                <a th:href="@{/reporting}"
+                   class="px-3 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
+                    Last 30 days
+                </a>
+                <span class="text-xs text-gray-500 ml-auto">
+                    Showing documents created from
+                    <span class="font-mono" th:text="${startDate}">YYYY-MM-DD</span>
+                    to
+                    <span class="font-mono" th:text="${endDate}">YYYY-MM-DD</span>
+                    (inclusive).
+                </span>
+            </form>
 
             <!-- KPI cards -->
             <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
@@ -148,19 +173,27 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                     <h3 class="text-lg font-semibold text-gray-900 mb-3">Documents by status</h3>
-                    <div class="space-y-2">
-                        <div th:each="entry : ${statusCounts}" class="flex items-center justify-between text-sm">
-                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
-                                  th:classappend="${entry.key == 'APPROVED'} ? 'bg-green-100 text-green-800' :
-                                                  (${entry.key == 'AUTO_APPROVED'} ? 'bg-emerald-100 text-emerald-800' :
-                                                  (${entry.key == 'REVIEW_REQUIRED'} ? 'bg-yellow-100 text-yellow-800' :
-                                                  (${entry.key == 'AUDIT_REQUIRED'} ? 'bg-amber-100 text-amber-800' :
-                                                  (${entry.key == 'PENDING'} ? 'bg-blue-100 text-blue-800' :
-                                                  (${entry.key == 'REJECTED' or entry.key == 'FAILED'} ? 'bg-red-100 text-red-800' :
-                                                  'bg-gray-100 text-gray-800')))))"
-                                  th:text="${entry.key}">STATUS</span>
-                            <span class="font-medium text-gray-900" th:text="${entry.value}">0</span>
+                    <div class="grid grid-cols-[1fr_auto] gap-4 items-center">
+                        <div class="space-y-2">
+                            <div th:each="entry : ${statusCounts}" class="flex items-center justify-between text-sm">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                                      th:classappend="${entry.key == 'APPROVED'} ? 'bg-green-100 text-green-800' :
+                                                      (${entry.key == 'AUTO_APPROVED'} ? 'bg-emerald-100 text-emerald-800' :
+                                                      (${entry.key == 'REVIEW_REQUIRED'} ? 'bg-yellow-100 text-yellow-800' :
+                                                      (${entry.key == 'AUDIT_REQUIRED'} ? 'bg-amber-100 text-amber-800' :
+                                                      (${entry.key == 'PENDING'} ? 'bg-blue-100 text-blue-800' :
+                                                      (${entry.key == 'REJECTED' or entry.key == 'FAILED'} ? 'bg-red-100 text-red-800' :
+                                                      'bg-gray-100 text-gray-800')))))"
+                                      th:text="${entry.key}">STATUS</span>
+                                <span class="font-medium text-gray-900" th:text="${entry.value}">0</span>
+                            </div>
                         </div>
+                        <svg id="statusPie" width="160" height="160" viewBox="0 0 100 100"
+                             class="shrink-0" role="img" aria-label="Documents by status pie chart">
+                            <circle cx="50" cy="50" r="48" fill="#f3f4f6"></circle>
+                            <text x="50" y="55" text-anchor="middle"
+                                  font-size="6" fill="#9ca3af" id="statusPieEmpty">No documents</text>
+                        </svg>
                     </div>
                 </div>
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
@@ -271,5 +304,90 @@
         <div th:replace="~{fragments/footer :: footer}"></div>
         </div>
     </div>
+
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        (function () {
+            const counts = /*[[${statusCounts}]]*/ {};
+            const svg = document.getElementById('statusPie');
+            if (!svg) return;
+
+            // Status → fill color (matches the rounded-full pill colors used elsewhere).
+            const COLORS = {
+                APPROVED:        '#16a34a', // green-600
+                AUTO_APPROVED:   '#059669', // emerald-600
+                REVIEW_REQUIRED: '#ca8a04', // yellow-600
+                AUDIT_REQUIRED:  '#d97706', // amber-600
+                PENDING:         '#2563eb', // blue-600
+                REJECTED:        '#dc2626', // red-600
+                FAILED:          '#991b1b', // red-800
+            };
+            const FALLBACK = '#9ca3af'; // gray-400
+
+            const entries = Object.entries(counts).filter(([, v]) => Number(v) > 0);
+            const total = entries.reduce((sum, [, v]) => sum + Number(v), 0);
+
+            // Clear existing children before redrawing.
+            while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+            const SVG_NS = 'http://www.w3.org/2000/svg';
+            const cx = 50, cy = 50, r = 48;
+
+            if (total === 0) {
+                const bg = document.createElementNS(SVG_NS, 'circle');
+                bg.setAttribute('cx', cx); bg.setAttribute('cy', cy); bg.setAttribute('r', r);
+                bg.setAttribute('fill', '#f3f4f6');
+                svg.appendChild(bg);
+                const t = document.createElementNS(SVG_NS, 'text');
+                t.setAttribute('x', cx); t.setAttribute('y', cy + 2);
+                t.setAttribute('text-anchor', 'middle');
+                t.setAttribute('font-size', '6');
+                t.setAttribute('fill', '#9ca3af');
+                t.textContent = 'No documents';
+                svg.appendChild(t);
+                return;
+            }
+
+            // Single-slice 100% case: render a full circle (the arc trick draws nothing for 360°).
+            if (entries.length === 1) {
+                const c = document.createElementNS(SVG_NS, 'circle');
+                c.setAttribute('cx', cx); c.setAttribute('cy', cy); c.setAttribute('r', r);
+                c.setAttribute('fill', COLORS[entries[0][0]] || FALLBACK);
+                const title = document.createElementNS(SVG_NS, 'title');
+                title.textContent = `${entries[0][0]}: ${entries[0][1]} (100%)`;
+                c.appendChild(title);
+                svg.appendChild(c);
+                return;
+            }
+
+            let cursor = -Math.PI / 2; // start at 12 o'clock
+            for (const [status, count] of entries) {
+                const fraction = Number(count) / total;
+                const angle = fraction * 2 * Math.PI;
+                const next = cursor + angle;
+                const x1 = cx + r * Math.cos(cursor);
+                const y1 = cy + r * Math.sin(cursor);
+                const x2 = cx + r * Math.cos(next);
+                const y2 = cy + r * Math.sin(next);
+                const largeArc = angle > Math.PI ? 1 : 0;
+                const d = `M ${cx},${cy} L ${x1.toFixed(3)},${y1.toFixed(3)} ` +
+                          `A ${r},${r} 0 ${largeArc} 1 ${x2.toFixed(3)},${y2.toFixed(3)} Z`;
+
+                const path = document.createElementNS(SVG_NS, 'path');
+                path.setAttribute('d', d);
+                path.setAttribute('fill', COLORS[status] || FALLBACK);
+                path.setAttribute('stroke', '#ffffff');
+                path.setAttribute('stroke-width', '0.5');
+                const title = document.createElementNS(SVG_NS, 'title');
+                const pct = (fraction * 100).toFixed(1);
+                title.textContent = `${status}: ${count} (${pct}%)`;
+                path.appendChild(title);
+                svg.appendChild(path);
+
+                cursor = next;
+            }
+        })();
+        /*]]>*/
+    </script>
 </body>
 </html>

@@ -239,13 +239,15 @@ public class RedactionController {
                     continue;
                 }
                 int end = start + r.getText().length();
+                LocalDateTime now = LocalDateTime.now();
                 Span span = new Span();
                 span.setId(UUID.randomUUID().toString());
                 span.setDocumentId(document.getId());
                 span.setType(r.getType());
                 span.setText(r.getText());
                 span.setConfidence(r.getConfidence());
-                span.setStatus(r.getConfidence() >= threshold ? "APPROVED" : "PENDING");
+                span.setCreatedAt(now);
+                span.changeStatus(r.getConfidence() >= threshold ? "APPROVED" : "PENDING");
                 span.setLocation(new Location(start, end, Math.max(r.getPageNumber(), 1),
                         new Coordinates(r.getLowerLeftX(), r.getLowerLeftY(),
                                 r.getUpperRightX() - r.getLowerLeftX(),
@@ -258,7 +260,7 @@ public class RedactionController {
 
         boolean needsReview = !spans.isEmpty()
                 && spans.stream().anyMatch(s -> "PENDING".equals(s.getStatus()));
-        document.setStatus(IngestStatus.pick(batch, needsReview));
+        document.changeStatus(IngestStatus.pick(batch, needsReview));
         documentRepository.save(document);
         if (!spans.isEmpty()) {
             spanRepository.saveAll(spans);

@@ -70,7 +70,7 @@ public class IngestionController {
         document.setCreatedAt(LocalDateTime.now());
         document.setFilename(request.name());
         document.setOriginalText(request.text());
-        document.setStatus("PENDING");
+        document.changeStatus("PENDING");
         documentRepository.save(document);
         auditLogService.log("DOCUMENT_INGEST", "Document", taskId,
                 Map.of(

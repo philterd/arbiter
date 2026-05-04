@@ -41,6 +41,7 @@ import static org.springframework.http.HttpStatus.BAD_GATEWAY;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 import java.net.URI;
+import java.time.LocalDateTime;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -177,6 +178,7 @@ public class PolicyController {
         }
 
         Policy policy = new Policy();
+        policy.setCreatedAt(LocalDateTime.now());
         policy.setId(UUID.randomUUID().toString());
         policy.setName(trimmedName);
         policy.setContent(trimmedContent);

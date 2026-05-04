@@ -64,7 +64,7 @@ class TriageControllerTest {
     @Test
     void unauthenticatedRequestWithRestrictReturnsEmpty() {
         // FakeUserGroups returns empty by default → restrict, allowed empty.
-        Page<Map<String, Object>> page = controller.getQueue(0, 10, null, null, null, true,
+        Page<Map<String, Object>> page = controller.getQueue(0, 10, null, null, null,
                 "riskScore", "desc", null);
 
         assertTrue(page.getContent().isEmpty());
@@ -79,7 +79,7 @@ class TriageControllerTest {
         when(batchRepository.findAllById(any()))
                 .thenReturn(List.of(batch("b1", "g1", "Batch One", 0.25)));
 
-        Page<Map<String, Object>> page = controller.getQueue(0, 10, null, null, null, false,
+        Page<Map<String, Object>> page = controller.getQueue(0, 10, null, null, null,
                 "riskScore", "desc", TestAuth.admin("admin@example.com"));
 
         assertEquals(1, page.getContent().size());
@@ -91,7 +91,7 @@ class TriageControllerTest {
         when(documentRepository.findAll(any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
 
-        controller.getQueue(0, 10, null, null, null, false, "evil-injection", "asc",
+        controller.getQueue(0, 10, null, null, null, "evil-injection", "asc",
                 TestAuth.admin("admin@example.com"));
 
         ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
@@ -106,7 +106,7 @@ class TriageControllerTest {
         when(documentRepository.findAll(any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
 
-        controller.getQueue(0, 10, null, null, null, false, "filename", "asc",
+        controller.getQueue(0, 10, null, null, null, "filename", "asc",
                 TestAuth.admin("admin@example.com"));
 
         ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
@@ -126,7 +126,7 @@ class TriageControllerTest {
         when(batchRepository.findAllById(any()))
                 .thenReturn(List.of(batch("b1", "g1", "Yours", 0.25)));
 
-        Page<Map<String, Object>> page = controller.getQueue(0, 10, null, null, null, true,
+        Page<Map<String, Object>> page = controller.getQueue(0, 10, null, null, null,
                 "riskScore", "desc", TestAuth.user("alice@example.com"));
 
         assertEquals(1, page.getContent().size());
@@ -139,7 +139,7 @@ class TriageControllerTest {
         when(batchRepository.findAll())
                 .thenReturn(List.of(batch("b1", "g1", "Yours", 0.25), batch("b2", "g2", "Theirs", 0.25)));
 
-        Page<Map<String, Object>> page = controller.getQueue(0, 10, "b2", null, null, true,
+        Page<Map<String, Object>> page = controller.getQueue(0, 10, "b2", null, null,
                 "riskScore", "desc", TestAuth.user("alice@example.com"));
 
         assertTrue(page.getContent().isEmpty());
@@ -156,7 +156,7 @@ class TriageControllerTest {
         when(batchRepository.findAllById(any()))
                 .thenReturn(List.of(batch("b1", "g1", "B", 0.25)));
 
-        Page<Map<String, Object>> page = controller.getQueue(0, 10, null, null, null, false,
+        Page<Map<String, Object>> page = controller.getQueue(0, 10, null, null, null,
                 "riskScore", "desc", TestAuth.admin("admin@example.com"));
 
         assertEquals(true, page.getContent().get(0).get("autoApproved"));
@@ -169,7 +169,7 @@ class TriageControllerTest {
         when(batchRepository.findAll())
                 .thenReturn(List.of(batch("b2", "g1", "Zebra", 0.25), batch("b1", "g1", "Alpha", 0.25)));
 
-        List<Map<String, String>> result = controller.getBatches(false, TestAuth.admin("admin@example.com"));
+        List<Map<String, String>> result = controller.getBatches(TestAuth.admin("admin@example.com"));
 
         // Sorted alphabetically by name.
         assertEquals(2, result.size());
@@ -183,7 +183,7 @@ class TriageControllerTest {
                 .thenReturn(List.of(batch("b1", "g1", "Mine", 0.25), batch("b2", "g2", "NotMine", 0.25)));
         userGroupsService.withMembership("alice@example.com", Set.of("g1"));
 
-        List<Map<String, String>> result = controller.getBatches(true, TestAuth.user("alice@example.com"));
+        List<Map<String, String>> result = controller.getBatches(TestAuth.user("alice@example.com"));
 
         assertEquals(1, result.size());
         assertEquals("Mine", result.get(0).get("name"));

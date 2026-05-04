@@ -99,13 +99,12 @@ public class BatchController {
     private static final Set<String> REVIEWABLE_STATUSES = Set.of("REVIEW_REQUIRED", "AUDIT_REQUIRED");
 
     @GetMapping
-    public String list(@RequestParam(name = "myGroupsOnly", defaultValue = "true") boolean myGroupsOnly,
-                       @RequestParam(name = "sort", defaultValue = "createdAt") String sort,
+    public String list(@RequestParam(name = "sort", defaultValue = "createdAt") String sort,
                        @RequestParam(name = "dir", defaultValue = "desc") String dir,
                        Authentication authentication,
                        Model model) {
         boolean admin = isAdmin(authentication);
-        boolean restrict = !admin || myGroupsOnly;
+        boolean restrict = !admin;
         Set<String> myGroupIds = restrict
                 ? userGroupsService.groupIdsForEmail(authentication == null ? null : authentication.getName())
                 : Set.of();
@@ -187,7 +186,6 @@ public class BatchController {
         model.addAttribute("defaultPhilterInstanceId", philterDefaults.getDefaultInstanceId());
         model.addAttribute("domains", Domains.VALUES);
         model.addAttribute("isAdmin", admin);
-        model.addAttribute("myGroupsOnly", myGroupsOnly);
         model.addAttribute("currentSort", activeSort);
         model.addAttribute("currentDir", ascending ? "asc" : "desc");
         return "batches";
@@ -366,6 +364,41 @@ public class BatchController {
         redirectAttributes.addFlashAttribute(
                 "success",
                 "Batch \"" + batch.getName() + "\" assigned to group \"" + groupName + "\".");
+        return "redirect:/batches";
+    }
+
+    @PostMapping("/{batchId}/domain")
+    public String changeDomain(@PathVariable String batchId,
+                               @RequestParam("domain") String domain,
+                               Authentication authentication,
+                               RedirectAttributes redirectAttributes) {
+        if (!isAdmin(authentication)) {
+            redirectAttributes.addFlashAttribute("error", "Only administrators can modify batches.");
+            return "redirect:/batches";
+        }
+        Batch batch = batchRepository.findById(batchId).orElse(null);
+        if (batch == null) {
+            redirectAttributes.addFlashAttribute("error", "Batch not found.");
+            return "redirect:/batches";
+        }
+        String trimmed = domain == null ? "" : domain.trim();
+        if (trimmed.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Domain is required.");
+            return "redirect:/batches";
+        }
+        if (!Domains.isValid(trimmed)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Domain \"" + trimmed + "\" is not a valid choice.");
+            return "redirect:/batches";
+        }
+        String previous = batch.getDomain();
+        batch.setDomain(trimmed);
+        batchRepository.save(batch);
+        auditLogService.log("BATCH_DOMAIN_CHANGE", "Batch", batch.getId(),
+                Map.of("previousDomain", previous == null ? "" : previous,
+                        "newDomain", trimmed));
+        redirectAttributes.addFlashAttribute("success",
+                "Batch \"" + batch.getName() + "\" domain set to \"" + trimmed + "\".");
         return "redirect:/batches";
     }
 

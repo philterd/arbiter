@@ -279,6 +279,12 @@
                 </div>
             </div>
 
+            <div th:if="${document.status == 'APPROVED'}"
+                 class="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-900">
+                This document is <span class="font-semibold">APPROVED</span> and its PII spans are locked.
+                Click <span class="font-semibold">Unapprove</span> above to add, edit, or remove spans.
+            </div>
+
             <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_18rem] gap-6">
                 <div>
                     <h3 class="text-lg font-semibold mb-2 text-gray-800">Original</h3>
@@ -312,6 +318,7 @@
         const defaultExplainInstanceId = /*[[${defaultExplainInstanceId}]]*/ null;
         const defaultExplainModel = /*[[${defaultExplainModel}]]*/ null;
         const secondOpinionConfigured = /*[[${secondOpinionConfigured}]]*/ false;
+        const documentApproved = /*[[${document.status == 'APPROVED'}]]*/ false;
 
         function escapeHtml(unsafe) {
             return String(unsafe)
@@ -385,16 +392,19 @@
                     ? ''
                     : `<option value="${escapeHtml(item.type)}" selected>${escapeHtml(item.type)}</option>`;
                 const manual = !!item.manuallyCreated;
+                const lockedAttr = documentApproved ? ' disabled' : '';
+                const lockedTitle = documentApproved
+                    ? ' title="Document is APPROVED — Unapprove to edit spans"'
+                    : '';
                 const actionBtn = manual
                     ? `<button type="button"
                                 class="toggle-btn refused"
-                                data-delete-span="${escapeHtml(item.id)}"
-                                title="Manually-created span — removing deletes it">
+                                data-delete-span="${escapeHtml(item.id)}"${lockedAttr}${lockedTitle}>
                             Remove
                         </button>`
                     : `<button type="button" class="toggle-btn ${accepted ? 'accepted' : 'refused'}"
                                 data-toggle="${escapeHtml(item.id)}"
-                                aria-pressed="${accepted ? 'true' : 'false'}">
+                                aria-pressed="${accepted ? 'true' : 'false'}"${lockedAttr}${lockedTitle}>
                             ${accepted ? 'Accepted' : 'Refused'}
                         </button>`;
                 const manualBadge = manual
@@ -403,7 +413,7 @@
                 return `
                 <div class="nav-item px-3 py-2.5 ${accepted ? '' : 'is-refused'}" data-id="${escapeHtml(item.id)}">
                     <div class="flex items-center justify-between mb-1 gap-2">
-                        <select class="type-select" data-type-for="${escapeHtml(item.id)}" title="Change PII type">
+                        <select class="type-select" data-type-for="${escapeHtml(item.id)}" ${documentApproved ? 'disabled title="Document is APPROVED — Unapprove to edit spans"' : 'title="Change PII type"'}>
                             ${fallbackOption}${options}
                         </select>
                         <span class="text-xs text-gray-500">#${idx + 1}${manualBadge}</span>
@@ -415,8 +425,8 @@
                     </div>
                     <div class="grid grid-cols-2 gap-1.5">
                         <button type="button"
-                                class="text-xs font-medium text-blue-700 hover:bg-blue-50 border border-blue-200 rounded px-2 py-1 transition-colors"
-                                data-redact-like="${escapeHtml(item.id)}">
+                                class="text-xs font-medium text-blue-700 hover:bg-blue-50 border border-blue-200 rounded px-2 py-1 transition-colors disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                                data-redact-like="${escapeHtml(item.id)}"${lockedAttr}${lockedTitle}>
                             Redact All Like This
                         </button>
                         <button type="button"
@@ -489,6 +499,7 @@
                 const redactLike = e.target.closest('[data-redact-like]');
                 if (redactLike) {
                     e.stopPropagation();
+                    if (documentApproved) return;
                     if (redactLike.disabled) return;
                     const id = redactLike.getAttribute('data-redact-like');
                     redactLike.disabled = true;
@@ -511,6 +522,7 @@
                 const deleteSpan = e.target.closest('[data-delete-span]');
                 if (deleteSpan) {
                     e.stopPropagation();
+                    if (documentApproved) return;
                     if (deleteSpan.disabled) return;
                     const id = deleteSpan.getAttribute('data-delete-span');
                     if (!confirm('Remove this manually-created span? It will be deleted entirely.')) return;
@@ -537,6 +549,7 @@
                 const toggle = e.target.closest('[data-toggle]');
                 if (toggle) {
                     e.stopPropagation();
+                    if (documentApproved) return;
                     const id = toggle.getAttribute('data-toggle');
                     const previous = acceptedById.get(id);
                     const next = !previous;
@@ -566,6 +579,7 @@
             navList.addEventListener('change', async (e) => {
                 const select = e.target.closest('[data-type-for]');
                 if (!select) return;
+                if (documentApproved) return;
                 const id = select.getAttribute('data-type-for');
                 const newType = select.value;
                 const target = originalRedactions.find(r => r.id === id);
@@ -712,7 +726,8 @@
         /*<![CDATA[*/
         (function () {
             const docId = /*[[${document.id}]]*/ '';
-            const pane = document.getElementById('redactedPane');
+            const redactedPane = document.getElementById('redactedPane');
+            const originalPane = document.getElementById('originalPane');
             const modal = document.getElementById('createSpanModal');
             const textBox = document.getElementById('createSpanText');
             const typeSel = document.getElementById('createSpanType');
@@ -738,7 +753,7 @@
                 return n;
             }
 
-            function offsetInPane(node, nodeOffset) {
+            function offsetInPane(pane, node, nodeOffset) {
                 let offset = 0;
                 let done = false;
                 function walk(el) {
@@ -811,13 +826,28 @@
             }
 
             function handleSelection() {
+                if (documentApproved) return;
                 const sel = window.getSelection();
                 if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
                 const range = sel.getRangeAt(0);
-                if (!pane.contains(range.startContainer) || !pane.contains(range.endContainer)) return;
 
-                let startOffset = offsetInPane(range.startContainer, range.startOffset);
-                let endOffset = offsetInPane(range.endContainer, range.endOffset);
+                // Detect which pane the selection is in. The Original pane shows the raw text
+                // (offsets map directly to originalText); the Redacted pane has <<TYPE>> markers
+                // and needs the redactedToOriginalOffset mapping.
+                let activePane = null;
+                let mapsThroughRedacted = false;
+                if (redactedPane.contains(range.startContainer) && redactedPane.contains(range.endContainer)) {
+                    activePane = redactedPane;
+                    mapsThroughRedacted = true;
+                } else if (originalPane.contains(range.startContainer) && originalPane.contains(range.endContainer)) {
+                    activePane = originalPane;
+                    mapsThroughRedacted = false;
+                } else {
+                    return;
+                }
+
+                let startOffset = offsetInPane(activePane, range.startContainer, range.startOffset);
+                let endOffset = offsetInPane(activePane, range.endContainer, range.endOffset);
                 if (startOffset === null || endOffset === null) return;
                 if (endOffset < startOffset) [startOffset, endOffset] = [endOffset, startOffset];
                 if (startOffset === endOffset) return;
@@ -834,12 +864,19 @@
                     endOffset--;
                 }
                 if (!selectedText) return;
-                if (selectedText.includes('<<') || selectedText.includes('>>')) {
-                    return; // overlaps marker text
+                if (mapsThroughRedacted && (selectedText.includes('<<') || selectedText.includes('>>'))) {
+                    return; // overlaps marker text in redacted pane
                 }
 
-                const origStart = redactedToOriginalOffset(startOffset);
-                const origEnd = redactedToOriginalOffset(endOffset);
+                let origStart, origEnd;
+                if (mapsThroughRedacted) {
+                    origStart = redactedToOriginalOffset(startOffset);
+                    origEnd = redactedToOriginalOffset(endOffset);
+                } else {
+                    // Original pane offsets already align with originalText.
+                    origStart = startOffset;
+                    origEnd = endOffset;
+                }
                 if (origStart === null || origEnd === null || origEnd <= origStart) return;
 
                 // Sanity check: extracted slice equals selection text.
@@ -883,7 +920,8 @@
                 }
             }
 
-            pane.addEventListener('mouseup', () => setTimeout(handleSelection, 0));
+            redactedPane.addEventListener('mouseup', () => setTimeout(handleSelection, 0));
+            originalPane.addEventListener('mouseup', () => setTimeout(handleSelection, 0));
             cancelBtn.addEventListener('click', close);
             saveBtn.addEventListener('click', save);
             modal.addEventListener('click', (e) => { if (e.target === modal) close(); });

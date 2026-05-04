@@ -1,0 +1,255 @@
+/*
+ * Copyright 2026 Philterd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ */
+package ai.philterd.arbiter.webapp;
+
+import ai.philterd.arbiter.model.Batch;
+import ai.philterd.arbiter.repository.BatchRepository;
+import ai.philterd.arbiter.repository.DocumentRepository;
+import ai.philterd.arbiter.repository.GroupRepository;
+import ai.philterd.arbiter.repository.PhilterInstanceRepository;
+import ai.philterd.arbiter.repository.WeightSetRepository;
+import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.service.PhilterDefaultsService;
+import ai.philterd.arbiter.service.UserGroupsService;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.servlet.mvc.support.RedirectAttributesModelMap;
+
+import java.util.Optional;
+import java.util.Set;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+class BatchControllerTest {
+
+    private BatchRepository batchRepository;
+    private DocumentRepository documentRepository;
+    private GroupRepository groupRepository;
+    private UserGroupsService userGroupsService;
+    private AuditLogService auditLogService;
+    private WeightSetRepository weightSetRepository;
+    private PhilterInstanceRepository philterInstanceRepository;
+    private PhilterDefaultsService philterDefaultsService;
+    private BatchController controller;
+
+    @BeforeEach
+    void setUp() {
+        batchRepository = mock(BatchRepository.class);
+        documentRepository = mock(DocumentRepository.class);
+        groupRepository = mock(GroupRepository.class);
+        userGroupsService = mock(UserGroupsService.class);
+        auditLogService = mock(AuditLogService.class);
+        weightSetRepository = mock(WeightSetRepository.class);
+        philterInstanceRepository = mock(PhilterInstanceRepository.class);
+        philterDefaultsService = mock(PhilterDefaultsService.class);
+        controller = new BatchController(batchRepository, documentRepository, groupRepository,
+                userGroupsService, auditLogService, weightSetRepository,
+                philterInstanceRepository, philterDefaultsService);
+    }
+
+    private static Authentication admin() {
+        return new UsernamePasswordAuthenticationToken("admin@x.com", null,
+                Set.of(new SimpleGrantedAuthority("ROLE_ADMIN")));
+    }
+
+    private static Authentication user() {
+        return new UsernamePasswordAuthenticationToken("user@x.com", null,
+                Set.of(new SimpleGrantedAuthority("ROLE_USER")));
+    }
+
+    private static RedirectAttributes flash() { return new RedirectAttributesModelMap(); }
+    private static String error(RedirectAttributes ra) {
+        Object e = ra.getFlashAttributes().get("error"); return e == null ? null : e.toString();
+    }
+    private static String success(RedirectAttributes ra) {
+        Object s = ra.getFlashAttributes().get("success"); return s == null ? null : s.toString();
+    }
+
+    // ---------- create ----------
+
+    @Test
+    void createRequiresAdmin() {
+        RedirectAttributes ra = flash();
+        controller.create("b", null, null, "g", null, null, "Financial", user(), ra);
+        assertEquals("Only administrators can create batches.", error(ra));
+        verify(batchRepository, never()).save(any());
+    }
+
+    @Test
+    void createRejectsBlankName() {
+        RedirectAttributes ra = flash();
+        controller.create(" ", null, null, "g", null, null, "Financial", admin(), ra);
+        assertEquals("Batch name is required.", error(ra));
+        verify(batchRepository, never()).save(any());
+    }
+
+    @Test
+    void createRejectsThresholdOutOfRange() {
+        RedirectAttributes ra = flash();
+        controller.create("b", 1.5, null, "g", null, null, "Financial", admin(), ra);
+        assertEquals("PII threshold must be between 0 and 1.", error(ra));
+        verify(batchRepository, never()).save(any());
+    }
+
+    @Test
+    void createRejectsMissingGroup() {
+        RedirectAttributes ra = flash();
+        when(groupRepository.existsById("missing")).thenReturn(false);
+        controller.create("b", null, null, "missing", null, null, "Financial", admin(), ra);
+        assertEquals("A valid group must be selected.", error(ra));
+        verify(batchRepository, never()).save(any());
+    }
+
+    @Test
+    void createRejectsUnknownPhilterInstance() {
+        when(groupRepository.existsById("g1")).thenReturn(true);
+        when(philterInstanceRepository.existsById("ghost")).thenReturn(false);
+
+        RedirectAttributes ra = flash();
+        controller.create("b", null, null, "g1", "ghost", null, "Financial", admin(), ra);
+        assertEquals("Selected Philter instance no longer exists.", error(ra));
+        verify(batchRepository, never()).save(any());
+    }
+
+    @Test
+    void createRejectsBlankDomain() {
+        when(groupRepository.existsById("g1")).thenReturn(true);
+
+        RedirectAttributes ra = flash();
+        controller.create("b", null, null, "g1", "", null, "  ", admin(), ra);
+        assertEquals("Domain is required.", error(ra));
+        verify(batchRepository, never()).save(any());
+    }
+
+    @Test
+    void createRejectsUnknownDomain() {
+        when(groupRepository.existsById("g1")).thenReturn(true);
+
+        RedirectAttributes ra = flash();
+        controller.create("b", null, null, "g1", "", null, "Aerospace", admin(), ra);
+        assertNotNull(error(ra));
+        assertTrue(error(ra).contains("not a valid choice"));
+        verify(batchRepository, never()).save(any());
+    }
+
+    @Test
+    void createRejectsDuplicateBatchName() {
+        when(groupRepository.existsById("g1")).thenReturn(true);
+        Batch existing = new Batch();
+        existing.setId("b-1");
+        existing.setName("Sample");
+        when(batchRepository.findByName("Sample")).thenReturn(Optional.of(existing));
+
+        RedirectAttributes ra = flash();
+        controller.create("Sample", null, null, "g1", "", null, "Financial", admin(), ra);
+        assertEquals("A batch named \"Sample\" already exists.", error(ra));
+        verify(batchRepository, never()).save(any());
+    }
+
+    @Test
+    void createSucceedsWithEmbeddedPhilterAndValidDomain() {
+        when(groupRepository.existsById("g1")).thenReturn(true);
+        when(batchRepository.findByName("Sample")).thenReturn(Optional.empty());
+
+        RedirectAttributes ra = flash();
+        String view = controller.create("Sample", 0.5, 0.2, "g1", "", null, "Healthcare", admin(), ra);
+        assertEquals("redirect:/batches", view);
+        assertNull(error(ra));
+        assertEquals("Batch \"Sample\" created.", success(ra));
+        verify(batchRepository).save(any(Batch.class));
+    }
+
+    // ---------- changePhilter ----------
+
+    @Test
+    void changePhilterRequiresAdmin() {
+        RedirectAttributes ra = flash();
+        controller.changePhilter("b1", "p", null, user(), ra);
+        assertEquals("Only administrators can modify batches.", error(ra));
+        verify(batchRepository, never()).save(any());
+    }
+
+    @Test
+    void changePhilterMissingBatch() {
+        when(batchRepository.findById("b1")).thenReturn(Optional.empty());
+
+        RedirectAttributes ra = flash();
+        controller.changePhilter("b1", "", "policy", admin(), ra);
+        assertEquals("Batch not found.", error(ra));
+    }
+
+    @Test
+    void changePhilterRejectsUnknownInstance() {
+        Batch b = new Batch();
+        b.setId("b1");
+        b.setName("B");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
+        when(philterInstanceRepository.existsById("ghost")).thenReturn(false);
+
+        RedirectAttributes ra = flash();
+        controller.changePhilter("b1", "ghost", null, admin(), ra);
+        assertEquals("Selected Philter instance no longer exists.", error(ra));
+        verify(batchRepository, never()).save(any());
+    }
+
+    @Test
+    void changePhilterAllowsEmbeddedNoPolicy() {
+        Batch b = new Batch();
+        b.setId("b1");
+        b.setName("B");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
+
+        RedirectAttributes ra = flash();
+        String view = controller.changePhilter("b1", "", "", admin(), ra);
+        assertEquals("redirect:/batches", view);
+        assertTrue(success(ra).contains("Embedded Philter"));
+        assertTrue(success(ra).contains("no policy"));
+        verify(batchRepository).save(b);
+        // Both fields must be cleared to null in the saved batch.
+        assertNull(b.getPhilterInstanceId());
+        assertNull(b.getPolicyName());
+    }
+
+    // ---------- changeGroup ----------
+
+    @Test
+    void changeGroupRequiresAdmin() {
+        RedirectAttributes ra = flash();
+        controller.changeGroup("b1", "g1", user(), ra);
+        assertEquals("Only administrators can modify batches.", error(ra));
+        verify(batchRepository, never()).save(any());
+    }
+
+    @Test
+    void changeGroupRejectsInvalidGroup() {
+        Batch b = new Batch();
+        b.setId("b1");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
+        when(groupRepository.existsById(anyString())).thenReturn(false);
+
+        RedirectAttributes ra = flash();
+        controller.changeGroup("b1", "ghost", admin(), ra);
+        assertEquals("A valid group must be selected.", error(ra));
+        verify(batchRepository, never()).save(any());
+    }
+}

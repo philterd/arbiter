@@ -17,6 +17,7 @@ public class Document {
     private double riskScore;
     private String philterContextId;
     private LocalDateTime createdAt;
+    private LocalDateTime statusChangedAt;
 
     public Document() {
     }
@@ -27,6 +28,20 @@ public class Document {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getStatusChangedAt() {
+        return statusChangedAt;
+    }
+
+    public void setStatusChangedAt(LocalDateTime statusChangedAt) {
+        this.statusChangedAt = statusChangedAt;
+    }
+
+    /** Set the status and its change timestamp atomically. */
+    public void changeStatus(String newStatus) {
+        this.status = newStatus;
+        this.statusChangedAt = LocalDateTime.now();
     }
 
     public String getId() {

@@ -100,10 +100,6 @@
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-3xl font-bold text-gray-900">Queue</h2>
                     <div class="flex items-center gap-4">
-                        <label sec:authorize="hasRole('ADMIN')" class="inline-flex items-center cursor-pointer text-sm text-gray-700">
-                            <input id="myGroupsOnlyCb" type="checkbox" checked class="mr-2">
-                            Limit to my groups
-                        </label>
                         <button id="refreshBtn" class="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-100 font-medium rounded-lg transition duration-200">
                             Refresh
                         </button>
@@ -192,11 +188,6 @@
         let currentDir = 'desc';
         const SORT_DEFAULT_DIR = { riskScore: 'desc', status: 'asc', batchId: 'asc', filename: 'asc' };
 
-        function myGroupsOnlyValue() {
-            const cb = document.getElementById('myGroupsOnlyCb');
-            return cb ? String(cb.checked) : 'true';
-        }
-
         function updateSortIndicators() {
             document.querySelectorAll('th.sortable').forEach(th => {
                 const arrow = th.querySelector('.sort-arrow');
@@ -222,7 +213,6 @@
             if (batchId) params.set('batchId', batchId);
             if (status) params.set('status', status);
             if (filename) params.set('filename', filename);
-            params.set('myGroupsOnly', myGroupsOnlyValue());
             params.set('sort', currentSort);
             params.set('dir', currentDir);
 
@@ -246,8 +236,7 @@
             const previousValue = select.value;
             select.innerHTML = '<option value="">All batches</option>';
             try {
-                const params = new URLSearchParams({ myGroupsOnly: myGroupsOnlyValue() });
-                const response = await fetch(`/api/v1/batches?${params.toString()}`);
+                const response = await fetch('/api/v1/batches');
                 if (!response.ok) return;
                 const batches = await response.json();
                 for (const b of batches) {
@@ -379,15 +368,6 @@
                 filenameInput.value = '';
                 onFilterChange();
             });
-            const myGroupsCb = document.getElementById('myGroupsOnlyCb');
-            if (myGroupsCb) {
-                myGroupsCb.addEventListener('change', async () => {
-                    document.getElementById('batchFilter').value = '';
-                    currentPage = 0;
-                    await loadBatches();
-                    loadQueue(currentPage);
-                });
-            }
         });
     </script>
 </body>

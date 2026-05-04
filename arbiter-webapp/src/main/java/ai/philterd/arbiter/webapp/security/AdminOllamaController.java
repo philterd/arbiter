@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.net.URI;
+import java.time.LocalDateTime;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -152,6 +153,7 @@ public class AdminOllamaController {
         }
 
         OllamaInstance instance = new OllamaInstance();
+        instance.setCreatedAt(LocalDateTime.now());
         instance.setId(UUID.randomUUID().toString());
         instance.setName(trimmedName);
         instance.setEndpoint(trimmedEndpoint);

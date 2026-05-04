@@ -1,5 +1,7 @@
 package ai.philterd.arbiter.model;
 
+import java.time.LocalDateTime;
+
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -18,8 +20,13 @@ public class Group {
 
     private Set<String> userIds = new HashSet<>();
 
+    private LocalDateTime createdAt;
+
     public Group() {
     }
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+
 
     public String getId() {
         return id;
