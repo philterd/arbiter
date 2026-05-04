@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd
+  -->
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Arbiter - Reporting</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="flex min-h-screen">
+        <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
+            <div class="px-6 py-5 border-b border-gray-200">
+                <h1 class="text-2xl font-bold text-gray-900">Arbiter</h1>
+            </div>
+            <nav class="flex-1 px-3 py-4 space-y-1">
+                <a th:href="@{/batches}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                    </svg>
+                    Batches
+                </a>
+                <a th:href="@{/}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path>
+                    </svg>
+                    Queue
+                </a>
+                <a th:href="@{/upload}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12"></path>
+                    </svg>
+                    Upload
+                </a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/reporting}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v18h18M9 17v-7m4 7v-12m4 12v-4"></path>
+                    </svg>
+                    Reporting
+                </a>
+                <a th:href="@{/settings}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    Settings
+                </a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/users}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+                    </svg>
+                    Admin
+                </a>
+            </nav>
+            <div class="px-3 py-4 border-t border-gray-200 text-sm text-gray-600">
+                <div class="px-3 mb-2">
+                    Signed in as <span class="font-medium" sec:authentication="name">user</span>
+                    <span sec:authorize="hasRole('ADMIN')" class="ml-1 text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Admin</span>
+                </div>
+                <form th:action="@{/logout}" method="post">
+                    <button type="submit" class="w-full text-left px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100">Sign out</button>
+                </form>
+            </div>
+        </aside>
+
+        <div class="flex-1 flex flex-col min-w-0">
+        <main class="flex-1 p-8">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-3xl font-bold text-gray-900">Reporting</h2>
+                <label th:if="${isAdmin}" class="inline-flex items-center cursor-pointer text-sm text-gray-700">
+                    <input type="checkbox"
+                           th:checked="${myGroupsOnly}"
+                           onchange="const u = new URL(window.location.href); u.searchParams.set('myGroupsOnly', this.checked); window.location = u;"
+                           class="mr-2">
+                    Limit to my groups
+                </label>
+            </div>
+
+            <!-- KPI cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Batches</div>
+                    <div class="text-3xl font-bold text-gray-900 mt-1" th:text="${totalBatches}">0</div>
+                    <div class="text-xs text-gray-500 mt-1">
+                        <span th:text="${openBatches}">0</span> open · <span th:text="${closedBatches}">0</span> closed
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Documents</div>
+                    <div class="text-3xl font-bold text-gray-900 mt-1" th:text="${totalDocuments}">0</div>
+                    <div class="text-xs text-gray-500 mt-1">across all visible batches</div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Needs review</div>
+                    <div class="text-3xl font-bold text-yellow-700 mt-1" th:text="${needsReviewTotal}">0</div>
+                    <div class="text-xs text-gray-500 mt-1">documents in REVIEW_REQUIRED or AUDIT_REQUIRED</div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Auto-approved</div>
+                    <div class="text-3xl font-bold text-emerald-700 mt-1" th:text="${autoApprovedTotal}">0</div>
+                    <div class="text-xs text-gray-500 mt-1">below each batch's doc threshold</div>
+                </div>
+            </div>
+
+            <!-- Status breakdown -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">Documents by status</h3>
+                    <div class="space-y-2">
+                        <div th:each="entry : ${statusCounts}" class="flex items-center justify-between text-sm">
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                                  th:classappend="${entry.key == 'APPROVED'} ? 'bg-green-100 text-green-800' :
+                                                  (${entry.key == 'AUTO_APPROVED'} ? 'bg-emerald-100 text-emerald-800' :
+                                                  (${entry.key == 'REVIEW_REQUIRED'} ? 'bg-yellow-100 text-yellow-800' :
+                                                  (${entry.key == 'AUDIT_REQUIRED'} ? 'bg-amber-100 text-amber-800' :
+                                                  (${entry.key == 'PENDING'} ? 'bg-blue-100 text-blue-800' :
+                                                  (${entry.key == 'REJECTED' or entry.key == 'FAILED'} ? 'bg-red-100 text-red-800' :
+                                                  'bg-gray-100 text-gray-800')))))"
+                                  th:text="${entry.key}">STATUS</span>
+                            <span class="font-medium text-gray-900" th:text="${entry.value}">0</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">Average risk score</h3>
+                    <div class="text-5xl font-bold text-gray-900"
+                         th:text="${#numbers.formatDecimal(avgRiskScore, 1, 3)}">0.000</div>
+                    <p class="text-xs text-gray-500 mt-2">
+                        Mean across <span th:text="${totalDocuments}">0</span> document<span th:if="${totalDocuments != 1}">s</span>.
+                        Range is 0.000 (no risk) to 1.000 (clamped maximum).
+                    </p>
+                </div>
+            </div>
+
+            <!-- Per-batch table -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">Per-batch breakdown</h3>
+                </div>
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Documents</th>
+                            <th th:each="s : ${knownStatuses}"
+                                class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                th:text="${s}">STATUS</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Auto-approved</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Avg risk</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        <tr th:if="${#lists.isEmpty(batchRows)}">
+                            <td th:attr="colspan=${knownStatuses.size() + 4}" class="px-6 py-8 text-center text-sm text-gray-500">
+                                No batches in scope.
+                            </td>
+                        </tr>
+                        <tr th:each="row : ${batchRows}" class="hover:bg-gray-50">
+                            <td class="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                <span th:text="${row.name}">name</span>
+                                <span th:if="${row.closed}"
+                                      class="ml-2 px-2 inline-flex text-[10px] leading-5 font-semibold rounded-full bg-gray-200 text-gray-700 uppercase tracking-wide">Closed</span>
+                            </td>
+                            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-900 text-right" th:text="${row.documentCount}">0</td>
+                            <td th:each="s : ${knownStatuses}"
+                                class="px-3 py-3 whitespace-nowrap text-sm text-gray-700 text-right"
+                                th:text="${row.statusCounts.get(s) != null ? row.statusCounts.get(s) : 0}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-emerald-700 text-right font-medium"
+                                th:text="${row.autoApproved}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right"
+                                th:text="${#numbers.formatDecimal(row.avgRiskScore, 1, 3)}">0.000</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+        <div th:replace="~{fragments/footer :: footer}"></div>
+        </div>
+    </div>
+</body>
+</html>

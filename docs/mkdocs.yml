@@ -1,0 +1,41 @@
+site_name: Arbiter
+repo_url: https://github.com/philterd/arbiter
+site_url: https://philterd.github.io/arbiter/
+edit_uri: '?query=docs/docs/'
+copyright: Copyright 2026 Philterd, LLC
+site_author: philterd
+site_description: User guide for Arbiter, the human-in-the-loop deidentification tool.
+theme:
+  name: material
+  locale: en
+  palette:
+    primary: red
+markdown_extensions:
+  - admonition
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.arithmatex:
+      generic: true
+extra_javascript:
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Concepts: concepts.md
+  - User guide:
+      - Queue: user-guide/queue.md
+      - Uploading: user-guide/uploading.md
+      - Reviewing: user-guide/reviewing.md
+      - Personal settings: user-guide/settings.md
+  - Admin guide:
+      - Users and groups: admin/users-and-groups.md
+      - Batches: admin/batches.md
+      - Audit log: admin/audit-log.md
+      - Notifications: admin/notifications.md
+  - Reference:
+      - Risk score: reference/risk-score.md
+      - PII types: reference/pii-types.md
+      - REST API: reference/api.md
+  - Security: security.md

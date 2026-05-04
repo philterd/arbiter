@@ -22,7 +22,19 @@ import ai.philterd.phileas.model.filtering.BinaryDocumentFilterResult;
 import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.phileas.policy.Identifiers;
+import ai.philterd.phileas.policy.filters.Age;
+import ai.philterd.phileas.policy.filters.CreditCard;
+import ai.philterd.phileas.policy.filters.Date;
+import ai.philterd.phileas.policy.filters.EmailAddress;
+import ai.philterd.phileas.policy.filters.IpAddress;
+import ai.philterd.phileas.policy.filters.PhoneNumber;
 import ai.philterd.phileas.policy.filters.Ssn;
+import ai.philterd.phileas.services.strategies.rules.AgeFilterStrategy;
+import ai.philterd.phileas.services.strategies.rules.CreditCardFilterStrategy;
+import ai.philterd.phileas.services.strategies.rules.DateFilterStrategy;
+import ai.philterd.phileas.services.strategies.rules.EmailAddressFilterStrategy;
+import ai.philterd.phileas.services.strategies.rules.IpAddressFilterStrategy;
+import ai.philterd.phileas.services.strategies.rules.PhoneNumberFilterStrategy;
 import ai.philterd.phileas.services.strategies.rules.SsnFilterStrategy;
 import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
 import ai.philterd.phileas.services.filters.filtering.PdfFilterService;
@@ -32,11 +44,7 @@ import ai.philterd.arbiter.philter.PhilterClient;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.UUID;
+import java.util.*;
 
 @Service("phileasClient")
 public class PhileasClient implements PhilterClient {
@@ -47,13 +55,49 @@ public class PhileasClient implements PhilterClient {
         Policy policy = new Policy();
         
         Identifiers identifiers = new Identifiers();
+
+        Age age = new Age();
+        AgeFilterStrategy ageFilterStrategy = new AgeFilterStrategy();
+        ageFilterStrategy.setStrategy("REDACT");
+        age.setAgeFilterStrategies(List.of(ageFilterStrategy));
+        identifiers.setAge(age);
+
+        CreditCard creditCard = new CreditCard();
+        CreditCardFilterStrategy creditCardFilterStrategy = new CreditCardFilterStrategy();
+        creditCardFilterStrategy.setStrategy("REDACT");
+        creditCard.setCreditCardFilterStrategies(List.of(creditCardFilterStrategy));
+        identifiers.setCreditCard(creditCard);
+
+        Date date = new Date();
+        DateFilterStrategy dateFilterStrategy = new DateFilterStrategy();
+        dateFilterStrategy.setStrategy("REDACT");
+        date.setDateFilterStrategies(List.of(dateFilterStrategy));
+        identifiers.setDate(date);
+
+        EmailAddress emailAddress = new EmailAddress();
+        EmailAddressFilterStrategy emailAddressFilterStrategy = new EmailAddressFilterStrategy();
+        emailAddressFilterStrategy.setStrategy("REDACT");
+        emailAddress.setEmailAddressFilterStrategies(List.of(emailAddressFilterStrategy));
+        identifiers.setEmailAddress(emailAddress);
+
+        IpAddress ipAddress = new IpAddress();
+        IpAddressFilterStrategy ipAddressFilterStrategy = new IpAddressFilterStrategy();
+        ipAddressFilterStrategy.setStrategy("REDACT");
+        ipAddress.setIpAddressFilterStrategies(List.of(ipAddressFilterStrategy));
+        identifiers.setIpAddress(ipAddress);
+
+        PhoneNumber phoneNumber = new PhoneNumber();
+        PhoneNumberFilterStrategy phoneNumberFilterStrategy = new PhoneNumberFilterStrategy();
+        phoneNumberFilterStrategy.setStrategy("REDACT");
+        phoneNumber.setPhoneNumberFilterStrategies(List.of(phoneNumberFilterStrategy));
+        identifiers.setPhoneNumber(phoneNumber);
+
         Ssn ssn = new Ssn();
-        
         SsnFilterStrategy ssnFilterStrategy = new SsnFilterStrategy();
         ssnFilterStrategy.setStrategy("REDACT");
         ssn.setSsnFilterStrategies(List.of(ssnFilterStrategy));
-        
         identifiers.setSsn(ssn);
+
         policy.setIdentifiers(identifiers);
         
         // Use Phileas to redact the text
@@ -79,7 +123,7 @@ public class PhileasClient implements PhilterClient {
                 }
             }
             
-            distinctSpans.sort((a, b) -> a.getCharacterStart() - b.getCharacterStart());
+            distinctSpans.sort(Comparator.comparingInt(Span::getCharacterStart));
             int offset = 0;
             for (Span span : distinctSpans) {
                 String id = UUID.randomUUID().toString();
@@ -110,13 +154,49 @@ public class PhileasClient implements PhilterClient {
         Policy policy = new Policy();
 
         Identifiers identifiers = new Identifiers();
-        Ssn ssn = new Ssn();
 
+        Age age = new Age();
+        AgeFilterStrategy ageFilterStrategy = new AgeFilterStrategy();
+        ageFilterStrategy.setStrategy("REDACT");
+        age.setAgeFilterStrategies(List.of(ageFilterStrategy));
+        identifiers.setAge(age);
+
+        CreditCard creditCard = new CreditCard();
+        CreditCardFilterStrategy creditCardFilterStrategy = new CreditCardFilterStrategy();
+        creditCardFilterStrategy.setStrategy("REDACT");
+        creditCard.setCreditCardFilterStrategies(List.of(creditCardFilterStrategy));
+        identifiers.setCreditCard(creditCard);
+
+        Date date = new Date();
+        DateFilterStrategy dateFilterStrategy = new DateFilterStrategy();
+        dateFilterStrategy.setStrategy("REDACT");
+        date.setDateFilterStrategies(List.of(dateFilterStrategy));
+        identifiers.setDate(date);
+
+        EmailAddress emailAddress = new EmailAddress();
+        EmailAddressFilterStrategy emailAddressFilterStrategy = new EmailAddressFilterStrategy();
+        emailAddressFilterStrategy.setStrategy("REDACT");
+        emailAddress.setEmailAddressFilterStrategies(List.of(emailAddressFilterStrategy));
+        identifiers.setEmailAddress(emailAddress);
+
+        IpAddress ipAddress = new IpAddress();
+        IpAddressFilterStrategy ipAddressFilterStrategy = new IpAddressFilterStrategy();
+        ipAddressFilterStrategy.setStrategy("REDACT");
+        ipAddress.setIpAddressFilterStrategies(List.of(ipAddressFilterStrategy));
+        identifiers.setIpAddress(ipAddress);
+
+        PhoneNumber phoneNumber = new PhoneNumber();
+        PhoneNumberFilterStrategy phoneNumberFilterStrategy = new PhoneNumberFilterStrategy();
+        phoneNumberFilterStrategy.setStrategy("REDACT");
+        phoneNumber.setPhoneNumberFilterStrategies(List.of(phoneNumberFilterStrategy));
+        identifiers.setPhoneNumber(phoneNumber);
+
+        Ssn ssn = new Ssn();
         SsnFilterStrategy ssnFilterStrategy = new SsnFilterStrategy();
         ssnFilterStrategy.setStrategy("REDACT");
         ssn.setSsnFilterStrategies(List.of(ssnFilterStrategy));
-
         identifiers.setSsn(ssn);
+
         policy.setIdentifiers(identifiers);
 
         try {

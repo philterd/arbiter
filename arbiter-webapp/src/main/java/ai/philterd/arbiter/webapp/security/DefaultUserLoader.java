@@ -15,6 +15,7 @@
  */
 package ai.philterd.arbiter.webapp.security;
 
+import ai.philterd.arbiter.model.Roles;
 import ai.philterd.arbiter.model.User;
 import ai.philterd.arbiter.repository.UserRepository;
 import org.slf4j.Logger;
@@ -47,10 +48,10 @@ public class DefaultUserLoader implements ApplicationRunner {
         }
         User admin = new User();
         admin.setId(UUID.randomUUID().toString());
-        admin.setUsername("admin");
+        admin.setEmail("admin@philterd.ai");
         admin.setPasswordHash(passwordEncoder.encode("admin"));
-        admin.setRoles(Set.of("ADMIN"));
+        admin.setRoles(Set.of(Roles.ADMIN));
         userRepository.save(admin);
-        log.info("Seeded default user 'admin' with role ADMIN.");
+        log.info("Seeded default user '{}' with role {}.", admin.getEmail(), Roles.ADMIN);
     }
 }

@@ -104,8 +104,8 @@
         }
     </style>
 </head>
-<body class="bg-gray-50">
-    <div class="max-w-[1200px] mx-auto mt-8 px-4 pb-12">
+<body class="bg-gray-50 min-h-screen flex flex-col">
+    <div class="flex-1 max-w-[1200px] w-full mx-auto mt-8 px-4 pb-12">
         <div id="redactionPopup">
             <!-- Content will be injected by JavaScript -->
         </div>
@@ -616,5 +616,6 @@
         });
         /*]]>*/
     </script>
+    <div th:replace="~{fragments/footer :: footer}"></div>
 </body>
 </html>

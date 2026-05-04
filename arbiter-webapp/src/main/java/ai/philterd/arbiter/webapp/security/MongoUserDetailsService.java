@@ -15,6 +15,7 @@
  */
 package ai.philterd.arbiter.webapp.security;
 
+import ai.philterd.arbiter.model.Roles;
 import ai.philterd.arbiter.model.User;
 import ai.philterd.arbiter.repository.UserRepository;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -36,16 +37,16 @@ public class MongoUserDetailsService implements UserDetailsService {
     }
 
     @Override
-    public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + username));
+    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
 
         Set<String> roles = user.getRoles() == null || user.getRoles().isEmpty()
-                ? Set.of("USER")
+                ? Set.of(Roles.USER)
                 : user.getRoles();
 
         return new org.springframework.security.core.userdetails.User(
-                user.getUsername(),
+                user.getEmail(),
                 user.getPasswordHash(),
                 roles.stream()
                         .map(r -> new SimpleGrantedAuthority("ROLE_" + r))

@@ -55,6 +55,17 @@ mvn spring-boot:run -pl arbiter-webapp
 
 The application will be available at `http://localhost:8081`.
 
+## API documentation
+
+Arbiter exposes its REST API as an OpenAPI 3 definition, served by Spring at runtime:
+
+- **Swagger UI**: <http://localhost:8081/swagger-ui.html>
+- **OpenAPI JSON**: <http://localhost:8081/v3/api-docs>
+- **OpenAPI YAML**: <http://localhost:8081/v3/api-docs.yaml>
+
+The API requires a Bearer API key. Generate one from the **Settings** page (`/settings`)
+and click **Authorize** in the Swagger UI to make calls.
+
 ## Usage
 
 1. **Upload**: Select a `.txt` or `.pdf` file to upload.

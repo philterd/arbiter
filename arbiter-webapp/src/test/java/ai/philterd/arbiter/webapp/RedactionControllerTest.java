@@ -17,11 +17,21 @@ package ai.philterd.arbiter.webapp;
 
 import ai.philterd.arbiter.core.model.Redaction;
 import ai.philterd.arbiter.core.model.RedactionResponse;
+import ai.philterd.arbiter.model.Batch;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
+import ai.philterd.arbiter.repository.AuditLogRepository;
+import ai.philterd.arbiter.repository.DocumentCommentRepository;
+import ai.philterd.arbiter.repository.GroupRepository;
+import ai.philterd.arbiter.repository.LlmJudgeDefaultsRepository;
+import ai.philterd.arbiter.repository.NotificationSettingsRepository;
+import ai.philterd.arbiter.repository.OllamaInstanceRepository;
+import ai.philterd.arbiter.repository.UserSettingsRepository;
+import ai.philterd.arbiter.repository.WeightSetRepository;
 import ai.philterd.arbiter.repository.SpanRepository;
 import ai.philterd.arbiter.repository.UserRepository;
 import ai.philterd.arbiter.service.RedactionService;
+import org.springframework.data.mongodb.core.MongoOperations;
 import ai.philterd.arbiter.webapp.security.MongoUserDetailsService;
 import ai.philterd.arbiter.webapp.security.SecurityConfig;
 import org.junit.jupiter.api.Test;
@@ -34,6 +44,7 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -66,6 +77,33 @@ public class RedactionControllerTest {
     @MockBean
     private UserRepository userRepository;
 
+    @MockBean
+    private GroupRepository groupRepository;
+
+    @MockBean
+    private AuditLogRepository auditLogRepository;
+
+    @MockBean
+    private NotificationSettingsRepository notificationSettingsRepository;
+
+    @MockBean
+    private OllamaInstanceRepository ollamaInstanceRepository;
+
+    @MockBean
+    private DocumentCommentRepository documentCommentRepository;
+
+    @MockBean
+    private WeightSetRepository weightSetRepository;
+
+    @MockBean
+    private LlmJudgeDefaultsRepository llmJudgeDefaultsRepository;
+
+    @MockBean
+    private UserSettingsRepository userSettingsRepository;
+
+    @MockBean
+    private MongoOperations mongoOperations;
+
     @Test
     public void testDashboard() throws Exception {
         mockMvc.perform(get("/"))
@@ -81,17 +119,23 @@ public class RedactionControllerTest {
     }
 
     @Test
+    @WithMockUser(roles = "ADMIN")
     public void testRedactText() throws Exception {
         String text = "George Washington lived in Mount Vernon.";
         RedactionResponse response = new RedactionResponse(text, text, List.of(
                 new Redaction(UUID.randomUUID().toString(), "George Washington", 0, 17, "PERSON")
         ));
 
+        Batch batch = new Batch();
+        batch.setId("batch-1");
+        batch.setName("Test batch");
+
         when(redactionService.redactText(any())).thenReturn(response);
+        when(batchRepository.findById("batch-1")).thenReturn(Optional.of(batch));
 
         MockMultipartFile file = new MockMultipartFile("file", "test.txt", "text/plain", text.getBytes());
 
-        mockMvc.perform(multipart("/redact").file(file).with(csrf()))
+        mockMvc.perform(multipart("/redact").file(file).param("batchId", "batch-1").with(csrf()))
                 .andExpect(status().isOk())
                 .andExpect(view().name("redact"))
                 .andExpect(model().attributeExists("redactionResponse"))

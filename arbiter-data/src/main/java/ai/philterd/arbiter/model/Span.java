@@ -14,6 +14,7 @@ public class Span {
     private double confidence;
     private String status;
     private Location location;
+    private boolean manuallyCreated;
 
     public Span() {
     }
@@ -72,5 +73,13 @@ public class Span {
 
     public void setLocation(Location location) {
         this.location = location;
+    }
+
+    public boolean isManuallyCreated() {
+        return manuallyCreated;
+    }
+
+    public void setManuallyCreated(boolean manuallyCreated) {
+        this.manuallyCreated = manuallyCreated;
     }
 }

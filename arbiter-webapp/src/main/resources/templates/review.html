@@ -62,6 +62,65 @@
             visibility: visible;
             opacity: 1;
         }
+        .redaction.is-active {
+            background-color: #f97316;
+            color: white;
+            box-shadow: 0 0 0 2px #fb923c;
+        }
+        .nav-item {
+            cursor: pointer;
+            transition: background-color 150ms;
+        }
+        .nav-item:hover {
+            background-color: #f9fafb;
+        }
+        .nav-item.is-active {
+            background-color: #fff7ed;
+        }
+        .nav-item.is-refused {
+            opacity: 0.55;
+        }
+        .nav-item.is-refused .nav-text {
+            text-decoration: line-through;
+        }
+        .toggle-btn {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding: 0.2rem 0.6rem;
+            border-radius: 9999px;
+            border: 1px solid transparent;
+        }
+        .toggle-btn.accepted {
+            background-color: #dcfce7;
+            color: #166534;
+            border-color: #86efac;
+        }
+        .toggle-btn.refused {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border-color: #fca5a5;
+        }
+        .type-select {
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            padding: 0.2rem 1.4rem 0.2rem 0.6rem;
+            border-radius: 9999px;
+            border: 1px solid #bfdbfe;
+            background-color: #dbeafe;
+            color: #1e40af;
+            cursor: pointer;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 20 20' fill='%231e40af'><path d='M5 8l5 5 5-5H5z'/></svg>");
+            background-repeat: no-repeat;
+            background-position: right 0.35rem center;
+        }
+        .type-select:hover { background-color: #bfdbfe; }
+        .type-select:focus { outline: none; box-shadow: 0 0 0 2px #93c5fd; }
     </style>
 </head>
 <body class="bg-gray-50">
@@ -71,6 +130,12 @@
                 <h1 class="text-2xl font-bold text-gray-900">Arbiter</h1>
             </div>
             <nav class="flex-1 px-3 py-4 space-y-1">
+                <a th:href="@{/batches}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                    </svg>
+                    Batches
+                </a>
                 <a th:href="@{/}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path>
@@ -83,9 +148,32 @@
                     </svg>
                     Upload
                 </a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/reporting}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v18h18M9 17v-7m4 7v-12m4 12v-4"></path>
+                    </svg>
+                    Reporting
+                </a>
+                <a th:href="@{/settings}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    Settings
+                </a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/users}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+                    </svg>
+                    Admin
+                </a>
             </nav>
             <div class="px-3 py-4 border-t border-gray-200 text-sm text-gray-600">
-                <div class="px-3 mb-2">Signed in as <span class="font-medium" sec:authentication="name">user</span></div>
+                <div class="px-3 mb-2">
+                    Signed in as <span class="font-medium" sec:authentication="name">user</span>
+                    <span sec:authorize="hasRole('ADMIN')" class="ml-1 text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Admin</span>
+                </div>
                 <form th:action="@{/logout}" method="post">
                     <button type="submit" class="w-full text-left px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100">
                         Sign out
@@ -94,20 +182,69 @@
             </div>
         </aside>
 
+        <div class="flex-1 flex flex-col min-w-0">
         <main class="flex-1 p-8">
             <div class="flex justify-between items-start mb-6 gap-4">
                 <div>
                     <a th:href="@{/}" class="text-sm text-blue-600 hover:text-blue-800 mb-2 inline-block">&larr; Back to queue</a>
+                    <div class="flex items-center gap-2 mb-2">
+                        <a th:if="${prevDocumentId != null}"
+                           th:href="@{/review/{id}(id=${prevDocumentId})}"
+                           class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 font-medium rounded-lg transition duration-200">
+                            &larr; Previous
+                        </a>
+                        <span th:if="${prevDocumentId == null}"
+                              class="inline-flex items-center px-3 py-1.5 border border-gray-200 text-sm text-gray-400 font-medium rounded-lg cursor-not-allowed bg-gray-50">
+                            &larr; Previous
+                        </span>
+                        <a th:if="${nextDocumentId != null}"
+                           th:href="@{/review/{id}(id=${nextDocumentId})}"
+                           class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 font-medium rounded-lg transition duration-200">
+                            Next &rarr;
+                        </a>
+                        <span th:if="${nextDocumentId == null}"
+                              class="inline-flex items-center px-3 py-1.5 border border-gray-200 text-sm text-gray-400 font-medium rounded-lg cursor-not-allowed bg-gray-50">
+                            Next &rarr;
+                        </span>
+                    </div>
                     <h2 class="text-3xl font-bold text-gray-900" th:text="${document.filename}">Document</h2>
-                    <div class="text-sm text-gray-600 mt-1 space-x-3">
+                    <div class="text-sm text-gray-600 mt-1 flex items-center gap-3 flex-wrap">
                         <span>Status: <span class="font-medium" th:text="${document.status}">STATUS</span></span>
-                        <span>Risk Score: <span class="font-medium" th:text="${#numbers.formatDecimal(document.riskScore, 1, 2)}">0.00</span></span>
+                        <span class="flex items-center gap-2">
+                            Risk Score: <span class="font-medium" th:text="${#numbers.formatDecimal(document.riskScore, 1, 2)}">0.00</span>
+                            <button id="explainBtn" type="button"
+                                    class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md border border-purple-300 bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
+                                     class="h-3.5 w-3.5">
+                                    <path d="M12 2l1.6 4.6L18 8l-4.4 1.6L12 14l-1.6-4.4L6 8l4.4-1.4L12 2zm7 11l.9 2.6L22 17l-2.1.4-.9 2.6-.9-2.6L16 17l2.1-1.4.9-2.6zM5 14l.9 2.6L8 18l-2.1.4-.9 2.6-.9-2.6L2 18l2.1-1.4L5 14z"/>
+                                </svg>
+                                Explain
+                            </button>
+                        </span>
                     </div>
                 </div>
                 <div class="flex items-center space-x-2"
                      th:with="terminal=${ {'APPROVED','REJECTED','FAILED'} }">
-                    <div th:if="${terminal.contains(document.status)}" class="text-sm text-gray-500">
-                        Decision recorded: <span class="font-medium" th:text="${document.status}">STATUS</span>
+                    <button id="commentsBtn" type="button"
+                            class="inline-flex items-center gap-1 px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 font-medium rounded-lg transition duration-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="2" class="h-4 w-4">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                        </svg>
+                        Comments
+                    </button>
+                    <div th:if="${terminal.contains(document.status)}" class="flex items-center space-x-3">
+                        <span class="text-sm text-gray-500">
+                            Decision recorded: <span class="font-medium" th:text="${document.status}">STATUS</span>
+                        </span>
+                        <form th:if="${document.status == 'APPROVED'}"
+                              th:action="@{/review/{id}/unapprove(id=${document.id})}" method="post" class="inline">
+                            <button type="submit"
+                                    class="px-3 py-1.5 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 font-medium rounded-lg transition duration-200">
+                                Unapprove
+                            </button>
+                        </form>
                     </div>
                     <form th:if="${!terminal.contains(document.status)}"
                           th:action="@{/review/{id}/reject(id=${document.id})}" method="post" class="inline">
@@ -126,7 +263,7 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_18rem] gap-6">
                 <div>
                     <h3 class="text-lg font-semibold mb-2 text-gray-800">Original</h3>
                     <div id="originalPane" class="text-pane original-pane"></div>
@@ -135,8 +272,18 @@
                     <h3 class="text-lg font-semibold mb-2 text-gray-800">Redacted</h3>
                     <div id="redactedPane" class="text-pane"></div>
                 </div>
+                <aside>
+                    <div class="flex items-baseline justify-between mb-2">
+                        <h3 class="text-lg font-semibold text-gray-800">PII Navigator</h3>
+                        <span id="navCount" class="text-xs text-gray-500"></span>
+                    </div>
+                    <div id="navList" class="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-[70vh] overflow-y-auto">
+                    </div>
+                </aside>
             </div>
         </main>
+        <div th:replace="~{fragments/footer :: footer}"></div>
+        </div>
     </div>
 
     <script th:inline="javascript">
@@ -145,6 +292,10 @@
         const redactedText = /*[[${redactedText}]]*/ '';
         const originalRedactions = /*[[${originalRedactions}]]*/ [];
         const redactedRedactions = /*[[${redactedRedactions}]]*/ [];
+        const piiTypes = /*[[${piiTypes}]]*/ [];
+        const defaultExplainInstanceId = /*[[${defaultExplainInstanceId}]]*/ null;
+        const defaultExplainModel = /*[[${defaultExplainModel}]]*/ null;
+        const secondOpinionConfigured = /*[[${secondOpinionConfigured}]]*/ false;
 
         function escapeHtml(unsafe) {
             return String(unsafe)
@@ -153,6 +304,31 @@
                 .replace(/>/g, "&gt;")
                 .replace(/"/g, "&quot;")
                 .replace(/'/g, "&#039;");
+        }
+
+        const acceptedById = new Map();
+        originalRedactions.forEach(r => acceptedById.set(r.id, r.status !== 'REJECTED'));
+
+        function buildRedacted() {
+            const sorted = [...originalRedactions].sort((a, b) => a.start - b.start);
+            let out = '';
+            const adjusted = [];
+            let cursor = 0;
+            for (const item of sorted) {
+                if (item.start < cursor) continue;
+                out += originalText.substring(cursor, item.start);
+                if (acceptedById.get(item.id)) {
+                    const replacement = `<<${item.type.toUpperCase()}>>`;
+                    const newStart = out.length;
+                    out += replacement;
+                    adjusted.push({ ...item, start: newStart, end: out.length });
+                } else {
+                    out += originalText.substring(item.start, item.end);
+                }
+                cursor = item.end;
+            }
+            out += originalText.substring(cursor);
+            return { text: out, items: adjusted };
         }
 
         function renderHighlighted(container, text, items) {
@@ -164,16 +340,108 @@
                 html += escapeHtml(text.substring(cursor, item.start));
                 const display = escapeHtml(text.substring(item.start, item.end));
                 const tooltip = `${escapeHtml(item.type)} · ${(item.confidence * 100).toFixed(0)}%`;
-                html += `<span class="redaction">${display}<span class="redaction-tooltip">${tooltip}</span></span>`;
+                html += `<span class="redaction" data-id="${escapeHtml(item.id)}">${display}<span class="redaction-tooltip">${tooltip}</span></span>`;
                 cursor = item.end;
             }
             html += escapeHtml(text.substring(cursor));
             container.innerHTML = html;
         }
 
+        function renderNavigator() {
+            const list = document.getElementById('navList');
+            const count = document.getElementById('navCount');
+            count.textContent = originalRedactions.length === 0
+                ? 'no items'
+                : `${originalRedactions.length} item${originalRedactions.length === 1 ? '' : 's'}`;
+            if (originalRedactions.length === 0) {
+                list.innerHTML = '<div class="px-4 py-6 text-sm text-gray-500 text-center">No PII detected.</div>';
+                return;
+            }
+            const sorted = [...originalRedactions].sort((a, b) => a.start - b.start);
+            list.innerHTML = sorted.map((item, idx) => {
+                const accepted = acceptedById.get(item.id);
+                const options = piiTypes.map(t => {
+                    const selected = t.value === item.type ? ' selected' : '';
+                    return `<option value="${escapeHtml(t.value)}"${selected}>${escapeHtml(t.label)}</option>`;
+                }).join('');
+                const knownType = piiTypes.some(t => t.value === item.type);
+                const fallbackOption = knownType
+                    ? ''
+                    : `<option value="${escapeHtml(item.type)}" selected>${escapeHtml(item.type)}</option>`;
+                const manual = !!item.manuallyCreated;
+                const actionBtn = manual
+                    ? `<button type="button"
+                                class="toggle-btn refused"
+                                data-delete-span="${escapeHtml(item.id)}"
+                                title="Manually-created span — removing deletes it">
+                            Remove
+                        </button>`
+                    : `<button type="button" class="toggle-btn ${accepted ? 'accepted' : 'refused'}"
+                                data-toggle="${escapeHtml(item.id)}"
+                                aria-pressed="${accepted ? 'true' : 'false'}">
+                            ${accepted ? 'Accepted' : 'Refused'}
+                        </button>`;
+                const manualBadge = manual
+                    ? `<span class="ml-1 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-blue-100 text-blue-800 uppercase tracking-wide">Manual</span>`
+                    : '';
+                return `
+                <div class="nav-item px-3 py-2.5 ${accepted ? '' : 'is-refused'}" data-id="${escapeHtml(item.id)}">
+                    <div class="flex items-center justify-between mb-1 gap-2">
+                        <select class="type-select" data-type-for="${escapeHtml(item.id)}" title="Change PII type">
+                            ${fallbackOption}${options}
+                        </select>
+                        <span class="text-xs text-gray-500">#${idx + 1}${manualBadge}</span>
+                    </div>
+                    <div class="nav-text text-sm text-gray-900 truncate mb-2" title="${escapeHtml(item.text)}">${escapeHtml(item.text)}</div>
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs text-gray-500">${(item.confidence * 100).toFixed(0)}% confidence</span>
+                        ${actionBtn}
+                    </div>
+                    <div class="grid grid-cols-2 gap-1.5">
+                        <button type="button"
+                                class="text-xs font-medium text-blue-700 hover:bg-blue-50 border border-blue-200 rounded px-2 py-1 transition-colors"
+                                data-redact-like="${escapeHtml(item.id)}">
+                            Redact All Like This
+                        </button>
+                        <button type="button"
+                                ${secondOpinionConfigured ? '' : 'disabled'}
+                                title="${secondOpinionConfigured ? 'Ask the configured Second Opinion model' : 'No Second Opinion default configured'}"
+                                class="text-xs font-medium text-purple-700 hover:bg-purple-50 border border-purple-200 rounded px-2 py-1 transition-colors disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed disabled:hover:bg-transparent"
+                                data-second-opinion="${escapeHtml(item.id)}">
+                            Second Opinion
+                        </button>
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function focusRedaction(id) {
+            document.querySelectorAll('.redaction.is-active, .nav-item.is-active')
+                .forEach(el => el.classList.remove('is-active'));
+
+            const matches = document.querySelectorAll(`.redaction[data-id="${CSS.escape(id)}"]`);
+            matches.forEach(el => el.classList.add('is-active'));
+            if (matches.length > 0) {
+                matches[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+
+            const navItem = document.querySelector(`.nav-item[data-id="${CSS.escape(id)}"]`);
+            if (navItem) {
+                navItem.classList.add('is-active');
+                navItem.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }
+        }
+
+        function rerender() {
+            const activeOriginal = originalRedactions.filter(r => acceptedById.get(r.id));
+            const { text: redacted, items: adjusted } = buildRedacted();
+            renderHighlighted(document.getElementById('originalPane'), originalText, activeOriginal);
+            renderHighlighted(document.getElementById('redactedPane'), redacted, adjusted);
+            renderNavigator();
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
-            renderHighlighted(document.getElementById('originalPane'), originalText, originalRedactions);
-            renderHighlighted(document.getElementById('redactedPane'), redactedText, redactedRedactions);
+            rerender();
 
             const left = document.getElementById('originalPane');
             const right = document.getElementById('redactedPane');
@@ -190,7 +458,741 @@
                 left.scrollTop = right.scrollTop;
                 requestAnimationFrame(() => { syncing = null; });
             });
+
+            const navList = document.getElementById('navList');
+            navList.addEventListener('click', async (e) => {
+                if (e.target.closest('[data-type-for]')) return;
+                const secondOpinion = e.target.closest('[data-second-opinion]');
+                if (secondOpinion) {
+                    e.stopPropagation();
+                    if (secondOpinion.disabled) return;
+                    const id = secondOpinion.getAttribute('data-second-opinion');
+                    askSecondOpinion(id, secondOpinion);
+                    return;
+                }
+                const redactLike = e.target.closest('[data-redact-like]');
+                if (redactLike) {
+                    e.stopPropagation();
+                    if (redactLike.disabled) return;
+                    const id = redactLike.getAttribute('data-redact-like');
+                    redactLike.disabled = true;
+                    const originalLabel = redactLike.textContent;
+                    redactLike.textContent = 'Working…';
+                    try {
+                        const response = await fetch(`/api/v1/spans/${encodeURIComponent(id)}/redact-like`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                        window.location.reload();
+                    } catch (err) {
+                        redactLike.disabled = false;
+                        redactLike.textContent = originalLabel;
+                        alert(`Failed to redact matches: ${err.message}`);
+                    }
+                    return;
+                }
+                const deleteSpan = e.target.closest('[data-delete-span]');
+                if (deleteSpan) {
+                    e.stopPropagation();
+                    if (deleteSpan.disabled) return;
+                    const id = deleteSpan.getAttribute('data-delete-span');
+                    if (!confirm('Remove this manually-created span? It will be deleted entirely.')) return;
+                    deleteSpan.disabled = true;
+                    const originalLabel = deleteSpan.textContent;
+                    deleteSpan.textContent = 'Removing…';
+                    try {
+                        const response = await fetch(`/api/v1/spans/${encodeURIComponent(id)}`, {
+                            method: 'DELETE'
+                        });
+                        if (!response.ok) {
+                            let detail = `HTTP ${response.status}`;
+                            try { detail = (await response.json()).message || detail; } catch (_) {}
+                            throw new Error(detail);
+                        }
+                        window.location.reload();
+                    } catch (err) {
+                        deleteSpan.disabled = false;
+                        deleteSpan.textContent = originalLabel;
+                        alert(`Failed to remove span: ${err.message}`);
+                    }
+                    return;
+                }
+                const toggle = e.target.closest('[data-toggle]');
+                if (toggle) {
+                    e.stopPropagation();
+                    const id = toggle.getAttribute('data-toggle');
+                    const previous = acceptedById.get(id);
+                    const next = !previous;
+                    acceptedById.set(id, next);
+                    rerender();
+                    focusRedaction(id);
+                    try {
+                        const response = await fetch(`/api/v1/spans/${encodeURIComponent(id)}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ status: next ? 'APPROVED' : 'REJECTED' })
+                        });
+                        if (!response.ok) {
+                            throw new Error(`HTTP ${response.status}`);
+                        }
+                    } catch (err) {
+                        acceptedById.set(id, previous);
+                        rerender();
+                        focusRedaction(id);
+                        alert(`Failed to save decision: ${err.message}`);
+                    }
+                    return;
+                }
+                const item = e.target.closest('.nav-item');
+                if (item) focusRedaction(item.getAttribute('data-id'));
+            });
+            navList.addEventListener('change', async (e) => {
+                const select = e.target.closest('[data-type-for]');
+                if (!select) return;
+                const id = select.getAttribute('data-type-for');
+                const newType = select.value;
+                const target = originalRedactions.find(r => r.id === id);
+                if (!target) return;
+                const previousType = target.type;
+                if (newType === previousType) return;
+                target.type = newType;
+                const adjustedTarget = redactedRedactions.find(r => r.id === id);
+                if (adjustedTarget) adjustedTarget.type = newType;
+                rerender();
+                focusRedaction(id);
+                try {
+                    const response = await fetch(`/api/v1/spans/${encodeURIComponent(id)}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: newType })
+                    });
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+                } catch (err) {
+                    target.type = previousType;
+                    if (adjustedTarget) adjustedTarget.type = previousType;
+                    rerender();
+                    focusRedaction(id);
+                    alert(`Failed to change type: ${err.message}`);
+                }
+            });
+            document.querySelectorAll('#originalPane, #redactedPane').forEach(pane => {
+                pane.addEventListener('click', (e) => {
+                    const span = e.target.closest('.redaction');
+                    if (span) focusRedaction(span.getAttribute('data-id'));
+                });
+            });
         });
+
+        async function askSecondOpinion(spanId, btnEl) {
+            const modal = document.getElementById('secondOpinionModal');
+            const headerText = document.getElementById('secondOpinionSpan');
+            const meta = document.getElementById('secondOpinionMeta');
+            const body = document.getElementById('secondOpinionBody');
+            const spinner = document.getElementById('secondOpinionSpinner');
+            const errorBox = document.getElementById('secondOpinionError');
+
+            // Find the span text from local state for an instant header.
+            const item = originalRedactions.find(r => r.id === spanId);
+            headerText.textContent = item ? item.text : '';
+            meta.textContent = item ? `${item.type} · ${(item.confidence * 100).toFixed(0)}% confidence` : '';
+            body.textContent = '';
+            body.classList.add('hidden');
+            errorBox.textContent = '';
+            errorBox.classList.add('hidden');
+            spinner.classList.remove('hidden');
+            modal.classList.remove('hidden');
+            btnEl.disabled = true;
+
+            try {
+                const resp = await fetch(`/api/v1/spans/${encodeURIComponent(spanId)}/second-opinion`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                if (!resp.ok) {
+                    let detail = `HTTP ${resp.status}`;
+                    try { detail = (await resp.json()).message || detail; } catch (_) {}
+                    throw new Error(detail);
+                }
+                const data = await resp.json();
+                spinner.classList.add('hidden');
+                meta.textContent = `${item ? item.type + ' · ' : ''}via ${data.instanceName} (${data.model})`;
+                body.textContent = data.response || '(empty response)';
+                body.classList.remove('hidden');
+            } catch (err) {
+                spinner.classList.add('hidden');
+                errorBox.textContent = `Failed: ${err.message}`;
+                errorBox.classList.remove('hidden');
+            } finally {
+                btnEl.disabled = false;
+            }
+        }
+        function closeSecondOpinion() {
+            document.getElementById('secondOpinionModal').classList.add('hidden');
+        }
+        /*]]>*/
+    </script>
+
+    <div id="secondOpinionModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-2xl p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-1 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
+                     class="h-5 w-5 text-purple-600">
+                    <path d="M12 2l1.6 4.6L18 8l-4.4 1.6L12 14l-1.6-4.4L6 8l4.4-1.4L12 2zm7 11l.9 2.6L22 17l-2.1.4-.9 2.6-.9-2.6L16 17l2.1-1.4.9-2.6zM5 14l.9 2.6L8 18l-2.1.4-.9 2.6-.9-2.6L2 18l2.1-1.4L5 14z"/>
+                </svg>
+                Second Opinion
+            </h3>
+            <p class="text-sm text-gray-700 mb-1">
+                Span: <span id="secondOpinionSpan" class="font-mono">—</span>
+            </p>
+            <p id="secondOpinionMeta" class="text-xs text-gray-500 mb-4">—</p>
+            <div id="secondOpinionSpinner" class="hidden text-sm text-gray-500 mb-3">
+                Asking the default model… this can take a while.
+            </div>
+            <div id="secondOpinionBody" class="hidden bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm whitespace-pre-wrap max-h-72 overflow-y-auto"></div>
+            <div id="secondOpinionError" class="hidden text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3"></div>
+            <div class="flex justify-end mt-6">
+                <button type="button" onclick="closeSecondOpinion()"
+                        class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="createSpanModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-md p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-1">Mark as PII</h3>
+            <p class="text-sm text-gray-600 mb-4">
+                Pick the PII type for the selected text. The new span is auto-accepted with confidence 1.0.
+            </p>
+            <div class="space-y-4">
+                <div>
+                    <span class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Selected text</span>
+                    <div id="createSpanText"
+                         class="bg-gray-50 border border-gray-200 rounded p-2.5 text-sm whitespace-pre-wrap break-words max-h-32 overflow-y-auto font-mono">—</div>
+                </div>
+                <div>
+                    <label for="createSpanType" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">PII type</label>
+                    <select id="createSpanType"
+                            class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option th:each="t : ${piiTypes}" th:value="${t.value}" th:text="${t.label}">type</option>
+                    </select>
+                </div>
+                <div id="createSpanError" class="hidden text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-2"></div>
+            </div>
+            <div class="flex items-center justify-end gap-2 mt-6">
+                <button type="button" id="createSpanCancelBtn"
+                        class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
+                <button type="button" id="createSpanSaveBtn"
+                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed">Save</button>
+            </div>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        (function () {
+            const docId = /*[[${document.id}]]*/ '';
+            const pane = document.getElementById('redactedPane');
+            const modal = document.getElementById('createSpanModal');
+            const textBox = document.getElementById('createSpanText');
+            const typeSel = document.getElementById('createSpanType');
+            const errorBox = document.getElementById('createSpanError');
+            const cancelBtn = document.getElementById('createSpanCancelBtn');
+            const saveBtn = document.getElementById('createSpanSaveBtn');
+
+            // The redacted-text data and original-redactions are exposed by the
+            // outer script; reuse them via window-scope lookups (Thymeleaf
+            // already declared them as `const` in its IIFE-free script block).
+            // We re-read them at use time so any in-page edits are reflected.
+
+            let pendingStart = null, pendingEnd = null, pendingText = '';
+
+            function visibleTextLength(el) {
+                if (el.classList && el.classList.contains('redaction-tooltip')) return 0;
+                if (el.nodeType === Node.TEXT_NODE) return el.textContent.length;
+                let n = 0;
+                for (const c of el.childNodes) {
+                    if (c.nodeType === Node.TEXT_NODE) n += c.textContent.length;
+                    else if (c.nodeType === Node.ELEMENT_NODE) n += visibleTextLength(c);
+                }
+                return n;
+            }
+
+            function offsetInPane(node, nodeOffset) {
+                let offset = 0;
+                let done = false;
+                function walk(el) {
+                    for (const child of el.childNodes) {
+                        if (done) return;
+                        if (child === node) {
+                            offset += nodeOffset;
+                            done = true;
+                            return;
+                        }
+                        if (child.nodeType === Node.TEXT_NODE) {
+                            offset += child.textContent.length;
+                        } else if (child.nodeType === Node.ELEMENT_NODE) {
+                            if (child.classList && child.classList.contains('redaction-tooltip')) continue;
+                            if (child.contains(node)) walk(child);
+                            else offset += visibleTextLength(child);
+                        }
+                    }
+                }
+                walk(pane);
+                return done ? offset : null;
+            }
+
+            // Convert an offset in the redacted-pane text back to an offset
+            // in the document's original text. Returns null if the offset
+            // falls inside a `<<TYPE>>` marker.
+            function redactedToOriginalOffset(redactedOffset) {
+                const sorted = [...redactedRedactions].sort((a, b) => a.start - b.start);
+                let delta = 0;
+                for (const r of sorted) {
+                    if (r.end <= redactedOffset) {
+                        const original = originalRedactions.find(o => o.id === r.id);
+                        if (!original) continue;
+                        const markerLen = r.end - r.start;
+                        const originalLen = original.end - original.start;
+                        delta += originalLen - markerLen;
+                    } else if (r.start < redactedOffset) {
+                        return null; // inside a marker
+                    } else {
+                        break;
+                    }
+                }
+                return redactedOffset + delta;
+            }
+
+            function showError(msg) {
+                errorBox.textContent = msg;
+                errorBox.classList.remove('hidden');
+            }
+            function clearError() {
+                errorBox.textContent = '';
+                errorBox.classList.add('hidden');
+            }
+            function open(text, start, end) {
+                pendingText = text;
+                pendingStart = start;
+                pendingEnd = end;
+                textBox.textContent = text;
+                clearError();
+                // Default to a sensible PII type if available.
+                if (Array.from(typeSel.options).some(o => o.value === 'person')) {
+                    typeSel.value = 'person';
+                }
+                modal.classList.remove('hidden');
+            }
+            function close() {
+                modal.classList.add('hidden');
+                pendingStart = pendingEnd = null;
+                pendingText = '';
+            }
+
+            function handleSelection() {
+                const sel = window.getSelection();
+                if (!sel || sel.isCollapsed || sel.rangeCount === 0) return;
+                const range = sel.getRangeAt(0);
+                if (!pane.contains(range.startContainer) || !pane.contains(range.endContainer)) return;
+
+                let startOffset = offsetInPane(range.startContainer, range.startOffset);
+                let endOffset = offsetInPane(range.endContainer, range.endOffset);
+                if (startOffset === null || endOffset === null) return;
+                if (endOffset < startOffset) [startOffset, endOffset] = [endOffset, startOffset];
+                if (startOffset === endOffset) return;
+
+                // Trim leading/trailing whitespace from the selection by
+                // walking inward.
+                let selectedText = sel.toString();
+                while (selectedText.length > 0 && /\s/.test(selectedText[0])) {
+                    selectedText = selectedText.slice(1);
+                    startOffset++;
+                }
+                while (selectedText.length > 0 && /\s/.test(selectedText[selectedText.length - 1])) {
+                    selectedText = selectedText.slice(0, -1);
+                    endOffset--;
+                }
+                if (!selectedText) return;
+                if (selectedText.includes('<<') || selectedText.includes('>>')) {
+                    return; // overlaps marker text
+                }
+
+                const origStart = redactedToOriginalOffset(startOffset);
+                const origEnd = redactedToOriginalOffset(endOffset);
+                if (origStart === null || origEnd === null || origEnd <= origStart) return;
+
+                // Sanity check: extracted slice equals selection text.
+                const slice = originalText.substring(origStart, origEnd);
+                if (slice !== selectedText) return;
+
+                // Reject overlapping an existing accepted span (the marker case
+                // is already filtered above; this catches refused spans, which
+                // render in-line in the redacted pane).
+                const overlap = originalRedactions.some(r =>
+                    !(origEnd <= r.start || origStart >= r.end));
+                if (overlap) return;
+
+                sel.removeAllRanges();
+                open(selectedText, origStart, origEnd);
+            }
+
+            async function save() {
+                if (pendingStart === null || pendingEnd === null) return;
+                clearError();
+                saveBtn.disabled = true;
+                try {
+                    const resp = await fetch(`/api/v1/documents/${encodeURIComponent(docId)}/spans`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            type: typeSel.value,
+                            start: pendingStart,
+                            end: pendingEnd
+                        })
+                    });
+                    if (!resp.ok) {
+                        let detail = `HTTP ${resp.status}`;
+                        try { detail = (await resp.json()).message || detail; } catch (_) {}
+                        throw new Error(detail);
+                    }
+                    window.location.reload();
+                } catch (err) {
+                    showError(`Failed: ${err.message}`);
+                    saveBtn.disabled = false;
+                }
+            }
+
+            pane.addEventListener('mouseup', () => setTimeout(handleSelection, 0));
+            cancelBtn.addEventListener('click', close);
+            saveBtn.addEventListener('click', save);
+            modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
+            });
+        })();
+        /*]]>*/
+    </script>
+
+    <div id="commentsModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-2xl p-6 flex flex-col" style="max-height: 85vh;">
+            <h3 class="text-lg font-semibold text-gray-900 mb-1 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" class="h-5 w-5 text-gray-700">
+                    <path stroke-linecap="round" stroke-linejoin="round"
+                          d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                </svg>
+                Comments
+            </h3>
+            <p class="text-sm text-gray-600 mb-3">
+                Free-form notes about this document. Visible to anyone who can review it.
+            </p>
+
+            <div id="commentsList" class="flex-1 overflow-y-auto bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4 space-y-3"></div>
+
+            <div>
+                <label for="commentText" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">New comment</label>
+                <textarea id="commentText" rows="3" maxlength="4000"
+                          placeholder="Add a comment…"
+                          class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"></textarea>
+                <div id="commentsError" class="hidden mt-2 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-2"></div>
+            </div>
+
+            <div class="flex items-center justify-end gap-2 mt-4">
+                <button type="button" id="commentsCloseBtn"
+                        class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
+                    Close
+                </button>
+                <button type="button" id="commentsSaveBtn"
+                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                    Save
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        (function () {
+            const docId = /*[[${document.id}]]*/ '';
+            const modal = document.getElementById('commentsModal');
+            const listEl = document.getElementById('commentsList');
+            const textarea = document.getElementById('commentText');
+            const errorBox = document.getElementById('commentsError');
+            const openBtn = document.getElementById('commentsBtn');
+            const closeBtn = document.getElementById('commentsCloseBtn');
+            const saveBtn = document.getElementById('commentsSaveBtn');
+
+            function escapeHtml(s) {
+                return String(s)
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+            }
+            function fmtTimestamp(iso) {
+                if (!iso) return '';
+                try { return new Date(iso).toLocaleString(); } catch (_) { return iso; }
+            }
+            function renderComments(comments) {
+                if (!comments || comments.length === 0) {
+                    listEl.innerHTML = '<div class="text-sm text-gray-500 text-center py-6">No comments yet.</div>';
+                    return;
+                }
+                listEl.innerHTML = comments.map(c => `
+                    <div class="bg-white border border-gray-200 rounded p-2.5">
+                        <div class="flex items-baseline justify-between mb-1 text-xs text-gray-500">
+                            <span class="font-medium text-gray-800">${escapeHtml(c.userEmail || 'unknown')}</span>
+                            <span>${escapeHtml(fmtTimestamp(c.timestamp))}</span>
+                        </div>
+                        <div class="text-sm text-gray-900 whitespace-pre-wrap break-words">${escapeHtml(c.text || '')}</div>
+                    </div>`).join('');
+            }
+            async function load() {
+                listEl.innerHTML = '<div class="text-sm text-gray-500 text-center py-6">Loading…</div>';
+                errorBox.classList.add('hidden');
+                try {
+                    const resp = await fetch(`/api/v1/documents/${encodeURIComponent(docId)}/comments`);
+                    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                    renderComments(await resp.json());
+                } catch (err) {
+                    listEl.innerHTML = `<div class="text-sm text-red-600 text-center py-6">Failed to load comments: ${escapeHtml(err.message)}</div>`;
+                }
+            }
+            function open() {
+                errorBox.classList.add('hidden');
+                modal.classList.remove('hidden');
+                textarea.focus();
+                load();
+            }
+            function close() {
+                modal.classList.add('hidden');
+            }
+            async function save() {
+                const text = textarea.value.trim();
+                if (!text) {
+                    errorBox.textContent = 'Comment cannot be empty.';
+                    errorBox.classList.remove('hidden');
+                    return;
+                }
+                errorBox.classList.add('hidden');
+                saveBtn.disabled = true;
+                try {
+                    const resp = await fetch(`/api/v1/documents/${encodeURIComponent(docId)}/comments`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ text })
+                    });
+                    if (!resp.ok) {
+                        let detail = `HTTP ${resp.status}`;
+                        try { detail = (await resp.json()).message || detail; } catch (_) {}
+                        throw new Error(detail);
+                    }
+                    textarea.value = '';
+                    await load();
+                } catch (err) {
+                    errorBox.textContent = `Failed to save: ${err.message}`;
+                    errorBox.classList.remove('hidden');
+                } finally {
+                    saveBtn.disabled = false;
+                }
+            }
+
+            openBtn.addEventListener('click', open);
+            closeBtn.addEventListener('click', close);
+            saveBtn.addEventListener('click', save);
+            modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
+            });
+        })();
+        /*]]>*/
+    </script>
+
+    <div id="explainModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-2xl p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-1 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
+                     class="h-5 w-5 text-purple-600">
+                    <path d="M12 2l1.6 4.6L18 8l-4.4 1.6L12 14l-1.6-4.4L6 8l4.4-1.4L12 2zm7 11l.9 2.6L22 17l-2.1.4-.9 2.6-.9-2.6L16 17l2.1-1.4.9-2.6zM5 14l.9 2.6L8 18l-2.1.4-.9 2.6-.9-2.6L2 18l2.1-1.4L5 14z"/>
+                </svg>
+                Explain risk
+            </h3>
+            <p class="text-sm text-gray-600 mb-4">
+                Send this document and its detected PII to an LLM for an explanation of the risk.
+            </p>
+
+            <div class="space-y-4">
+                <div>
+                    <label for="explainInstance" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Ollama instance</label>
+                    <select id="explainInstance"
+                            class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500">
+                        <option value="" disabled th:selected="${defaultExplainInstanceId == null}">Choose an instance…</option>
+                        <option th:each="i : ${ollamaInstances}"
+                                th:value="${i.id}"
+                                th:selected="${i.id == defaultExplainInstanceId}"
+                                th:text="${i.name}">instance</option>
+                    </select>
+                    <p th:if="${#lists.isEmpty(ollamaInstances)}" class="text-xs text-yellow-700 mt-1">
+                        No Ollama instances configured. Add one under Admin → LLM-as-a-Judge.
+                    </p>
+                </div>
+
+                <div>
+                    <label for="explainModel" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Model</label>
+                    <select id="explainModel" disabled
+                            class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-50 disabled:text-gray-400">
+                        <option value="" disabled selected>Pick an instance first</option>
+                    </select>
+                    <p id="explainModelStatus" class="text-xs text-gray-500 mt-1"></p>
+                </div>
+
+                <div id="explainResult" class="hidden bg-gray-50 border border-gray-200 rounded-lg p-3 text-sm whitespace-pre-wrap max-h-64 overflow-y-auto"></div>
+                <div id="explainSpinner" class="hidden text-sm text-gray-500">
+                    Asking the model… this can take a while.
+                </div>
+                <div id="explainError" class="hidden text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3"></div>
+            </div>
+
+            <div class="flex justify-end gap-2 mt-6">
+                <button type="button" id="explainCloseBtn"
+                        class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
+                    Close
+                </button>
+                <button type="button" id="explainSubmitBtn"
+                        class="px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg transition duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                    Submit
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        (function () {
+            const documentId = /*[[${document.id}]]*/ '';
+            const modal = document.getElementById('explainModal');
+            const openBtn = document.getElementById('explainBtn');
+            const closeBtn = document.getElementById('explainCloseBtn');
+            const submitBtn = document.getElementById('explainSubmitBtn');
+            const instanceSel = document.getElementById('explainInstance');
+            const modelSel = document.getElementById('explainModel');
+            const modelStatus = document.getElementById('explainModelStatus');
+            const result = document.getElementById('explainResult');
+            const spinner = document.getElementById('explainSpinner');
+            const errorBox = document.getElementById('explainError');
+
+            let lastLoadedInstanceId = null;
+            function reset() {
+                result.classList.add('hidden');
+                result.textContent = '';
+                spinner.classList.add('hidden');
+                errorBox.classList.add('hidden');
+                errorBox.textContent = '';
+            }
+            function open() {
+                reset();
+                modal.classList.remove('hidden');
+                // Auto-load models for the (possibly preselected) instance the
+                // first time the modal opens, or if the selection changed.
+                if (instanceSel.value && instanceSel.value !== lastLoadedInstanceId) {
+                    const preferred = (instanceSel.value === defaultExplainInstanceId)
+                            ? defaultExplainModel : null;
+                    loadModels(instanceSel.value, preferred);
+                    lastLoadedInstanceId = instanceSel.value;
+                }
+            }
+            function close() {
+                modal.classList.add('hidden');
+            }
+            function showError(msg) {
+                errorBox.textContent = msg;
+                errorBox.classList.remove('hidden');
+            }
+
+            async function loadModels(instanceId, preferredModel) {
+                modelSel.innerHTML = '';
+                modelSel.disabled = true;
+                modelStatus.textContent = 'Loading models…';
+                try {
+                    const resp = await fetch(`/api/v1/ollama/${encodeURIComponent(instanceId)}/models`);
+                    if (!resp.ok) {
+                        let detail = `HTTP ${resp.status}`;
+                        try { detail = (await resp.json()).message || detail; } catch (_) {}
+                        throw new Error(detail);
+                    }
+                    const data = await resp.json();
+                    const models = data.models || [];
+                    if (models.length === 0) {
+                        modelStatus.textContent = 'This instance has no models installed.';
+                        modelSel.innerHTML = '<option value="" disabled selected>(no models)</option>';
+                        return;
+                    }
+                    modelSel.innerHTML = models.map(m =>
+                        `<option value="${m.replace(/"/g, '&quot;')}">${m}</option>`).join('');
+                    modelSel.disabled = false;
+                    if (preferredModel && models.indexOf(preferredModel) !== -1) {
+                        modelSel.value = preferredModel;
+                    }
+                    modelStatus.textContent = `${models.length} model${models.length === 1 ? '' : 's'} available.`;
+                } catch (err) {
+                    modelStatus.textContent = '';
+                    modelSel.innerHTML = '<option value="" disabled selected>(could not load)</option>';
+                    showError(`Failed to load models: ${err.message}`);
+                }
+            }
+
+            async function submitExplain() {
+                const instanceId = instanceSel.value;
+                const model = modelSel.value;
+                if (!instanceId || !model) {
+                    showError('Pick an instance and a model first.');
+                    return;
+                }
+                reset();
+                spinner.classList.remove('hidden');
+                submitBtn.disabled = true;
+                try {
+                    const resp = await fetch(`/api/v1/documents/${encodeURIComponent(documentId)}/explain`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ instanceId, model })
+                    });
+                    if (!resp.ok) {
+                        let detail = `HTTP ${resp.status}`;
+                        try { detail = (await resp.json()).message || detail; } catch (_) {}
+                        throw new Error(detail);
+                    }
+                    const data = await resp.json();
+                    spinner.classList.add('hidden');
+                    result.textContent = data.response || '(empty response)';
+                    result.classList.remove('hidden');
+                } catch (err) {
+                    spinner.classList.add('hidden');
+                    showError(`Failed: ${err.message}`);
+                } finally {
+                    submitBtn.disabled = false;
+                }
+            }
+
+            openBtn.addEventListener('click', open);
+            closeBtn.addEventListener('click', close);
+            modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
+            });
+            instanceSel.addEventListener('change', () => {
+                if (instanceSel.value) {
+                    const preferred = (instanceSel.value === defaultExplainInstanceId)
+                            ? defaultExplainModel : null;
+                    loadModels(instanceSel.value, preferred);
+                    lastLoadedInstanceId = instanceSel.value;
+                }
+            });
+            submitBtn.addEventListener('click', submitExplain);
+        })();
         /*]]>*/
     </script>
 </body>

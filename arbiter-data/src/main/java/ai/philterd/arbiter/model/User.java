@@ -14,9 +14,12 @@ public class User {
     private String id;
 
     @Indexed(unique = true)
-    private String username;
+    private String email;
 
     private String passwordHash;
+
+    @Indexed(unique = true, sparse = true)
+    private String apiKey;
 
     private Set<String> roles = new HashSet<>();
 
@@ -31,12 +34,12 @@ public class User {
         this.id = id;
     }
 
-    public String getUsername() {
-        return username;
+    public String getEmail() {
+        return email;
     }
 
-    public void setUsername(String username) {
-        this.username = username;
+    public void setEmail(String email) {
+        this.email = email;
     }
 
     public String getPasswordHash() {
@@ -45,6 +48,14 @@ public class User {
 
     public void setPasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
+    }
+
+    public String getApiKey() {
+        return apiKey;
+    }
+
+    public void setApiKey(String apiKey) {
+        this.apiKey = apiKey;
     }
 
     public Set<String> getRoles() {
