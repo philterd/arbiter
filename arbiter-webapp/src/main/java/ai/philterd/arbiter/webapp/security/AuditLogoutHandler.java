@@ -27,13 +27,13 @@ public class AuditLogoutHandler implements LogoutHandler {
 
     private final AuditLogService auditLogService;
 
-    public AuditLogoutHandler(AuditLogService auditLogService) {
+    public AuditLogoutHandler(final AuditLogService auditLogService) {
         this.auditLogService = auditLogService;
     }
 
     @Override
-    public void logout(HttpServletRequest request, HttpServletResponse response, Authentication authentication) {
-        String email = authentication == null ? null : authentication.getName();
+    public void logout(final HttpServletRequest request, final HttpServletResponse response, final Authentication authentication) {
+        final String email = authentication == null ? null : authentication.getName();
         auditLogService.logForUser(email, "LOGOUT", "User", null,
                 AuditLogService.OUTCOME_SUCCESS, null);
     }

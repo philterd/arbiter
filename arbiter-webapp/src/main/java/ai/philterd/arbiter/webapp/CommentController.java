@@ -58,12 +58,12 @@ public class CommentController {
     private final UserGroupsService userGroupsService;
     private final AuditLogService auditLogService;
 
-    public CommentController(DocumentRepository documentRepository,
-                             BatchRepository batchRepository,
-                             DocumentCommentRepository commentRepository,
-                             UserRepository userRepository,
-                             UserGroupsService userGroupsService,
-                             AuditLogService auditLogService) {
+    public CommentController(final DocumentRepository documentRepository,
+                             final BatchRepository batchRepository,
+                             final DocumentCommentRepository commentRepository,
+                             final UserRepository userRepository,
+                             final UserGroupsService userGroupsService,
+                             final AuditLogService auditLogService) {
         this.documentRepository = documentRepository;
         this.batchRepository = batchRepository;
         this.commentRepository = commentRepository;
@@ -75,8 +75,8 @@ public class CommentController {
     public record CommentRequest(String text) {}
 
     @GetMapping("/documents/{id}/comments")
-    public List<Map<String, Object>> list(@PathVariable String id, Authentication authentication) {
-        Document document = documentRepository.findById(id)
+    public List<Map<String, Object>> list(@PathVariable final String id, final Authentication authentication) {
+        final Document document = documentRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + id));
         requireDocumentAccess(authentication, document);
 
@@ -86,29 +86,29 @@ public class CommentController {
     }
 
     @PostMapping("/documents/{id}/comments")
-    public Map<String, Object> add(@PathVariable String id,
-                                   @RequestBody CommentRequest body,
-                                   Authentication authentication) {
+    public Map<String, Object> add(@PathVariable final String id,
+                                   @RequestBody final CommentRequest body,
+                                   final Authentication authentication) {
         if (authentication == null || authentication.getName() == null) {
             throw new ResponseStatusException(BAD_REQUEST, "Authentication is required.");
         }
         if (body == null || body.text() == null || body.text().isBlank()) {
             throw new ResponseStatusException(BAD_REQUEST, "Comment text is required.");
         }
-        String trimmed = body.text().trim();
+        final String trimmed = body.text().trim();
         if (trimmed.length() > MAX_COMMENT_LENGTH) {
             throw new ResponseStatusException(BAD_REQUEST,
                     "Comment is too long (max " + MAX_COMMENT_LENGTH + " characters).");
         }
 
-        Document document = documentRepository.findById(id)
+        final Document document = documentRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + id));
         requireDocumentAccess(authentication, document);
 
-        String userEmail = authentication.getName();
-        String userId = userRepository.findByEmail(userEmail).map(User::getId).orElse(null);
+        final String userEmail = authentication.getName();
+        final String userId = userRepository.findByEmail(userEmail).map(User::getId).orElse(null);
 
-        DocumentComment comment = new DocumentComment();
+        final DocumentComment comment = new DocumentComment();
         comment.setId(UUID.randomUUID().toString());
         comment.setDocumentId(id);
         comment.setUserEmail(userEmail);
@@ -126,8 +126,8 @@ public class CommentController {
 
     // ----- helpers -----
 
-    private static Map<String, Object> toJson(DocumentComment c) {
-        Map<String, Object> m = new LinkedHashMap<>();
+    private static Map<String, Object> toJson(final DocumentComment c) {
+        final Map<String, Object> m = new LinkedHashMap<>();
         m.put("id", c.getId());
         m.put("userEmail", c.getUserEmail() == null ? "" : c.getUserEmail());
         m.put("text", c.getText() == null ? "" : c.getText());
@@ -135,21 +135,21 @@ public class CommentController {
         return m;
     }
 
-    private void requireDocumentAccess(Authentication auth, Document document) {
+    private void requireDocumentAccess(final Authentication auth, final Document document) {
         if (isAdmin(auth)) return;
-        Batch batch = document.getBatchId() == null ? null
+        final Batch batch = document.getBatchId() == null ? null
                 : batchRepository.findById(document.getBatchId()).orElse(null);
         if (batch == null || batch.getGroupId() == null) {
             throw new ResponseStatusException(NOT_FOUND, "Document not found: " + document.getId());
         }
-        Set<String> myGroupIds = userGroupsService.groupIdsForEmail(
+        final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(
                 auth == null ? null : auth.getName());
         if (!myGroupIds.contains(batch.getGroupId())) {
             throw new ResponseStatusException(NOT_FOUND, "Document not found: " + document.getId());
         }
     }
 
-    private static boolean isAdmin(Authentication auth) {
+    private static boolean isAdmin(final Authentication auth) {
         if (auth == null) return false;
         for (GrantedAuthority a : auth.getAuthorities()) {
             if ("ROLE_ADMIN".equals(a.getAuthority())) return true;

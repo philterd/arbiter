@@ -28,21 +28,21 @@ public class AuditAuthEventListener {
 
     private final AuditLogService auditLogService;
 
-    public AuditAuthEventListener(AuditLogService auditLogService) {
+    public AuditAuthEventListener(final AuditLogService auditLogService) {
         this.auditLogService = auditLogService;
     }
 
     @EventListener
-    public void onAuthSuccess(AuthenticationSuccessEvent event) {
-        String email = event.getAuthentication() == null ? null : event.getAuthentication().getName();
+    public void onAuthSuccess(final AuthenticationSuccessEvent event) {
+        final String email = event.getAuthentication() == null ? null : event.getAuthentication().getName();
         auditLogService.logForUser(email, "LOGIN", "User", null,
                 AuditLogService.OUTCOME_SUCCESS, null);
     }
 
     @EventListener
-    public void onAuthFailure(AbstractAuthenticationFailureEvent event) {
-        String email = event.getAuthentication() == null ? null : String.valueOf(event.getAuthentication().getName());
-        Map<String, Object> details = Map.of(
+    public void onAuthFailure(final AbstractAuthenticationFailureEvent event) {
+        final String email = event.getAuthentication() == null ? null : String.valueOf(event.getAuthentication().getName());
+        final Map<String, Object> details = Map.of(
                 "reason", event.getException() == null ? "unknown" : event.getException().getClass().getSimpleName());
         auditLogService.logForUser(email, "LOGIN", "User", null,
                 AuditLogService.OUTCOME_FAILURE, details);

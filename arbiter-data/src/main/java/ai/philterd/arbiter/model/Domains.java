@@ -20,7 +20,7 @@ public final class Domains {
             "Other"
     );
 
-    public static boolean isValid(String value) {
+    public static boolean isValid(final String value) {
         return value != null && VALUES.contains(value);
     }
 

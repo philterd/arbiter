@@ -26,7 +26,7 @@ public class Document {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(final LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
 
@@ -34,12 +34,12 @@ public class Document {
         return statusChangedAt;
     }
 
-    public void setStatusChangedAt(LocalDateTime statusChangedAt) {
+    public void setStatusChangedAt(final LocalDateTime statusChangedAt) {
         this.statusChangedAt = statusChangedAt;
     }
 
     /** Set the status and its change timestamp atomically. */
-    public void changeStatus(String newStatus) {
+    public void changeStatus(final String newStatus) {
         this.status = newStatus;
         this.statusChangedAt = LocalDateTime.now();
     }
@@ -48,7 +48,7 @@ public class Document {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(final String id) {
         this.id = id;
     }
 
@@ -56,7 +56,7 @@ public class Document {
         return batchId;
     }
 
-    public void setBatchId(String batchId) {
+    public void setBatchId(final String batchId) {
         this.batchId = batchId;
     }
 
@@ -64,7 +64,7 @@ public class Document {
         return filename;
     }
 
-    public void setFilename(String filename) {
+    public void setFilename(final String filename) {
         this.filename = filename;
     }
 
@@ -72,7 +72,7 @@ public class Document {
         return storagePath;
     }
 
-    public void setStoragePath(String storagePath) {
+    public void setStoragePath(final String storagePath) {
         this.storagePath = storagePath;
     }
 
@@ -80,7 +80,7 @@ public class Document {
         return originalText;
     }
 
-    public void setOriginalText(String originalText) {
+    public void setOriginalText(final String originalText) {
         this.originalText = originalText;
     }
 
@@ -88,7 +88,7 @@ public class Document {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(final String status) {
         this.status = status;
     }
 
@@ -96,7 +96,7 @@ public class Document {
         return riskScore;
     }
 
-    public void setRiskScore(double riskScore) {
+    public void setRiskScore(final double riskScore) {
         this.riskScore = riskScore;
     }
 
@@ -104,7 +104,7 @@ public class Document {
         return philterContextId;
     }
 
-    public void setPhilterContextId(String philterContextId) {
+    public void setPhilterContextId(final String philterContextId) {
         this.philterContextId = philterContextId;
     }
 }

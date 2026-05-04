@@ -22,10 +22,10 @@ import java.util.HexFormat;
 
 public final class Hashing {
 
-    public static String sha512Hex(String input) {
+    public static String sha512Hex(final String input) {
         if (input == null) return null;
         try {
-            MessageDigest md = MessageDigest.getInstance("SHA-512");
+            final MessageDigest md = MessageDigest.getInstance("SHA-512");
             return HexFormat.of().formatHex(md.digest(input.getBytes(StandardCharsets.UTF_8)));
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-512 unavailable", e);

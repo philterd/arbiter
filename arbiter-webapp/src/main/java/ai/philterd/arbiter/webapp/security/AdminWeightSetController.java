@@ -48,23 +48,23 @@ public class AdminWeightSetController {
     private final BatchRepository batchRepository;
     private final AuditLogService auditLogService;
 
-    public AdminWeightSetController(WeightSetRepository repository,
-                                    BatchRepository batchRepository,
-                                    AuditLogService auditLogService) {
+    public AdminWeightSetController(final WeightSetRepository repository,
+                                    final BatchRepository batchRepository,
+                                    final AuditLogService auditLogService) {
         this.repository = repository;
         this.batchRepository = batchRepository;
         this.auditLogService = auditLogService;
     }
 
     @GetMapping
-    public String list(Model model) {
-        List<WeightSet> sets = repository.findAll();
+    public String list(final Model model) {
+        final List<WeightSet> sets = repository.findAll();
         sets.sort(Comparator.comparing(
                 (WeightSet w) -> w.getName() == null ? "" : w.getName().toLowerCase()));
-        List<Map<String, Object>> rows = new ArrayList<>();
+        final List<Map<String, Object>> rows = new ArrayList<>();
         for (WeightSet ws : sets) {
-            int usage = batchRepository.findByWeightSetId(ws.getId()).size();
-            Map<String, Object> row = new LinkedHashMap<>();
+            final int usage = batchRepository.findByWeightSetId(ws.getId()).size();
+            final Map<String, Object> row = new LinkedHashMap<>();
             row.put("id", ws.getId());
             row.put("name", ws.getName());
             row.put("usageCount", usage);
@@ -75,9 +75,9 @@ public class AdminWeightSetController {
     }
 
     @PostMapping
-    public String create(@RequestParam("name") String name,
-                         RedirectAttributes redirectAttributes) {
-        String trimmed = name == null ? "" : name.trim();
+    public String create(@RequestParam("name") final String name,
+                         final RedirectAttributes redirectAttributes) {
+        final String trimmed = name == null ? "" : name.trim();
         if (trimmed.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Name is required.");
             return "redirect:/admin/weights";
@@ -88,7 +88,7 @@ public class AdminWeightSetController {
             return "redirect:/admin/weights";
         }
 
-        WeightSet set = new WeightSet();
+        final WeightSet set = new WeightSet();
         set.setCreatedAt(LocalDateTime.now());
         set.setId(UUID.randomUUID().toString());
         set.setName(trimmed);
@@ -112,18 +112,18 @@ public class AdminWeightSetController {
     }
 
     @GetMapping("/{id}")
-    public String edit(@PathVariable String id, Model model,
-                       RedirectAttributes redirectAttributes) {
-        WeightSet set = repository.findById(id).orElse(null);
+    public String edit(@PathVariable final String id, final Model model,
+                       final RedirectAttributes redirectAttributes) {
+        final WeightSet set = repository.findById(id).orElse(null);
         if (set == null) {
             redirectAttributes.addFlashAttribute("error", "Weight set not found.");
             return "redirect:/admin/weights";
         }
 
-        Map<String, Integer> values = set.getWeights() == null ? Map.of() : set.getWeights();
-        List<Map<String, Object>> rows = new ArrayList<>();
+        final Map<String, Integer> values = set.getWeights() == null ? Map.of() : set.getWeights();
+        final List<Map<String, Object>> rows = new ArrayList<>();
         for (String type : PiiTypes.values()) {
-            Map<String, Object> row = new LinkedHashMap<>();
+            final Map<String, Object> row = new LinkedHashMap<>();
             row.put("type", type);
             row.put("label", PiiTypes.labelFor(type));
             row.put("weight", values.getOrDefault(type, PiiWeights.weightFor(type, null)));
@@ -138,23 +138,23 @@ public class AdminWeightSetController {
     }
 
     @PostMapping("/{id}")
-    public String save(@PathVariable String id,
-                       @RequestParam("name") String name,
-                       @RequestParam(value = "type", required = false) List<String> types,
-                       @RequestParam(value = "weight", required = false) List<Integer> weights,
-                       RedirectAttributes redirectAttributes) {
-        WeightSet set = repository.findById(id).orElse(null);
+    public String save(@PathVariable final String id,
+                       @RequestParam("name") final String name,
+                       @RequestParam(value = "type", required = false) final List<String> types,
+                       @RequestParam(value = "weight", required = false) final List<Integer> weights,
+                       final RedirectAttributes redirectAttributes) {
+        final WeightSet set = repository.findById(id).orElse(null);
         if (set == null) {
             redirectAttributes.addFlashAttribute("error", "Weight set not found.");
             return "redirect:/admin/weights";
         }
 
-        String trimmedName = name == null ? "" : name.trim();
+        final String trimmedName = name == null ? "" : name.trim();
         if (trimmedName.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Name is required.");
             return "redirect:/admin/weights/" + id;
         }
-        boolean nameTaken = repository.findByName(trimmedName)
+        final boolean nameTaken = repository.findByName(trimmedName)
                 .filter(other -> !other.getId().equals(id))
                 .isPresent();
         if (nameTaken) {
@@ -167,12 +167,12 @@ public class AdminWeightSetController {
             return "redirect:/admin/weights/" + id;
         }
 
-        Map<String, Integer> updated = new LinkedHashMap<>();
+        final Map<String, Integer> updated = new LinkedHashMap<>();
         for (int i = 0; i < types.size(); i++) {
-            String type = types.get(i);
-            Integer w = weights.get(i);
+            final String type = types.get(i);
+            final Integer w = weights.get(i);
             if (type == null || w == null) continue;
-            String key = type.trim().toLowerCase();
+            final String key = type.trim().toLowerCase();
             if (!PiiTypes.isValid(key)) continue;
             if (w < 0) {
                 redirectAttributes.addFlashAttribute("error",
@@ -200,20 +200,20 @@ public class AdminWeightSetController {
     }
 
     @PostMapping("/{id}/delete")
-    public String delete(@PathVariable String id, RedirectAttributes redirectAttributes) {
-        WeightSet set = repository.findById(id).orElse(null);
+    public String delete(@PathVariable final String id, final RedirectAttributes redirectAttributes) {
+        final WeightSet set = repository.findById(id).orElse(null);
         if (set == null) {
             redirectAttributes.addFlashAttribute("error", "Weight set not found.");
             return "redirect:/admin/weights";
         }
-        List<Batch> usingBatches = batchRepository.findByWeightSetId(id);
+        final List<Batch> usingBatches = batchRepository.findByWeightSetId(id);
         if (!usingBatches.isEmpty()) {
-            String names = usingBatches.stream()
+            final String names = usingBatches.stream()
                     .map(b -> "\"" + (b.getName() == null ? "" : b.getName()) + "\"")
                     .limit(5)
                     .reduce((a, b) -> a + ", " + b)
                     .orElse("");
-            String suffix = usingBatches.size() > 5
+            final String suffix = usingBatches.size() > 5
                     ? " and " + (usingBatches.size() - 5) + " more" : "";
             redirectAttributes.addFlashAttribute(
                     "error",

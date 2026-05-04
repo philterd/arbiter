@@ -55,17 +55,17 @@ public class AdminOllamaController {
             .connectTimeout(TEST_CONNECT_TIMEOUT)
             .build();
 
-    public AdminOllamaController(OllamaInstanceRepository repository,
-                                 AuditLogService auditLogService,
-                                 LlmJudgeDefaultsService defaultsService) {
+    public AdminOllamaController(final OllamaInstanceRepository repository,
+                                 final AuditLogService auditLogService,
+                                 final LlmJudgeDefaultsService defaultsService) {
         this.repository = repository;
         this.auditLogService = auditLogService;
         this.defaultsService = defaultsService;
     }
 
     @GetMapping
-    public String list(Model model) {
-        List<OllamaInstance> instances = repository.findAll();
+    public String list(final Model model) {
+        final List<OllamaInstance> instances = repository.findAll();
         instances.sort(Comparator.comparing(
                 (OllamaInstance i) -> i.getName() == null ? "" : i.getName().toLowerCase()));
         model.addAttribute("instances", instances);
@@ -74,12 +74,12 @@ public class AdminOllamaController {
     }
 
     @PostMapping("/defaults")
-    public String setDefaults(@RequestParam(value = "explainInstanceId", required = false) String explainInstanceId,
-                              @RequestParam(value = "explainModel", required = false) String explainModel,
-                              @RequestParam(value = "secondOpinionInstanceId", required = false) String secondOpinionInstanceId,
-                              @RequestParam(value = "secondOpinionModel", required = false) String secondOpinionModel,
-                              RedirectAttributes redirectAttributes) {
-        LlmJudgeDefaults defaults = defaultsService.load();
+    public String setDefaults(@RequestParam(value = "explainInstanceId", required = false) final String explainInstanceId,
+                              @RequestParam(value = "explainModel", required = false) final String explainModel,
+                              @RequestParam(value = "secondOpinionInstanceId", required = false) final String secondOpinionInstanceId,
+                              @RequestParam(value = "secondOpinionModel", required = false) final String secondOpinionModel,
+                              final RedirectAttributes redirectAttributes) {
+        final LlmJudgeDefaults defaults = defaultsService.load();
 
         defaults.setExplainInstanceId(normalize(explainInstanceId));
         defaults.setExplainModel(normalize(explainModel));
@@ -116,23 +116,23 @@ public class AdminOllamaController {
         return "redirect:/admin/llm-judge";
     }
 
-    private static String normalize(String s) {
+    private static String normalize(final String s) {
         if (s == null) return null;
-        String t = s.trim();
+        final String t = s.trim();
         return t.isEmpty() ? null : t;
     }
 
-    private static String str(String s) {
+    private static String str(final String s) {
         return s == null ? "" : s;
     }
 
     @PostMapping
-    public String create(@RequestParam("name") String name,
-                         @RequestParam("endpoint") String endpoint,
-                         @RequestParam("port") int port,
-                         RedirectAttributes redirectAttributes) {
-        String trimmedName = name == null ? "" : name.trim();
-        String trimmedEndpoint = endpoint == null ? "" : endpoint.trim();
+    public String create(@RequestParam("name") final String name,
+                         @RequestParam("endpoint") final String endpoint,
+                         @RequestParam("port") final int port,
+                         final RedirectAttributes redirectAttributes) {
+        final String trimmedName = name == null ? "" : name.trim();
+        final String trimmedEndpoint = endpoint == null ? "" : endpoint.trim();
 
         if (trimmedName.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Name is required.");
@@ -152,7 +152,7 @@ public class AdminOllamaController {
             return "redirect:/admin/llm-judge";
         }
 
-        OllamaInstance instance = new OllamaInstance();
+        final OllamaInstance instance = new OllamaInstance();
         instance.setCreatedAt(LocalDateTime.now());
         instance.setId(UUID.randomUUID().toString());
         instance.setName(trimmedName);
@@ -176,8 +176,8 @@ public class AdminOllamaController {
     }
 
     @PostMapping("/{id}/delete")
-    public String delete(@PathVariable String id, RedirectAttributes redirectAttributes) {
-        OllamaInstance instance = repository.findById(id).orElse(null);
+    public String delete(@PathVariable final String id, final RedirectAttributes redirectAttributes) {
+        final OllamaInstance instance = repository.findById(id).orElse(null);
         if (instance == null) {
             redirectAttributes.addFlashAttribute("error", "Ollama instance not found.");
             return "redirect:/admin/llm-judge";
@@ -192,24 +192,24 @@ public class AdminOllamaController {
 
 
     @PostMapping("/{id}/test")
-    public String test(@PathVariable String id, RedirectAttributes redirectAttributes) {
-        OllamaInstance instance = repository.findById(id).orElse(null);
+    public String test(@PathVariable final String id, final RedirectAttributes redirectAttributes) {
+        final OllamaInstance instance = repository.findById(id).orElse(null);
         if (instance == null) {
             redirectAttributes.addFlashAttribute("error", "Ollama instance not found.");
             return "redirect:/admin/llm-judge";
         }
 
-        String url = baseUrl(instance) + "/api";
+        final String url = baseUrl(instance) + "/api";
         boolean ok = false;
         int status = 0;
         String detail;
         try {
-            HttpRequest req = HttpRequest.newBuilder()
+            final HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(url))
                     .timeout(TEST_REQUEST_TIMEOUT)
                     .GET()
                     .build();
-            HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+            final HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
             status = resp.statusCode();
             ok = true;
             detail = "HTTP " + status;
@@ -236,7 +236,7 @@ public class AdminOllamaController {
         return "redirect:/admin/llm-judge";
     }
 
-    private static String baseUrl(OllamaInstance instance) {
+    private static String baseUrl(final OllamaInstance instance) {
         String host = instance.getEndpoint();
         if (host == null) host = "localhost";
         if (!host.startsWith("http://") && !host.startsWith("https://")) {

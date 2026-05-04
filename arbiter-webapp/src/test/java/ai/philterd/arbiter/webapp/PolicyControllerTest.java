@@ -57,13 +57,13 @@ class PolicyControllerTest {
         return new RedirectAttributesModelMap();
     }
 
-    private static String error(RedirectAttributes ra) {
-        Object e = ra.getFlashAttributes().get("error");
+    private static String error(final RedirectAttributes ra) {
+        final Object e = ra.getFlashAttributes().get("error");
         return e == null ? null : e.toString();
     }
 
-    private static String success(RedirectAttributes ra) {
-        Object s = ra.getFlashAttributes().get("success");
+    private static String success(final RedirectAttributes ra) {
+        final Object s = ra.getFlashAttributes().get("success");
         return s == null ? null : s.toString();
     }
 
@@ -71,7 +71,7 @@ class PolicyControllerTest {
 
     @Test
     void createRejectsBlankName() {
-        RedirectAttributes ra = flash();
+        final RedirectAttributes ra = flash();
         controller.create("   ", "{}", ra);
         assertEquals("Policy name is required.", error(ra));
         verify(policyRepository, never()).save(any());
@@ -79,7 +79,7 @@ class PolicyControllerTest {
 
     @Test
     void createRejectsBlankContent() {
-        RedirectAttributes ra = flash();
+        final RedirectAttributes ra = flash();
         controller.create("p", "  ", ra);
         assertEquals("Policy JSON is required.", error(ra));
         verify(policyRepository, never()).save(any());
@@ -87,7 +87,7 @@ class PolicyControllerTest {
 
     @Test
     void createRejectsInvalidJson() {
-        RedirectAttributes ra = flash();
+        final RedirectAttributes ra = flash();
         controller.create("p", "{not json", ra);
         assertNotNull(error(ra));
         assertTrue(error(ra).startsWith("Policy is not valid JSON:"));
@@ -96,12 +96,12 @@ class PolicyControllerTest {
 
     @Test
     void createRejectsCaseInsensitiveDuplicate() {
-        Policy existing = new Policy();
+        final Policy existing = new Policy();
         existing.setId("e");
         existing.setName("Default");
         when(policyRepository.findFirstByNameIgnoreCase("default")).thenReturn(Optional.of(existing));
 
-        RedirectAttributes ra = flash();
+        final RedirectAttributes ra = flash();
         controller.create("default", "{}", ra);
         assertEquals("A policy named \"Default\" already exists.", error(ra));
         verify(policyRepository, never()).save(any());
@@ -111,8 +111,8 @@ class PolicyControllerTest {
     void createPersistsValidPolicy() {
         when(policyRepository.findFirstByNameIgnoreCase(anyString())).thenReturn(Optional.empty());
 
-        RedirectAttributes ra = flash();
-        String view = controller.create("MyPolicy", "{\"identifiers\":{}}", ra);
+        final RedirectAttributes ra = flash();
+        final String view = controller.create("MyPolicy", "{\"identifiers\":{}}", ra);
         assertEquals("redirect:/policies", view);
         assertNull(error(ra));
         assertEquals("Policy \"MyPolicy\" added.", success(ra));
@@ -125,20 +125,20 @@ class PolicyControllerTest {
     void editRejectsMissingId() {
         when(policyRepository.findById("ghost")).thenReturn(Optional.empty());
 
-        RedirectAttributes ra = flash();
+        final RedirectAttributes ra = flash();
         controller.edit("ghost", "{}", ra);
         assertEquals("Policy not found.", error(ra));
     }
 
     @Test
     void editRejectsBlankContent() {
-        Policy p = new Policy();
+        final Policy p = new Policy();
         p.setId("id-1");
         p.setName("Default");
         p.setContent("{}");
         when(policyRepository.findById("id-1")).thenReturn(Optional.of(p));
 
-        RedirectAttributes ra = flash();
+        final RedirectAttributes ra = flash();
         controller.edit("id-1", "  ", ra);
         assertEquals("Policy JSON is required.", error(ra));
         verify(policyRepository, never()).save(any());
@@ -146,13 +146,13 @@ class PolicyControllerTest {
 
     @Test
     void editRejectsInvalidJson() {
-        Policy p = new Policy();
+        final Policy p = new Policy();
         p.setId("id-1");
         p.setName("Default");
         p.setContent("{}");
         when(policyRepository.findById("id-1")).thenReturn(Optional.of(p));
 
-        RedirectAttributes ra = flash();
+        final RedirectAttributes ra = flash();
         controller.edit("id-1", "not-json", ra);
         assertTrue(error(ra).startsWith("Policy is not valid JSON:"));
         verify(policyRepository, never()).save(any());
@@ -160,14 +160,14 @@ class PolicyControllerTest {
 
     @Test
     void editPersistsValidContent() {
-        Policy p = new Policy();
+        final Policy p = new Policy();
         p.setId("id-1");
         p.setName("Default");
         p.setContent("{}");
         when(policyRepository.findById("id-1")).thenReturn(Optional.of(p));
 
-        RedirectAttributes ra = flash();
-        String view = controller.edit("id-1", "{\"identifiers\":{}}", ra);
+        final RedirectAttributes ra = flash();
+        final String view = controller.edit("id-1", "{\"identifiers\":{}}", ra);
         assertEquals("redirect:/policies", view);
         assertEquals("Policy \"Default\" updated.", success(ra));
         verify(policyRepository).save(p);
@@ -181,25 +181,25 @@ class PolicyControllerTest {
     void deleteRejectsMissingPolicy() {
         when(policyRepository.findById("ghost")).thenReturn(Optional.empty());
 
-        RedirectAttributes ra = flash();
+        final RedirectAttributes ra = flash();
         controller.delete("ghost", ra);
         assertEquals("Policy not found.", error(ra));
     }
 
     @Test
     void deleteBlockedWhenInUseByBatch() {
-        Policy p = new Policy();
+        final Policy p = new Policy();
         p.setId("id-1");
         p.setName("Default");
         when(policyRepository.findById("id-1")).thenReturn(Optional.of(p));
 
-        Batch b = new Batch();
+        final Batch b = new Batch();
         b.setId("b1");
         b.setName("Sample files");
         when(batchRepository.findByPhilterInstanceIdIsNullAndPolicyName("Default"))
                 .thenReturn(List.of(b));
 
-        RedirectAttributes ra = flash();
+        final RedirectAttributes ra = flash();
         controller.delete("id-1", ra);
         assertNotNull(error(ra));
         assertTrue(error(ra).contains("Sample files"),
@@ -209,15 +209,15 @@ class PolicyControllerTest {
 
     @Test
     void deletePersistsWhenNotInUse() {
-        Policy p = new Policy();
+        final Policy p = new Policy();
         p.setId("id-1");
         p.setName("Unused");
         when(policyRepository.findById("id-1")).thenReturn(Optional.of(p));
         when(batchRepository.findByPhilterInstanceIdIsNullAndPolicyName("Unused"))
                 .thenReturn(List.of());
 
-        RedirectAttributes ra = flash();
-        String view = controller.delete("id-1", ra);
+        final RedirectAttributes ra = flash();
+        final String view = controller.delete("id-1", ra);
         assertEquals("redirect:/policies", view);
         assertEquals("Policy \"Unused\" removed.", success(ra));
         verify(policyRepository).deleteById("id-1");

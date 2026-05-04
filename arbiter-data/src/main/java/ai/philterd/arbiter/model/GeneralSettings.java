@@ -18,11 +18,11 @@ public class GeneralSettings {
     }
 
     public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
+    public void setId(final String id) { this.id = id; }
 
     public String getArbiterUrl() { return arbiterUrl; }
-    public void setArbiterUrl(String arbiterUrl) { this.arbiterUrl = arbiterUrl; }
+    public void setArbiterUrl(final String arbiterUrl) { this.arbiterUrl = arbiterUrl; }
 
     public String getTimezone() { return timezone; }
-    public void setTimezone(String timezone) { this.timezone = timezone; }
+    public void setTimezone(final String timezone) { this.timezone = timezone; }
 }

@@ -61,14 +61,14 @@ public class ReviewViewController {
     private final LlmJudgeDefaultsService llmJudgeDefaultsService;
     private final UserSettingsService userSettingsService;
 
-    public ReviewViewController(DocumentRepository documentRepository,
-                                SpanRepository spanRepository,
-                                BatchRepository batchRepository,
-                                UserGroupsService userGroupsService,
-                                AuditLogService auditLogService,
-                                OllamaInstanceRepository ollamaInstanceRepository,
-                                LlmJudgeDefaultsService llmJudgeDefaultsService,
-                                UserSettingsService userSettingsService) {
+    public ReviewViewController(final DocumentRepository documentRepository,
+                                final SpanRepository spanRepository,
+                                final BatchRepository batchRepository,
+                                final UserGroupsService userGroupsService,
+                                final AuditLogService auditLogService,
+                                final OllamaInstanceRepository ollamaInstanceRepository,
+                                final LlmJudgeDefaultsService llmJudgeDefaultsService,
+                                final UserSettingsService userSettingsService) {
         this.documentRepository = documentRepository;
         this.spanRepository = spanRepository;
         this.batchRepository = batchRepository;
@@ -79,7 +79,7 @@ public class ReviewViewController {
         this.userSettingsService = userSettingsService;
     }
 
-    private static boolean isAdmin(Authentication auth) {
+    private static boolean isAdmin(final Authentication auth) {
         if (auth == null) return false;
         for (GrantedAuthority a : auth.getAuthorities()) {
             if ("ROLE_ADMIN".equals(a.getAuthority())) return true;
@@ -87,47 +87,47 @@ public class ReviewViewController {
         return false;
     }
 
-    private void requireAccess(Authentication auth, Document document) {
+    private void requireAccess(final Authentication auth, final Document document) {
         if (isAdmin(auth)) return;
-        Batch batch = document.getBatchId() == null ? null
+        final Batch batch = document.getBatchId() == null ? null
                 : batchRepository.findById(document.getBatchId()).orElse(null);
         if (batch == null || batch.getGroupId() == null) {
             throw new ResponseStatusException(NOT_FOUND, "Document not found: " + document.getId());
         }
-        Set<String> myGroupIds = userGroupsService.groupIdsForEmail(auth == null ? null : auth.getName());
+        final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(auth == null ? null : auth.getName());
         if (!myGroupIds.contains(batch.getGroupId())) {
             throw new ResponseStatusException(NOT_FOUND, "Document not found: " + document.getId());
         }
     }
 
     @GetMapping("/review/{documentId}")
-    public String review(@PathVariable String documentId, Authentication authentication, Model model) {
-        Document document = documentRepository.findById(documentId)
+    public String review(@PathVariable final String documentId, final Authentication authentication, final Model model) {
+        final Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + documentId));
         requireAccess(authentication, document);
 
-        String originalText = document.getOriginalText() == null ? "" : document.getOriginalText();
+        final String originalText = document.getOriginalText() == null ? "" : document.getOriginalText();
 
-        List<Span> spans = spanRepository.findByDocumentId(documentId);
+        final List<Span> spans = spanRepository.findByDocumentId(documentId);
         spans.sort(Comparator.comparingInt(s -> s.getLocation().characterStart()));
 
-        StringBuilder redactedBuilder = new StringBuilder();
-        List<Map<String, Object>> originalRedactions = new ArrayList<>();
-        List<Map<String, Object>> redactedRedactions = new ArrayList<>();
+        final StringBuilder redactedBuilder = new StringBuilder();
+        final List<Map<String, Object>> originalRedactions = new ArrayList<>();
+        final List<Map<String, Object>> redactedRedactions = new ArrayList<>();
 
         int cursor = 0;
         for (Span span : spans) {
-            int start = span.getLocation().characterStart();
-            int end = span.getLocation().characterEnd();
+            final int start = span.getLocation().characterStart();
+            final int end = span.getLocation().characterEnd();
             if (start < cursor || end > originalText.length() || start > end) {
                 continue;
             }
             redactedBuilder.append(originalText, cursor, start);
 
-            String replacement = "<<" + span.getType().toUpperCase() + ">>";
-            int newStart = redactedBuilder.length();
+            final String replacement = "<<" + span.getType().toUpperCase() + ">>";
+            final int newStart = redactedBuilder.length();
             redactedBuilder.append(replacement);
-            int newEnd = redactedBuilder.length();
+            final int newEnd = redactedBuilder.length();
 
             originalRedactions.add(redactionEntry(span, start, end));
             redactedRedactions.add(redactionEntry(span, newStart, newEnd));
@@ -136,26 +136,26 @@ public class ReviewViewController {
         }
         redactedBuilder.append(originalText, cursor, originalText.length());
 
-        List<Map<String, String>> piiTypes = new ArrayList<>();
+        final List<Map<String, String>> piiTypes = new ArrayList<>();
         PiiTypes.labels().forEach((value, label) -> {
-            Map<String, String> entry = new LinkedHashMap<>();
+            final Map<String, String> entry = new LinkedHashMap<>();
             entry.put("value", value);
             entry.put("label", label);
             piiTypes.add(entry);
         });
 
-        LlmJudgeDefaults defaults = llmJudgeDefaultsService.load();
+        final LlmJudgeDefaults defaults = llmJudgeDefaultsService.load();
         String defaultExplainInstanceId = defaults.getExplainInstanceId();
         String defaultExplainModel = defaults.getExplainModel();
-        boolean secondOpinionConfigured = defaults.getSecondOpinionInstanceId() != null;
+        final boolean secondOpinionConfigured = defaults.getSecondOpinionInstanceId() != null;
 
-        List<Map<String, Object>> ollamaInstances = new ArrayList<>();
-        List<OllamaInstance> allInstances = ollamaInstanceRepository.findAll();
+        final List<Map<String, Object>> ollamaInstances = new ArrayList<>();
+        final List<OllamaInstance> allInstances = ollamaInstanceRepository.findAll();
         allInstances.sort(Comparator.comparing(
                 (OllamaInstance i) -> i.getName() == null ? "" : i.getName().toLowerCase()));
         boolean explainInstanceStillExists = false;
         for (OllamaInstance i : allInstances) {
-            Map<String, Object> entry = new LinkedHashMap<>();
+            final Map<String, Object> entry = new LinkedHashMap<>();
             entry.put("id", i.getId());
             entry.put("name", i.getName());
             ollamaInstances.add(entry);
@@ -168,12 +168,12 @@ public class ReviewViewController {
             defaultExplainModel = null;
         }
 
-        UserSettings settings = userSettingsService.loadForEmail(
+        final UserSettings settings = userSettingsService.loadForEmail(
                 authentication == null ? null : authentication.getName());
-        boolean skipCompleted = settings.isSkipCompletedInReview();
+        final boolean skipCompleted = settings.isSkipCompletedInReview();
 
-        String prevDocumentId = findSiblingId(document, skipCompleted, -1);
-        String nextDocumentId = findSiblingId(document, skipCompleted, 1);
+        final String prevDocumentId = findSiblingId(document, skipCompleted, -1);
+        final String nextDocumentId = findSiblingId(document, skipCompleted, 1);
 
         model.addAttribute("document", document);
         model.addAttribute("originalText", originalText);
@@ -191,14 +191,14 @@ public class ReviewViewController {
     }
 
     @PostMapping("/review/{documentId}/approve")
-    public String approve(@PathVariable String documentId, Authentication authentication) {
+    public String approve(@PathVariable final String documentId, final Authentication authentication) {
         updateStatus(documentId, "APPROVED", authentication);
-        UserSettings settings = userSettingsService.loadForEmail(
+        final UserSettings settings = userSettingsService.loadForEmail(
                 authentication == null ? null : authentication.getName());
         if (settings.isAdvanceToNextOnApprove()) {
-            Document approved = documentRepository.findById(documentId).orElse(null);
+            final Document approved = documentRepository.findById(documentId).orElse(null);
             if (approved != null) {
-                String nextId = findSiblingId(approved, settings.isSkipCompletedInReview(), 1);
+                final String nextId = findSiblingId(approved, settings.isSkipCompletedInReview(), 1);
                 if (nextId != null) return "redirect:/review/" + nextId;
             }
         }
@@ -206,22 +206,22 @@ public class ReviewViewController {
     }
 
     @PostMapping("/review/{documentId}/reject")
-    public String reject(@PathVariable String documentId, Authentication authentication) {
+    public String reject(@PathVariable final String documentId, final Authentication authentication) {
         updateStatus(documentId, "REJECTED", authentication);
         return "redirect:/";
     }
 
     @PostMapping("/review/{documentId}/unapprove")
-    public String unapprove(@PathVariable String documentId, Authentication authentication) {
+    public String unapprove(@PathVariable final String documentId, final Authentication authentication) {
         updateStatus(documentId, "REVIEW_REQUIRED", authentication);
         auditLogService.log("DOCUMENT_UNAPPROVE", "Document", documentId,
                 Map.of("actor", authentication == null ? "" : authentication.getName()));
         return "redirect:/review/" + documentId;
     }
 
-    private String findSiblingId(Document document, boolean skipCompleted, int direction) {
+    private String findSiblingId(final Document document, final boolean skipCompleted, final int direction) {
         if (document.getBatchId() == null) return null;
-        List<Document> siblings = documentRepository.findByBatchId(document.getBatchId());
+        final List<Document> siblings = documentRepository.findByBatchId(document.getBatchId());
         siblings.sort(Comparator
                 .comparing((Document d) -> d.getFilename() == null ? "" : d.getFilename().toLowerCase())
                 .thenComparing(d -> d.getId() == null ? "" : d.getId()));
@@ -234,26 +234,26 @@ public class ReviewViewController {
         }
         if (index < 0) return null;
         for (int i = index + direction; i >= 0 && i < siblings.size(); i += direction) {
-            Document candidate = siblings.get(i);
+            final Document candidate = siblings.get(i);
             if (skipCompleted && "AUTO_APPROVED".equals(candidate.getStatus())) continue;
             return candidate.getId();
         }
         return null;
     }
 
-    private void updateStatus(String documentId, String status, Authentication authentication) {
-        Document document = documentRepository.findById(documentId)
+    private void updateStatus(final String documentId, final String status, final Authentication authentication) {
+        final Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + documentId));
         requireAccess(authentication, document);
-        String previous = document.getStatus();
+        final String previous = document.getStatus();
         document.changeStatus(status);
         documentRepository.save(document);
         auditLogService.log("DOCUMENT_STATUS_CHANGE", "Document", documentId,
                 Map.of("previous", previous == null ? "" : previous, "current", status));
     }
 
-    private static Map<String, Object> redactionEntry(Span span, int start, int end) {
-        Map<String, Object> entry = new LinkedHashMap<>();
+    private static Map<String, Object> redactionEntry(final Span span, final int start, final int end) {
+        final Map<String, Object> entry = new LinkedHashMap<>();
         entry.put("id", span.getId());
         entry.put("text", span.getText());
         entry.put("type", span.getType());

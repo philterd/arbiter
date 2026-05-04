@@ -15,13 +15,13 @@ class Sha512PasswordEncoderTest {
 
     @Test
     void encodeProducesSaltDollarHashFormat() {
-        String encoded = encoder.encode("hunter2");
+        final String encoded = encoder.encode("hunter2");
         assertNotNull(encoded);
-        int sep = encoded.indexOf('$');
+        final int sep = encoded.indexOf('$');
         assertTrue(sep > 0, "no $ separator: " + encoded);
 
-        String salt = encoded.substring(0, sep);
-        String hash = encoded.substring(sep + 1);
+        final String salt = encoded.substring(0, sep);
+        final String hash = encoded.substring(sep + 1);
         // 16 random bytes → 32 hex chars
         assertEquals(32, salt.length());
         // SHA-512 → 64 bytes → 128 hex chars
@@ -30,26 +30,26 @@ class Sha512PasswordEncoderTest {
 
     @Test
     void encodeOfSamePasswordProducesDifferentValues() {
-        String a = encoder.encode("hunter2");
-        String b = encoder.encode("hunter2");
+        final String a = encoder.encode("hunter2");
+        final String b = encoder.encode("hunter2");
         assertNotEquals(a, b, "salt should make repeated encodes differ");
     }
 
     @Test
     void matchesAcceptsCorrectPassword() {
-        String encoded = encoder.encode("correct horse battery staple");
+        final String encoded = encoder.encode("correct horse battery staple");
         assertTrue(encoder.matches("correct horse battery staple", encoded));
     }
 
     @Test
     void matchesRejectsWrongPassword() {
-        String encoded = encoder.encode("hunter2");
+        final String encoded = encoder.encode("hunter2");
         assertFalse(encoder.matches("hunter3", encoded));
     }
 
     @Test
     void matchesRejectsNullInputs() {
-        String encoded = encoder.encode("hunter2");
+        final String encoded = encoder.encode("hunter2");
         assertFalse(encoder.matches(null, encoded));
         assertFalse(encoder.matches("hunter2", null));
     }
@@ -57,7 +57,7 @@ class Sha512PasswordEncoderTest {
     @Test
     void matchesRejectsLegacyUnsaltedHash() {
         // Old-format hash without "$" separator must not validate.
-        String legacy = Hashing.sha512Hex("hunter2");
+        final String legacy = Hashing.sha512Hex("hunter2");
         assertFalse(legacy.contains("$"));
         assertFalse(encoder.matches("hunter2", legacy));
     }
@@ -77,9 +77,9 @@ class Sha512PasswordEncoderTest {
     @Test
     void crossInstancesInteroperate() {
         // A second encoder instance must verify what the first produced.
-        Sha512PasswordEncoder a = new Sha512PasswordEncoder();
-        Sha512PasswordEncoder b = new Sha512PasswordEncoder();
-        String encoded = a.encode("hunter2");
+        final Sha512PasswordEncoder a = new Sha512PasswordEncoder();
+        final Sha512PasswordEncoder b = new Sha512PasswordEncoder();
+        final String encoded = a.encode("hunter2");
         assertTrue(b.matches("hunter2", encoded));
     }
 }

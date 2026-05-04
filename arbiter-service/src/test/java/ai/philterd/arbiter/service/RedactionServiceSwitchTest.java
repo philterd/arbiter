@@ -57,7 +57,7 @@ public class RedactionServiceSwitchTest {
 
     @Test
     public void testUsePhilterWhenInstanceProvided() throws Exception {
-        PhilterInstance instance = new PhilterInstance();
+        final PhilterInstance instance = new PhilterInstance();
         instance.setId("philter-1");
         instance.setName("primary");
         instance.setEndpoint("philter");
@@ -66,10 +66,10 @@ public class RedactionServiceSwitchTest {
         when(philterInstanceRepository.findById("philter-1")).thenReturn(Optional.of(instance));
         when(philterClientFactory.create("http://philter:8080")).thenReturn(remotePhilterClient);
 
-        RedactionResponse philterResponse = new RedactionResponse("test", "philter", new ArrayList<>());
+        final RedactionResponse philterResponse = new RedactionResponse("test", "philter", new ArrayList<>());
         when(remotePhilterClient.redact(anyString(), anyString())).thenReturn(philterResponse);
 
-        RedactionResponse response = redactionService.redactText("test", "philter-1");
+        final RedactionResponse response = redactionService.redactText("test", "philter-1");
 
         assertEquals("philter", response.getRedactedText());
         verify(remotePhilterClient, times(1)).redact(anyString(), anyString());
@@ -78,10 +78,10 @@ public class RedactionServiceSwitchTest {
 
     @Test
     public void testUsePhileasWhenNoInstanceProvided() throws Exception {
-        RedactionResponse phileasResponse = new RedactionResponse("test", "phileas", new ArrayList<>());
+        final RedactionResponse phileasResponse = new RedactionResponse("test", "phileas", new ArrayList<>());
         when(phileasClient.redact(anyString(), anyString())).thenReturn(phileasResponse);
 
-        RedactionResponse response = redactionService.redactText("test", null);
+        final RedactionResponse response = redactionService.redactText("test", null);
 
         assertEquals("phileas", response.getRedactedText());
         verify(phileasClient, times(1)).redact(anyString(), anyString());
@@ -92,10 +92,10 @@ public class RedactionServiceSwitchTest {
     public void testUsePhileasWhenInstanceMissing() throws Exception {
         when(philterInstanceRepository.findById("ghost")).thenReturn(Optional.empty());
 
-        RedactionResponse phileasResponse = new RedactionResponse("test", "phileas", new ArrayList<>());
+        final RedactionResponse phileasResponse = new RedactionResponse("test", "phileas", new ArrayList<>());
         when(phileasClient.redact(anyString(), anyString())).thenReturn(phileasResponse);
 
-        RedactionResponse response = redactionService.redactText("test", "ghost");
+        final RedactionResponse response = redactionService.redactText("test", "ghost");
 
         assertEquals("phileas", response.getRedactedText());
         verify(phileasClient, times(1)).redact(anyString(), anyString());

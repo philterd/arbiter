@@ -25,15 +25,15 @@ public class WeightSet {
     public WeightSet() {
     }
     public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public void setCreatedAt(final LocalDateTime createdAt) { this.createdAt = createdAt; }
 
 
     public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
+    public void setId(final String id) { this.id = id; }
 
     public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    public void setName(final String name) { this.name = name; }
 
     public Map<String, Integer> getWeights() { return weights; }
-    public void setWeights(Map<String, Integer> weights) { this.weights = weights; }
+    public void setWeights(final Map<String, Integer> weights) { this.weights = weights; }
 }

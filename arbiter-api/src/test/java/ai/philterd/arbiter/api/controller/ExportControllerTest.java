@@ -51,13 +51,13 @@ class ExportControllerTest {
         controller = new ExportController(redactionApiService, spanRepository,
                 documentRepository, batchRepository, userGroupsService);
 
-        Document doc = new Document();
+        final Document doc = new Document();
         doc.setId("d1");
         when(documentRepository.findById("d1")).thenReturn(Optional.of(doc));
     }
 
-    private static Span span(String id, String type, String text, double conf, String status) {
-        Span s = new Span();
+    private static Span span(final String id, final String type, final String text, final double conf, final String status) {
+        final Span s = new Span();
         s.setId(id);
         s.setType(type);
         s.setText(text);
@@ -71,7 +71,7 @@ class ExportControllerTest {
     void finalizeReturnsServiceResult() throws IOException {
         when(redactionApiService.finalizeRedaction("d1")).thenReturn("hello <<SSN>>");
 
-        Map<String, String> result = controller.finalize("d1", ADMIN);
+        final Map<String, String> result = controller.finalize("d1", ADMIN);
 
         assertEquals("hello <<SSN>>", result.get("finalizedText"));
     }
@@ -82,7 +82,7 @@ class ExportControllerTest {
                 span("s1", "ssn", "123-45-6789", 0.95, "APPROVED"),
                 span("s2", "phone-number", "555-1234", 0.4, "PENDING")));
 
-        List<Map<String, Object>> result = controller.audit("d1", ADMIN);
+        final List<Map<String, Object>> result = controller.audit("d1", ADMIN);
 
         assertEquals(2, result.size());
         assertEquals("123-45-6789", result.get(0).get("text"));
@@ -96,7 +96,7 @@ class ExportControllerTest {
     void auditReturnsEmptyListWhenNoSpans() {
         when(spanRepository.findByDocumentId("d1")).thenReturn(List.of());
 
-        List<Map<String, Object>> result = controller.audit("d1", ADMIN);
+        final List<Map<String, Object>> result = controller.audit("d1", ADMIN);
 
         assertTrue(result.isEmpty());
     }
@@ -104,11 +104,11 @@ class ExportControllerTest {
     // ---- group-access enforcement (non-admin) ----
 
     private void seedGroupedDocument() {
-        Document doc = new Document();
+        final Document doc = new Document();
         doc.setId("d1");
         doc.setBatchId("b1");
         when(documentRepository.findById("d1")).thenReturn(Optional.of(doc));
-        Batch batch = new Batch();
+        final Batch batch = new Batch();
         batch.setId("b1");
         batch.setGroupId("g1");
         when(batchRepository.findById("b1")).thenReturn(Optional.of(batch));
@@ -119,7 +119,7 @@ class ExportControllerTest {
         seedGroupedDocument();
         userGroupsService.withMembership("alice@example.com", Set.of("g2"));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> controller.finalize("d1", TestAuth.user("alice@example.com")));
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
         verify(redactionApiService, never()).finalizeRedaction(org.mockito.ArgumentMatchers.anyString());
@@ -130,7 +130,7 @@ class ExportControllerTest {
         seedGroupedDocument();
         userGroupsService.withMembership("alice@example.com", Set.of("g2"));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> controller.audit("d1", TestAuth.user("alice@example.com")));
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
         verify(spanRepository, never()).findByDocumentId(org.mockito.ArgumentMatchers.anyString());
@@ -142,23 +142,23 @@ class ExportControllerTest {
         userGroupsService.withMembership("alice@example.com", Set.of("g1"));
         when(spanRepository.findByDocumentId("d1")).thenReturn(List.of());
 
-        List<Map<String, Object>> result = controller.audit("d1", TestAuth.user("alice@example.com"));
+        final List<Map<String, Object>> result = controller.audit("d1", TestAuth.user("alice@example.com"));
         assertTrue(result.isEmpty());
     }
 
     @Test
     void documentEndpointsForbidWhenBatchHasNoGroup() {
-        Document doc = new Document();
+        final Document doc = new Document();
         doc.setId("d1");
         doc.setBatchId("b1");
         when(documentRepository.findById("d1")).thenReturn(Optional.of(doc));
-        Batch batch = new Batch();
+        final Batch batch = new Batch();
         batch.setId("b1");
         // groupId left null
         when(batchRepository.findById("b1")).thenReturn(Optional.of(batch));
         userGroupsService.withMembership("alice@example.com", Set.of("g1"));
 
-        ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> controller.audit("d1", TestAuth.user("alice@example.com")));
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
     }

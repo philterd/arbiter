@@ -35,13 +35,13 @@ final class TestDoubles {
             super(mock(UserRepository.class), mock(GroupRepository.class));
         }
 
-        FakeUserGroups withMembership(String email, Set<String> groupIds) {
+        FakeUserGroups withMembership(final String email, final Set<String> groupIds) {
             byEmail.put(email, groupIds);
             return this;
         }
 
         @Override
-        public Set<String> groupIdsForEmail(String email) {
+        public Set<String> groupIdsForEmail(final String email) {
             return email == null ? Set.of() : byEmail.getOrDefault(email, Set.of());
         }
     }
@@ -54,24 +54,24 @@ final class TestDoubles {
         }
 
         @Override
-        public void log(String action, String resourceType, String resourceId,
-                        Map<String, Object> details) {
+        public void log(final String action, final String resourceType, final String resourceId,
+                        final Map<String, Object> details) {
             entries.add(new Entry(action, resourceType, resourceId, details));
         }
 
         @Override
-        public void log(String action, String resourceType, String resourceId) {
+        public void log(final String action, final String resourceType, final String resourceId) {
             log(action, resourceType, resourceId, null);
         }
 
         @Override
-        public void logForUser(String userEmail, String action, String resourceType,
-                               String resourceId, String outcome,
-                               Map<String, Object> details) {
+        public void logForUser(final String userEmail, final String action, final String resourceType,
+                               final String resourceId, final String outcome,
+                               final Map<String, Object> details) {
             entries.add(new Entry(action, resourceType, resourceId, details));
         }
 
-        boolean hasAction(String action) {
+        boolean hasAction(final String action) {
             return entries.stream().anyMatch(e -> action.equals(e.action));
         }
 

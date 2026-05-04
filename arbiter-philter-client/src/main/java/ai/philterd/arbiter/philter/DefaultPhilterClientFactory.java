@@ -23,12 +23,12 @@ public class DefaultPhilterClientFactory implements PhilterClientFactory {
 
     private final RestTemplate restTemplate;
 
-    public DefaultPhilterClientFactory(RestTemplate restTemplate) {
+    public DefaultPhilterClientFactory(final RestTemplate restTemplate) {
         this.restTemplate = restTemplate;
     }
 
     @Override
-    public PhilterClient create(String philterUrl) {
+    public PhilterClient create(final String philterUrl) {
         return new PhilterClientImpl(restTemplate, philterUrl);
     }
 }

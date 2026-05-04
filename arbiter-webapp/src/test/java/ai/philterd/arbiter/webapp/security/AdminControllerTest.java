@@ -54,16 +54,16 @@ class AdminControllerTest {
     }
 
     private static RedirectAttributes flash() { return new RedirectAttributesModelMap(); }
-    private static String error(RedirectAttributes ra) {
-        Object e = ra.getFlashAttributes().get("error"); return e == null ? null : e.toString();
+    private static String error(final RedirectAttributes ra) {
+        final Object e = ra.getFlashAttributes().get("error"); return e == null ? null : e.toString();
     }
-    private static String success(RedirectAttributes ra) {
-        Object s = ra.getFlashAttributes().get("success"); return s == null ? null : s.toString();
+    private static String success(final RedirectAttributes ra) {
+        final Object s = ra.getFlashAttributes().get("success"); return s == null ? null : s.toString();
     }
 
     @Test
     void rejectsBlankEmail() {
-        RedirectAttributes ra = flash();
+        final RedirectAttributes ra = flash();
         controller.create(" ", "password", false, false, ra);
         assertEquals("Email address is required.", error(ra));
         verify(userRepository, never()).save(any());
@@ -71,7 +71,7 @@ class AdminControllerTest {
 
     @Test
     void rejectsInvalidEmail() {
-        RedirectAttributes ra = flash();
+        final RedirectAttributes ra = flash();
         controller.create("not-an-email", "password", false, false, ra);
         assertNotNull(error(ra));
         assertTrue(error(ra).contains("not a valid email address"));
@@ -80,7 +80,7 @@ class AdminControllerTest {
 
     @Test
     void rejectsShortPassword() {
-        RedirectAttributes ra = flash();
+        final RedirectAttributes ra = flash();
         controller.create("a@b.com", "abc", false, false, ra);
         assertEquals("Password must be at least 4 characters.", error(ra));
         verify(userRepository, never()).save(any());
@@ -90,7 +90,7 @@ class AdminControllerTest {
     void rejectsDuplicateEmail() {
         when(userRepository.findByEmail("a@b.com")).thenReturn(Optional.of(new User()));
 
-        RedirectAttributes ra = flash();
+        final RedirectAttributes ra = flash();
         controller.create("A@b.com", "password", false, false, ra);
         assertEquals("Email \"a@b.com\" is already taken.", error(ra));
         verify(userRepository, never()).save(any());
@@ -99,11 +99,11 @@ class AdminControllerTest {
     @Test
     void sendEmailWhenDisabledStillCreatesUserButFlagsError() {
         when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
-        NotificationSettings settings = new NotificationSettings();
+        final NotificationSettings settings = new NotificationSettings();
         settings.setEnabled(false);
         when(notificationSettingsService.load()).thenReturn(settings);
 
-        RedirectAttributes ra = flash();
+        final RedirectAttributes ra = flash();
         controller.create("a@b.com", "password", false, true, ra);
 
         verify(userRepository).save(any(User.class));
@@ -116,12 +116,12 @@ class AdminControllerTest {
     @Test
     void sendEmailWhenEnabledCallsNotificationService() {
         when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
-        NotificationSettings settings = new NotificationSettings();
+        final NotificationSettings settings = new NotificationSettings();
         settings.setEnabled(true);
         when(notificationSettingsService.load()).thenReturn(settings);
         when(userNotificationService.sendNewUserCredentials(anyString(), anyString())).thenReturn(true);
 
-        RedirectAttributes ra = flash();
+        final RedirectAttributes ra = flash();
         controller.create("a@b.com", "password", true, true, ra);
 
         verify(userRepository).save(any(User.class));
@@ -133,12 +133,12 @@ class AdminControllerTest {
     @Test
     void sendEmailFailureSurfacedAsError() {
         when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
-        NotificationSettings settings = new NotificationSettings();
+        final NotificationSettings settings = new NotificationSettings();
         settings.setEnabled(true);
         when(notificationSettingsService.load()).thenReturn(settings);
         when(userNotificationService.sendNewUserCredentials(anyString(), anyString())).thenReturn(false);
 
-        RedirectAttributes ra = flash();
+        final RedirectAttributes ra = flash();
         controller.create("a@b.com", "password", false, true, ra);
 
         verify(userRepository).save(any(User.class));

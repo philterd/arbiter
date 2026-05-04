@@ -33,22 +33,22 @@ public class Sha512PasswordEncoder implements PasswordEncoder {
     private static final char SEPARATOR = '$';
 
     @Override
-    public String encode(CharSequence rawPassword) {
+    public String encode(final CharSequence rawPassword) {
         if (rawPassword == null) return null;
-        byte[] saltBytes = new byte[SALT_BYTES];
+        final byte[] saltBytes = new byte[SALT_BYTES];
         RANDOM.nextBytes(saltBytes);
-        String salt = HexFormat.of().formatHex(saltBytes);
+        final String salt = HexFormat.of().formatHex(saltBytes);
         return salt + SEPARATOR + Hashing.sha512Hex(salt + rawPassword);
     }
 
     @Override
-    public boolean matches(CharSequence rawPassword, String encodedPassword) {
+    public boolean matches(final CharSequence rawPassword, final String encodedPassword) {
         if (rawPassword == null || encodedPassword == null) return false;
-        int sep = encodedPassword.indexOf(SEPARATOR);
+        final int sep = encodedPassword.indexOf(SEPARATOR);
         if (sep <= 0 || sep == encodedPassword.length() - 1) return false;
-        String salt = encodedPassword.substring(0, sep);
-        String storedHash = encodedPassword.substring(sep + 1);
-        String candidate = Hashing.sha512Hex(salt + rawPassword);
+        final String salt = encodedPassword.substring(0, sep);
+        final String storedHash = encodedPassword.substring(sep + 1);
+        final String candidate = Hashing.sha512Hex(salt + rawPassword);
         return MessageDigest.isEqual(
                 candidate.getBytes(StandardCharsets.UTF_8),
                 storedHash.getBytes(StandardCharsets.UTF_8));

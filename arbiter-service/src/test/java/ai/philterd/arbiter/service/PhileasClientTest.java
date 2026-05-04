@@ -34,10 +34,10 @@ public class PhileasClientTest {
 
     @Test
     public void testRedactSSN() throws IOException {
-        String text = "My SSN is 123-45-6789.";
-        String context = UUID.randomUUID().toString();
-        
-        RedactionResponse response = phileasClient.redact(text, context);
+        final String text = "My SSN is 123-45-6789.";
+        final String context = UUID.randomUUID().toString();
+
+        final RedactionResponse response = phileasClient.redact(text, context);
         
         assertNotNull(response);
         assertNotEquals(text, response.getRedactedText());

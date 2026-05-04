@@ -25,7 +25,7 @@ public class RedactionResponse {
     public RedactionResponse() {
     }
 
-    public RedactionResponse(String originalText, String redactedText, List<Redaction> redactions) {
+    public RedactionResponse(final String originalText, final String redactedText, final List<Redaction> redactions) {
         this.originalText = originalText;
         this.redactedText = redactedText;
         this.redactions = redactions;
@@ -35,7 +35,7 @@ public class RedactionResponse {
         return originalText;
     }
 
-    public void setOriginalText(String originalText) {
+    public void setOriginalText(final String originalText) {
         this.originalText = originalText;
     }
 
@@ -43,7 +43,7 @@ public class RedactionResponse {
         return redactedText;
     }
 
-    public void setRedactedText(String redactedText) {
+    public void setRedactedText(final String redactedText) {
         this.redactedText = redactedText;
     }
 
@@ -51,7 +51,7 @@ public class RedactionResponse {
         return redactions;
     }
 
-    public void setRedactions(List<Redaction> redactions) {
+    public void setRedactions(final List<Redaction> redactions) {
         this.redactions = redactions;
     }
 }

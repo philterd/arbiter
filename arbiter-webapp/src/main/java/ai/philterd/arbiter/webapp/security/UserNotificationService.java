@@ -36,23 +36,23 @@ public class UserNotificationService {
     private final NotificationSettingsService settingsService;
     private final GeneralSettingsService generalSettingsService;
 
-    public UserNotificationService(NotificationSettingsService settingsService,
-                                   GeneralSettingsService generalSettingsService) {
+    public UserNotificationService(final NotificationSettingsService settingsService,
+                                   final GeneralSettingsService generalSettingsService) {
         this.settingsService = settingsService;
         this.generalSettingsService = generalSettingsService;
     }
 
     /** Try to send a small test email using the supplied settings. Throws on failure. */
-    public void sendTestEmail(NotificationSettings probe, String toEmail) throws Exception {
+    public void sendTestEmail(final NotificationSettings probe, final String toEmail) throws Exception {
         if (probe.getHost() == null || probe.getHost().isBlank()) {
             throw new IllegalArgumentException("SMTP host is required.");
         }
         if (probe.getFromAddress() == null || probe.getFromAddress().isBlank()) {
             throw new IllegalArgumentException("From address is required.");
         }
-        JavaMailSenderImpl mailSender = buildSender(probe);
-        MimeMessage message = mailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
+        final JavaMailSenderImpl mailSender = buildSender(probe);
+        final MimeMessage message = mailSender.createMimeMessage();
+        final MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
         if (probe.getFromName() != null && !probe.getFromName().isBlank()) {
             helper.setFrom(new InternetAddress(probe.getFromAddress(), probe.getFromName()));
         } else {
@@ -65,9 +65,9 @@ public class UserNotificationService {
     }
 
     /** Send a new user their login credentials. Returns true if the email was sent. */
-    public boolean sendNewUserCredentials(String toEmail, String password) {
-        String loginUrl = buildLoginUrl();
-        NotificationSettings settings = settingsService.load();
+    public boolean sendNewUserCredentials(final String toEmail, final String password) {
+        final String loginUrl = buildLoginUrl();
+        final NotificationSettings settings = settingsService.load();
         if (!settings.isEnabled()) {
             log.warn("Outbound email is disabled; skipping new-user welcome to {}", toEmail);
             return false;
@@ -81,10 +81,10 @@ public class UserNotificationService {
             return false;
         }
 
-        JavaMailSenderImpl mailSender = buildSender(settings);
+        final JavaMailSenderImpl mailSender = buildSender(settings);
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
+            final MimeMessage message = mailSender.createMimeMessage();
+            final MimeMessageHelper helper = new MimeMessageHelper(message, false, "UTF-8");
             if (settings.getFromName() != null && !settings.getFromName().isBlank()) {
                 helper.setFrom(new InternetAddress(settings.getFromAddress(), settings.getFromName()));
             } else {
@@ -102,8 +102,8 @@ public class UserNotificationService {
         }
     }
 
-    private static JavaMailSenderImpl buildSender(NotificationSettings settings) {
-        JavaMailSenderImpl sender = new JavaMailSenderImpl();
+    private static JavaMailSenderImpl buildSender(final NotificationSettings settings) {
+        final JavaMailSenderImpl sender = new JavaMailSenderImpl();
         sender.setHost(settings.getHost());
         sender.setPort(settings.getPort());
         if (settings.getUsername() != null && !settings.getUsername().isBlank()) {
@@ -112,7 +112,7 @@ public class UserNotificationService {
         if (settings.getPassword() != null && !settings.getPassword().isEmpty()) {
             sender.setPassword(settings.getPassword());
         }
-        Properties props = sender.getJavaMailProperties();
+        final Properties props = sender.getJavaMailProperties();
         props.put("mail.transport.protocol", "smtp");
         if (settings.getUsername() != null && !settings.getUsername().isBlank()) {
             props.put("mail.smtp.auth", "true");
@@ -137,8 +137,8 @@ public class UserNotificationService {
         return url + "/login";
     }
 
-    private static String buildBody(String email, String password, String loginUrl) {
-        StringBuilder sb = new StringBuilder(512);
+    private static String buildBody(final String email, final String password, final String loginUrl) {
+        final StringBuilder sb = new StringBuilder(512);
         sb.append("An Arbiter account has been created for you.\n\n");
         sb.append("Email:    ").append(email).append('\n');
         sb.append("Password: ").append(password).append('\n');

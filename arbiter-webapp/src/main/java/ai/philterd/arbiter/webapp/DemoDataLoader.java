@@ -74,14 +74,14 @@ public class DemoDataLoader implements ApplicationRunner {
     private final RedactionService redactionService;
     private final String sampleFilesDirectory;
 
-    public DemoDataLoader(BatchRepository batchRepository,
-                          DocumentRepository documentRepository,
-                          SpanRepository spanRepository,
-                          GroupRepository groupRepository,
-                          UserRepository userRepository,
-                          PolicyRepository policyRepository,
-                          RedactionService redactionService,
-                          @Value("${arbiter.demo-data.directory:sample-files}") String sampleFilesDirectory) {
+    public DemoDataLoader(final BatchRepository batchRepository,
+                          final DocumentRepository documentRepository,
+                          final SpanRepository spanRepository,
+                          final GroupRepository groupRepository,
+                          final UserRepository userRepository,
+                          final PolicyRepository policyRepository,
+                          final RedactionService redactionService,
+                          @Value("${arbiter.demo-data.directory:sample-files}") final String sampleFilesDirectory) {
         this.batchRepository = batchRepository;
         this.documentRepository = documentRepository;
         this.spanRepository = spanRepository;
@@ -93,7 +93,7 @@ public class DemoDataLoader implements ApplicationRunner {
     }
 
     @Override
-    public void run(ApplicationArguments args) {
+    public void run(final ApplicationArguments args) {
         ensureDefaultPolicy();
 
         if (batchRepository.count() > 0 || documentRepository.count() > 0 || spanRepository.count() > 0) {
@@ -101,14 +101,14 @@ public class DemoDataLoader implements ApplicationRunner {
             return;
         }
 
-        Path directory = resolveDirectory(sampleFilesDirectory);
+        final Path directory = resolveDirectory(sampleFilesDirectory);
         if (directory == null) {
             log.warn("Demo data not loaded: sample files directory '{}' not found.", sampleFilesDirectory);
             return;
         }
 
         List<Path> files;
-        try (Stream<Path> stream = Files.list(directory)) {
+        try (final Stream<Path> stream = Files.list(directory)) {
             files = stream.filter(Files::isRegularFile).sorted().toList();
         } catch (IOException e) {
             log.warn("Demo data not loaded: failed to list {}: {}", directory, e.getMessage());
@@ -122,9 +122,9 @@ public class DemoDataLoader implements ApplicationRunner {
 
         log.info("Loading demo data from {} ({} file{}).", directory, files.size(), files.size() == 1 ? "" : "s");
 
-        Group demoGroup = ensureDemoGroup();
+        final Group demoGroup = ensureDemoGroup();
 
-        Batch batch = new Batch();
+        final Batch batch = new Batch();
         batch.setId(UUID.randomUUID().toString());
         batch.setName("Sample files");
         batch.setCreatedAt(LocalDateTime.now());
@@ -148,7 +148,7 @@ public class DemoDataLoader implements ApplicationRunner {
         if (policyRepository.count() > 0) {
             return;
         }
-        Policy policy = new Policy();
+        final Policy policy = new Policy();
         policy.setId(UUID.randomUUID().toString());
         policy.setName("Default");
         policy.setContent(DEFAULT_POLICY_JSON);
@@ -174,11 +174,11 @@ public class DemoDataLoader implements ApplicationRunner {
 
     private Group ensureDemoGroup() {
         return groupRepository.findByName(DEMO_GROUP_NAME).orElseGet(() -> {
-            Group group = new Group();
+            final Group group = new Group();
             group.setId(UUID.randomUUID().toString());
             group.setName(DEMO_GROUP_NAME);
             group.setCreatedAt(LocalDateTime.now());
-            Set<String> userIds = new HashSet<>();
+            final Set<String> userIds = new HashSet<>();
             for (User u : userRepository.findAll()) {
                 if (u.getId() != null) {
                     userIds.add(u.getId());
@@ -190,7 +190,7 @@ public class DemoDataLoader implements ApplicationRunner {
         });
     }
 
-    private boolean loadFile(Path file, Batch batch) {
+    private boolean loadFile(final Path file, final Batch batch) {
         String text;
         try {
             text = Files.readString(file, StandardCharsets.UTF_8);
@@ -199,7 +199,7 @@ public class DemoDataLoader implements ApplicationRunner {
             return false;
         }
 
-        Document document = new Document();
+        final Document document = new Document();
         document.setId(UUID.randomUUID().toString());
         document.setBatchId(batch.getId());
         document.setCreatedAt(LocalDateTime.now());
@@ -207,24 +207,24 @@ public class DemoDataLoader implements ApplicationRunner {
         document.setStoragePath(file.toAbsolutePath().toString());
         document.setOriginalText(text);
 
-        List<Span> spans = new ArrayList<>();
+        final List<Span> spans = new ArrayList<>();
         try {
-            RedactionResponse response = redactionService.redactText(text, batch.getPhilterInstanceId());
-            List<Redaction> ordered = new ArrayList<>(response.getRedactions());
+            final RedactionResponse response = redactionService.redactText(text, batch.getPhilterInstanceId());
+            final List<Redaction> ordered = new ArrayList<>(response.getRedactions());
             ordered.sort(Comparator.comparingInt(Redaction::getStart));
             int cursor = 0;
             for (Redaction redaction : ordered) {
-                int originalStart = text.indexOf(redaction.getText(), cursor);
+                final int originalStart = text.indexOf(redaction.getText(), cursor);
                 if (originalStart < 0) {
                     log.warn("Could not locate '{}' in original text of {}; skipping span.",
                             redaction.getText(), file.getFileName());
                     continue;
                 }
-                int originalEnd = originalStart + redaction.getText().length();
+                final int originalEnd = originalStart + redaction.getText().length();
                 spans.add(toSpan(document.getId(), redaction, originalStart, originalEnd, batch.getConfidenceThreshold()));
                 cursor = originalEnd;
             }
-            boolean needsReview = !spans.isEmpty()
+            final boolean needsReview = !spans.isEmpty()
                     && spans.stream().anyMatch(s -> "PENDING".equals(s.getStatus()));
             document.changeStatus(IngestStatus.pick(batch, needsReview));
         } catch (Exception e) {
@@ -245,9 +245,9 @@ public class DemoDataLoader implements ApplicationRunner {
         return true;
     }
 
-    private static Span toSpan(String documentId, Redaction redaction, int originalStart, int originalEnd, double threshold) {
-        LocalDateTime now = LocalDateTime.now();
-        Span span = new Span();
+    private static Span toSpan(final String documentId, final Redaction redaction, final int originalStart, final int originalEnd, final double threshold) {
+        final LocalDateTime now = LocalDateTime.now();
+        final Span span = new Span();
         span.setId(redaction.getId() != null ? redaction.getId() : UUID.randomUUID().toString());
         span.setDocumentId(documentId);
         span.setType(redaction.getType());
@@ -268,10 +268,10 @@ public class DemoDataLoader implements ApplicationRunner {
     }
 
 
-    private static Path resolveDirectory(String configured) {
-        List<Path> candidates = new ArrayList<>();
+    private static Path resolveDirectory(final String configured) {
+        final List<Path> candidates = new ArrayList<>();
         candidates.add(Paths.get(configured));
-        Path leaf = Paths.get(configured).getFileName();
+        final Path leaf = Paths.get(configured).getFileName();
         if (leaf != null) {
             candidates.add(Paths.get(leaf.toString()));
             candidates.add(Paths.get("..").resolve(leaf));

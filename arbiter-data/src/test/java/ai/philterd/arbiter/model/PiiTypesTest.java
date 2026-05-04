@@ -59,7 +59,7 @@ class PiiTypesTest {
 
     @Test
     void labelsCoversEveryKnownValue() {
-        Map<String, String> labels = PiiTypes.labels();
+        final Map<String, String> labels = PiiTypes.labels();
         assertEquals(PiiTypes.values().size(), labels.size());
         for (String value : PiiTypes.values()) {
             assertTrue(labels.containsKey(value), "missing label for " + value);
@@ -71,8 +71,8 @@ class PiiTypesTest {
     void labelsAreSortedAlphabeticallyByLabel() {
         // First entry in the LinkedHashMap should be "Age" because it sorts
         // first alphabetically.
-        Map<String, String> labels = PiiTypes.labels();
-        String firstLabel = labels.values().iterator().next();
+        final Map<String, String> labels = PiiTypes.labels();
+        final String firstLabel = labels.values().iterator().next();
         assertEquals("Age", firstLabel);
     }
 }

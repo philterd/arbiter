@@ -69,12 +69,12 @@ public class RedactionController {
     private final UserGroupsService userGroupsService;
     private final AuditLogService auditLogService;
 
-    public RedactionController(RedactionService redactionService,
-                               BatchRepository batchRepository,
-                               DocumentRepository documentRepository,
-                               SpanRepository spanRepository,
-                               UserGroupsService userGroupsService,
-                               AuditLogService auditLogService) {
+    public RedactionController(final RedactionService redactionService,
+                               final BatchRepository batchRepository,
+                               final DocumentRepository documentRepository,
+                               final SpanRepository spanRepository,
+                               final UserGroupsService userGroupsService,
+                               final AuditLogService auditLogService) {
         this.redactionService = redactionService;
         this.batchRepository = batchRepository;
         this.documentRepository = documentRepository;
@@ -83,7 +83,7 @@ public class RedactionController {
         this.auditLogService = auditLogService;
     }
 
-    private static boolean isAdmin(Authentication auth) {
+    private static boolean isAdmin(final Authentication auth) {
         if (auth == null) return false;
         for (GrantedAuthority a : auth.getAuthorities()) {
             if ("ROLE_ADMIN".equals(a.getAuthority())) return true;
@@ -91,28 +91,28 @@ public class RedactionController {
         return false;
     }
 
-    private boolean canAccessBatch(Authentication auth, Batch batch) {
+    private boolean canAccessBatch(final Authentication auth, final Batch batch) {
         if (isAdmin(auth)) return true;
         if (batch == null || batch.getGroupId() == null) return false;
-        Set<String> myGroupIds = userGroupsService.groupIdsForEmail(auth == null ? null : auth.getName());
+        final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(auth == null ? null : auth.getName());
         return myGroupIds.contains(batch.getGroupId());
     }
 
     @GetMapping("/")
-    public String dashboard(Authentication authentication, Model model) {
-        boolean admin = isAdmin(authentication);
-        Set<String> myGroupIds = admin
+    public String dashboard(final Authentication authentication, final Model model) {
+        final boolean admin = isAdmin(authentication);
+        final Set<String> myGroupIds = admin
                 ? Set.of()
                 : userGroupsService.groupIdsForEmail(authentication == null ? null : authentication.getName());
 
-        List<Batch> batches = batchRepository.findAll();
+        final List<Batch> batches = batchRepository.findAll();
         if (!admin) {
             batches.removeIf(b -> b.getGroupId() == null || !myGroupIds.contains(b.getGroupId()));
         }
 
-        long totalBatches = batches.size();
-        long openBatches = batches.stream().filter(b -> !b.isClosed()).count();
-        long closedBatches = totalBatches - openBatches;
+        final long totalBatches = batches.size();
+        final long openBatches = batches.stream().filter(b -> !b.isClosed()).count();
+        final long closedBatches = totalBatches - openBatches;
 
         long totalDocuments = 0;
         long needsReview = 0;
@@ -153,12 +153,12 @@ public class RedactionController {
     }
 
     @GetMapping("/upload")
-    public String upload(Authentication authentication, Model model) {
-        boolean admin = isAdmin(authentication);
-        Set<String> myGroupIds = admin
+    public String upload(final Authentication authentication, final Model model) {
+        final boolean admin = isAdmin(authentication);
+        final Set<String> myGroupIds = admin
                 ? Set.of()
                 : userGroupsService.groupIdsForEmail(authentication == null ? null : authentication.getName());
-        List<Batch> batches = batchRepository.findAll();
+        final List<Batch> batches = batchRepository.findAll();
         batches.removeIf(Batch::isClosed);
         if (!admin) {
             batches.removeIf(b -> b.getGroupId() == null || !myGroupIds.contains(b.getGroupId()));
@@ -169,13 +169,13 @@ public class RedactionController {
     }
 
     @PostMapping("/redact")
-    public String redact(@RequestParam("file") MultipartFile file,
-                         @RequestParam("batchId") String batchId,
-                         Authentication authentication,
-                         Model model,
-                         HttpSession session,
-                         RedirectAttributes redirectAttributes) throws IOException {
-        Batch batch = batchRepository.findById(batchId).orElse(null);
+    public String redact(@RequestParam("file") final MultipartFile file,
+                         @RequestParam("batchId") final String batchId,
+                         final Authentication authentication,
+                         final Model model,
+                         final HttpSession session,
+                         final RedirectAttributes redirectAttributes) throws IOException {
+        final Batch batch = batchRepository.findById(batchId).orElse(null);
         if (batch == null || !canAccessBatch(authentication, batch)) {
             redirectAttributes.addFlashAttribute("error", "Selected batch no longer exists.");
             return "redirect:/upload";
@@ -186,8 +186,8 @@ public class RedactionController {
             return "redirect:/upload";
         }
 
-        String contentType = file.getContentType();
-        byte[] fileBytes = file.getBytes();
+        final String contentType = file.getContentType();
+        final byte[] fileBytes = file.getBytes();
         session.setAttribute("originalFile", fileBytes);
         session.setAttribute("philterInstanceId", batch.getPhilterInstanceId());
 
@@ -196,11 +196,11 @@ public class RedactionController {
         if (MediaType.APPLICATION_PDF_VALUE.equals(contentType)) {
             response = redactionService.redactPdf(new ByteArrayInputStream(fileBytes), batch.getPhilterInstanceId());
         } else {
-            String text = new String(fileBytes, StandardCharsets.UTF_8);
+            final String text = new String(fileBytes, StandardCharsets.UTF_8);
             response = redactionService.redactText(text, batch.getPhilterInstanceId());
         }
 
-        Document persisted = persistDocument(batch, file.getOriginalFilename(), response);
+        final Document persisted = persistDocument(batch, file.getOriginalFilename(), response);
         auditLogService.log("DOCUMENT_UPLOAD", "Document", persisted.getId(),
                 Map.of(
                         "batchId", batch.getId(),
@@ -217,30 +217,30 @@ public class RedactionController {
     }
 
     private Document persistDocument(Batch batch, String filename, RedactionResponse response) {
-        String originalText = response.getOriginalText() == null ? "" : response.getOriginalText();
-        List<Redaction> redactions = response.getRedactions() == null ? List.of() : response.getRedactions();
-        double threshold = batch.getConfidenceThreshold();
+        final String originalText = response.getOriginalText() == null ? "" : response.getOriginalText();
+        final List<Redaction> redactions = response.getRedactions() == null ? List.of() : response.getRedactions();
+        final double threshold = batch.getConfidenceThreshold();
 
-        Document document = new Document();
+        final Document document = new Document();
         document.setId(UUID.randomUUID().toString());
         document.setBatchId(batch.getId());
         document.setCreatedAt(LocalDateTime.now());
         document.setFilename(filename);
         document.setOriginalText(originalText);
 
-        List<Span> spans = new ArrayList<>();
+        final List<Span> spans = new ArrayList<>();
         if (!redactions.isEmpty()) {
-            List<Redaction> ordered = new ArrayList<>(redactions);
+            final List<Redaction> ordered = new ArrayList<>(redactions);
             ordered.sort(Comparator.comparingInt(Redaction::getStart));
             int cursor = 0;
             for (Redaction r : ordered) {
-                int start = originalText.indexOf(r.getText(), cursor);
+                final int start = originalText.indexOf(r.getText(), cursor);
                 if (start < 0) {
                     continue;
                 }
-                int end = start + r.getText().length();
-                LocalDateTime now = LocalDateTime.now();
-                Span span = new Span();
+                final int end = start + r.getText().length();
+                final LocalDateTime now = LocalDateTime.now();
+                final Span span = new Span();
                 span.setId(UUID.randomUUID().toString());
                 span.setDocumentId(document.getId());
                 span.setType(r.getType());
@@ -258,7 +258,7 @@ public class RedactionController {
         }
         document.setRiskScore(RiskScore.compute(spans, originalText, batch.getPiiTypeWeights()));
 
-        boolean needsReview = !spans.isEmpty()
+        final boolean needsReview = !spans.isEmpty()
                 && spans.stream().anyMatch(s -> "PENDING".equals(s.getStatus()));
         document.changeStatus(IngestStatus.pick(batch, needsReview));
         documentRepository.save(document);
@@ -278,12 +278,12 @@ public class RedactionController {
             HttpSession session) throws IOException {
 
         if (MediaType.APPLICATION_PDF_VALUE.equals(contentType)) {
-            byte[] originalFile = (byte[]) session.getAttribute("originalFile");
-            String philterInstanceId = (String) session.getAttribute("philterInstanceId");
+            final byte[] originalFile = (byte[]) session.getAttribute("originalFile");
+            final String philterInstanceId = (String) session.getAttribute("philterInstanceId");
             if (originalFile != null) {
-                byte[] redactedPdf = redactionService.getRedactedPdf(
+                final byte[] redactedPdf = redactionService.getRedactedPdf(
                         new ByteArrayInputStream(originalFile), redactionResponse, philterInstanceId);
-                ByteArrayResource resource = new ByteArrayResource(redactedPdf);
+                final ByteArrayResource resource = new ByteArrayResource(redactedPdf);
                 return ResponseEntity.ok()
                         .contentType(MediaType.APPLICATION_PDF)
                         .body(resource);
@@ -303,8 +303,8 @@ public class RedactionController {
 
         byte[] content;
         if (MediaType.APPLICATION_PDF_VALUE.equals(contentType)) {
-            byte[] originalFile = (byte[]) session.getAttribute("originalFile");
-            String philterInstanceId = (String) session.getAttribute("philterInstanceId");
+            final byte[] originalFile = (byte[]) session.getAttribute("originalFile");
+            final String philterInstanceId = (String) session.getAttribute("philterInstanceId");
             if (originalFile != null) {
                 content = redactionService.getRedactedPdf(
                         new ByteArrayInputStream(originalFile), redactionResponse, philterInstanceId);
@@ -318,7 +318,7 @@ public class RedactionController {
             fileName = fileName.replace(".", "_redacted.");
         }
 
-        ByteArrayResource resource = new ByteArrayResource(content);
+        final ByteArrayResource resource = new ByteArrayResource(content);
 
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")

@@ -46,31 +46,31 @@ class IngestionControllerTest {
                 batchRepository, userGroupsService, auditLogService);
     }
 
-    private static Batch openBatch(String id, String groupId, String name) {
-        Batch b = new Batch();
+    private static Batch openBatch(final String id, final String groupId, final String name) {
+        final Batch b = new Batch();
         b.setId(id);
         b.setGroupId(groupId);
         b.setName(name);
         return b;
     }
 
-    private static Batch closedBatch(String id, String groupId, String name) {
-        Batch b = openBatch(id, groupId, name);
+    private static Batch closedBatch(final String id, final String groupId, final String name) {
+        final Batch b = openBatch(id, groupId, name);
         b.setClosed(true);
         return b;
     }
 
     @SuppressWarnings("unchecked")
-    private static Map<String, Object> body(ResponseEntity<?> response) {
+    private static Map<String, Object> body(final ResponseEntity<?> response) {
         return (Map<String, Object>) response.getBody();
     }
 
     @Test
     void unknownBatchReturns400() {
         when(batchRepository.findById("missing")).thenReturn(Optional.empty());
-        IngestRequest req = new IngestRequest("doc.txt", "missing", "hello");
+        final IngestRequest req = new IngestRequest("doc.txt", "missing", "hello");
 
-        ResponseEntity<?> response = controller.ingest(req, TestAuth.user("alice@example.com"));
+        final ResponseEntity<?> response = controller.ingest(req, TestAuth.user("alice@example.com"));
 
         assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
         assertTrue(((String) body(response).get("error")).contains("missing"));
@@ -79,11 +79,11 @@ class IngestionControllerTest {
 
     @Test
     void nonAdminWithoutGroupAccessReturns403() {
-        Batch batch = openBatch("b1", "g1", "Batch 1");
+        final Batch batch = openBatch("b1", "g1", "Batch 1");
         when(batchRepository.findById("b1")).thenReturn(Optional.of(batch));
         userGroupsService.withMembership("alice@example.com", Set.of("g2"));
 
-        ResponseEntity<?> response = controller.ingest(
+        final ResponseEntity<?> response = controller.ingest(
                 new IngestRequest("doc.txt", "b1", "hello"),
                 TestAuth.user("alice@example.com"));
 
@@ -93,16 +93,16 @@ class IngestionControllerTest {
 
     @Test
     void closedBatchReturns409WithDetails() {
-        Batch batch = closedBatch("b1", "g1", "Closed Batch");
+        final Batch batch = closedBatch("b1", "g1", "Closed Batch");
         when(batchRepository.findById("b1")).thenReturn(Optional.of(batch));
         userGroupsService.withMembership("alice@example.com", Set.of("g1"));
 
-        ResponseEntity<?> response = controller.ingest(
+        final ResponseEntity<?> response = controller.ingest(
                 new IngestRequest("doc.txt", "b1", "hello"),
                 TestAuth.user("alice@example.com"));
 
         assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
-        Map<String, Object> body = body(response);
+        final Map<String, Object> body = body(response);
         assertEquals("b1", body.get("batchId"));
         assertEquals(true, body.get("closed"));
         assertTrue(((String) body.get("error")).contains("Closed Batch"));
@@ -111,22 +111,22 @@ class IngestionControllerTest {
 
     @Test
     void happyPathSavesDocumentAndReturns202() {
-        Batch batch = openBatch("b1", "g1", "Open");
+        final Batch batch = openBatch("b1", "g1", "Open");
         when(batchRepository.findById("b1")).thenReturn(Optional.of(batch));
         userGroupsService.withMembership("alice@example.com", Set.of("g1"));
 
-        ResponseEntity<?> response = controller.ingest(
+        final ResponseEntity<?> response = controller.ingest(
                 new IngestRequest("doc.txt", "b1", "hello world"),
                 TestAuth.user("alice@example.com"));
 
         assertEquals(HttpStatus.ACCEPTED, response.getStatusCode());
-        Map<String, Object> body = body(response);
-        String taskId = (String) body.get("taskId");
+        final Map<String, Object> body = body(response);
+        final String taskId = (String) body.get("taskId");
         assertNotNull(taskId);
 
-        ArgumentCaptor<Document> docCaptor = ArgumentCaptor.forClass(Document.class);
+        final ArgumentCaptor<Document> docCaptor = ArgumentCaptor.forClass(Document.class);
         verify(documentRepository).save(docCaptor.capture());
-        Document saved = docCaptor.getValue();
+        final Document saved = docCaptor.getValue();
         assertEquals(taskId, saved.getId());
         assertEquals("b1", saved.getBatchId());
         assertEquals("doc.txt", saved.getFilename());
@@ -138,11 +138,11 @@ class IngestionControllerTest {
 
     @Test
     void adminCanIngestEvenWithoutGroupMembership() {
-        Batch batch = openBatch("b1", "g1", "Open");
+        final Batch batch = openBatch("b1", "g1", "Open");
         when(batchRepository.findById("b1")).thenReturn(Optional.of(batch));
         // admin not in any group
 
-        ResponseEntity<?> response = controller.ingest(
+        final ResponseEntity<?> response = controller.ingest(
                 new IngestRequest("doc.txt", "b1", "hi"),
                 TestAuth.admin("admin@example.com"));
 
@@ -152,10 +152,10 @@ class IngestionControllerTest {
 
     @Test
     void unauthenticatedRequestIsForbiddenWhenBatchHasGroup() {
-        Batch batch = openBatch("b1", "g1", "Open");
+        final Batch batch = openBatch("b1", "g1", "Open");
         when(batchRepository.findById("b1")).thenReturn(Optional.of(batch));
 
-        ResponseEntity<?> response = controller.ingest(
+        final ResponseEntity<?> response = controller.ingest(
                 new IngestRequest("doc.txt", "b1", "hi"),
                 (Authentication) null);
 

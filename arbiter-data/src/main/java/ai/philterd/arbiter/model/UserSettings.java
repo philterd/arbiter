@@ -28,14 +28,14 @@ public class UserSettings {
     }
 
     public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
+    public void setId(final String id) { this.id = id; }
 
     public String getUserId() { return userId; }
-    public void setUserId(String userId) { this.userId = userId; }
+    public void setUserId(final String userId) { this.userId = userId; }
 
     public boolean isSkipCompletedInReview() { return skipCompletedInReview; }
-    public void setSkipCompletedInReview(boolean skipCompletedInReview) { this.skipCompletedInReview = skipCompletedInReview; }
+    public void setSkipCompletedInReview(final boolean skipCompletedInReview) { this.skipCompletedInReview = skipCompletedInReview; }
 
     public boolean isAdvanceToNextOnApprove() { return advanceToNextOnApprove; }
-    public void setAdvanceToNextOnApprove(boolean advanceToNextOnApprove) { this.advanceToNextOnApprove = advanceToNextOnApprove; }
+    public void setAdvanceToNextOnApprove(final boolean advanceToNextOnApprove) { this.advanceToNextOnApprove = advanceToNextOnApprove; }
 }

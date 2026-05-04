@@ -55,17 +55,17 @@ public class AdminPhilterController {
             .connectTimeout(TEST_CONNECT_TIMEOUT)
             .build();
 
-    public AdminPhilterController(PhilterInstanceRepository repository,
-                                  AuditLogService auditLogService,
-                                  PhilterDefaultsService defaultsService) {
+    public AdminPhilterController(final PhilterInstanceRepository repository,
+                                  final AuditLogService auditLogService,
+                                  final PhilterDefaultsService defaultsService) {
         this.repository = repository;
         this.auditLogService = auditLogService;
         this.defaultsService = defaultsService;
     }
 
     @GetMapping
-    public String list(Model model) {
-        List<PhilterInstance> instances = repository.findAll();
+    public String list(final Model model) {
+        final List<PhilterInstance> instances = repository.findAll();
         instances.sort(Comparator.comparing(
                 (PhilterInstance i) -> i.getName() == null ? "" : i.getName().toLowerCase()));
         model.addAttribute("instances", instances);
@@ -74,9 +74,9 @@ public class AdminPhilterController {
     }
 
     @PostMapping("/defaults")
-    public String setDefaults(@RequestParam(value = "defaultInstanceId", required = false) String defaultInstanceId,
-                              RedirectAttributes redirectAttributes) {
-        PhilterDefaults defaults = defaultsService.load();
+    public String setDefaults(@RequestParam(value = "defaultInstanceId", required = false) final String defaultInstanceId,
+                              final RedirectAttributes redirectAttributes) {
+        final PhilterDefaults defaults = defaultsService.load();
         defaults.setDefaultInstanceId(normalize(defaultInstanceId));
 
         if (defaults.getDefaultInstanceId() != null
@@ -94,23 +94,23 @@ public class AdminPhilterController {
         return "redirect:/admin/philter";
     }
 
-    private static String normalize(String s) {
+    private static String normalize(final String s) {
         if (s == null) return null;
-        String t = s.trim();
+        final String t = s.trim();
         return t.isEmpty() ? null : t;
     }
 
-    private static String str(String s) {
+    private static String str(final String s) {
         return s == null ? "" : s;
     }
 
     @PostMapping
-    public String create(@RequestParam("name") String name,
-                         @RequestParam("endpoint") String endpoint,
-                         @RequestParam("port") int port,
-                         RedirectAttributes redirectAttributes) {
-        String trimmedName = name == null ? "" : name.trim();
-        String trimmedEndpoint = endpoint == null ? "" : endpoint.trim();
+    public String create(@RequestParam("name") final String name,
+                         @RequestParam("endpoint") final String endpoint,
+                         @RequestParam("port") final int port,
+                         final RedirectAttributes redirectAttributes) {
+        final String trimmedName = name == null ? "" : name.trim();
+        final String trimmedEndpoint = endpoint == null ? "" : endpoint.trim();
 
         if (trimmedName.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Name is required.");
@@ -130,7 +130,7 @@ public class AdminPhilterController {
             return "redirect:/admin/philter";
         }
 
-        PhilterInstance instance = new PhilterInstance();
+        final PhilterInstance instance = new PhilterInstance();
         instance.setCreatedAt(LocalDateTime.now());
         instance.setId(UUID.randomUUID().toString());
         instance.setName(trimmedName);
@@ -153,14 +153,14 @@ public class AdminPhilterController {
     }
 
     @PostMapping("/{id}/delete")
-    public String delete(@PathVariable String id, RedirectAttributes redirectAttributes) {
-        PhilterInstance instance = repository.findById(id).orElse(null);
+    public String delete(@PathVariable final String id, final RedirectAttributes redirectAttributes) {
+        final PhilterInstance instance = repository.findById(id).orElse(null);
         if (instance == null) {
             redirectAttributes.addFlashAttribute("error", "Philter instance not found.");
             return "redirect:/admin/philter";
         }
 
-        PhilterDefaults defaults = defaultsService.load();
+        final PhilterDefaults defaults = defaultsService.load();
         if (id.equals(defaults.getDefaultInstanceId())) {
             defaults.setDefaultInstanceId(null);
             defaultsService.save(defaults);
@@ -175,24 +175,24 @@ public class AdminPhilterController {
     }
 
     @PostMapping("/{id}/test")
-    public String test(@PathVariable String id, RedirectAttributes redirectAttributes) {
-        PhilterInstance instance = repository.findById(id).orElse(null);
+    public String test(@PathVariable final String id, final RedirectAttributes redirectAttributes) {
+        final PhilterInstance instance = repository.findById(id).orElse(null);
         if (instance == null) {
             redirectAttributes.addFlashAttribute("error", "Philter instance not found.");
             return "redirect:/admin/philter";
         }
 
-        String url = baseUrl(instance) + "/api/status";
+        final String url = baseUrl(instance) + "/api/status";
         boolean ok = false;
         int status = 0;
         String detail;
         try {
-            HttpRequest req = HttpRequest.newBuilder()
+            final HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(url))
                     .timeout(TEST_REQUEST_TIMEOUT)
                     .GET()
                     .build();
-            HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+            final HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
             status = resp.statusCode();
             ok = true;
             detail = "HTTP " + status;
@@ -219,7 +219,7 @@ public class AdminPhilterController {
         return "redirect:/admin/philter";
     }
 
-    private static String baseUrl(PhilterInstance instance) {
+    private static String baseUrl(final PhilterInstance instance) {
         String host = instance.getEndpoint();
         if (host == null) host = "localhost";
         if (!host.startsWith("http://") && !host.startsWith("https://")) {

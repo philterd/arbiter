@@ -42,8 +42,8 @@ class TriageControllerTest {
         controller = new TriageController(documentRepository, batchRepository, userGroupsService);
     }
 
-    private static Batch batch(String id, String groupId, String name, double documentThreshold) {
-        Batch b = new Batch();
+    private static Batch batch(final String id, final String groupId, final String name, final double documentThreshold) {
+        final Batch b = new Batch();
         b.setId(id);
         b.setGroupId(groupId);
         b.setName(name);
@@ -51,8 +51,8 @@ class TriageControllerTest {
         return b;
     }
 
-    private static Document doc(String id, String batchId, String status, double risk) {
-        Document d = new Document();
+    private static Document doc(final String id, final String batchId, final String status, final double risk) {
+        final Document d = new Document();
         d.setId(id);
         d.setBatchId(batchId);
         d.setStatus(status);
@@ -64,7 +64,7 @@ class TriageControllerTest {
     @Test
     void unauthenticatedRequestWithRestrictReturnsEmpty() {
         // FakeUserGroups returns empty by default → restrict, allowed empty.
-        Page<Map<String, Object>> page = controller.getQueue(0, 10, null, null, null, false, "riskScore", "desc", null);
+        final Page<Map<String, Object>> page = controller.getQueue(0, 10, null, null, null, false, "riskScore", "desc", null);
 
         assertTrue(page.getContent().isEmpty());
         verify(documentRepository, never()).findAll((PageRequest) any());
@@ -72,13 +72,13 @@ class TriageControllerTest {
 
     @Test
     void adminWithMyGroupsOnlyFalseSeesEverything() {
-        Document d = doc("d1", "b1", "REVIEW_REQUIRED", 0.5);
+        final Document d = doc("d1", "b1", "REVIEW_REQUIRED", 0.5);
         when(documentRepository.findAll(any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of(d), PageRequest.of(0, 10), 1));
         when(batchRepository.findAllById(any()))
                 .thenReturn(List.of(batch("b1", "g1", "Batch One", 0.25)));
 
-        Page<Map<String, Object>> page = controller.getQueue(0, 10, null, null, null, false, "riskScore", "desc", TestAuth.admin("admin@example.com"));
+        final Page<Map<String, Object>> page = controller.getQueue(0, 10, null, null, null, false, "riskScore", "desc", TestAuth.admin("admin@example.com"));
 
         assertEquals(1, page.getContent().size());
         assertEquals("Batch One", page.getContent().get(0).get("batchName"));
@@ -92,10 +92,10 @@ class TriageControllerTest {
         controller.getQueue(0, 10, null, null, null, false, "evil-injection", "asc",
                 TestAuth.admin("admin@example.com"));
 
-        ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
+        final ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
         verify(documentRepository).findAll(captor.capture());
-        Sort sort = captor.getValue().getSort();
-        Sort.Order order = sort.getOrderFor("riskScore");
+        final Sort sort = captor.getValue().getSort();
+        final Sort.Order order = sort.getOrderFor("riskScore");
         assertEquals(Sort.Direction.ASC, order.getDirection());
     }
 
@@ -107,9 +107,9 @@ class TriageControllerTest {
         controller.getQueue(0, 10, null, null, null, false, "filename", "asc",
                 TestAuth.admin("admin@example.com"));
 
-        ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
+        final ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
         verify(documentRepository).findAll(captor.capture());
-        Sort.Order order = captor.getValue().getSort().getOrderFor("filename");
+        final Sort.Order order = captor.getValue().getSort().getOrderFor("filename");
         assertEquals(Sort.Direction.ASC, order.getDirection());
     }
 
@@ -124,7 +124,7 @@ class TriageControllerTest {
         when(batchRepository.findAllById(any()))
                 .thenReturn(List.of(batch("b1", "g1", "Yours", 0.25)));
 
-        Page<Map<String, Object>> page = controller.getQueue(0, 10, null, null, null, false, "riskScore", "desc", TestAuth.user("alice@example.com"));
+        final Page<Map<String, Object>> page = controller.getQueue(0, 10, null, null, null, false, "riskScore", "desc", TestAuth.user("alice@example.com"));
 
         assertEquals(1, page.getContent().size());
         verify(documentRepository).findByBatchIdIn(eq(Set.of("b1")), any(PageRequest.class));
@@ -136,7 +136,7 @@ class TriageControllerTest {
         when(batchRepository.findAll())
                 .thenReturn(List.of(batch("b1", "g1", "Yours", 0.25), batch("b2", "g2", "Theirs", 0.25)));
 
-        Page<Map<String, Object>> page = controller.getQueue(0, 10, "b2", null, null, false, "riskScore", "desc", TestAuth.user("alice@example.com"));
+        final Page<Map<String, Object>> page = controller.getQueue(0, 10, "b2", null, null, false, "riskScore", "desc", TestAuth.user("alice@example.com"));
 
         assertTrue(page.getContent().isEmpty());
         verify(documentRepository, never()).findByBatchId(anyString(), any(PageRequest.class));
@@ -144,15 +144,15 @@ class TriageControllerTest {
 
     @Test
     void autoApprovedFlagFlipsAtThreshold() {
-        Document below = doc("d1", "b1", "REVIEW_REQUIRED", 0.10);
-        Document above = doc("d2", "b1", "REVIEW_REQUIRED", 0.50);
-        Document approved = doc("d3", "b1", "APPROVED", 0.05); // user-decided wins
+        final Document below = doc("d1", "b1", "REVIEW_REQUIRED", 0.10);
+        final Document above = doc("d2", "b1", "REVIEW_REQUIRED", 0.50);
+        final Document approved = doc("d3", "b1", "APPROVED", 0.05); // user-decided wins
         when(documentRepository.findAll(any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of(below, above, approved), PageRequest.of(0, 10), 3));
         when(batchRepository.findAllById(any()))
                 .thenReturn(List.of(batch("b1", "g1", "B", 0.25)));
 
-        Page<Map<String, Object>> page = controller.getQueue(0, 10, null, null, null, false, "riskScore", "desc", TestAuth.admin("admin@example.com"));
+        final Page<Map<String, Object>> page = controller.getQueue(0, 10, null, null, null, false, "riskScore", "desc", TestAuth.admin("admin@example.com"));
 
         assertEquals(true, page.getContent().get(0).get("autoApproved"));
         assertEquals(false, page.getContent().get(1).get("autoApproved"));
@@ -164,7 +164,7 @@ class TriageControllerTest {
         when(batchRepository.findAll())
                 .thenReturn(List.of(batch("b2", "g1", "Zebra", 0.25), batch("b1", "g1", "Alpha", 0.25)));
 
-        List<Map<String, String>> result = controller.getBatches(false, TestAuth.admin("admin@example.com"));
+        final List<Map<String, String>> result = controller.getBatches(false, TestAuth.admin("admin@example.com"));
 
         // Sorted alphabetically by name.
         assertEquals(2, result.size());
@@ -178,7 +178,7 @@ class TriageControllerTest {
                 .thenReturn(List.of(batch("b1", "g1", "Mine", 0.25), batch("b2", "g2", "NotMine", 0.25)));
         userGroupsService.withMembership("alice@example.com", Set.of("g1"));
 
-        List<Map<String, String>> result = controller.getBatches(false, TestAuth.user("alice@example.com"));
+        final List<Map<String, String>> result = controller.getBatches(false, TestAuth.user("alice@example.com"));
 
         assertEquals(1, result.size());
         assertEquals("Mine", result.get(0).get("name"));

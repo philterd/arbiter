@@ -55,11 +55,11 @@ public class ReportingController {
     private final PhilterInstanceRepository philterInstanceRepository;
     private final UserGroupsService userGroupsService;
 
-    public ReportingController(BatchRepository batchRepository,
-                               DocumentRepository documentRepository,
-                               SpanRepository spanRepository,
-                               PhilterInstanceRepository philterInstanceRepository,
-                               UserGroupsService userGroupsService) {
+    public ReportingController(final BatchRepository batchRepository,
+                               final DocumentRepository documentRepository,
+                               final SpanRepository spanRepository,
+                               final PhilterInstanceRepository philterInstanceRepository,
+                               final UserGroupsService userGroupsService) {
         this.batchRepository = batchRepository;
         this.documentRepository = documentRepository;
         this.spanRepository = spanRepository;
@@ -68,31 +68,31 @@ public class ReportingController {
     }
 
     @GetMapping("/reporting")
-    public String view(@RequestParam(name = "start", required = false) String start,
-                       @RequestParam(name = "end", required = false) String end,
-                       @RequestParam(name = "domain", required = false) List<String> domain,
-                       Authentication authentication,
-                       Model model) {
-        boolean admin = isAdmin(authentication);
-        boolean restrict = !admin;
-        Set<String> myGroupIds = restrict
+    public String view(@RequestParam(name = "start", required = false) final String start,
+                       @RequestParam(name = "end", required = false) final String end,
+                       @RequestParam(name = "domain", required = false) final List<String> domain,
+                       final Authentication authentication,
+                       final Model model) {
+        final boolean admin = isAdmin(authentication);
+        final boolean restrict = !admin;
+        final Set<String> myGroupIds = restrict
                 ? userGroupsService.groupIdsForEmail(authentication == null ? null : authentication.getName())
                 : Set.of();
 
         // Date range — default to the past 30 days (inclusive of today).
-        LocalDate today = LocalDate.now();
+        final LocalDate today = LocalDate.now();
         LocalDate endDate = parseDateOr(end, today);
         LocalDate startDate = parseDateOr(start, today.minusDays(30));
         if (endDate.isBefore(startDate)) {
             // Swap silently rather than refuse — this is a forgiving filter.
-            LocalDate tmp = endDate; endDate = startDate; startDate = tmp;
+            final LocalDate tmp = endDate; endDate = startDate; startDate = tmp;
         }
-        LocalDateTime rangeStart = startDate.atStartOfDay();
-        LocalDateTime rangeEndExclusive = endDate.plusDays(1).atStartOfDay();
+        final LocalDateTime rangeStart = startDate.atStartOfDay();
+        final LocalDateTime rangeEndExclusive = endDate.plusDays(1).atStartOfDay();
 
         // Domain filter — accept any number of repeated `domain=Legal&domain=Healthcare` params,
         // ignoring values that aren't in the curated list.
-        Set<String> selectedDomains = new LinkedHashSet<>();
+        final Set<String> selectedDomains = new LinkedHashSet<>();
         if (domain != null) {
             for (String d : domain) {
                 if (d != null && Domains.isValid(d.trim())) {
@@ -101,7 +101,7 @@ public class ReportingController {
             }
         }
 
-        List<Batch> batches = batchRepository.findAll();
+        final List<Batch> batches = batchRepository.findAll();
         if (restrict) {
             batches.removeIf(b -> b.getGroupId() == null || !myGroupIds.contains(b.getGroupId()));
         }
@@ -109,7 +109,7 @@ public class ReportingController {
             batches.removeIf(b -> b.getDomain() == null || !selectedDomains.contains(b.getDomain()));
         }
 
-        Map<String, Long> globalStatusCounts = new LinkedHashMap<>();
+        final Map<String, Long> globalStatusCounts = new LinkedHashMap<>();
         for (String s : KNOWN_STATUSES) globalStatusCounts.put(s, 0L);
 
         long totalDocuments = 0;
@@ -119,7 +119,7 @@ public class ReportingController {
         long openBatches = 0;
         long closedBatches = 0;
 
-        Map<String, String> philterNames = new LinkedHashMap<>();
+        final Map<String, String> philterNames = new LinkedHashMap<>();
         for (PhilterInstance i : philterInstanceRepository.findAll()) {
             philterNames.put(i.getId(), i.getName() == null ? i.getId() : i.getName());
         }
@@ -130,33 +130,33 @@ public class ReportingController {
         long spansTotal = 0;
 
         // Aggregations keyed by "philterDisplayName::policyOrNone"
-        Map<String, Map<String, Object>> policyAggregates = new LinkedHashMap<>();
+        final Map<String, Map<String, Object>> policyAggregates = new LinkedHashMap<>();
 
         // Aggregations keyed by domain name (or "(none)" for batches without a domain).
-        Map<String, Map<String, Object>> domainAggregates = new LinkedHashMap<>();
+        final Map<String, Map<String, Object>> domainAggregates = new LinkedHashMap<>();
 
-        List<Map<String, Object>> batchRows = new ArrayList<>();
+        final List<Map<String, Object>> batchRows = new ArrayList<>();
         for (Batch batch : batches) {
             if (batch.isClosed()) closedBatches++;
             else openBatches++;
 
-            List<Document> allDocs = documentRepository.findByBatchId(batch.getId());
+            final List<Document> allDocs = documentRepository.findByBatchId(batch.getId());
             // Restrict to documents whose createdAt falls within the selected range. Documents
             // with null createdAt (legacy data created before the field existed) are kept so they
             // aren't silently dropped from totals.
             final LocalDateTime rs = rangeStart;
             final LocalDateTime re = rangeEndExclusive;
-            List<Document> docs = allDocs.stream()
+            final List<Document> docs = allDocs.stream()
                     .filter(d -> d.getCreatedAt() == null
                             || (!d.getCreatedAt().isBefore(rs) && d.getCreatedAt().isBefore(re)))
                     .toList();
-            Map<String, Long> statusCounts = new LinkedHashMap<>();
+            final Map<String, Long> statusCounts = new LinkedHashMap<>();
             for (String s : KNOWN_STATUSES) statusCounts.put(s, 0L);
 
             long batchAutoApproved = 0;
             double batchRiskSum = 0.0;
             for (Document d : docs) {
-                String status = d.getStatus() == null ? "" : d.getStatus();
+                final String status = d.getStatus() == null ? "" : d.getStatus();
                 statusCounts.merge(status, 1L, Long::sum);
                 globalStatusCounts.merge(status, 1L, Long::sum);
                 riskScoreSum += d.getRiskScore();
@@ -171,29 +171,29 @@ public class ReportingController {
             totalDocuments += docs.size();
 
             // Span counts for this batch
-            List<String> docIds = docs.stream().map(Document::getId).filter(java.util.Objects::nonNull).toList();
-            long spansAccepted = docIds.isEmpty() ? 0L
+            final List<String> docIds = docs.stream().map(Document::getId).filter(java.util.Objects::nonNull).toList();
+            final long spansAccepted = docIds.isEmpty() ? 0L
                     : spanRepository.countByDocumentIdInAndStatus(docIds, "APPROVED");
-            long spansRejected = docIds.isEmpty() ? 0L
+            final long spansRejected = docIds.isEmpty() ? 0L
                     : spanRepository.countByDocumentIdInAndStatus(docIds, "REJECTED");
-            long spansManual = docIds.isEmpty() ? 0L
+            final long spansManual = docIds.isEmpty() ? 0L
                     : spanRepository.countByDocumentIdInAndManuallyCreated(docIds, true);
-            long spansBatchTotal = spansAccepted + spansRejected;
-            long editRateBaseline = Math.max(1L, spansBatchTotal + spansManual);
-            double editRate = (double) spansManual / (double) editRateBaseline;
+            final long spansBatchTotal = spansAccepted + spansRejected;
+            final long editRateBaseline = Math.max(1L, spansBatchTotal + spansManual);
+            final double editRate = (double) spansManual / (double) editRateBaseline;
 
             spansAcceptedTotal += spansAccepted;
             spansRejectedTotal += spansRejected;
             spansManualTotal += spansManual;
             spansTotal += spansBatchTotal;
 
-            String philterName = batch.getPhilterInstanceId() == null
+            final String philterName = batch.getPhilterInstanceId() == null
                     ? "Embedded Philter"
                     : philterNames.getOrDefault(batch.getPhilterInstanceId(), "(missing)");
-            String policyName = batch.getPolicyName() == null ? "(no policy)" : batch.getPolicyName();
-            String aggKey = philterName + "::" + policyName;
-            Map<String, Object> agg = policyAggregates.computeIfAbsent(aggKey, k -> {
-                Map<String, Object> m = new LinkedHashMap<>();
+            final String policyName = batch.getPolicyName() == null ? "(no policy)" : batch.getPolicyName();
+            final String aggKey = philterName + "::" + policyName;
+            final Map<String, Object> agg = policyAggregates.computeIfAbsent(aggKey, k -> {
+                final Map<String, Object> m = new LinkedHashMap<>();
                 m.put("philterName", philterName);
                 m.put("policyName", policyName);
                 m.put("batches", 0L);
@@ -209,9 +209,9 @@ public class ReportingController {
             agg.put("spansRejected", (Long) agg.get("spansRejected") + spansRejected);
             agg.put("spansManual", (Long) agg.get("spansManual") + spansManual);
 
-            String domainKey = batch.getDomain() == null ? "(none)" : batch.getDomain();
-            Map<String, Object> dAgg = domainAggregates.computeIfAbsent(domainKey, k -> {
-                Map<String, Object> m = new LinkedHashMap<>();
+            final String domainKey = batch.getDomain() == null ? "(none)" : batch.getDomain();
+            final Map<String, Object> dAgg = domainAggregates.computeIfAbsent(domainKey, k -> {
+                final Map<String, Object> m = new LinkedHashMap<>();
                 m.put("domain", k);
                 m.put("batches", 0L);
                 m.put("documents", 0L);
@@ -226,7 +226,7 @@ public class ReportingController {
             dAgg.put("spansRejected", (Long) dAgg.get("spansRejected") + spansRejected);
             dAgg.put("spansManual", (Long) dAgg.get("spansManual") + spansManual);
 
-            Map<String, Object> row = new LinkedHashMap<>();
+            final Map<String, Object> row = new LinkedHashMap<>();
             row.put("id", batch.getId());
             row.put("name", batch.getName() == null ? "" : batch.getName());
             row.put("closed", batch.isClosed());
@@ -245,13 +245,13 @@ public class ReportingController {
 
         // Compute editRate for each policy aggregate.
         for (Map<String, Object> agg : policyAggregates.values()) {
-            long acc = (Long) agg.get("spansAccepted");
-            long rej = (Long) agg.get("spansRejected");
-            long man = (Long) agg.get("spansManual");
-            long denom = Math.max(1L, acc + rej + man);
+            final long acc = (Long) agg.get("spansAccepted");
+            final long rej = (Long) agg.get("spansRejected");
+            final long man = (Long) agg.get("spansManual");
+            final long denom = Math.max(1L, acc + rej + man);
             agg.put("editRate", (double) man / (double) denom);
         }
-        List<Map<String, Object>> policyRows = new ArrayList<>(policyAggregates.values());
+        final List<Map<String, Object>> policyRows = new ArrayList<>(policyAggregates.values());
         policyRows.sort(Comparator
                 .comparingDouble((Map<String, Object> r) -> ((Number) r.get("editRate")).doubleValue())
                 .reversed()
@@ -260,13 +260,13 @@ public class ReportingController {
 
         // Compute editRate for each domain aggregate.
         for (Map<String, Object> agg : domainAggregates.values()) {
-            long acc = (Long) agg.get("spansAccepted");
-            long rej = (Long) agg.get("spansRejected");
-            long man = (Long) agg.get("spansManual");
-            long denom = Math.max(1L, acc + rej + man);
+            final long acc = (Long) agg.get("spansAccepted");
+            final long rej = (Long) agg.get("spansRejected");
+            final long man = (Long) agg.get("spansManual");
+            final long denom = Math.max(1L, acc + rej + man);
             agg.put("editRate", (double) man / (double) denom);
         }
-        List<Map<String, Object>> domainRows = new ArrayList<>(domainAggregates.values());
+        final List<Map<String, Object>> domainRows = new ArrayList<>(domainAggregates.values());
         domainRows.sort(Comparator
                 .comparingDouble((Map<String, Object> r) -> ((Number) r.get("editRate")).doubleValue())
                 .reversed()
@@ -277,8 +277,8 @@ public class ReportingController {
                 .reversed()
                 .thenComparing(r -> ((String) r.get("name")).toLowerCase()));
 
-        long globalEditDenom = Math.max(1L, spansTotal + spansManualTotal);
-        double globalEditRate = (double) spansManualTotal / (double) globalEditDenom;
+        final long globalEditDenom = Math.max(1L, spansTotal + spansManualTotal);
+        final double globalEditRate = (double) spansManualTotal / (double) globalEditDenom;
 
         model.addAttribute("totalBatches", (long) batches.size());
         model.addAttribute("openBatches", openBatches);
@@ -304,7 +304,7 @@ public class ReportingController {
         return "reporting";
     }
 
-    private static LocalDate parseDateOr(String value, LocalDate fallback) {
+    private static LocalDate parseDateOr(final String value, final LocalDate fallback) {
         if (value == null || value.isBlank()) return fallback;
         try {
             return LocalDate.parse(value);
@@ -313,7 +313,7 @@ public class ReportingController {
         }
     }
 
-    private static boolean isAdmin(Authentication auth) {
+    private static boolean isAdmin(final Authentication auth) {
         if (auth == null) return false;
         for (GrantedAuthority a : auth.getAuthorities()) {
             if ("ROLE_ADMIN".equals(a.getAuthority())) return true;

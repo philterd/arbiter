@@ -37,12 +37,12 @@ public class RedactionApiServiceImpl implements RedactionApiService {
     private final SpanRepository spanRepository;
     private final BatchRepository batchRepository;
 
-    public RedactionApiServiceImpl(@Qualifier("phileasClient") PhilterClient phileasClient,
-                                   PhilterClientFactory philterClientFactory,
-                                   PhilterInstanceRepository philterInstanceRepository,
-                                   DocumentRepository documentRepository,
-                                   SpanRepository spanRepository,
-                                   BatchRepository batchRepository) {
+    public RedactionApiServiceImpl(@Qualifier("phileasClient") final PhilterClient phileasClient,
+                                   final PhilterClientFactory philterClientFactory,
+                                   final PhilterInstanceRepository philterInstanceRepository,
+                                   final DocumentRepository documentRepository,
+                                   final SpanRepository spanRepository,
+                                   final BatchRepository batchRepository) {
         this.phileasClient = phileasClient;
         this.philterClientFactory = philterClientFactory;
         this.philterInstanceRepository = philterInstanceRepository;
@@ -51,14 +51,14 @@ public class RedactionApiServiceImpl implements RedactionApiService {
         this.batchRepository = batchRepository;
     }
 
-    private PhilterClient philterClient(Batch batch) {
-        String instanceId = batch == null ? null : batch.getPhilterInstanceId();
+    private PhilterClient philterClient(final Batch batch) {
+        final String instanceId = batch == null ? null : batch.getPhilterInstanceId();
         if (instanceId == null || instanceId.isBlank()) {
             log.info("Batch \"{}\" uses Embedded Philter (local Phileas).",
                     batch == null ? "?" : batch.getName());
             return phileasClient;
         }
-        Optional<PhilterInstance> instance = philterInstanceRepository.findById(instanceId);
+        final Optional<PhilterInstance> instance = philterInstanceRepository.findById(instanceId);
         if (instance.isEmpty()) {
             log.warn("Philter instance {} configured on batch \"{}\" no longer exists; "
                     + "falling back to Embedded Philter.", instanceId, batch.getName());
@@ -67,7 +67,7 @@ public class RedactionApiServiceImpl implements RedactionApiService {
         return philterClientFactory.create(baseUrl(instance.get()));
     }
 
-    private static String baseUrl(PhilterInstance instance) {
+    private static String baseUrl(final PhilterInstance instance) {
         String host = instance.getEndpoint();
         if (host == null || host.isBlank()) host = "localhost";
         if (!host.startsWith("http://") && !host.startsWith("https://")) {
@@ -77,40 +77,40 @@ public class RedactionApiServiceImpl implements RedactionApiService {
     }
 
     @Override
-    public void processDocument(String documentId, String text) throws IOException {
-        Document document = documentRepository.findById(documentId).orElseThrow();
-        Batch batch = batchRepository.findById(document.getBatchId() == null ? "" : document.getBatchId()).orElse(null);
-        double threshold = batch == null ? 0.8 : batch.getConfidenceThreshold();
+    public void processDocument(final String documentId, final String text) throws IOException {
+        final Document document = documentRepository.findById(documentId).orElseThrow();
+        final Batch batch = batchRepository.findById(document.getBatchId() == null ? "" : document.getBatchId()).orElse(null);
+        final double threshold = batch == null ? 0.8 : batch.getConfidenceThreshold();
 
-        String contextId = UUID.randomUUID().toString();
-        Map<String, Object> explanation = philterClient(batch).explain(text, contextId);
+        final String contextId = UUID.randomUUID().toString();
+        final Map<String, Object> explanation = philterClient(batch).explain(text, contextId);
 
-        List<Map<String, Object>> explanationSpans = (List<Map<String, Object>>) explanation.get("explanation");
+        final List<Map<String, Object>> explanationSpans = (List<Map<String, Object>>) explanation.get("explanation");
 
-        List<Span> persistedSpans = new ArrayList<>();
+        final List<Span> persistedSpans = new ArrayList<>();
         if (explanationSpans != null) {
             for (Map<String, Object> exp : explanationSpans) {
-                Span span = new Span();
+                final Span span = new Span();
                 span.setDocumentId(documentId);
                 span.setText((String) exp.get("text"));
                 span.setType((String) exp.get("type"));
-                double confidence = (Double) exp.getOrDefault("confidence", 0.0);
+                final double confidence = (Double) exp.getOrDefault("confidence", 0.0);
                 span.setConfidence(confidence);
                 span.setCreatedAt(java.time.LocalDateTime.now());
                 span.changeStatus(confidence >= threshold ? "APPROVED" : "PENDING");
 
-                int start = (Integer) exp.get("characterStart");
-                int end = (Integer) exp.get("characterEnd");
-                int page = (Integer) exp.getOrDefault("page", 0);
+                final int start = (Integer) exp.get("characterStart");
+                final int end = (Integer) exp.get("characterEnd");
+                final int page = (Integer) exp.getOrDefault("page", 0);
 
-                Location location = new Location(start, end, page, null);
+                final Location location = new Location(start, end, page, null);
                 span.setLocation(location);
 
                 persistedSpans.add(spanRepository.save(span));
             }
         }
 
-        boolean needsReview = !persistedSpans.isEmpty()
+        final boolean needsReview = !persistedSpans.isEmpty()
                 && persistedSpans.stream().anyMatch(s -> "PENDING".equals(s.getStatus()));
         document.setPhilterContextId(contextId);
         document.changeStatus(IngestStatus.pick(batch, needsReview));
@@ -118,15 +118,15 @@ public class RedactionApiServiceImpl implements RedactionApiService {
     }
 
     @Override
-    public String finalizeRedaction(String documentId) throws IOException {
-        Document document = documentRepository.findById(documentId).orElseThrow();
-        Batch batch = batchRepository.findById(document.getBatchId() == null ? "" : document.getBatchId()).orElse(null);
-        List<Span> spans = spanRepository.findByDocumentId(documentId);
+    public String finalizeRedaction(final String documentId) throws IOException {
+        final Document document = documentRepository.findById(documentId).orElseThrow();
+        final Batch batch = batchRepository.findById(document.getBatchId() == null ? "" : document.getBatchId()).orElse(null);
+        final List<Span> spans = spanRepository.findByDocumentId(documentId);
 
-        List<ai.philterd.arbiter.core.model.Redaction> approvedSpans = spans.stream()
+        final List<ai.philterd.arbiter.core.model.Redaction> approvedSpans = spans.stream()
                 .filter(s -> "APPROVED".equals(s.getStatus()))
                 .map(s -> {
-                    ai.philterd.arbiter.core.model.Redaction r = new ai.philterd.arbiter.core.model.Redaction();
+                    final ai.philterd.arbiter.core.model.Redaction r = new ai.philterd.arbiter.core.model.Redaction();
                     r.setText(s.getText());
                     r.setType(s.getType());
                     r.setStart(s.getLocation().characterStart());
@@ -135,9 +135,9 @@ public class RedactionApiServiceImpl implements RedactionApiService {
                 })
                 .collect(Collectors.toList());
 
-        String originalText = "Original text placeholder";
+        final String originalText = "Original text placeholder";
 
-        String finalizedText = philterClient(batch).redact(originalText, document.getPhilterContextId(), approvedSpans);
+        final String finalizedText = philterClient(batch).redact(originalText, document.getPhilterContextId(), approvedSpans);
 
         document.changeStatus("AUTO_APPROVED");
         documentRepository.save(document);

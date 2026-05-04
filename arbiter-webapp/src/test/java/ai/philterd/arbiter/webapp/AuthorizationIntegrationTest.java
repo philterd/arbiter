@@ -113,7 +113,7 @@ public class AuthorizationIntegrationTest {
 
     private static org.springframework.test.web.servlet.ResultMatcher notOk() {
         return result -> {
-            int s = result.getResponse().getStatus();
+            final int s = result.getResponse().getStatus();
             org.junit.jupiter.api.Assertions.assertTrue(
                     s == 401 || (s >= 300 && s < 400),
                     "anonymous request should be 401 or redirect, was " + s);

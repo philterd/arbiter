@@ -22,15 +22,15 @@ public class Policy {
     public Policy() {
     }
     public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public void setCreatedAt(final LocalDateTime createdAt) { this.createdAt = createdAt; }
 
 
     public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
+    public void setId(final String id) { this.id = id; }
 
     public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    public void setName(final String name) { this.name = name; }
 
     public String getContent() { return content; }
-    public void setContent(String content) { this.content = content; }
+    public void setContent(final String content) { this.content = content; }
 }

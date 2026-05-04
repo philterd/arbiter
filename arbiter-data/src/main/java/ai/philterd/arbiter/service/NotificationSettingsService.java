@@ -9,7 +9,7 @@ public class NotificationSettingsService {
 
     private final NotificationSettingsRepository repository;
 
-    public NotificationSettingsService(NotificationSettingsRepository repository) {
+    public NotificationSettingsService(final NotificationSettingsRepository repository) {
         this.repository = repository;
     }
 
@@ -17,7 +17,7 @@ public class NotificationSettingsService {
         return repository.findById(NotificationSettings.SINGLETON_ID).orElseGet(NotificationSettings::new);
     }
 
-    public NotificationSettings save(NotificationSettings settings) {
+    public NotificationSettings save(final NotificationSettings settings) {
         settings.setId(NotificationSettings.SINGLETON_ID);
         return repository.save(settings);
     }

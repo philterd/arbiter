@@ -36,20 +36,20 @@ class HashingTest {
 
     @Test
     void outputIsDeterministic() {
-        String a = Hashing.sha512Hex("hello world");
-        String b = Hashing.sha512Hex("hello world");
+        final String a = Hashing.sha512Hex("hello world");
+        final String b = Hashing.sha512Hex("hello world");
         assertEquals(a, b);
     }
 
     @Test
     void outputIsLowercase128Hex() {
-        String h = Hashing.sha512Hex("anything");
+        final String h = Hashing.sha512Hex("anything");
         assertNotNull(h);
         assertEquals(128, h.length());
         assertEquals(h.toLowerCase(), h);
         for (int i = 0; i < h.length(); i++) {
-            char c = h.charAt(i);
-            boolean ok = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
+            final char c = h.charAt(i);
+            final boolean ok = (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f');
             if (!ok) throw new AssertionError("Non-hex char: " + c);
         }
     }

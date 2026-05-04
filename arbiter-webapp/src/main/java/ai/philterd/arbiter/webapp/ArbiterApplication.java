@@ -27,7 +27,7 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
 @EnableMongoRepositories(basePackages = "ai.philterd.arbiter.repository")
 public class ArbiterApplication {
 
-    public static void main(String[] args) {
+    public static void main(final String[] args) {
         SpringApplication.run(ArbiterApplication.class, args);
     }
 

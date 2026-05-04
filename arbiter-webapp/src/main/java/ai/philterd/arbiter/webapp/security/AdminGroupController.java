@@ -47,39 +47,39 @@ public class AdminGroupController {
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
 
-    public AdminGroupController(GroupRepository groupRepository,
-                                UserRepository userRepository,
-                                AuditLogService auditLogService) {
+    public AdminGroupController(final GroupRepository groupRepository,
+                                final UserRepository userRepository,
+                                final AuditLogService auditLogService) {
         this.groupRepository = groupRepository;
         this.userRepository = userRepository;
         this.auditLogService = auditLogService;
     }
 
     @GetMapping
-    public String list(Model model) {
-        List<User> allUsers = userRepository.findAll();
+    public String list(final Model model) {
+        final List<User> allUsers = userRepository.findAll();
         allUsers.sort(Comparator.comparing(
                 (User u) -> u.getEmail() == null ? "" : u.getEmail().toLowerCase()));
 
-        Map<String, String> emailsById = new LinkedHashMap<>();
+        final Map<String, String> emailsById = new LinkedHashMap<>();
         for (User u : allUsers) {
             emailsById.put(u.getId(), u.getEmail());
         }
 
-        List<Group> groups = groupRepository.findAll();
+        final List<Group> groups = groupRepository.findAll();
         groups.sort(Comparator.comparing(
                 (Group g) -> g.getName() == null ? "" : g.getName().toLowerCase()));
 
-        List<Map<String, Object>> rows = new ArrayList<>();
+        final List<Map<String, Object>> rows = new ArrayList<>();
         for (Group g : groups) {
-            Map<String, Object> row = new LinkedHashMap<>();
+            final Map<String, Object> row = new LinkedHashMap<>();
             row.put("id", g.getId());
             row.put("name", g.getName());
             row.put("userIds", g.getUserIds() == null ? Set.of() : g.getUserIds());
-            List<String> memberNames = new ArrayList<>();
+            final List<String> memberNames = new ArrayList<>();
             if (g.getUserIds() != null) {
                 for (String uid : g.getUserIds()) {
-                    String email = emailsById.get(uid);
+                    final String email = emailsById.get(uid);
                     if (email != null) memberNames.add(email);
                 }
             }
@@ -94,10 +94,10 @@ public class AdminGroupController {
     }
 
     @PostMapping
-    public String create(@RequestParam("name") String name,
-                         @RequestParam(value = "userIds", required = false) List<String> userIds,
-                         RedirectAttributes redirectAttributes) {
-        String trimmed = name == null ? "" : name.trim();
+    public String create(@RequestParam("name") final String name,
+                         @RequestParam(value = "userIds", required = false) final List<String> userIds,
+                         final RedirectAttributes redirectAttributes) {
+        final String trimmed = name == null ? "" : name.trim();
         if (trimmed.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Group name is required.");
             return "redirect:/admin/groups";
@@ -106,13 +106,13 @@ public class AdminGroupController {
             redirectAttributes.addFlashAttribute("error", "Group \"" + trimmed + "\" already exists.");
             return "redirect:/admin/groups";
         }
-        Set<String> validUserIds = filterExistingUserIds(userIds);
+        final Set<String> validUserIds = filterExistingUserIds(userIds);
         if (validUserIds.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "A group must contain at least one user.");
             return "redirect:/admin/groups";
         }
 
-        Group group = new Group();
+        final Group group = new Group();
         group.setCreatedAt(LocalDateTime.now());
         group.setId(UUID.randomUUID().toString());
         group.setName(trimmed);
@@ -125,35 +125,35 @@ public class AdminGroupController {
     }
 
     @PostMapping("/{groupId}/edit")
-    public String edit(@PathVariable String groupId,
-                       @RequestParam("name") String name,
-                       @RequestParam(value = "userIds", required = false) List<String> userIds,
-                       RedirectAttributes redirectAttributes) {
-        Group group = groupRepository.findById(groupId).orElse(null);
+    public String edit(@PathVariable final String groupId,
+                       @RequestParam("name") final String name,
+                       @RequestParam(value = "userIds", required = false) final List<String> userIds,
+                       final RedirectAttributes redirectAttributes) {
+        final Group group = groupRepository.findById(groupId).orElse(null);
         if (group == null) {
             redirectAttributes.addFlashAttribute("error", "Group not found.");
             return "redirect:/admin/groups";
         }
-        String trimmed = name == null ? "" : name.trim();
+        final String trimmed = name == null ? "" : name.trim();
         if (trimmed.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Group name is required.");
             return "redirect:/admin/groups";
         }
-        boolean nameTaken = groupRepository.findByName(trimmed)
+        final boolean nameTaken = groupRepository.findByName(trimmed)
                 .filter(other -> !other.getId().equals(groupId))
                 .isPresent();
         if (nameTaken) {
             redirectAttributes.addFlashAttribute("error", "Group name \"" + trimmed + "\" is already used.");
             return "redirect:/admin/groups";
         }
-        Set<String> validUserIds = filterExistingUserIds(userIds);
+        final Set<String> validUserIds = filterExistingUserIds(userIds);
         if (validUserIds.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "A group must contain at least one user.");
             return "redirect:/admin/groups";
         }
 
-        String previousName = group.getName();
-        int previousCount = group.getUserIds() == null ? 0 : group.getUserIds().size();
+        final String previousName = group.getName();
+        final int previousCount = group.getUserIds() == null ? 0 : group.getUserIds().size();
         group.setName(trimmed);
         group.setUserIds(validUserIds);
         groupRepository.save(group);
@@ -167,8 +167,8 @@ public class AdminGroupController {
     }
 
     @PostMapping("/{groupId}/delete")
-    public String delete(@PathVariable String groupId, RedirectAttributes redirectAttributes) {
-        Group group = groupRepository.findById(groupId).orElse(null);
+    public String delete(@PathVariable final String groupId, final RedirectAttributes redirectAttributes) {
+        final Group group = groupRepository.findById(groupId).orElse(null);
         if (group == null) {
             redirectAttributes.addFlashAttribute("error", "Group not found.");
             return "redirect:/admin/groups";
@@ -180,8 +180,8 @@ public class AdminGroupController {
         return "redirect:/admin/groups";
     }
 
-    private Set<String> filterExistingUserIds(List<String> requested) {
-        Set<String> result = new HashSet<>();
+    private Set<String> filterExistingUserIds(final List<String> requested) {
+        final Set<String> result = new HashSet<>();
         if (requested == null) return result;
         for (String id : requested) {
             if (id != null && !id.isBlank() && userRepository.existsById(id)) {

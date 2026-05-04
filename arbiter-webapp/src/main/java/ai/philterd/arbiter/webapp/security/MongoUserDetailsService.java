@@ -32,16 +32,16 @@ public class MongoUserDetailsService implements UserDetailsService {
 
     private final UserRepository userRepository;
 
-    public MongoUserDetailsService(UserRepository userRepository) {
+    public MongoUserDetailsService(final UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 
     @Override
-    public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
-        User user = userRepository.findByEmail(email)
+    public UserDetails loadUserByUsername(final String email) throws UsernameNotFoundException {
+        final User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
 
-        Set<String> roles = user.getRoles() == null || user.getRoles().isEmpty()
+        final Set<String> roles = user.getRoles() == null || user.getRoles().isEmpty()
                 ? Set.of(Roles.USER)
                 : user.getRoles();
 

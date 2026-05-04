@@ -37,25 +37,25 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
     private final UserRepository userRepository;
 
-    public ApiKeyAuthFilter(UserRepository userRepository) {
+    public ApiKeyAuthFilter(final UserRepository userRepository) {
         this.userRepository = userRepository;
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request,
-                                    HttpServletResponse response,
-                                    FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(final HttpServletRequest request,
+                                    final HttpServletResponse response,
+                                    final FilterChain filterChain) throws ServletException, IOException {
 
         if (SecurityContextHolder.getContext().getAuthentication() == null || !SecurityContextHolder.getContext().getAuthentication().isAuthenticated()) {
-            String apiKey = extractBearerToken(request);
+            final String apiKey = extractBearerToken(request);
             if (apiKey != null && !apiKey.isBlank()) {
-                String apiKeyHash = Hashing.sha512Hex(apiKey);
+                final String apiKeyHash = Hashing.sha512Hex(apiKey);
                 userRepository.findByApiKey(apiKeyHash).ifPresent(user -> {
-                    Set<SimpleGrantedAuthority> authorities = (user.getRoles() == null ? Set.<String>of() : user.getRoles())
+                    final Set<SimpleGrantedAuthority> authorities = (user.getRoles() == null ? Set.<String>of() : user.getRoles())
                             .stream()
                             .map(r -> new SimpleGrantedAuthority("ROLE_" + r))
                             .collect(Collectors.toSet());
-                    UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                    final UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
                             user.getEmail(), null, authorities);
                     SecurityContextHolder.getContext().setAuthentication(auth);
                 });
@@ -66,9 +66,9 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
     }
 
-    private static String extractBearerToken(HttpServletRequest request) {
+    private static String extractBearerToken(final HttpServletRequest request) {
 
-        String header = request.getHeader(HttpHeaders.AUTHORIZATION);
+        final String header = request.getHeader(HttpHeaders.AUTHORIZATION);
 
         if (header == null) {
             return null;

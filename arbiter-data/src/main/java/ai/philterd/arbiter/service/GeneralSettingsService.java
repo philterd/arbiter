@@ -21,8 +21,8 @@ public class GeneralSettingsService {
     private final GeneralSettingsRepository repository;
     private final int serverPort;
 
-    public GeneralSettingsService(GeneralSettingsRepository repository,
-                                  @Value("${server.port:8080}") int serverPort) {
+    public GeneralSettingsService(final GeneralSettingsRepository repository,
+                                  @Value("${server.port:8080}") final int serverPort) {
         this.repository = repository;
         this.serverPort = serverPort;
     }
@@ -52,13 +52,13 @@ public class GeneralSettingsService {
 
     private static String detectLocalAddress() {
         try {
-            Enumeration<NetworkInterface> ifaces = NetworkInterface.getNetworkInterfaces();
+            final Enumeration<NetworkInterface> ifaces = NetworkInterface.getNetworkInterfaces();
             while (ifaces.hasMoreElements()) {
-                NetworkInterface iface = ifaces.nextElement();
+                final NetworkInterface iface = ifaces.nextElement();
                 if (!iface.isUp() || iface.isLoopback() || iface.isVirtual()) continue;
-                Enumeration<InetAddress> addrs = iface.getInetAddresses();
+                final Enumeration<InetAddress> addrs = iface.getInetAddresses();
                 while (addrs.hasMoreElements()) {
-                    InetAddress addr = addrs.nextElement();
+                    final InetAddress addr = addrs.nextElement();
                     if (!addr.isLoopbackAddress() && addr.getHostAddress().indexOf(':') < 0) {
                         return addr.getHostAddress();
                     }

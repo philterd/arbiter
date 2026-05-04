@@ -35,14 +35,14 @@ public class SecurityConfig {
     }
 
     @Bean
-    public ApiKeyAuthFilter apiKeyAuthFilter(UserRepository userRepository) {
+    public ApiKeyAuthFilter apiKeyAuthFilter(final UserRepository userRepository) {
         return new ApiKeyAuthFilter(userRepository);
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http,
-                                                   ApiKeyAuthFilter apiKeyAuthFilter,
-                                                   AuditLogoutHandler auditLogoutHandler) throws Exception {
+    public SecurityFilterChain securityFilterChain(final HttpSecurity http,
+                                                   final ApiKeyAuthFilter apiKeyAuthFilter,
+                                                   final AuditLogoutHandler auditLogoutHandler) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/login", "/css/**", "/js/**", "/images/**", "/webjars/**", "/error").permitAll()

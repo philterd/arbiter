@@ -21,32 +21,32 @@ public class UserSettingsService {
     private final UserSettingsRepository repository;
     private final UserRepository userRepository;
 
-    public UserSettingsService(UserSettingsRepository repository, UserRepository userRepository) {
+    public UserSettingsService(final UserSettingsRepository repository, final UserRepository userRepository) {
         this.repository = repository;
         this.userRepository = userRepository;
     }
 
-    public UserSettings loadForEmail(String email) {
+    public UserSettings loadForEmail(final String email) {
         if (email == null || email.isBlank()) return defaults(null);
-        User user = userRepository.findByEmail(email).orElse(null);
+        final User user = userRepository.findByEmail(email).orElse(null);
         if (user == null || user.getId() == null) return defaults(null);
         return loadForUserId(user.getId());
     }
 
-    public UserSettings loadForUserId(String userId) {
+    public UserSettings loadForUserId(final String userId) {
         if (userId == null) return defaults(null);
         return repository.findById(userId).orElseGet(() -> defaults(userId));
     }
 
-    public UserSettings save(UserSettings settings) {
+    public UserSettings save(final UserSettings settings) {
         if (settings.getId() == null) {
             settings.setId(settings.getUserId());
         }
         return repository.save(settings);
     }
 
-    private static UserSettings defaults(String userId) {
-        UserSettings s = new UserSettings();
+    private static UserSettings defaults(final String userId) {
+        final UserSettings s = new UserSettings();
         s.setId(userId);
         s.setUserId(userId);
         return s;

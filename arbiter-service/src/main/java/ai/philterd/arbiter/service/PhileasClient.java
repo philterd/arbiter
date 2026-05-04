@@ -50,50 +50,50 @@ import java.util.*;
 public class PhileasClient implements PhilterClient {
 
     @Override
-    public RedactionResponse redact(String text, String context) throws IOException {
+    public RedactionResponse redact(final String text, final String context) throws IOException {
         // Create a redaction policy that includes SSNs
-        Policy policy = new Policy();
-        
-        Identifiers identifiers = new Identifiers();
+        final Policy policy = new Policy();
 
-        Age age = new Age();
-        AgeFilterStrategy ageFilterStrategy = new AgeFilterStrategy();
+        final Identifiers identifiers = new Identifiers();
+
+        final Age age = new Age();
+        final AgeFilterStrategy ageFilterStrategy = new AgeFilterStrategy();
         ageFilterStrategy.setStrategy("REDACT");
         age.setAgeFilterStrategies(List.of(ageFilterStrategy));
         identifiers.setAge(age);
 
-        CreditCard creditCard = new CreditCard();
-        CreditCardFilterStrategy creditCardFilterStrategy = new CreditCardFilterStrategy();
+        final CreditCard creditCard = new CreditCard();
+        final CreditCardFilterStrategy creditCardFilterStrategy = new CreditCardFilterStrategy();
         creditCardFilterStrategy.setStrategy("REDACT");
         creditCard.setCreditCardFilterStrategies(List.of(creditCardFilterStrategy));
         identifiers.setCreditCard(creditCard);
 
-        Date date = new Date();
-        DateFilterStrategy dateFilterStrategy = new DateFilterStrategy();
+        final Date date = new Date();
+        final DateFilterStrategy dateFilterStrategy = new DateFilterStrategy();
         dateFilterStrategy.setStrategy("REDACT");
         date.setDateFilterStrategies(List.of(dateFilterStrategy));
         identifiers.setDate(date);
 
-        EmailAddress emailAddress = new EmailAddress();
-        EmailAddressFilterStrategy emailAddressFilterStrategy = new EmailAddressFilterStrategy();
+        final EmailAddress emailAddress = new EmailAddress();
+        final EmailAddressFilterStrategy emailAddressFilterStrategy = new EmailAddressFilterStrategy();
         emailAddressFilterStrategy.setStrategy("REDACT");
         emailAddress.setEmailAddressFilterStrategies(List.of(emailAddressFilterStrategy));
         identifiers.setEmailAddress(emailAddress);
 
-        IpAddress ipAddress = new IpAddress();
-        IpAddressFilterStrategy ipAddressFilterStrategy = new IpAddressFilterStrategy();
+        final IpAddress ipAddress = new IpAddress();
+        final IpAddressFilterStrategy ipAddressFilterStrategy = new IpAddressFilterStrategy();
         ipAddressFilterStrategy.setStrategy("REDACT");
         ipAddress.setIpAddressFilterStrategies(List.of(ipAddressFilterStrategy));
         identifiers.setIpAddress(ipAddress);
 
-        PhoneNumber phoneNumber = new PhoneNumber();
-        PhoneNumberFilterStrategy phoneNumberFilterStrategy = new PhoneNumberFilterStrategy();
+        final PhoneNumber phoneNumber = new PhoneNumber();
+        final PhoneNumberFilterStrategy phoneNumberFilterStrategy = new PhoneNumberFilterStrategy();
         phoneNumberFilterStrategy.setStrategy("REDACT");
         phoneNumber.setPhoneNumberFilterStrategies(List.of(phoneNumberFilterStrategy));
         identifiers.setPhoneNumber(phoneNumber);
 
-        Ssn ssn = new Ssn();
-        SsnFilterStrategy ssnFilterStrategy = new SsnFilterStrategy();
+        final Ssn ssn = new Ssn();
+        final SsnFilterStrategy ssnFilterStrategy = new SsnFilterStrategy();
         ssnFilterStrategy.setStrategy("REDACT");
         ssn.setSsnFilterStrategies(List.of(ssnFilterStrategy));
         identifiers.setSsn(ssn);
@@ -102,21 +102,21 @@ public class PhileasClient implements PhilterClient {
         
         // Use Phileas to redact the text
         try {
-            Properties properties = new Properties();
-            PhileasConfiguration phileasConfiguration = new PhileasConfiguration(properties);
-            
-            PlainTextFilterService filterService = new PlainTextFilterService(phileasConfiguration, null, null, null);
-            TextFilterResult response = filterService.filter(policy, context, text);
-            
+            final Properties properties = new Properties();
+            final PhileasConfiguration phileasConfiguration = new PhileasConfiguration(properties);
+
+            final PlainTextFilterService filterService = new PlainTextFilterService(phileasConfiguration, null, null, null);
+            final TextFilterResult response = filterService.filter(policy, context, text);
+
             // Re-calculate redaction positions in the FINAL text
-            List<Redaction> finalRedactions = new ArrayList<>();
-            
+            final List<Redaction> finalRedactions = new ArrayList<>();
+
             // It's easier to iterate forwards and keep track of offset
-            StringBuilder sb = new StringBuilder(text);
-            List<Span> spans = new ArrayList<>(response.getExplanation().appliedSpans());
-            
+            final StringBuilder sb = new StringBuilder(text);
+            final List<Span> spans = new ArrayList<>(response.getExplanation().appliedSpans());
+
             // Distinct spans
-            List<Span> distinctSpans = new ArrayList<>();
+            final List<Span> distinctSpans = new ArrayList<>();
             for (Span span : spans) {
                 if (distinctSpans.stream().noneMatch(s -> s.getCharacterStart() == span.getCharacterStart() && s.getCharacterEnd() == span.getCharacterEnd())) {
                     distinctSpans.add(span);
@@ -126,13 +126,13 @@ public class PhileasClient implements PhilterClient {
             distinctSpans.sort(Comparator.comparingInt(Span::getCharacterStart));
             int offset = 0;
             for (Span span : distinctSpans) {
-                String id = UUID.randomUUID().toString();
-                String replacement = span.getFilterType().getType().toUpperCase();
-                
-                int startInFinal = span.getCharacterStart() + offset;
+                final String id = UUID.randomUUID().toString();
+                final String replacement = span.getFilterType().getType().toUpperCase();
+
+                final int startInFinal = span.getCharacterStart() + offset;
                 sb.replace(startInFinal, span.getCharacterEnd() + offset, replacement);
-                
-                Redaction r = new Redaction();
+
+                final Redaction r = new Redaction();
                 r.setId(id);
                 r.setText(span.getText());
                 r.setStart(startInFinal);
@@ -150,49 +150,49 @@ public class PhileasClient implements PhilterClient {
     }
 
     @Override
-    public RedactionResponse redactPdf(byte[] pdfBytes, String context) throws IOException {
-        Policy policy = new Policy();
+    public RedactionResponse redactPdf(final byte[] pdfBytes, final String context) throws IOException {
+        final Policy policy = new Policy();
 
-        Identifiers identifiers = new Identifiers();
+        final Identifiers identifiers = new Identifiers();
 
-        Age age = new Age();
-        AgeFilterStrategy ageFilterStrategy = new AgeFilterStrategy();
+        final Age age = new Age();
+        final AgeFilterStrategy ageFilterStrategy = new AgeFilterStrategy();
         ageFilterStrategy.setStrategy("REDACT");
         age.setAgeFilterStrategies(List.of(ageFilterStrategy));
         identifiers.setAge(age);
 
-        CreditCard creditCard = new CreditCard();
-        CreditCardFilterStrategy creditCardFilterStrategy = new CreditCardFilterStrategy();
+        final CreditCard creditCard = new CreditCard();
+        final CreditCardFilterStrategy creditCardFilterStrategy = new CreditCardFilterStrategy();
         creditCardFilterStrategy.setStrategy("REDACT");
         creditCard.setCreditCardFilterStrategies(List.of(creditCardFilterStrategy));
         identifiers.setCreditCard(creditCard);
 
-        Date date = new Date();
-        DateFilterStrategy dateFilterStrategy = new DateFilterStrategy();
+        final Date date = new Date();
+        final DateFilterStrategy dateFilterStrategy = new DateFilterStrategy();
         dateFilterStrategy.setStrategy("REDACT");
         date.setDateFilterStrategies(List.of(dateFilterStrategy));
         identifiers.setDate(date);
 
-        EmailAddress emailAddress = new EmailAddress();
-        EmailAddressFilterStrategy emailAddressFilterStrategy = new EmailAddressFilterStrategy();
+        final EmailAddress emailAddress = new EmailAddress();
+        final EmailAddressFilterStrategy emailAddressFilterStrategy = new EmailAddressFilterStrategy();
         emailAddressFilterStrategy.setStrategy("REDACT");
         emailAddress.setEmailAddressFilterStrategies(List.of(emailAddressFilterStrategy));
         identifiers.setEmailAddress(emailAddress);
 
-        IpAddress ipAddress = new IpAddress();
-        IpAddressFilterStrategy ipAddressFilterStrategy = new IpAddressFilterStrategy();
+        final IpAddress ipAddress = new IpAddress();
+        final IpAddressFilterStrategy ipAddressFilterStrategy = new IpAddressFilterStrategy();
         ipAddressFilterStrategy.setStrategy("REDACT");
         ipAddress.setIpAddressFilterStrategies(List.of(ipAddressFilterStrategy));
         identifiers.setIpAddress(ipAddress);
 
-        PhoneNumber phoneNumber = new PhoneNumber();
-        PhoneNumberFilterStrategy phoneNumberFilterStrategy = new PhoneNumberFilterStrategy();
+        final PhoneNumber phoneNumber = new PhoneNumber();
+        final PhoneNumberFilterStrategy phoneNumberFilterStrategy = new PhoneNumberFilterStrategy();
         phoneNumberFilterStrategy.setStrategy("REDACT");
         phoneNumber.setPhoneNumberFilterStrategies(List.of(phoneNumberFilterStrategy));
         identifiers.setPhoneNumber(phoneNumber);
 
-        Ssn ssn = new Ssn();
-        SsnFilterStrategy ssnFilterStrategy = new SsnFilterStrategy();
+        final Ssn ssn = new Ssn();
+        final SsnFilterStrategy ssnFilterStrategy = new SsnFilterStrategy();
         ssnFilterStrategy.setStrategy("REDACT");
         ssn.setSsnFilterStrategies(List.of(ssnFilterStrategy));
         identifiers.setSsn(ssn);
@@ -200,15 +200,15 @@ public class PhileasClient implements PhilterClient {
         policy.setIdentifiers(identifiers);
 
         try {
-            Properties properties = new Properties();
-            PhileasConfiguration phileasConfiguration = new PhileasConfiguration(properties);
+            final Properties properties = new Properties();
+            final PhileasConfiguration phileasConfiguration = new PhileasConfiguration(properties);
 
-            PdfFilterService filterService = new PdfFilterService(phileasConfiguration, null, null, null);
-            BinaryDocumentFilterResult response = filterService.filter(policy, context, pdfBytes, MimeType.APPLICATION_PDF);
+            final PdfFilterService filterService = new PdfFilterService(phileasConfiguration, null, null, null);
+            final BinaryDocumentFilterResult response = filterService.filter(policy, context, pdfBytes, MimeType.APPLICATION_PDF);
 
-            List<Redaction> finalRedactions = new ArrayList<>();
+            final List<Redaction> finalRedactions = new ArrayList<>();
             for (Span span : response.getExplanation().appliedSpans()) {
-                Redaction r = new Redaction();
+                final Redaction r = new Redaction();
                 r.setId(UUID.randomUUID().toString());
                 r.setText(span.getText());
                 r.setStart(span.getCharacterStart());
@@ -226,13 +226,13 @@ public class PhileasClient implements PhilterClient {
             // but we can extract the text from the redacted PDF or just return the metadata.
             // Arbiter uses the text-based UI for review.
             // Let's extract text from the original PDF for the UI.
-            org.apache.pdfbox.pdmodel.PDDocument document = org.apache.pdfbox.Loader.loadPDF(pdfBytes);
-            org.apache.pdfbox.text.PDFTextStripper stripper = new org.apache.pdfbox.text.PDFTextStripper();
-            String originalText = stripper.getText(document);
+            final org.apache.pdfbox.pdmodel.PDDocument document = org.apache.pdfbox.Loader.loadPDF(pdfBytes);
+            final org.apache.pdfbox.text.PDFTextStripper stripper = new org.apache.pdfbox.text.PDFTextStripper();
+            final String originalText = stripper.getText(document);
             document.close();
 
             // Distinct spans by position to avoid double redaction in PDF metadata list
-            List<Redaction> distinctFinalRedactions = new ArrayList<>();
+            final List<Redaction> distinctFinalRedactions = new ArrayList<>();
             for (Redaction r : finalRedactions) {
                 if (distinctFinalRedactions.stream().noneMatch(existing -> 
                     existing.getPageNumber() == r.getPageNumber() && 
@@ -246,7 +246,7 @@ public class PhileasClient implements PhilterClient {
             // Phileas PdfFilterService doesn't directly give us the redacted plain text string.
             // For now, let's use the plain text redaction logic to get the UI view, 
             // but return the PDF-specific metadata.
-            RedactionResponse textResponse = redact(originalText, context);
+            final RedactionResponse textResponse = redact(originalText, context);
 
             return new RedactionResponse(originalText, textResponse.getRedactedText(), distinctFinalRedactions);
 
@@ -255,11 +255,11 @@ public class PhileasClient implements PhilterClient {
         }
     }
     @Override
-    public Map<String, Object> explain(String text, String context) throws IOException {
+    public Map<String, Object> explain(final String text, final String context) throws IOException {
         // Mocking explain for Phileas local
-        RedactionResponse response = redact(text, context);
-        List<Map<String, Object>> explanation = response.getRedactions().stream().map(r -> {
-            Map<String, Object> map = new java.util.HashMap<>();
+        final RedactionResponse response = redact(text, context);
+        final List<Map<String, Object>> explanation = response.getRedactions().stream().map(r -> {
+            final Map<String, Object> map = new java.util.HashMap<>();
             map.put("text", r.getText());
             map.put("type", r.getType());
             map.put("characterStart", r.getStart());
@@ -268,17 +268,17 @@ public class PhileasClient implements PhilterClient {
             return map;
         }).collect(java.util.stream.Collectors.toList());
 
-        Map<String, Object> result = new java.util.HashMap<>();
+        final Map<String, Object> result = new java.util.HashMap<>();
         result.put("filteredText", response.getRedactedText());
         result.put("explanation", explanation);
         return result;
     }
 
     @Override
-    public String redact(String text, String context, List<ai.philterd.arbiter.core.model.Redaction> approvedSpans) throws IOException {
+    public String redact(final String text, final String context, final List<ai.philterd.arbiter.core.model.Redaction> approvedSpans) throws IOException {
         // Mocking manual redaction for Phileas local
-        StringBuilder sb = new StringBuilder(text);
-        List<ai.philterd.arbiter.core.model.Redaction> sortedSpans = new ArrayList<>(approvedSpans);
+        final StringBuilder sb = new StringBuilder(text);
+        final List<ai.philterd.arbiter.core.model.Redaction> sortedSpans = new ArrayList<>(approvedSpans);
         sortedSpans.sort((a, b) -> b.getStart() - a.getStart());
 
         for (ai.philterd.arbiter.core.model.Redaction span : sortedSpans) {

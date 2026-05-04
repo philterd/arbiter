@@ -68,14 +68,14 @@ public class BatchController {
     private final PhilterInstanceRepository philterInstanceRepository;
     private final PhilterDefaultsService philterDefaultsService;
 
-    public BatchController(BatchRepository batchRepository,
-                           DocumentRepository documentRepository,
-                           GroupRepository groupRepository,
-                           UserGroupsService userGroupsService,
-                           AuditLogService auditLogService,
-                           WeightSetRepository weightSetRepository,
-                           PhilterInstanceRepository philterInstanceRepository,
-                           PhilterDefaultsService philterDefaultsService) {
+    public BatchController(final BatchRepository batchRepository,
+                           final DocumentRepository documentRepository,
+                           final GroupRepository groupRepository,
+                           final UserGroupsService userGroupsService,
+                           final AuditLogService auditLogService,
+                           final WeightSetRepository weightSetRepository,
+                           final PhilterInstanceRepository philterInstanceRepository,
+                           final PhilterDefaultsService philterDefaultsService) {
         this.batchRepository = batchRepository;
         this.documentRepository = documentRepository;
         this.groupRepository = groupRepository;
@@ -86,7 +86,7 @@ public class BatchController {
         this.philterDefaultsService = philterDefaultsService;
     }
 
-    private static boolean isAdmin(Authentication auth) {
+    private static boolean isAdmin(final Authentication auth) {
         if (auth == null) return false;
         for (GrantedAuthority a : auth.getAuthorities()) {
             if ("ROLE_ADMIN".equals(a.getAuthority())) return true;
@@ -99,57 +99,57 @@ public class BatchController {
     private static final Set<String> REVIEWABLE_STATUSES = Set.of("REVIEW_REQUIRED", "AUDIT_REQUIRED");
 
     @GetMapping
-    public String list(@RequestParam(name = "sort", defaultValue = "createdAt") String sort,
-                       @RequestParam(name = "dir", defaultValue = "desc") String dir,
-                       Authentication authentication,
-                       Model model) {
-        boolean admin = isAdmin(authentication);
-        boolean restrict = !admin;
-        Set<String> myGroupIds = restrict
+    public String list(@RequestParam(name = "sort", defaultValue = "createdAt") final String sort,
+                       @RequestParam(name = "dir", defaultValue = "desc") final String dir,
+                       final Authentication authentication,
+                       final Model model) {
+        final boolean admin = isAdmin(authentication);
+        final boolean restrict = !admin;
+        final Set<String> myGroupIds = restrict
                 ? userGroupsService.groupIdsForEmail(authentication == null ? null : authentication.getName())
                 : Set.of();
 
-        List<Batch> batches = batchRepository.findAll();
+        final List<Batch> batches = batchRepository.findAll();
         if (restrict) {
             batches.removeIf(b -> b.getGroupId() == null || !myGroupIds.contains(b.getGroupId()));
         }
 
-        List<Group> allGroups = groupRepository.findAll();
-        Map<String, String> groupNamesById = new LinkedHashMap<>();
+        final List<Group> allGroups = groupRepository.findAll();
+        final Map<String, String> groupNamesById = new LinkedHashMap<>();
         for (Group g : allGroups) {
             groupNamesById.put(g.getId(), g.getName());
         }
 
-        List<Group> assignableGroups = new ArrayList<>(allGroups);
+        final List<Group> assignableGroups = new ArrayList<>(allGroups);
         if (!admin) {
             assignableGroups.removeIf(g -> !myGroupIds.contains(g.getId()));
         }
         assignableGroups.sort(Comparator.comparing(
                 (Group g) -> g.getName() == null ? "" : g.getName().toLowerCase()));
 
-        Map<String, String> philterInstanceNamesById = new LinkedHashMap<>();
+        final Map<String, String> philterInstanceNamesById = new LinkedHashMap<>();
         for (PhilterInstance i : philterInstanceRepository.findAll()) {
             philterInstanceNamesById.put(i.getId(), i.getName());
         }
 
-        PageRequest firstByFilename = PageRequest.of(0, 1, Sort.by("filename", "id"));
-        List<Map<String, Object>> rows = new ArrayList<>();
+        final PageRequest firstByFilename = PageRequest.of(0, 1, Sort.by("filename", "id"));
+        final List<Map<String, Object>> rows = new ArrayList<>();
         for (Batch batch : batches) {
-            Map<String, Object> row = new LinkedHashMap<>();
+            final Map<String, Object> row = new LinkedHashMap<>();
             row.put("id", batch.getId());
             row.put("name", batch.getName());
             row.put("createdAt", batch.getCreatedAt());
             row.put("confidenceThreshold", batch.getConfidenceThreshold());
             row.put("documentThreshold", batch.getDocumentThreshold());
             row.put("auditSamplingRate", batch.getAuditSamplingRate());
-            long total = documentRepository.countByBatchId(batch.getId());
-            long terminal = documentRepository.countByBatchIdAndStatusIn(batch.getId(), TERMINAL_STATUSES);
+            final long total = documentRepository.countByBatchId(batch.getId());
+            final long terminal = documentRepository.countByBatchIdAndStatusIn(batch.getId(), TERMINAL_STATUSES);
             row.put("documentCount", total);
             row.put("queuedCount", total - terminal);
             row.put("groupId", batch.getGroupId());
             row.put("groupName", batch.getGroupId() == null ? null : groupNamesById.get(batch.getGroupId()));
             row.put("philterInstanceId", batch.getPhilterInstanceId());
-            String philterName = batch.getPhilterInstanceId() == null
+            final String philterName = batch.getPhilterInstanceId() == null
                     ? "Embedded Philter"
                     : philterInstanceNamesById.getOrDefault(batch.getPhilterInstanceId(), "(missing)");
             row.put("philterInstanceName", philterName);
@@ -159,7 +159,7 @@ public class BatchController {
             row.put("closedAt", batch.getClosedAt());
             String firstUnreviewedId = null;
             if (!batch.isClosed()) {
-                List<Document> unreviewed = documentRepository
+                final List<Document> unreviewed = documentRepository
                         .findByBatchIdAndStatusIn(batch.getId(), REVIEWABLE_STATUSES, firstByFilename)
                         .getContent();
                 if (!unreviewed.isEmpty()) {
@@ -170,15 +170,15 @@ public class BatchController {
             rows.add(row);
         }
 
-        String activeSort = SORTABLE_FIELDS.contains(sort) ? sort : "createdAt";
-        boolean ascending = "asc".equalsIgnoreCase(dir);
+        final String activeSort = SORTABLE_FIELDS.contains(sort) ? sort : "createdAt";
+        final boolean ascending = "asc".equalsIgnoreCase(dir);
         rows.sort(comparatorFor(activeSort, ascending));
 
-        List<PhilterInstance> philterInstances = new ArrayList<>(philterInstanceRepository.findAll());
+        final List<PhilterInstance> philterInstances = new ArrayList<>(philterInstanceRepository.findAll());
         philterInstances.sort(Comparator.comparing(
                 (PhilterInstance i) -> i.getName() == null ? "" : i.getName().toLowerCase()));
 
-        PhilterDefaults philterDefaults = philterDefaultsService.load();
+        final PhilterDefaults philterDefaults = philterDefaultsService.load();
 
         model.addAttribute("batches", rows);
         model.addAttribute("groups", assignableGroups);
@@ -191,14 +191,14 @@ public class BatchController {
         return "batches";
     }
 
-    private static Comparator<Map<String, Object>> comparatorFor(String field, boolean ascending) {
-        Comparator<Map<String, Object>> base = switch (field) {
+    private static Comparator<Map<String, Object>> comparatorFor(final String field, final boolean ascending) {
+        final Comparator<Map<String, Object>> base = switch (field) {
             case "name" -> Comparator.comparing(
                     r -> r.get("name") == null ? "" : ((String) r.get("name")).toLowerCase(),
                     Comparator.naturalOrder());
             case "documentCount" -> Comparator.comparingLong(
                     r -> {
-                        Object v = r.get("documentCount");
+                        final Object v = r.get("documentCount");
                         return v instanceof Number ? ((Number) v).longValue() : 0L;
                     });
             default -> Comparator.comparing(
@@ -221,17 +221,17 @@ public class BatchController {
             redirectAttributes.addFlashAttribute("error", "Only administrators can create batches.");
             return "redirect:/batches";
         }
-        String trimmed = name == null ? "" : name.trim();
+        final String trimmed = name == null ? "" : name.trim();
         if (trimmed.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Batch name is required.");
             return "redirect:/batches";
         }
-        Double normalizedPii = normalizeThreshold(confidenceThreshold);
+        final Double normalizedPii = normalizeThreshold(confidenceThreshold);
         if (confidenceThreshold != null && normalizedPii == null) {
             redirectAttributes.addFlashAttribute("error", "PII threshold must be between 0 and 1.");
             return "redirect:/batches";
         }
-        Double normalizedDoc = normalizeThreshold(documentThreshold);
+        final Double normalizedDoc = normalizeThreshold(documentThreshold);
         if (documentThreshold != null && normalizedDoc == null) {
             redirectAttributes.addFlashAttribute("error", "Document threshold must be between 0 and 1.");
             return "redirect:/batches";
@@ -240,12 +240,12 @@ public class BatchController {
             redirectAttributes.addFlashAttribute("error", "A valid group must be selected.");
             return "redirect:/batches";
         }
-        String trimmedPhilterId = philterInstanceId == null ? "" : philterInstanceId.trim();
+        final String trimmedPhilterId = philterInstanceId == null ? "" : philterInstanceId.trim();
         if (!trimmedPhilterId.isEmpty() && !philterInstanceRepository.existsById(trimmedPhilterId)) {
             redirectAttributes.addFlashAttribute("error", "Selected Philter instance no longer exists.");
             return "redirect:/batches";
         }
-        String trimmedDomain = domain == null ? "" : domain.trim();
+        final String trimmedDomain = domain == null ? "" : domain.trim();
         if (trimmedDomain.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Domain is required.");
             return "redirect:/batches";
@@ -259,14 +259,14 @@ public class BatchController {
                     "A batch named \"" + trimmed + "\" already exists.");
             return "redirect:/batches";
         }
-        Batch batch = new Batch();
+        final Batch batch = new Batch();
         batch.setId(UUID.randomUUID().toString());
         batch.setName(trimmed);
         batch.setCreatedAt(LocalDateTime.now());
         batch.setOwnerId(authentication == null ? "unknown" : authentication.getName());
         batch.setGroupId(groupId);
         batch.setPhilterInstanceId(trimmedPhilterId.isEmpty() ? null : trimmedPhilterId);
-        String trimmedPolicy = policyName == null ? "" : policyName.trim();
+        final String trimmedPolicy = policyName == null ? "" : policyName.trim();
         batch.setPolicyName(trimmedPolicy.isEmpty() ? null : trimmedPolicy);
         batch.setDomain(trimmedDomain);
         if (normalizedPii != null) {
@@ -295,29 +295,29 @@ public class BatchController {
     }
 
     @PostMapping("/{batchId}/philter")
-    public String changePhilter(@PathVariable String batchId,
-                                @RequestParam(value = "philterInstanceId", required = false) String philterInstanceId,
-                                @RequestParam(value = "policyName", required = false) String policyName,
-                                Authentication authentication,
-                                RedirectAttributes redirectAttributes) {
+    public String changePhilter(@PathVariable final String batchId,
+                                @RequestParam(value = "philterInstanceId", required = false) final String philterInstanceId,
+                                @RequestParam(value = "policyName", required = false) final String policyName,
+                                final Authentication authentication,
+                                final RedirectAttributes redirectAttributes) {
         if (!isAdmin(authentication)) {
             redirectAttributes.addFlashAttribute("error", "Only administrators can modify batches.");
             return "redirect:/batches";
         }
-        Batch batch = batchRepository.findById(batchId).orElse(null);
+        final Batch batch = batchRepository.findById(batchId).orElse(null);
         if (batch == null) {
             redirectAttributes.addFlashAttribute("error", "Batch not found.");
             return "redirect:/batches";
         }
-        String trimmed = philterInstanceId == null ? "" : philterInstanceId.trim();
+        final String trimmed = philterInstanceId == null ? "" : philterInstanceId.trim();
         if (!trimmed.isEmpty() && !philterInstanceRepository.existsById(trimmed)) {
             redirectAttributes.addFlashAttribute("error", "Selected Philter instance no longer exists.");
             return "redirect:/batches";
         }
-        String trimmedPolicy = policyName == null ? "" : policyName.trim();
+        final String trimmedPolicy = policyName == null ? "" : policyName.trim();
 
-        String previousId = batch.getPhilterInstanceId();
-        String previousPolicy = batch.getPolicyName();
+        final String previousId = batch.getPhilterInstanceId();
+        final String previousPolicy = batch.getPolicyName();
         batch.setPhilterInstanceId(trimmed.isEmpty() ? null : trimmed);
         batch.setPolicyName(trimmedPolicy.isEmpty() ? null : trimmedPolicy);
         batchRepository.save(batch);
@@ -326,10 +326,10 @@ public class BatchController {
                         "newPhilterInstanceId", trimmed.isEmpty() ? "embedded" : trimmed,
                         "previousPolicyName", previousPolicy == null ? "" : previousPolicy,
                         "newPolicyName", trimmedPolicy));
-        String instanceName = trimmed.isEmpty() ? "Embedded Philter"
+        final String instanceName = trimmed.isEmpty() ? "Embedded Philter"
                 : philterInstanceRepository.findById(trimmed)
-                        .map(PhilterInstance::getName).orElse(trimmed);
-        String policyLabel = trimmedPolicy.isEmpty() ? "no policy" : "policy \"" + trimmedPolicy + "\"";
+                .map(PhilterInstance::getName).orElse(trimmed);
+        final String policyLabel = trimmedPolicy.isEmpty() ? "no policy" : "policy \"" + trimmedPolicy + "\"";
         redirectAttributes.addFlashAttribute("success",
                 "Batch \"" + batch.getName() + "\" now uses \"" + instanceName
                         + "\" with " + policyLabel + ".");
@@ -337,15 +337,15 @@ public class BatchController {
     }
 
     @PostMapping("/{batchId}/group")
-    public String changeGroup(@PathVariable String batchId,
-                              @RequestParam("groupId") String groupId,
-                              Authentication authentication,
-                              RedirectAttributes redirectAttributes) {
+    public String changeGroup(@PathVariable final String batchId,
+                              @RequestParam("groupId") final String groupId,
+                              final Authentication authentication,
+                              final RedirectAttributes redirectAttributes) {
         if (!isAdmin(authentication)) {
             redirectAttributes.addFlashAttribute("error", "Only administrators can modify batches.");
             return "redirect:/batches";
         }
-        Batch batch = batchRepository.findById(batchId).orElse(null);
+        final Batch batch = batchRepository.findById(batchId).orElse(null);
         if (batch == null) {
             redirectAttributes.addFlashAttribute("error", "Batch not found.");
             return "redirect:/batches";
@@ -354,13 +354,13 @@ public class BatchController {
             redirectAttributes.addFlashAttribute("error", "A valid group must be selected.");
             return "redirect:/batches";
         }
-        String previousGroupId = batch.getGroupId();
+        final String previousGroupId = batch.getGroupId();
         batch.setGroupId(groupId);
         batchRepository.save(batch);
         auditLogService.log("BATCH_GROUP_CHANGE", "Batch", batch.getId(),
                 Map.of("previousGroupId", previousGroupId == null ? "" : previousGroupId,
                         "newGroupId", groupId));
-        String groupName = groupRepository.findById(groupId).map(Group::getName).orElse(groupId);
+        final String groupName = groupRepository.findById(groupId).map(Group::getName).orElse(groupId);
         redirectAttributes.addFlashAttribute(
                 "success",
                 "Batch \"" + batch.getName() + "\" assigned to group \"" + groupName + "\".");
@@ -368,20 +368,20 @@ public class BatchController {
     }
 
     @PostMapping("/{batchId}/domain")
-    public String changeDomain(@PathVariable String batchId,
-                               @RequestParam("domain") String domain,
-                               Authentication authentication,
-                               RedirectAttributes redirectAttributes) {
+    public String changeDomain(@PathVariable final String batchId,
+                               @RequestParam("domain") final String domain,
+                               final Authentication authentication,
+                               final RedirectAttributes redirectAttributes) {
         if (!isAdmin(authentication)) {
             redirectAttributes.addFlashAttribute("error", "Only administrators can modify batches.");
             return "redirect:/batches";
         }
-        Batch batch = batchRepository.findById(batchId).orElse(null);
+        final Batch batch = batchRepository.findById(batchId).orElse(null);
         if (batch == null) {
             redirectAttributes.addFlashAttribute("error", "Batch not found.");
             return "redirect:/batches";
         }
-        String trimmed = domain == null ? "" : domain.trim();
+        final String trimmed = domain == null ? "" : domain.trim();
         if (trimmed.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Domain is required.");
             return "redirect:/batches";
@@ -391,7 +391,7 @@ public class BatchController {
                     "Domain \"" + trimmed + "\" is not a valid choice.");
             return "redirect:/batches";
         }
-        String previous = batch.getDomain();
+        final String previous = batch.getDomain();
         batch.setDomain(trimmed);
         batchRepository.save(batch);
         auditLogService.log("BATCH_DOMAIN_CHANGE", "Batch", batch.getId(),
@@ -403,19 +403,19 @@ public class BatchController {
     }
 
     @GetMapping("/{batchId}/weights")
-    public String weights(@PathVariable String batchId,
-                          Authentication authentication,
-                          Model model,
-                          RedirectAttributes redirectAttributes) {
-        Batch batch = batchRepository.findById(batchId).orElse(null);
+    public String weights(@PathVariable final String batchId,
+                          final Authentication authentication,
+                          final Model model,
+                          final RedirectAttributes redirectAttributes) {
+        final Batch batch = batchRepository.findById(batchId).orElse(null);
         if (batch == null || !canAccessBatch(authentication, batch)) {
             redirectAttributes.addFlashAttribute("error", "Batch not found.");
             return "redirect:/batches";
         }
-        Map<String, Integer> effective = PiiWeights.effective(batch.getPiiTypeWeights());
-        List<Map<String, Object>> rows = new ArrayList<>();
+        final Map<String, Integer> effective = PiiWeights.effective(batch.getPiiTypeWeights());
+        final List<Map<String, Object>> rows = new ArrayList<>();
         for (Map.Entry<String, Integer> entry : effective.entrySet()) {
-            Map<String, Object> row = new LinkedHashMap<>();
+            final Map<String, Object> row = new LinkedHashMap<>();
             row.put("type", entry.getKey());
             row.put("label", PiiTypes.labelFor(entry.getKey()));
             row.put("weight", entry.getValue());
@@ -424,12 +424,12 @@ public class BatchController {
         }
         rows.sort(Comparator.comparing(r -> ((String) r.get("label")).toLowerCase()));
 
-        List<WeightSet> weightSets = weightSetRepository.findAll();
+        final List<WeightSet> weightSets = weightSetRepository.findAll();
         weightSets.sort(Comparator.comparing(
                 (WeightSet w) -> w.getName() == null ? "" : w.getName().toLowerCase()));
-        List<Map<String, Object>> weightSetData = new ArrayList<>();
+        final List<Map<String, Object>> weightSetData = new ArrayList<>();
         for (WeightSet ws : weightSets) {
-            Map<String, Object> entry = new LinkedHashMap<>();
+            final Map<String, Object> entry = new LinkedHashMap<>();
             entry.put("id", ws.getId());
             entry.put("name", ws.getName());
             entry.put("weights", ws.getWeights() == null ? Map.of() : ws.getWeights());
@@ -444,18 +444,18 @@ public class BatchController {
     }
 
     @PostMapping("/{batchId}/weights")
-    public String saveWeights(@PathVariable String batchId,
-                              @RequestParam(value = "type", required = false) List<String> types,
-                              @RequestParam(value = "weight", required = false) List<Integer> weights,
-                              @RequestParam(value = "reset", required = false) String reset,
-                              @RequestParam(value = "weightSetId", required = false) String weightSetId,
-                              Authentication authentication,
-                              RedirectAttributes redirectAttributes) {
+    public String saveWeights(@PathVariable final String batchId,
+                              @RequestParam(value = "type", required = false) final List<String> types,
+                              @RequestParam(value = "weight", required = false) final List<Integer> weights,
+                              @RequestParam(value = "reset", required = false) final String reset,
+                              @RequestParam(value = "weightSetId", required = false) final String weightSetId,
+                              final Authentication authentication,
+                              final RedirectAttributes redirectAttributes) {
         if (!isAdmin(authentication)) {
             redirectAttributes.addFlashAttribute("error", "Only administrators can modify batches.");
             return "redirect:/batches";
         }
-        Batch batch = batchRepository.findById(batchId).orElse(null);
+        final Batch batch = batchRepository.findById(batchId).orElse(null);
         if (batch == null) {
             redirectAttributes.addFlashAttribute("error", "Batch not found.");
             return "redirect:/batches";
@@ -476,19 +476,19 @@ public class BatchController {
             return "redirect:/batches/" + batchId + "/weights";
         }
 
-        Map<String, Integer> overrides = new LinkedHashMap<>();
+        final Map<String, Integer> overrides = new LinkedHashMap<>();
         for (int i = 0; i < types.size(); i++) {
-            String type = types.get(i);
-            Integer weight = weights.get(i);
+            final String type = types.get(i);
+            final Integer weight = weights.get(i);
             if (type == null || weight == null) continue;
-            String key = type.trim().toLowerCase();
+            final String key = type.trim().toLowerCase();
             if (!PiiTypes.isValid(key)) continue;
             if (weight < 0) {
                 redirectAttributes.addFlashAttribute("error",
                         "Weight for " + PiiTypes.labelFor(key) + " must be 0 or greater.");
                 return "redirect:/batches/" + batchId + "/weights";
             }
-            int defaultWeight = PiiWeights.weightFor(key, null);
+            final int defaultWeight = PiiWeights.weightFor(key, null);
             if (weight != defaultWeight) {
                 overrides.put(key, weight);
             }
@@ -496,7 +496,7 @@ public class BatchController {
 
         batch.setPiiTypeWeights(overrides.isEmpty() ? null : overrides);
         // Update the binding to whichever preset was last loaded (or null if none).
-        String trimmedSetId = weightSetId == null ? null : weightSetId.trim();
+        final String trimmedSetId = weightSetId == null ? null : weightSetId.trim();
         if (trimmedSetId == null || trimmedSetId.isEmpty()) {
             batch.setWeightSetId(null);
         } else if (weightSetRepository.existsById(trimmedSetId)) {
@@ -514,39 +514,39 @@ public class BatchController {
     }
 
     @PostMapping("/{batchId}/thresholds")
-    public String editThresholds(@PathVariable String batchId,
-                                 @RequestParam("confidenceThreshold") double confidenceThreshold,
-                                 @RequestParam("documentThreshold") double documentThreshold,
-                                 @RequestParam(value = "auditSamplingRate", required = false) Double auditSamplingRate,
-                                 Authentication authentication,
-                                 RedirectAttributes redirectAttributes) {
+    public String editThresholds(@PathVariable final String batchId,
+                                 @RequestParam("confidenceThreshold") final double confidenceThreshold,
+                                 @RequestParam("documentThreshold") final double documentThreshold,
+                                 @RequestParam(value = "auditSamplingRate", required = false) final Double auditSamplingRate,
+                                 final Authentication authentication,
+                                 final RedirectAttributes redirectAttributes) {
         if (!isAdmin(authentication)) {
             redirectAttributes.addFlashAttribute("error", "Only administrators can modify batches.");
             return "redirect:/batches";
         }
-        Batch batch = batchRepository.findById(batchId).orElse(null);
+        final Batch batch = batchRepository.findById(batchId).orElse(null);
         if (batch == null) {
             redirectAttributes.addFlashAttribute("error", "Batch not found.");
             return "redirect:/batches";
         }
-        Double normalizedPii = normalizeThreshold(confidenceThreshold);
+        final Double normalizedPii = normalizeThreshold(confidenceThreshold);
         if (normalizedPii == null) {
             redirectAttributes.addFlashAttribute("error", "PII threshold must be between 0 and 1.");
             return "redirect:/batches";
         }
-        Double normalizedDoc = normalizeThreshold(documentThreshold);
+        final Double normalizedDoc = normalizeThreshold(documentThreshold);
         if (normalizedDoc == null) {
             redirectAttributes.addFlashAttribute("error", "Document threshold must be between 0 and 1.");
             return "redirect:/batches";
         }
-        Double normalizedRate = auditSamplingRate == null ? batch.getAuditSamplingRate() : normalizeThreshold(auditSamplingRate);
+        final Double normalizedRate = auditSamplingRate == null ? batch.getAuditSamplingRate() : normalizeThreshold(auditSamplingRate);
         if (normalizedRate == null) {
             redirectAttributes.addFlashAttribute("error", "Audit sampling rate must be between 0 and 1.");
             return "redirect:/batches";
         }
-        double previousPii = batch.getConfidenceThreshold();
-        double previousDoc = batch.getDocumentThreshold();
-        double previousRate = batch.getAuditSamplingRate();
+        final double previousPii = batch.getConfidenceThreshold();
+        final double previousDoc = batch.getDocumentThreshold();
+        final double previousRate = batch.getAuditSamplingRate();
         batch.setConfidenceThreshold(normalizedPii);
         batch.setDocumentThreshold(normalizedDoc);
         batch.setAuditSamplingRate(normalizedRate);
@@ -570,14 +570,14 @@ public class BatchController {
     }
 
     @PostMapping("/{batchId}/close")
-    public String close(@PathVariable String batchId,
-                        Authentication authentication,
-                        RedirectAttributes redirectAttributes) {
+    public String close(@PathVariable final String batchId,
+                        final Authentication authentication,
+                        final RedirectAttributes redirectAttributes) {
         if (!isAdmin(authentication)) {
             redirectAttributes.addFlashAttribute("error", "Only administrators can close batches.");
             return "redirect:/batches";
         }
-        Batch batch = batchRepository.findById(batchId).orElse(null);
+        final Batch batch = batchRepository.findById(batchId).orElse(null);
         if (batch == null) {
             redirectAttributes.addFlashAttribute("error", "Batch not found.");
             return "redirect:/batches";
@@ -597,11 +597,11 @@ public class BatchController {
         return "redirect:/batches";
     }
 
-    private Set<String> userGroupIds(Authentication auth) {
+    private Set<String> userGroupIds(final Authentication auth) {
         return userGroupsService.groupIdsForEmail(auth == null ? null : auth.getName());
     }
 
-    private boolean canAccessBatch(Authentication auth, Batch batch) {
+    private boolean canAccessBatch(final Authentication auth, final Batch batch) {
         if (isAdmin(auth)) return true;
         return batch.getGroupId() != null && userGroupIds(auth).contains(batch.getGroupId());
     }

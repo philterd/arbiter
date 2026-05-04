@@ -17,8 +17,8 @@ public class PhilterDefaults {
     }
 
     public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
+    public void setId(final String id) { this.id = id; }
 
     public String getDefaultInstanceId() { return defaultInstanceId; }
-    public void setDefaultInstanceId(String defaultInstanceId) { this.defaultInstanceId = defaultInstanceId; }
+    public void setDefaultInstanceId(final String defaultInstanceId) { this.defaultInstanceId = defaultInstanceId; }
 }

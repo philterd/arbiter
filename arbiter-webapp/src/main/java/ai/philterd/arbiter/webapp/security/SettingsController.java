@@ -42,10 +42,10 @@ public class SettingsController {
     private final AuditLogService auditLogService;
     private final UserSettingsService userSettingsService;
 
-    public SettingsController(UserRepository userRepository,
-                              PasswordEncoder passwordEncoder,
-                              AuditLogService auditLogService,
-                              UserSettingsService userSettingsService) {
+    public SettingsController(final UserRepository userRepository,
+                              final PasswordEncoder passwordEncoder,
+                              final AuditLogService auditLogService,
+                              final UserSettingsService userSettingsService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.auditLogService = auditLogService;
@@ -56,12 +56,12 @@ public class SettingsController {
     private static final Base64.Encoder ENCODER = Base64.getUrlEncoder().withoutPadding();
 
     @GetMapping
-    public String settings(Authentication authentication, Model model) {
+    public String settings(final Authentication authentication, final Model model) {
         boolean hasApiKey = false;
-        UserSettings settings = userSettingsService.loadForEmail(
+        final UserSettings settings = userSettingsService.loadForEmail(
                 authentication == null ? null : authentication.getName());
         if (authentication != null) {
-            User user = userRepository.findByEmail(authentication.getName()).orElse(null);
+            final User user = userRepository.findByEmail(authentication.getName()).orElse(null);
             hasApiKey = user != null && user.getApiKey() != null && !user.getApiKey().isBlank();
         }
         model.addAttribute("hasApiKey", hasApiKey);
@@ -70,17 +70,17 @@ public class SettingsController {
     }
 
     @PostMapping("/preferences")
-    public String savePreferences(@RequestParam(value = "skipCompletedInReview", defaultValue = "false") boolean skipCompletedInReview,
-                                  @RequestParam(value = "advanceToNextOnApprove", defaultValue = "false") boolean advanceToNextOnApprove,
-                                  Authentication authentication,
-                                  RedirectAttributes redirectAttributes) {
-        User user = authentication == null ? null
+    public String savePreferences(@RequestParam(value = "skipCompletedInReview", defaultValue = "false") final boolean skipCompletedInReview,
+                                  @RequestParam(value = "advanceToNextOnApprove", defaultValue = "false") final boolean advanceToNextOnApprove,
+                                  final Authentication authentication,
+                                  final RedirectAttributes redirectAttributes) {
+        final User user = authentication == null ? null
                 : userRepository.findByEmail(authentication.getName()).orElse(null);
         if (user == null || user.getId() == null) {
             redirectAttributes.addFlashAttribute("error", "Account not found.");
             return "redirect:/settings";
         }
-        UserSettings settings = userSettingsService.loadForUserId(user.getId());
+        final UserSettings settings = userSettingsService.loadForUserId(user.getId());
         settings.setUserId(user.getId());
         settings.setSkipCompletedInReview(skipCompletedInReview);
         settings.setAdvanceToNextOnApprove(advanceToNextOnApprove);
@@ -94,15 +94,15 @@ public class SettingsController {
     }
 
     @PostMapping("/api-key")
-    public String generateApiKey(Authentication authentication, RedirectAttributes redirectAttributes) {
-        User user = userRepository.findByEmail(authentication.getName()).orElse(null);
+    public String generateApiKey(final Authentication authentication, final RedirectAttributes redirectAttributes) {
+        final User user = userRepository.findByEmail(authentication.getName()).orElse(null);
         if (user == null) {
             redirectAttributes.addFlashAttribute("error", "Account not found.");
             return "redirect:/settings";
         }
-        byte[] bytes = new byte[32];
+        final byte[] bytes = new byte[32];
         RANDOM.nextBytes(bytes);
-        String apiKey = ENCODER.encodeToString(bytes);
+        final String apiKey = ENCODER.encodeToString(bytes);
         user.setApiKey(Hashing.sha512Hex(apiKey));
         userRepository.save(user);
         auditLogService.log("API_KEY_GENERATE", "User", user.getId(), null);
@@ -111,8 +111,8 @@ public class SettingsController {
     }
 
     @PostMapping("/api-key/revoke")
-    public String revokeApiKey(Authentication authentication, RedirectAttributes redirectAttributes) {
-        User user = userRepository.findByEmail(authentication.getName()).orElse(null);
+    public String revokeApiKey(final Authentication authentication, final RedirectAttributes redirectAttributes) {
+        final User user = userRepository.findByEmail(authentication.getName()).orElse(null);
         if (user == null) {
             redirectAttributes.addFlashAttribute("error", "Account not found.");
             return "redirect:/settings";
@@ -125,11 +125,11 @@ public class SettingsController {
     }
 
     @PostMapping("/password")
-    public String changePassword(@RequestParam("currentPassword") String currentPassword,
-                                 @RequestParam("newPassword") String newPassword,
-                                 @RequestParam("confirmPassword") String confirmPassword,
-                                 Authentication authentication,
-                                 RedirectAttributes redirectAttributes) {
+    public String changePassword(@RequestParam("currentPassword") final String currentPassword,
+                                 @RequestParam("newPassword") final String newPassword,
+                                 @RequestParam("confirmPassword") final String confirmPassword,
+                                 final Authentication authentication,
+                                 final RedirectAttributes redirectAttributes) {
         if (newPassword == null || newPassword.length() < 4) {
             redirectAttributes.addFlashAttribute("error", "New password must be at least 4 characters.");
             return "redirect:/settings";
@@ -139,7 +139,7 @@ public class SettingsController {
             return "redirect:/settings";
         }
 
-        User user = userRepository.findByEmail(authentication.getName()).orElse(null);
+        final User user = userRepository.findByEmail(authentication.getName()).orElse(null);
         if (user == null) {
             redirectAttributes.addFlashAttribute("error", "Account not found.");
             return "redirect:/settings";

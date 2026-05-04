@@ -51,42 +51,42 @@ public class AuditLogAdminController {
     private final AuditLogQueryService auditLogQueryService;
     private final ObjectMapper objectMapper;
 
-    public AuditLogAdminController(AuditLogQueryService auditLogQueryService, ObjectMapper objectMapper) {
+    public AuditLogAdminController(final AuditLogQueryService auditLogQueryService, final ObjectMapper objectMapper) {
         this.auditLogQueryService = auditLogQueryService;
         this.objectMapper = objectMapper;
     }
 
     @GetMapping
-    public String form(Model model) {
+    public String form(final Model model) {
         return "admin-audit";
     }
 
     @GetMapping("/export")
-    public ResponseEntity<?> export(@RequestParam(name = "startTime", required = false) String startTime,
-                                    @RequestParam(name = "endTime", required = false) String endTime,
-                                    @RequestParam(name = "userEmail", required = false) String userEmail,
-                                    @RequestParam(name = "resourceType", required = false) String resourceType,
-                                    @RequestParam(name = "resourceId", required = false) String resourceId,
-                                    @RequestParam(name = "format", defaultValue = "json") String format,
-                                    HttpServletResponse response) throws IOException {
-        Instant start = parseInstant(startTime, "startTime");
-        Instant end = parseInstant(endTime, "endTime");
+    public ResponseEntity<?> export(@RequestParam(name = "startTime", required = false) final String startTime,
+                                    @RequestParam(name = "endTime", required = false) final String endTime,
+                                    @RequestParam(name = "userEmail", required = false) final String userEmail,
+                                    @RequestParam(name = "resourceType", required = false) final String resourceType,
+                                    @RequestParam(name = "resourceId", required = false) final String resourceId,
+                                    @RequestParam(name = "format", defaultValue = "json") final String format,
+                                    final HttpServletResponse response) throws IOException {
+        final Instant start = parseInstant(startTime, "startTime");
+        final Instant end = parseInstant(endTime, "endTime");
         if (start != null && end != null && start.isAfter(end)) {
             throw new ResponseStatusException(BAD_REQUEST, "startTime must be before endTime");
         }
 
-        List<AuditLog> entries = auditLogQueryService.find(
+        final List<AuditLog> entries = auditLogQueryService.find(
                 start, end, userEmail, resourceType, resourceId, EXPORT_LIMIT);
 
-        String fmt = format == null ? "json" : format.trim().toLowerCase();
-        String filename = "audit-log-" + Instant.now().toString().replace(':', '-');
+        final String fmt = format == null ? "json" : format.trim().toLowerCase();
+        final String filename = "audit-log-" + Instant.now().toString().replace(':', '-');
 
         if ("csv".equals(fmt)) {
             response.setContentType("text/csv");
             response.setCharacterEncoding(StandardCharsets.UTF_8.name());
             response.setHeader(HttpHeaders.CONTENT_DISPOSITION,
                     "attachment; filename=\"" + filename + ".csv\"");
-            try (Writer w = new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8)) {
+            try (final Writer w = new OutputStreamWriter(response.getOutputStream(), StandardCharsets.UTF_8)) {
                 writeCsv(w, entries);
             }
             return null;
@@ -96,14 +96,14 @@ public class AuditLogAdminController {
             throw new ResponseStatusException(BAD_REQUEST, "format must be 'json' or 'csv'");
         }
 
-        byte[] body = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(entries);
+        final byte[] body = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(entries);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + ".json\"")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body);
     }
 
-    private void writeCsv(Writer w, List<AuditLog> entries) throws IOException {
+    private void writeCsv(final Writer w, final List<AuditLog> entries) throws IOException {
         w.write("timestamp,userEmail,userId,action,resourceType,resourceId,outcome,ipAddress,details\n");
         for (AuditLog e : entries) {
             w.write(csvField(e.getTimestamp() == null ? "" : e.getTimestamp().toString()));
@@ -127,7 +127,7 @@ public class AuditLogAdminController {
         }
     }
 
-    private String detailsAsJson(Object details) {
+    private String detailsAsJson(final Object details) {
         if (details == null) return "";
         try {
             return objectMapper.writeValueAsString(details);
@@ -136,9 +136,9 @@ public class AuditLogAdminController {
         }
     }
 
-    private static String csvField(String value) {
+    private static String csvField(final String value) {
         if (value == null) return "";
-        boolean needsQuoting = value.indexOf(',') >= 0
+        final boolean needsQuoting = value.indexOf(',') >= 0
                 || value.indexOf('"') >= 0
                 || value.indexOf('\n') >= 0
                 || value.indexOf('\r') >= 0;
@@ -146,9 +146,9 @@ public class AuditLogAdminController {
         return "\"" + value.replace("\"", "\"\"") + "\"";
     }
 
-    private static Instant parseInstant(String raw, String fieldName) {
+    private static Instant parseInstant(final String raw, final String fieldName) {
         if (raw == null || raw.isBlank()) return null;
-        String trimmed = raw.trim();
+        final String trimmed = raw.trim();
         try {
             // Form input type=datetime-local emits "yyyy-MM-ddTHH:mm" (no zone).
             if (trimmed.length() <= 19 && !trimmed.endsWith("Z") && !trimmed.contains("+")) {

@@ -16,9 +16,9 @@ public final class IngestStatus {
     private IngestStatus() {
     }
 
-    public static String pick(Batch batch, boolean needsReview) {
+    public static String pick(final Batch batch, final boolean needsReview) {
         if (needsReview) return "REVIEW_REQUIRED";
-        double rate = batch == null ? 0.0 : batch.getAuditSamplingRate();
+        final double rate = batch == null ? 0.0 : batch.getAuditSamplingRate();
         if (rate <= 0.0) return "AUTO_APPROVED";
         if (rate >= 1.0) return "AUDIT_REQUIRED";
         return ThreadLocalRandom.current().nextDouble() < rate ? "AUDIT_REQUIRED" : "AUTO_APPROVED";

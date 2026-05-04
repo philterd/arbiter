@@ -16,17 +16,17 @@ public class UserGroupsService {
     private final UserRepository userRepository;
     private final GroupRepository groupRepository;
 
-    public UserGroupsService(UserRepository userRepository, GroupRepository groupRepository) {
+    public UserGroupsService(final UserRepository userRepository, final GroupRepository groupRepository) {
         this.userRepository = userRepository;
         this.groupRepository = groupRepository;
     }
 
-    public Set<String> groupIdsForEmail(String email) {
+    public Set<String> groupIdsForEmail(final String email) {
         if (email == null || email.isBlank()) return Set.of();
-        User user = userRepository.findByEmail(email).orElse(null);
+        final User user = userRepository.findByEmail(email).orElse(null);
         if (user == null || user.getId() == null) return Set.of();
-        List<Group> groups = groupRepository.findByUserIdsContaining(user.getId());
-        Set<String> ids = new HashSet<>();
+        final List<Group> groups = groupRepository.findByUserIdsContaining(user.getId());
+        final Set<String> ids = new HashSet<>();
         for (Group g : groups) {
             if (g.getId() != null) ids.add(g.getId());
         }

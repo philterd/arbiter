@@ -81,14 +81,14 @@ public class LlmJudgeController {
             .connectTimeout(CONNECT_TIMEOUT)
             .build();
 
-    public LlmJudgeController(OllamaInstanceRepository ollamaInstanceRepository,
-                              DocumentRepository documentRepository,
-                              SpanRepository spanRepository,
-                              BatchRepository batchRepository,
-                              UserGroupsService userGroupsService,
-                              AuditLogService auditLogService,
-                              LlmJudgeDefaultsService llmJudgeDefaultsService,
-                              ObjectMapper objectMapper) {
+    public LlmJudgeController(final OllamaInstanceRepository ollamaInstanceRepository,
+                              final DocumentRepository documentRepository,
+                              final SpanRepository spanRepository,
+                              final BatchRepository batchRepository,
+                              final UserGroupsService userGroupsService,
+                              final AuditLogService auditLogService,
+                              final LlmJudgeDefaultsService llmJudgeDefaultsService,
+                              final ObjectMapper objectMapper) {
         this.ollamaInstanceRepository = ollamaInstanceRepository;
         this.documentRepository = documentRepository;
         this.spanRepository = spanRepository;
@@ -100,33 +100,33 @@ public class LlmJudgeController {
     }
 
     @GetMapping("/ollama/{instanceId}/models")
-    public Map<String, Object> listModels(@PathVariable String instanceId) {
-        OllamaInstance instance = ollamaInstanceRepository.findById(instanceId)
+    public Map<String, Object> listModels(@PathVariable final String instanceId) {
+        final OllamaInstance instance = ollamaInstanceRepository.findById(instanceId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Ollama instance not found."));
         try {
-            HttpRequest req = HttpRequest.newBuilder()
+            final HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl(instance) + "/api/tags"))
                     .timeout(MODELS_TIMEOUT)
                     .GET()
                     .build();
-            HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+            final HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() / 100 != 2) {
                 throw new ResponseStatusException(BAD_GATEWAY,
                         "Ollama returned HTTP " + resp.statusCode() + " from /api/tags");
             }
-            JsonNode root = objectMapper.readTree(resp.body());
-            List<String> names = new ArrayList<>();
-            JsonNode models = root.get("models");
+            final JsonNode root = objectMapper.readTree(resp.body());
+            final List<String> names = new ArrayList<>();
+            final JsonNode models = root.get("models");
             if (models != null && models.isArray()) {
                 for (JsonNode m : models) {
-                    JsonNode name = m.get("name");
+                    final JsonNode name = m.get("name");
                     if (name != null && !name.asText().isBlank()) {
                         names.add(name.asText());
                     }
                 }
             }
             names.sort(String.CASE_INSENSITIVE_ORDER);
-            Map<String, Object> out = new LinkedHashMap<>();
+            final Map<String, Object> out = new LinkedHashMap<>();
             out.put("instanceId", instance.getId());
             out.put("instanceName", instance.getName());
             out.put("models", names);
@@ -143,9 +143,9 @@ public class LlmJudgeController {
     public record ExplainRequest(String instanceId, String model) {}
 
     @PostMapping("/documents/{documentId}/explain")
-    public Map<String, Object> explain(@PathVariable String documentId,
-                                       @RequestBody ExplainRequest request,
-                                       Authentication authentication) {
+    public Map<String, Object> explain(@PathVariable final String documentId,
+                                       @RequestBody final ExplainRequest request,
+                                       final Authentication authentication) {
         if (request == null || request.instanceId() == null || request.instanceId().isBlank()) {
             throw new ResponseStatusException(BAD_REQUEST, "instanceId is required.");
         }
@@ -153,35 +153,35 @@ public class LlmJudgeController {
             throw new ResponseStatusException(BAD_REQUEST, "model is required.");
         }
 
-        Document document = documentRepository.findById(documentId)
+        final Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + documentId));
         requireDocumentAccess(authentication, document);
 
-        OllamaInstance instance = ollamaInstanceRepository.findById(request.instanceId())
+        final OllamaInstance instance = ollamaInstanceRepository.findById(request.instanceId())
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Ollama instance not found."));
 
-        List<Span> spans = spanRepository.findByDocumentId(documentId);
-        String prompt = buildPrompt(document, spans);
+        final List<Span> spans = spanRepository.findByDocumentId(documentId);
+        final String prompt = buildPrompt(document, spans);
 
         try {
-            ObjectNode body = objectMapper.createObjectNode();
+            final ObjectNode body = objectMapper.createObjectNode();
             body.put("model", request.model());
             body.put("prompt", prompt);
             body.put("stream", false);
 
-            HttpRequest req = HttpRequest.newBuilder()
+            final HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl(instance) + "/api/generate"))
                     .timeout(GENERATE_TIMEOUT)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
                     .build();
-            HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+            final HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() / 100 != 2) {
                 throw new ResponseStatusException(BAD_GATEWAY,
                         "Ollama returned HTTP " + resp.statusCode() + " from /api/generate");
             }
-            JsonNode root = objectMapper.readTree(resp.body());
-            String response = root.path("response").asText("");
+            final JsonNode root = objectMapper.readTree(resp.body());
+            final String response = root.path("response").asText("");
 
             auditLogService.log("OLLAMA_EXPLAIN", "Document", documentId,
                     Map.of("instanceId", instance.getId(),
@@ -190,7 +190,7 @@ public class LlmJudgeController {
                             "spanCount", spans.size(),
                             "responseLength", response.length()));
 
-            Map<String, Object> out = new LinkedHashMap<>();
+            final Map<String, Object> out = new LinkedHashMap<>();
             out.put("instanceName", instance.getName());
             out.put("model", request.model());
             out.put("response", response);
@@ -205,22 +205,22 @@ public class LlmJudgeController {
     }
 
     @PostMapping("/spans/{spanId}/second-opinion")
-    public Map<String, Object> secondOpinion(@PathVariable String spanId,
-                                             Authentication authentication) {
-        Span span = spanRepository.findById(spanId)
+    public Map<String, Object> secondOpinion(@PathVariable final String spanId,
+                                             final Authentication authentication) {
+        final Span span = spanRepository.findById(spanId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found: " + spanId));
-        Document document = documentRepository.findById(span.getDocumentId())
+        final Document document = documentRepository.findById(span.getDocumentId())
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND,
                         "Document not found: " + span.getDocumentId()));
         requireDocumentAccess(authentication, document);
 
-        LlmJudgeDefaults defaults = llmJudgeDefaultsService.load();
+        final LlmJudgeDefaults defaults = llmJudgeDefaultsService.load();
         if (defaults.getSecondOpinionInstanceId() == null) {
             throw new ResponseStatusException(BAD_REQUEST,
                     "No default Ollama instance is configured for Second Opinion. "
                             + "An administrator must set one under Admin → LLM-as-a-Judge.");
         }
-        OllamaInstance instance = ollamaInstanceRepository.findById(defaults.getSecondOpinionInstanceId())
+        final OllamaInstance instance = ollamaInstanceRepository.findById(defaults.getSecondOpinionInstanceId())
                 .orElseThrow(() -> new ResponseStatusException(BAD_REQUEST,
                         "The configured Second Opinion Ollama instance no longer exists."));
 
@@ -228,27 +228,27 @@ public class LlmJudgeController {
         if (model == null || model.isBlank()) {
             model = pickFirstModel(instance);
         }
-        String prompt = buildSecondOpinionPrompt(span, document);
+        final String prompt = buildSecondOpinionPrompt(span, document);
 
         try {
-            ObjectNode body = objectMapper.createObjectNode();
+            final ObjectNode body = objectMapper.createObjectNode();
             body.put("model", model);
             body.put("prompt", prompt);
             body.put("stream", false);
 
-            HttpRequest req = HttpRequest.newBuilder()
+            final HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl(instance) + "/api/generate"))
                     .timeout(GENERATE_TIMEOUT)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
                     .build();
-            HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+            final HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() / 100 != 2) {
                 throw new ResponseStatusException(BAD_GATEWAY,
                         "Ollama returned HTTP " + resp.statusCode() + " from /api/generate");
             }
-            JsonNode root = objectMapper.readTree(resp.body());
-            String response = root.path("response").asText("");
+            final JsonNode root = objectMapper.readTree(resp.body());
+            final String response = root.path("response").asText("");
 
             auditLogService.log("SPAN_SECOND_OPINION", "Span", span.getId(),
                     Map.of("instanceId", instance.getId(),
@@ -257,7 +257,7 @@ public class LlmJudgeController {
                             "type", span.getType() == null ? "" : span.getType(),
                             "responseLength", response.length()));
 
-            Map<String, Object> out = new LinkedHashMap<>();
+            final Map<String, Object> out = new LinkedHashMap<>();
             out.put("instanceName", instance.getName());
             out.put("model", model);
             out.put("sourceText", span.getText());
@@ -273,26 +273,26 @@ public class LlmJudgeController {
         }
     }
 
-    private String pickFirstModel(OllamaInstance instance) {
+    private String pickFirstModel(final OllamaInstance instance) {
         try {
-            HttpRequest req = HttpRequest.newBuilder()
+            final HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl(instance) + "/api/tags"))
                     .timeout(MODELS_TIMEOUT)
                     .GET()
                     .build();
-            HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+            final HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() / 100 != 2) {
                 throw new ResponseStatusException(BAD_GATEWAY,
                         "Ollama returned HTTP " + resp.statusCode() + " from /api/tags");
             }
-            JsonNode models = objectMapper.readTree(resp.body()).get("models");
+            final JsonNode models = objectMapper.readTree(resp.body()).get("models");
             if (models == null || !models.isArray() || models.isEmpty()) {
                 throw new ResponseStatusException(BAD_GATEWAY,
                         "Default Ollama instance has no models installed.");
             }
-            List<String> names = new ArrayList<>();
+            final List<String> names = new ArrayList<>();
             for (JsonNode m : models) {
-                JsonNode name = m.get("name");
+                final JsonNode name = m.get("name");
                 if (name != null && !name.asText().isBlank()) names.add(name.asText());
             }
             if (names.isEmpty()) {
@@ -310,8 +310,8 @@ public class LlmJudgeController {
         }
     }
 
-    private static String buildSecondOpinionPrompt(Span span, Document document) {
-        StringBuilder sb = new StringBuilder(4096);
+    private static String buildSecondOpinionPrompt(final Span span, final Document document) {
+        final StringBuilder sb = new StringBuilder(4096);
         sb.append("You are reviewing a single PII redaction decision.\n\n");
         sb.append("The text \"")
                 .append(span.getText() == null ? "" : span.getText())
@@ -330,7 +330,7 @@ public class LlmJudgeController {
 
     // ----- helpers -----
 
-    private static String baseUrl(OllamaInstance instance) {
+    private static String baseUrl(final OllamaInstance instance) {
         String host = instance.getEndpoint();
         if (host == null) host = "localhost";
         if (!host.startsWith("http://") && !host.startsWith("https://")) {
@@ -339,8 +339,8 @@ public class LlmJudgeController {
         return host + ":" + instance.getPort();
     }
 
-    private static String buildPrompt(Document document, List<Span> spans) {
-        StringBuilder sb = new StringBuilder(8192);
+    private static String buildPrompt(final Document document, final List<Span> spans) {
+        final StringBuilder sb = new StringBuilder(8192);
         sb.append("You are reviewing a document for personally identifiable information (PII).\n\n");
         sb.append("Document:\n");
         sb.append(document.getOriginalText() == null ? "" : document.getOriginalText());
@@ -365,21 +365,21 @@ public class LlmJudgeController {
         return sb.toString();
     }
 
-    private void requireDocumentAccess(Authentication auth, Document document) {
+    private void requireDocumentAccess(final Authentication auth, final Document document) {
         if (isAdmin(auth)) return;
-        Batch batch = document.getBatchId() == null ? null
+        final Batch batch = document.getBatchId() == null ? null
                 : batchRepository.findById(document.getBatchId()).orElse(null);
         if (batch == null || batch.getGroupId() == null) {
             throw new ResponseStatusException(NOT_FOUND, "Document not found: " + document.getId());
         }
-        Set<String> myGroupIds = userGroupsService.groupIdsForEmail(
+        final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(
                 auth == null ? null : auth.getName());
         if (!myGroupIds.contains(batch.getGroupId())) {
             throw new ResponseStatusException(NOT_FOUND, "Document not found: " + document.getId());
         }
     }
 
-    private static boolean isAdmin(Authentication auth) {
+    private static boolean isAdmin(final Authentication auth) {
         if (auth == null) return false;
         for (GrantedAuthority a : auth.getAuthorities()) {
             if ("ROLE_ADMIN".equals(a.getAuthority())) return true;

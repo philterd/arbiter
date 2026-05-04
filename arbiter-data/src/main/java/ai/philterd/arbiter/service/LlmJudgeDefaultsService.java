@@ -9,7 +9,7 @@ public class LlmJudgeDefaultsService {
 
     private final LlmJudgeDefaultsRepository repository;
 
-    public LlmJudgeDefaultsService(LlmJudgeDefaultsRepository repository) {
+    public LlmJudgeDefaultsService(final LlmJudgeDefaultsRepository repository) {
         this.repository = repository;
     }
 
@@ -17,7 +17,7 @@ public class LlmJudgeDefaultsService {
         return repository.findById(LlmJudgeDefaults.SINGLETON_ID).orElseGet(LlmJudgeDefaults::new);
     }
 
-    public LlmJudgeDefaults save(LlmJudgeDefaults defaults) {
+    public LlmJudgeDefaults save(final LlmJudgeDefaults defaults) {
         defaults.setId(LlmJudgeDefaults.SINGLETON_ID);
         return repository.save(defaults);
     }

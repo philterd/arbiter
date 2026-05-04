@@ -27,20 +27,20 @@ public class DocumentComment {
     }
 
     public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
+    public void setId(final String id) { this.id = id; }
 
     public String getDocumentId() { return documentId; }
-    public void setDocumentId(String documentId) { this.documentId = documentId; }
+    public void setDocumentId(final String documentId) { this.documentId = documentId; }
 
     public String getUserEmail() { return userEmail; }
-    public void setUserEmail(String userEmail) { this.userEmail = userEmail; }
+    public void setUserEmail(final String userEmail) { this.userEmail = userEmail; }
 
     public String getUserId() { return userId; }
-    public void setUserId(String userId) { this.userId = userId; }
+    public void setUserId(final String userId) { this.userId = userId; }
 
     public String getText() { return text; }
-    public void setText(String text) { this.text = text; }
+    public void setText(final String text) { this.text = text; }
 
     public Instant getTimestamp() { return timestamp; }
-    public void setTimestamp(Instant timestamp) { this.timestamp = timestamp; }
+    public void setTimestamp(final Instant timestamp) { this.timestamp = timestamp; }
 }

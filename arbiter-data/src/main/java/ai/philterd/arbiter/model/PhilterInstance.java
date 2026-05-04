@@ -24,18 +24,18 @@ public class PhilterInstance {
     public PhilterInstance() {
     }
     public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public void setCreatedAt(final LocalDateTime createdAt) { this.createdAt = createdAt; }
 
 
     public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
+    public void setId(final String id) { this.id = id; }
 
     public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    public void setName(final String name) { this.name = name; }
 
     public String getEndpoint() { return endpoint; }
-    public void setEndpoint(String endpoint) { this.endpoint = endpoint; }
+    public void setEndpoint(final String endpoint) { this.endpoint = endpoint; }
 
     public int getPort() { return port; }
-    public void setPort(int port) { this.port = port; }
+    public void setPort(final int port) { this.port = port; }
 }

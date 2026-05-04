@@ -37,7 +37,7 @@ public class Batch {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(final String id) {
         this.id = id;
     }
 
@@ -45,7 +45,7 @@ public class Batch {
         return name;
     }
 
-    public void setName(String name) {
+    public void setName(final String name) {
         this.name = name;
     }
 
@@ -53,7 +53,7 @@ public class Batch {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(final LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
 
@@ -61,7 +61,7 @@ public class Batch {
         return ownerId;
     }
 
-    public void setOwnerId(String ownerId) {
+    public void setOwnerId(final String ownerId) {
         this.ownerId = ownerId;
     }
 
@@ -69,7 +69,7 @@ public class Batch {
         return groupId;
     }
 
-    public void setGroupId(String groupId) {
+    public void setGroupId(final String groupId) {
         this.groupId = groupId;
     }
 
@@ -77,7 +77,7 @@ public class Batch {
         return stats;
     }
 
-    public void setStats(Map<String, Object> stats) {
+    public void setStats(final Map<String, Object> stats) {
         this.stats = stats;
     }
 
@@ -85,7 +85,7 @@ public class Batch {
         return confidenceThreshold;
     }
 
-    public void setConfidenceThreshold(double confidenceThreshold) {
+    public void setConfidenceThreshold(final double confidenceThreshold) {
         this.confidenceThreshold = confidenceThreshold;
     }
 
@@ -93,7 +93,7 @@ public class Batch {
         return documentThreshold;
     }
 
-    public void setDocumentThreshold(double documentThreshold) {
+    public void setDocumentThreshold(final double documentThreshold) {
         this.documentThreshold = documentThreshold;
     }
 
@@ -101,7 +101,7 @@ public class Batch {
         return auditSamplingRate;
     }
 
-    public void setAuditSamplingRate(double auditSamplingRate) {
+    public void setAuditSamplingRate(final double auditSamplingRate) {
         this.auditSamplingRate = auditSamplingRate;
     }
 
@@ -109,7 +109,7 @@ public class Batch {
         return piiTypeWeights;
     }
 
-    public void setPiiTypeWeights(Map<String, Integer> piiTypeWeights) {
+    public void setPiiTypeWeights(final Map<String, Integer> piiTypeWeights) {
         this.piiTypeWeights = piiTypeWeights;
     }
 
@@ -117,7 +117,7 @@ public class Batch {
         return weightSetId;
     }
 
-    public void setWeightSetId(String weightSetId) {
+    public void setWeightSetId(final String weightSetId) {
         this.weightSetId = weightSetId;
     }
 
@@ -125,7 +125,7 @@ public class Batch {
         return philterInstanceId;
     }
 
-    public void setPhilterInstanceId(String philterInstanceId) {
+    public void setPhilterInstanceId(final String philterInstanceId) {
         this.philterInstanceId = philterInstanceId;
     }
 
@@ -133,7 +133,7 @@ public class Batch {
         return policyName;
     }
 
-    public void setPolicyName(String policyName) {
+    public void setPolicyName(final String policyName) {
         this.policyName = policyName;
     }
 
@@ -141,7 +141,7 @@ public class Batch {
         return domain;
     }
 
-    public void setDomain(String domain) {
+    public void setDomain(final String domain) {
         this.domain = domain;
     }
 
@@ -149,7 +149,7 @@ public class Batch {
         return closed;
     }
 
-    public void setClosed(boolean closed) {
+    public void setClosed(final boolean closed) {
         this.closed = closed;
     }
 
@@ -157,7 +157,7 @@ public class Batch {
         return closedAt;
     }
 
-    public void setClosedAt(LocalDateTime closedAt) {
+    public void setClosedAt(final LocalDateTime closedAt) {
         this.closedAt = closedAt;
     }
 
@@ -165,7 +165,7 @@ public class Batch {
         return closedBy;
     }
 
-    public void setClosedBy(String closedBy) {
+    public void setClosedBy(final String closedBy) {
         this.closedBy = closedBy;
     }
 }

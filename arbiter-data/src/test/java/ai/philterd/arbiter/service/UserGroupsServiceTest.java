@@ -22,15 +22,15 @@ class UserGroupsServiceTest {
     private final GroupRepository groups = mock(GroupRepository.class);
     private final UserGroupsService service = new UserGroupsService(users, groups);
 
-    private static User user(String id, String email) {
-        User u = new User();
+    private static User user(final String id, final String email) {
+        final User u = new User();
         u.setId(id);
         u.setEmail(email);
         return u;
     }
 
-    private static Group group(String id, String name) {
-        Group g = new Group();
+    private static Group group(final String id, final String name) {
+        final Group g = new Group();
         g.setId(id);
         g.setName(name);
         return g;
@@ -51,7 +51,7 @@ class UserGroupsServiceTest {
 
     @Test
     void userWithNoGroupsReturnsEmpty() {
-        User u = user("u1", "alice@example.com");
+        final User u = user("u1", "alice@example.com");
         when(users.findByEmail("alice@example.com")).thenReturn(Optional.of(u));
         when(groups.findByUserIdsContaining("u1")).thenReturn(List.of());
         assertTrue(service.groupIdsForEmail("alice@example.com").isEmpty());
@@ -59,25 +59,25 @@ class UserGroupsServiceTest {
 
     @Test
     void returnsAllGroupIdsForUser() {
-        User u = user("u1", "alice@example.com");
-        Group g1 = group("g1", "Reviewers");
-        Group g2 = group("g2", "Auditors");
+        final User u = user("u1", "alice@example.com");
+        final Group g1 = group("g1", "Reviewers");
+        final Group g2 = group("g2", "Auditors");
         when(users.findByEmail("alice@example.com")).thenReturn(Optional.of(u));
         when(groups.findByUserIdsContaining("u1")).thenReturn(List.of(g1, g2));
 
-        Set<String> ids = service.groupIdsForEmail("alice@example.com");
+        final Set<String> ids = service.groupIdsForEmail("alice@example.com");
         assertEquals(Set.of("g1", "g2"), ids);
     }
 
     @Test
     void groupsWithNullIdAreSkipped() {
-        User u = user("u1", "alice@example.com");
-        Group good = group("g1", "Reviewers");
-        Group ghost = group(null, "Ghost");
+        final User u = user("u1", "alice@example.com");
+        final Group good = group("g1", "Reviewers");
+        final Group ghost = group(null, "Ghost");
         when(users.findByEmail("alice@example.com")).thenReturn(Optional.of(u));
         when(groups.findByUserIdsContaining("u1")).thenReturn(List.of(good, ghost));
 
-        Set<String> ids = service.groupIdsForEmail("alice@example.com");
+        final Set<String> ids = service.groupIdsForEmail("alice@example.com");
         assertEquals(Set.of("g1"), ids);
     }
 }

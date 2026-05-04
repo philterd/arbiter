@@ -49,11 +49,11 @@ public class AdminController {
     private final NotificationSettingsService notificationSettingsService;
     private final UserNotificationService userNotificationService;
 
-    public AdminController(UserRepository userRepository,
-                           PasswordEncoder passwordEncoder,
-                           AuditLogService auditLogService,
-                           NotificationSettingsService notificationSettingsService,
-                           UserNotificationService userNotificationService) {
+    public AdminController(final UserRepository userRepository,
+                           final PasswordEncoder passwordEncoder,
+                           final AuditLogService auditLogService,
+                           final NotificationSettingsService notificationSettingsService,
+                           final UserNotificationService userNotificationService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.auditLogService = auditLogService;
@@ -62,11 +62,11 @@ public class AdminController {
     }
 
     @GetMapping("/users")
-    public String users(Model model, Authentication authentication) {
-        List<User> users = userRepository.findAll();
+    public String users(final Model model, final Authentication authentication) {
+        final List<User> users = userRepository.findAll();
         users.sort(Comparator.comparing(
                 (User u) -> u.getEmail() == null ? "" : u.getEmail().toLowerCase()));
-        NotificationSettings notifications = notificationSettingsService.load();
+        final NotificationSettings notifications = notificationSettingsService.load();
         model.addAttribute("users", users);
         model.addAttribute("currentEmail", authentication == null ? null : authentication.getName());
         model.addAttribute("notificationsEnabled", notifications.isEnabled());
@@ -74,12 +74,12 @@ public class AdminController {
     }
 
     @PostMapping("/users")
-    public String create(@RequestParam("email") String email,
-                         @RequestParam("password") String password,
-                         @RequestParam(value = "admin", defaultValue = "false") boolean admin,
-                         @RequestParam(value = "sendEmail", defaultValue = "false") boolean sendEmail,
-                         RedirectAttributes redirectAttributes) {
-        String trimmed = email == null ? "" : email.trim().toLowerCase();
+    public String create(@RequestParam("email") final String email,
+                         @RequestParam("password") final String password,
+                         @RequestParam(value = "admin", defaultValue = "false") final boolean admin,
+                         @RequestParam(value = "sendEmail", defaultValue = "false") final boolean sendEmail,
+                         final RedirectAttributes redirectAttributes) {
+        final String trimmed = email == null ? "" : email.trim().toLowerCase();
         if (trimmed.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Email address is required.");
             return "redirect:/admin/users";
@@ -97,7 +97,7 @@ public class AdminController {
             return "redirect:/admin/users";
         }
 
-        User user = new User();
+        final User user = new User();
         user.setCreatedAt(LocalDateTime.now());
         user.setId(UUID.randomUUID().toString());
         user.setEmail(trimmed);
@@ -109,13 +109,13 @@ public class AdminController {
 
         String success = "User \"" + trimmed + "\" created.";
         if (sendEmail) {
-            NotificationSettings settings = notificationSettingsService.load();
+            final NotificationSettings settings = notificationSettingsService.load();
             if (!settings.isEnabled()) {
                 redirectAttributes.addFlashAttribute("error",
                         "User created, but outbound email is not enabled, so no welcome email was sent.");
                 return "redirect:/admin/users";
             }
-            boolean sent = userNotificationService.sendNewUserCredentials(trimmed, password);
+            final boolean sent = userNotificationService.sendNewUserCredentials(trimmed, password);
             if (sent) {
                 auditLogService.log("USER_CREATE_EMAIL_SENT", "User", user.getId(),
                         Map.of("email", trimmed));
@@ -131,16 +131,16 @@ public class AdminController {
     }
 
     @PostMapping("/users/{userId}/edit")
-    public String edit(@PathVariable String userId,
-                       @RequestParam(value = "admin", defaultValue = "false") boolean admin,
-                       @RequestParam(value = "newPassword", required = false) String newPassword,
-                       RedirectAttributes redirectAttributes) {
-        User user = userRepository.findById(userId).orElse(null);
+    public String edit(@PathVariable final String userId,
+                       @RequestParam(value = "admin", defaultValue = "false") final boolean admin,
+                       @RequestParam(value = "newPassword", required = false) final String newPassword,
+                       final RedirectAttributes redirectAttributes) {
+        final User user = userRepository.findById(userId).orElse(null);
         if (user == null) {
             redirectAttributes.addFlashAttribute("error", "User not found.");
             return "redirect:/admin/users";
         }
-        boolean wasAdmin = user.getRoles() != null && user.getRoles().contains(Roles.ADMIN);
+        final boolean wasAdmin = user.getRoles() != null && user.getRoles().contains(Roles.ADMIN);
         user.setRoles(rolesFor(admin));
         boolean passwordReset = false;
         if (newPassword != null && !newPassword.isEmpty()) {
@@ -162,10 +162,10 @@ public class AdminController {
     }
 
     @PostMapping("/users/{userId}/delete")
-    public String delete(@PathVariable String userId,
-                         Authentication authentication,
-                         RedirectAttributes redirectAttributes) {
-        User user = userRepository.findById(userId).orElse(null);
+    public String delete(@PathVariable final String userId,
+                         final Authentication authentication,
+                         final RedirectAttributes redirectAttributes) {
+        final User user = userRepository.findById(userId).orElse(null);
         if (user == null) {
             redirectAttributes.addFlashAttribute("error", "User not found.");
             return "redirect:/admin/users";
@@ -182,16 +182,16 @@ public class AdminController {
         return "redirect:/admin/users";
     }
 
-    private static Set<String> rolesFor(boolean admin) {
+    private static Set<String> rolesFor(final boolean admin) {
         return Set.of(admin ? Roles.ADMIN : Roles.USER);
     }
 
     private static boolean isValidEmail(String value) {
         if (value == null) return false;
-        int at = value.indexOf('@');
-        int lastAt = value.lastIndexOf('@');
+        final int at = value.indexOf('@');
+        final int lastAt = value.lastIndexOf('@');
         if (at <= 0 || at != lastAt || at == value.length() - 1) return false;
-        String domain = value.substring(at + 1);
+        final String domain = value.substring(at + 1);
         return domain.contains(".") && !domain.startsWith(".") && !domain.endsWith(".")
                 && !value.contains(" ");
     }

@@ -37,17 +37,17 @@ public class DefaultUserLoader implements ApplicationRunner {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    public DefaultUserLoader(UserRepository userRepository, PasswordEncoder passwordEncoder) {
+    public DefaultUserLoader(final UserRepository userRepository, final PasswordEncoder passwordEncoder) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
     }
 
     @Override
-    public void run(ApplicationArguments args) {
+    public void run(final ApplicationArguments args) {
         if (userRepository.count() > 0) {
             return;
         }
-        User admin = new User();
+        final User admin = new User();
         admin.setCreatedAt(LocalDateTime.now());
         admin.setId(UUID.randomUUID().toString());
         admin.setEmail("admin@philterd.ai");

@@ -30,14 +30,14 @@ public class User {
     public User() {
     }
     public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public void setCreatedAt(final LocalDateTime createdAt) { this.createdAt = createdAt; }
 
 
     public String getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(final String id) {
         this.id = id;
     }
 
@@ -45,7 +45,7 @@ public class User {
         return email;
     }
 
-    public void setEmail(String email) {
+    public void setEmail(final String email) {
         this.email = email;
     }
 
@@ -53,7 +53,7 @@ public class User {
         return passwordHash;
     }
 
-    public void setPasswordHash(String passwordHash) {
+    public void setPasswordHash(final String passwordHash) {
         this.passwordHash = passwordHash;
     }
 
@@ -61,7 +61,7 @@ public class User {
         return apiKey;
     }
 
-    public void setApiKey(String apiKey) {
+    public void setApiKey(final String apiKey) {
         this.apiKey = apiKey;
     }
 
@@ -69,7 +69,7 @@ public class User {
         return roles;
     }
 
-    public void setRoles(Set<String> roles) {
+    public void setRoles(final Set<String> roles) {
         this.roles = roles;
     }
 }

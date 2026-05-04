@@ -37,28 +37,28 @@ public class PhilterClientImpl implements PhilterClient {
     private final RestTemplate restTemplate;
     private final String philterUrl;
 
-    public PhilterClientImpl(RestTemplate restTemplate, String philterUrl) {
+    public PhilterClientImpl(final RestTemplate restTemplate, final String philterUrl) {
         this.restTemplate = restTemplate;
         this.philterUrl = philterUrl;
     }
 
     @Override
-    public RedactionResponse redactPdf(byte[] pdfBytes, String context) throws IOException {
+    public RedactionResponse redactPdf(final byte[] pdfBytes, final String context) throws IOException {
         // Basic implementation for Philter remote
         // In a real app, we would call the Philter PDF redaction endpoint.
         // For now, we'll convert to text and redact.
-        String text = new String(pdfBytes);
+        final String text = new String(pdfBytes);
         return redact(text, context);
     }
 
     @Override
-    public Map<String, Object> explain(String text, String context) throws IOException {
-        String explainUrl = philterUrl + "/api/explain?context=" + context;
-        HttpHeaders headers = new HttpHeaders();
+    public Map<String, Object> explain(final String text, final String context) throws IOException {
+        final String explainUrl = philterUrl + "/api/explain?context=" + context;
+        final HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.TEXT_PLAIN);
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
 
-        HttpEntity<String> explainRequest = new HttpEntity<>(text, headers);
+        final HttpEntity<String> explainRequest = new HttpEntity<>(text, headers);
 
         try {
             return restTemplate.postForObject(explainUrl, explainRequest, Map.class);
@@ -69,7 +69,7 @@ public class PhilterClientImpl implements PhilterClient {
     }
 
     @Override
-    public String redact(String text, String context, List<ai.philterd.arbiter.core.model.Redaction> approvedSpans) throws IOException {
+    public String redact(final String text, final String context, final List<ai.philterd.arbiter.core.model.Redaction> approvedSpans) throws IOException {
         // In a real Philter API, we might send the spans to be redacted.
         // Philter's /api/filter accepts an optional list of spans to redact OR we just let Philter do its thing.
         // But for HITL, we only want to redact the APPROVED spans.
@@ -79,16 +79,16 @@ public class PhilterClientImpl implements PhilterClient {
         // or we manually redact them if the API doesn't support passing specific spans.
         
         // Let's assume Philter has a /api/redact endpoint that takes text and a list of spans.
-        String redactUrl = philterUrl + "/api/redact?context=" + context;
-        HttpHeaders headers = new HttpHeaders();
+        final String redactUrl = philterUrl + "/api/redact?context=" + context;
+        final HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        
-        Map<String, Object> body = Map.of(
-            "text", text,
-            "spans", approvedSpans
+
+        final Map<String, Object> body = Map.of(
+                "text", text,
+                "spans", approvedSpans
         );
-        
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+
+        final HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
         
         try {
             return restTemplate.postForObject(redactUrl, request, String.class);
@@ -99,13 +99,13 @@ public class PhilterClientImpl implements PhilterClient {
     }
 
     @Override
-    public RedactionResponse redact(String text, String context) throws IOException {
-        String url = philterUrl + "/api/filter?context=" + context;
+    public RedactionResponse redact(final String text, final String context) throws IOException {
+        final String url = philterUrl + "/api/filter?context=" + context;
 
-        HttpHeaders headers = new HttpHeaders();
+        final HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.TEXT_PLAIN);
 
-        HttpEntity<String> request = new HttpEntity<>(text, headers);
+        final HttpEntity<String> request = new HttpEntity<>(text, headers);
 
         // Philter returns the redacted text in the body and redactions in the x-philter-explanation header if requested,
         // but by default, we can also use the explain API or just handle the basic redaction.
@@ -120,37 +120,37 @@ public class PhilterClientImpl implements PhilterClient {
         // Let's use /api/filter with Query Parameter 'explain=true' if supported, 
         // or call /api/explain which returns JSON with both.
         
-        String explainUrl = philterUrl + "/api/explain?context=" + context;
+        final String explainUrl = philterUrl + "/api/explain?context=" + context;
         headers.setContentType(MediaType.TEXT_PLAIN);
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-        
-        HttpEntity<String> explainRequest = new HttpEntity<>(text, headers);
+
+        final HttpEntity<String> explainRequest = new HttpEntity<>(text, headers);
         
         try {
-            Map<String, Object> response = restTemplate.postForObject(explainUrl, explainRequest, Map.class);
-            
-            String redactedText = (String) response.get("filteredText");
-            List<Map<String, Object>> explanations = (List<Map<String, Object>>) response.get("explanation");
-            
-            List<Redaction> redactions = new ArrayList<>();
-            StringBuilder sb = new StringBuilder(text);
+            final Map<String, Object> response = restTemplate.postForObject(explainUrl, explainRequest, Map.class);
+
+            final String redactedText = (String) response.get("filteredText");
+            final List<Map<String, Object>> explanations = (List<Map<String, Object>>) response.get("explanation");
+
+            final List<Redaction> redactions = new ArrayList<>();
+            final StringBuilder sb = new StringBuilder(text);
             int offset = 0;
 
             if (explanations != null) {
                 // Sort explanations by start index to process sequentially
-                List<Map<String, Object>> sortedExplanations = new ArrayList<>(explanations);
+                final List<Map<String, Object>> sortedExplanations = new ArrayList<>(explanations);
                 sortedExplanations.sort((a, b) -> (Integer) a.get("characterStart") - (Integer) b.get("characterStart"));
 
                 for (Map<String, Object> exp : sortedExplanations) {
-                    String type = (String) exp.get("type");
-                    String replacement = type.toUpperCase();
-                    int start = (Integer) exp.get("characterStart");
-                    int end = (Integer) exp.get("characterEnd");
+                    final String type = (String) exp.get("type");
+                    final String replacement = type.toUpperCase();
+                    final int start = (Integer) exp.get("characterStart");
+                    final int end = (Integer) exp.get("characterEnd");
 
-                    int startInFinal = start + offset;
+                    final int startInFinal = start + offset;
                     sb.replace(startInFinal, end + offset, replacement);
 
-                    Redaction r = new Redaction();
+                    final Redaction r = new Redaction();
                     r.setId(UUID.randomUUID().toString());
                     r.setText((String) exp.get("text"));
                     r.setStart(startInFinal);

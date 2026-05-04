@@ -16,17 +16,17 @@ public class AuditLogQueryService {
 
     private final MongoOperations mongoOperations;
 
-    public AuditLogQueryService(MongoOperations mongoOperations) {
+    public AuditLogQueryService(final MongoOperations mongoOperations) {
         this.mongoOperations = mongoOperations;
     }
 
-    public List<AuditLog> find(Instant start,
-                               Instant end,
-                               String userEmail,
-                               String resourceType,
-                               String resourceId,
-                               int limit) {
-        List<Criteria> clauses = new ArrayList<>();
+    public List<AuditLog> find(final Instant start,
+                               final Instant end,
+                               final String userEmail,
+                               final String resourceType,
+                               final String resourceId,
+                               final int limit) {
+        final List<Criteria> clauses = new ArrayList<>();
         if (start != null && end != null) {
             clauses.add(Criteria.where("timestamp").gte(start).lte(end));
         } else if (start != null) {
@@ -44,7 +44,7 @@ public class AuditLogQueryService {
             clauses.add(Criteria.where("resourceId").is(resourceId.trim()));
         }
 
-        Query query = new Query();
+        final Query query = new Query();
         if (!clauses.isEmpty()) {
             query.addCriteria(new Criteria().andOperator(clauses.toArray(new Criteria[0])));
         }

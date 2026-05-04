@@ -71,11 +71,11 @@ public class PolicyController {
             .connectTimeout(CONNECT_TIMEOUT)
             .build();
 
-    public PolicyController(PolicyRepository policyRepository,
-                            PhilterInstanceRepository philterInstanceRepository,
-                            BatchRepository batchRepository,
-                            AuditLogService auditLogService,
-                            ObjectMapper objectMapper) {
+    public PolicyController(final PolicyRepository policyRepository,
+                            final PhilterInstanceRepository philterInstanceRepository,
+                            final BatchRepository batchRepository,
+                            final AuditLogService auditLogService,
+                            final ObjectMapper objectMapper) {
         this.policyRepository = policyRepository;
         this.philterInstanceRepository = philterInstanceRepository;
         this.batchRepository = batchRepository;
@@ -84,38 +84,38 @@ public class PolicyController {
     }
 
     @GetMapping("/policies")
-    public String list(@RequestParam(value = "instanceId", required = false) String instanceId,
-                       Model model) {
-        List<PhilterInstance> instances = philterInstanceRepository.findAll();
+    public String list(@RequestParam(value = "instanceId", required = false) final String instanceId,
+                       final Model model) {
+        final List<PhilterInstance> instances = philterInstanceRepository.findAll();
         instances.sort(Comparator.comparing(
                 (PhilterInstance i) -> i.getName() == null ? "" : i.getName().toLowerCase()));
 
-        String selected = (instanceId == null || instanceId.isBlank()) ? EMBEDDED : instanceId;
-        boolean isEmbedded = EMBEDDED.equals(selected);
+        final String selected = (instanceId == null || instanceId.isBlank()) ? EMBEDDED : instanceId;
+        final boolean isEmbedded = EMBEDDED.equals(selected);
 
-        List<Map<String, Object>> rows = new ArrayList<>();
+        final List<Map<String, Object>> rows = new ArrayList<>();
         String fetchError = null;
         String selectedInstanceName = "Embedded Philter";
 
         if (isEmbedded) {
-            List<Policy> policies = policyRepository.findAll();
+            final List<Policy> policies = policyRepository.findAll();
             policies.sort(Comparator.comparing(
                     (Policy p) -> p.getName() == null ? "" : p.getName().toLowerCase()));
             for (Policy p : policies) {
-                Map<String, Object> row = new java.util.LinkedHashMap<>();
+                final Map<String, Object> row = new java.util.LinkedHashMap<>();
                 row.put("id", p.getId());
                 row.put("name", p.getName());
                 rows.add(row);
             }
         } else {
-            Optional<PhilterInstance> instance = philterInstanceRepository.findById(selected);
+            final Optional<PhilterInstance> instance = philterInstanceRepository.findById(selected);
             if (instance.isEmpty()) {
                 fetchError = "Selected Philter instance no longer exists.";
             } else {
                 selectedInstanceName = instance.get().getName();
                 try {
                     for (String name : fetchRemotePolicyNames(instance.get())) {
-                        Map<String, Object> row = new java.util.LinkedHashMap<>();
+                        final Map<String, Object> row = new java.util.LinkedHashMap<>();
                         row.put("id", name);
                         row.put("name", name);
                         rows.add(row);
@@ -140,13 +140,13 @@ public class PolicyController {
     }
 
     @PostMapping("/policies")
-    public String create(@RequestParam("name") String name,
-                         @RequestParam("content") String content,
-                         RedirectAttributes redirectAttributes) {
-        String submittedName = name == null ? "" : name;
-        String submittedContent = content == null ? "" : content;
-        String trimmedName = submittedName.trim();
-        String trimmedContent = submittedContent.trim();
+    public String create(@RequestParam("name") final String name,
+                         @RequestParam("content") final String content,
+                         final RedirectAttributes redirectAttributes) {
+        final String submittedName = name == null ? "" : name;
+        final String submittedContent = content == null ? "" : content;
+        final String trimmedName = submittedName.trim();
+        final String trimmedContent = submittedContent.trim();
 
         if (trimmedName.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Policy name is required.");
@@ -168,7 +168,7 @@ public class PolicyController {
             redirectAttributes.addFlashAttribute("formContent", submittedContent);
             return "redirect:/policies";
         }
-        Optional<Policy> existing = policyRepository.findFirstByNameIgnoreCase(trimmedName);
+        final Optional<Policy> existing = policyRepository.findFirstByNameIgnoreCase(trimmedName);
         if (existing.isPresent()) {
             redirectAttributes.addFlashAttribute("error",
                     "A policy named \"" + existing.get().getName() + "\" already exists.");
@@ -177,7 +177,7 @@ public class PolicyController {
             return "redirect:/policies";
         }
 
-        Policy policy = new Policy();
+        final Policy policy = new Policy();
         policy.setCreatedAt(LocalDateTime.now());
         policy.setId(UUID.randomUUID().toString());
         policy.setName(trimmedName);
@@ -201,8 +201,8 @@ public class PolicyController {
 
     @GetMapping("/api/v1/policies")
     @ResponseBody
-    public Map<String, Object> listJson(@RequestParam(value = "instanceId", required = false) String instanceId) {
-        String selected = (instanceId == null || instanceId.isBlank()) ? EMBEDDED : instanceId;
+    public Map<String, Object> listJson(@RequestParam(value = "instanceId", required = false) final String instanceId) {
+        final String selected = (instanceId == null || instanceId.isBlank()) ? EMBEDDED : instanceId;
         List<String> names;
         if (EMBEDDED.equals(selected)) {
             names = new ArrayList<>();
@@ -213,7 +213,7 @@ public class PolicyController {
             }
             names.sort(String.CASE_INSENSITIVE_ORDER);
         } else {
-            PhilterInstance instance = philterInstanceRepository.findById(selected)
+            final PhilterInstance instance = philterInstanceRepository.findById(selected)
                     .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Philter instance not found."));
             try {
                 names = fetchRemotePolicyNames(instance);
@@ -223,7 +223,7 @@ public class PolicyController {
                         "Could not reach Philter instance \"" + instance.getName() + "\": " + e.getMessage());
             }
         }
-        Map<String, Object> out = new java.util.LinkedHashMap<>();
+        final Map<String, Object> out = new java.util.LinkedHashMap<>();
         out.put("instanceId", selected);
         out.put("policies", names);
         return out;
@@ -231,25 +231,25 @@ public class PolicyController {
 
     @GetMapping("/api/v1/policies/content")
     @ResponseBody
-    public Map<String, String> content(@RequestParam("instanceId") String instanceId,
-                                       @RequestParam("name") String name) {
+    public Map<String, String> content(@RequestParam("instanceId") final String instanceId,
+                                       @RequestParam("name") final String name) {
         if (name == null || name.isBlank()) {
             throw new ResponseStatusException(NOT_FOUND, "Policy name is required.");
         }
         if (instanceId == null || instanceId.isBlank() || EMBEDDED.equals(instanceId)) {
-            Policy policy = policyRepository.findByName(name)
+            final Policy policy = policyRepository.findByName(name)
                     .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Policy not found: " + name));
             return Map.of("name", policy.getName(), "content", policy.getContent() == null ? "" : policy.getContent());
         }
-        PhilterInstance instance = philterInstanceRepository.findById(instanceId)
+        final PhilterInstance instance = philterInstanceRepository.findById(instanceId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Philter instance not found."));
         try {
-            HttpRequest req = HttpRequest.newBuilder()
+            final HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl(instance) + "/api/policies/" + name))
                     .timeout(REQUEST_TIMEOUT)
                     .GET()
                     .build();
-            HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+            final HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() == 404) {
                 throw new ResponseStatusException(NOT_FOUND, "Policy \"" + name + "\" not found on instance \""
                         + instance.getName() + "\".");
@@ -269,15 +269,15 @@ public class PolicyController {
     }
 
     @PostMapping("/policies/{id}/edit")
-    public String edit(@PathVariable String id,
-                       @RequestParam("content") String content,
-                       RedirectAttributes redirectAttributes) {
-        Policy policy = policyRepository.findById(id).orElse(null);
+    public String edit(@PathVariable final String id,
+                       @RequestParam("content") final String content,
+                       final RedirectAttributes redirectAttributes) {
+        final Policy policy = policyRepository.findById(id).orElse(null);
         if (policy == null) {
             redirectAttributes.addFlashAttribute("error", "Policy not found.");
             return "redirect:/policies";
         }
-        String trimmedContent = content == null ? "" : content.trim();
+        final String trimmedContent = content == null ? "" : content.trim();
         if (trimmedContent.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Policy JSON is required.");
             return "redirect:/policies";
@@ -300,15 +300,15 @@ public class PolicyController {
     }
 
     @PostMapping("/policies/{id}/delete")
-    public String delete(@PathVariable String id, RedirectAttributes redirectAttributes) {
-        Policy policy = policyRepository.findById(id).orElse(null);
+    public String delete(@PathVariable final String id, final RedirectAttributes redirectAttributes) {
+        final Policy policy = policyRepository.findById(id).orElse(null);
         if (policy == null) {
             redirectAttributes.addFlashAttribute("error", "Policy not found.");
             return "redirect:/policies";
         }
-        List<Batch> usingBatches = batchRepository.findByPhilterInstanceIdIsNullAndPolicyName(policy.getName());
+        final List<Batch> usingBatches = batchRepository.findByPhilterInstanceIdIsNullAndPolicyName(policy.getName());
         if (!usingBatches.isEmpty()) {
-            String names = usingBatches.stream()
+            final String names = usingBatches.stream()
                     .map(b -> "\"" + (b.getName() == null ? b.getId() : b.getName()) + "\"")
                     .collect(java.util.stream.Collectors.joining(", "));
             redirectAttributes.addFlashAttribute("error",
@@ -324,24 +324,24 @@ public class PolicyController {
         return "redirect:/policies";
     }
 
-    private List<String> fetchRemotePolicyNames(PhilterInstance instance) throws Exception {
-        HttpRequest req = HttpRequest.newBuilder()
+    private List<String> fetchRemotePolicyNames(final PhilterInstance instance) throws Exception {
+        final HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create(baseUrl(instance) + "/api/policies"))
                 .timeout(REQUEST_TIMEOUT)
                 .GET()
                 .build();
-        HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+        final HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
         if (resp.statusCode() / 100 != 2) {
             throw new RuntimeException("HTTP " + resp.statusCode() + " from /api/policies");
         }
-        JsonNode root = objectMapper.readTree(resp.body());
-        List<String> names = new ArrayList<>();
+        final JsonNode root = objectMapper.readTree(resp.body());
+        final List<String> names = new ArrayList<>();
         if (root.isArray()) {
             for (JsonNode node : root) {
                 if (node.isTextual()) {
                     names.add(node.asText());
                 } else {
-                    JsonNode nameNode = node.get("name");
+                    final JsonNode nameNode = node.get("name");
                     if (nameNode != null && !nameNode.asText().isBlank()) {
                         names.add(nameNode.asText());
                     }
@@ -352,7 +352,7 @@ public class PolicyController {
         return names;
     }
 
-    private static String baseUrl(PhilterInstance instance) {
+    private static String baseUrl(final PhilterInstance instance) {
         String host = instance.getEndpoint();
         if (host == null) host = "localhost";
         if (!host.startsWith("http://") && !host.startsWith("https://")) {

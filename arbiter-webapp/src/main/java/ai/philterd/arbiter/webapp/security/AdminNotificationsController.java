@@ -39,34 +39,34 @@ public class AdminNotificationsController {
     private final UserNotificationService userNotificationService;
     private final AuditLogService auditLogService;
 
-    public AdminNotificationsController(NotificationSettingsService notificationSettingsService,
-                                        UserNotificationService userNotificationService,
-                                        AuditLogService auditLogService) {
+    public AdminNotificationsController(final NotificationSettingsService notificationSettingsService,
+                                        final UserNotificationService userNotificationService,
+                                        final AuditLogService auditLogService) {
         this.notificationSettingsService = notificationSettingsService;
         this.userNotificationService = userNotificationService;
         this.auditLogService = auditLogService;
     }
 
     @GetMapping
-    public String form(Model model) {
-        NotificationSettings settings = notificationSettingsService.load();
+    public String form(final Model model) {
+        final NotificationSettings settings = notificationSettingsService.load();
         model.addAttribute("settings", settings);
         model.addAttribute("hasPassword", settings.getPassword() != null && !settings.getPassword().isEmpty());
         return "admin-notifications";
     }
 
     @PostMapping
-    public String save(@RequestParam(value = "enabled", defaultValue = "false") boolean enabled,
-                       @RequestParam(value = "host", required = false) String host,
-                       @RequestParam(value = "port", required = false) Integer port,
-                       @RequestParam(value = "username", required = false) String username,
-                       @RequestParam(value = "password", required = false) String password,
-                       @RequestParam(value = "fromAddress", required = false) String fromAddress,
-                       @RequestParam(value = "fromName", required = false) String fromName,
-                       @RequestParam(value = "useStartTls", defaultValue = "false") boolean useStartTls,
-                       @RequestParam(value = "useSsl", defaultValue = "false") boolean useSsl,
-                       @RequestParam(value = "clearPassword", defaultValue = "false") boolean clearPassword,
-                       RedirectAttributes redirectAttributes) {
+    public String save(@RequestParam(value = "enabled", defaultValue = "false") final boolean enabled,
+                       @RequestParam(value = "host", required = false) final String host,
+                       @RequestParam(value = "port", required = false) final Integer port,
+                       @RequestParam(value = "username", required = false) final String username,
+                       @RequestParam(value = "password", required = false) final String password,
+                       @RequestParam(value = "fromAddress", required = false) final String fromAddress,
+                       @RequestParam(value = "fromName", required = false) final String fromName,
+                       @RequestParam(value = "useStartTls", defaultValue = "false") final boolean useStartTls,
+                       @RequestParam(value = "useSsl", defaultValue = "false") final boolean useSsl,
+                       @RequestParam(value = "clearPassword", defaultValue = "false") final boolean clearPassword,
+                       final RedirectAttributes redirectAttributes) {
 
         if (port != null && (port < 1 || port > 65535)) {
             redirectAttributes.addFlashAttribute("error", "Port must be between 1 and 65535.");
@@ -78,7 +78,7 @@ public class AdminNotificationsController {
             return "redirect:/admin/notifications";
         }
 
-        NotificationSettings settings = notificationSettingsService.load();
+        final NotificationSettings settings = notificationSettingsService.load();
         settings.setEnabled(enabled);
         settings.setHost(trimOrNull(host));
         if (port != null) settings.setPort(port);
@@ -99,7 +99,7 @@ public class AdminNotificationsController {
 
         notificationSettingsService.save(settings);
 
-        Map<String, Object> details = new LinkedHashMap<>();
+        final Map<String, Object> details = new LinkedHashMap<>();
         details.put("enabled", enabled);
         details.put("host", settings.getHost() == null ? "" : settings.getHost());
         details.put("port", settings.getPort());
@@ -117,17 +117,17 @@ public class AdminNotificationsController {
     @PostMapping("/test")
     @ResponseBody
     public ResponseEntity<Map<String, Object>> test(
-            @RequestParam("recipient") String recipient,
-            @RequestParam(value = "host", required = false) String host,
-            @RequestParam(value = "port", required = false) Integer port,
-            @RequestParam(value = "username", required = false) String username,
-            @RequestParam(value = "password", required = false) String password,
-            @RequestParam(value = "fromAddress", required = false) String fromAddress,
-            @RequestParam(value = "fromName", required = false) String fromName,
-            @RequestParam(value = "useStartTls", defaultValue = "false") boolean useStartTls,
-            @RequestParam(value = "useSsl", defaultValue = "false") boolean useSsl) {
+            @RequestParam("recipient") final String recipient,
+            @RequestParam(value = "host", required = false) final String host,
+            @RequestParam(value = "port", required = false) final Integer port,
+            @RequestParam(value = "username", required = false) final String username,
+            @RequestParam(value = "password", required = false) final String password,
+            @RequestParam(value = "fromAddress", required = false) final String fromAddress,
+            @RequestParam(value = "fromName", required = false) final String fromName,
+            @RequestParam(value = "useStartTls", defaultValue = "false") final boolean useStartTls,
+            @RequestParam(value = "useSsl", defaultValue = "false") final boolean useSsl) {
 
-        String to = recipient == null ? "" : recipient.trim();
+        final String to = recipient == null ? "" : recipient.trim();
         if (to.isEmpty()) {
             return ResponseEntity.badRequest().body(Map.of(
                     "ok", false,
@@ -139,7 +139,7 @@ public class AdminNotificationsController {
                     "message", "Choose either STARTTLS or implicit SSL/TLS, not both."));
         }
 
-        NotificationSettings probe = new NotificationSettings();
+        final NotificationSettings probe = new NotificationSettings();
         probe.setHost(trimOrNull(host));
         if (port != null) probe.setPort(port);
         probe.setUsername(trimOrNull(username));
@@ -150,14 +150,14 @@ public class AdminNotificationsController {
 
         // If the form sent no password, fall back to the saved password (the field is left
         // empty in the form to avoid leaking it back to the browser).
-        String formPassword = trimOrNull(password);
+        final String formPassword = trimOrNull(password);
         if (formPassword != null) {
             probe.setPassword(formPassword);
         } else {
             probe.setPassword(notificationSettingsService.load().getPassword());
         }
 
-        Map<String, Object> details = new LinkedHashMap<>();
+        final Map<String, Object> details = new LinkedHashMap<>();
         details.put("recipient", to);
         details.put("host", probe.getHost() == null ? "" : probe.getHost());
         details.put("port", probe.getPort());
@@ -185,7 +185,7 @@ public class AdminNotificationsController {
 
     private static String trimOrNull(String value) {
         if (value == null) return null;
-        String trimmed = value.trim();
+        final String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
     }
 }

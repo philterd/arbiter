@@ -33,11 +33,11 @@ public class IngestionController {
     private final UserGroupsService userGroupsService;
     private final AuditLogService auditLogService;
 
-    public IngestionController(RedactionApiService redactionApiService,
-                               DocumentRepository documentRepository,
-                               BatchRepository batchRepository,
-                               UserGroupsService userGroupsService,
-                               AuditLogService auditLogService) {
+    public IngestionController(final RedactionApiService redactionApiService,
+                               final DocumentRepository documentRepository,
+                               final BatchRepository batchRepository,
+                               final UserGroupsService userGroupsService,
+                               final AuditLogService auditLogService) {
         this.redactionApiService = redactionApiService;
         this.documentRepository = documentRepository;
         this.batchRepository = batchRepository;
@@ -46,9 +46,9 @@ public class IngestionController {
     }
 
     @PostMapping("/ingest")
-    public ResponseEntity<?> ingest(@Valid @RequestBody IngestRequest request, Authentication authentication) {
+    public ResponseEntity<?> ingest(@Valid @RequestBody final IngestRequest request, final Authentication authentication) {
 
-        Batch batch = batchRepository.findById(request.batchId()).orElse(null);
+        final Batch batch = batchRepository.findById(request.batchId()).orElse(null);
         if (batch == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "Batch not found: " + request.batchId()));
         }
@@ -91,14 +91,14 @@ public class IngestionController {
         return ResponseEntity.accepted().body(Map.of("taskId", taskId));
     }
 
-    private boolean canAccessBatch(Authentication auth, Batch batch) {
+    private boolean canAccessBatch(final Authentication auth, final Batch batch) {
         if (isAdmin(auth)) return true;
         if (batch == null || batch.getGroupId() == null) return false;
-        Set<String> myGroupIds = userGroupsService.groupIdsForEmail(auth == null ? null : auth.getName());
+        final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(auth == null ? null : auth.getName());
         return myGroupIds.contains(batch.getGroupId());
     }
 
-    private static boolean isAdmin(Authentication auth) {
+    private static boolean isAdmin(final Authentication auth) {
         if (auth == null) return false;
         for (GrantedAuthority a : auth.getAuthorities()) {
             if ("ROLE_ADMIN".equals(a.getAuthority())) return true;

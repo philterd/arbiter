@@ -27,7 +27,7 @@ public class Span {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(final String id) {
         this.id = id;
     }
 
@@ -35,7 +35,7 @@ public class Span {
         return documentId;
     }
 
-    public void setDocumentId(String documentId) {
+    public void setDocumentId(final String documentId) {
         this.documentId = documentId;
     }
 
@@ -43,7 +43,7 @@ public class Span {
         return type;
     }
 
-    public void setType(String type) {
+    public void setType(final String type) {
         this.type = type;
     }
 
@@ -51,7 +51,7 @@ public class Span {
         return text;
     }
 
-    public void setText(String text) {
+    public void setText(final String text) {
         this.text = text;
     }
 
@@ -59,7 +59,7 @@ public class Span {
         return confidence;
     }
 
-    public void setConfidence(double confidence) {
+    public void setConfidence(final double confidence) {
         this.confidence = confidence;
     }
 
@@ -67,7 +67,7 @@ public class Span {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(final String status) {
         this.status = status;
     }
 
@@ -75,7 +75,7 @@ public class Span {
         return location;
     }
 
-    public void setLocation(Location location) {
+    public void setLocation(final Location location) {
         this.location = location;
     }
 
@@ -83,7 +83,7 @@ public class Span {
         return manuallyCreated;
     }
 
-    public void setManuallyCreated(boolean manuallyCreated) {
+    public void setManuallyCreated(final boolean manuallyCreated) {
         this.manuallyCreated = manuallyCreated;
     }
 
@@ -91,7 +91,7 @@ public class Span {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(final LocalDateTime createdAt) {
         this.createdAt = createdAt;
     }
 
@@ -99,12 +99,12 @@ public class Span {
         return statusChangedAt;
     }
 
-    public void setStatusChangedAt(LocalDateTime statusChangedAt) {
+    public void setStatusChangedAt(final LocalDateTime statusChangedAt) {
         this.statusChangedAt = statusChangedAt;
     }
 
     /** Set both the status and its change timestamp atomically. */
-    public void changeStatus(String newStatus) {
+    public void changeStatus(final String newStatus) {
         this.status = newStatus;
         this.statusChangedAt = LocalDateTime.now();
     }

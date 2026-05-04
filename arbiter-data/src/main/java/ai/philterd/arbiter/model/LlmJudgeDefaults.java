@@ -21,17 +21,17 @@ public class LlmJudgeDefaults {
     }
 
     public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
+    public void setId(final String id) { this.id = id; }
 
     public String getExplainInstanceId() { return explainInstanceId; }
-    public void setExplainInstanceId(String explainInstanceId) { this.explainInstanceId = explainInstanceId; }
+    public void setExplainInstanceId(final String explainInstanceId) { this.explainInstanceId = explainInstanceId; }
 
     public String getExplainModel() { return explainModel; }
-    public void setExplainModel(String explainModel) { this.explainModel = explainModel; }
+    public void setExplainModel(final String explainModel) { this.explainModel = explainModel; }
 
     public String getSecondOpinionInstanceId() { return secondOpinionInstanceId; }
-    public void setSecondOpinionInstanceId(String secondOpinionInstanceId) { this.secondOpinionInstanceId = secondOpinionInstanceId; }
+    public void setSecondOpinionInstanceId(final String secondOpinionInstanceId) { this.secondOpinionInstanceId = secondOpinionInstanceId; }
 
     public String getSecondOpinionModel() { return secondOpinionModel; }
-    public void setSecondOpinionModel(String secondOpinionModel) { this.secondOpinionModel = secondOpinionModel; }
+    public void setSecondOpinionModel(final String secondOpinionModel) { this.secondOpinionModel = secondOpinionModel; }
 }

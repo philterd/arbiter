@@ -48,11 +48,11 @@ public class ReviewController {
     private final UserGroupsService userGroupsService;
     private final AuditLogService auditLogService;
 
-    public ReviewController(SpanRepository spanRepository,
-                            DocumentRepository documentRepository,
-                            BatchRepository batchRepository,
-                            UserGroupsService userGroupsService,
-                            AuditLogService auditLogService) {
+    public ReviewController(final SpanRepository spanRepository,
+                            final DocumentRepository documentRepository,
+                            final BatchRepository batchRepository,
+                            final UserGroupsService userGroupsService,
+                            final AuditLogService auditLogService) {
         this.spanRepository = spanRepository;
         this.documentRepository = documentRepository;
         this.batchRepository = batchRepository;
@@ -60,14 +60,14 @@ public class ReviewController {
         this.auditLogService = auditLogService;
     }
 
-    private void requireDocumentAccess(Authentication auth, Document document) {
+    private void requireDocumentAccess(final Authentication auth, final Document document) {
         if (isAdmin(auth)) return;
-        Batch batch = document.getBatchId() == null ? null
+        final Batch batch = document.getBatchId() == null ? null
                 : batchRepository.findById(document.getBatchId()).orElse(null);
         if (batch == null || batch.getGroupId() == null) {
             throw new ResponseStatusException(NOT_FOUND, "Document not found: " + document.getId());
         }
-        Set<String> myGroupIds = userGroupsService.groupIdsForEmail(
+        final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(
                 auth == null ? null : auth.getName());
         if (!myGroupIds.contains(batch.getGroupId())) {
             throw new ResponseStatusException(NOT_FOUND, "Document not found: " + document.getId());
@@ -75,14 +75,14 @@ public class ReviewController {
     }
 
     /** Spans on an APPROVED document are read-only — the document must be unapproved first. */
-    private static void requireEditable(Document document) {
+    private static void requireEditable(final Document document) {
         if ("APPROVED".equals(document.getStatus())) {
             throw new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
                     "Document is APPROVED. Unapprove it before adding, editing, or deleting spans.");
         }
     }
 
-    private static boolean isAdmin(Authentication auth) {
+    private static boolean isAdmin(final Authentication auth) {
         if (auth == null) return false;
         for (GrantedAuthority a : auth.getAuthorities()) {
             if ("ROLE_ADMIN".equals(a.getAuthority())) return true;
@@ -91,8 +91,8 @@ public class ReviewController {
     }
 
     @GetMapping("/documents/{id}/spans")
-    public List<Span> getSpans(@PathVariable String id, Authentication authentication) {
-        Document document = documentRepository.findById(id)
+    public List<Span> getSpans(@PathVariable final String id, final Authentication authentication) {
+        final Document document = documentRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + id));
         requireDocumentAccess(authentication, document);
         return spanRepository.findByDocumentId(id);
@@ -101,39 +101,39 @@ public class ReviewController {
     public record CreateSpanRequest(String type, Integer start, Integer end) {}
 
     @PostMapping("/documents/{documentId}/spans")
-    public Span createSpan(@PathVariable String documentId,
-                           @RequestBody CreateSpanRequest request,
-                           Authentication authentication) {
+    public Span createSpan(@PathVariable final String documentId,
+                           @RequestBody final CreateSpanRequest request,
+                           final Authentication authentication) {
         if (request == null || request.type() == null || request.type().isBlank()) {
             throw new ResponseStatusException(BAD_REQUEST, "type is required.");
         }
         if (request.start() == null || request.end() == null) {
             throw new ResponseStatusException(BAD_REQUEST, "start and end are required.");
         }
-        int start = request.start();
-        int end = request.end();
+        final int start = request.start();
+        final int end = request.end();
         if (start < 0 || end <= start) {
             throw new ResponseStatusException(BAD_REQUEST, "Invalid range.");
         }
-        String normalized = request.type().trim().toLowerCase();
+        final String normalized = request.type().trim().toLowerCase();
         if (!PiiTypes.isValid(normalized)) {
             throw new ResponseStatusException(BAD_REQUEST, "Invalid PII type: " + request.type());
         }
-        Document document = documentRepository.findById(documentId)
+        final Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND,
                         "Document not found: " + documentId));
         requireDocumentAccess(authentication, document);
         requireEditable(document);
-        String original = document.getOriginalText() == null ? "" : document.getOriginalText();
+        final String original = document.getOriginalText() == null ? "" : document.getOriginalText();
         if (end > original.length()) {
             throw new ResponseStatusException(BAD_REQUEST, "Range exceeds document length.");
         }
-        String text = original.substring(start, end);
+        final String text = original.substring(start, end);
         if (text.isBlank()) {
             throw new ResponseStatusException(BAD_REQUEST, "Selection is empty.");
         }
 
-        Span span = new Span();
+        final Span span = new Span();
         span.setId(UUID.randomUUID().toString());
         span.setDocumentId(documentId);
         span.setType(normalized);
@@ -143,7 +143,7 @@ public class ReviewController {
         span.setManuallyCreated(true);
         span.setCreatedAt(LocalDateTime.now());
         span.changeStatus("APPROVED");
-        Span saved = spanRepository.save(span);
+        final Span saved = spanRepository.save(span);
 
         auditLogService.log("SPAN_CREATE", "Span", saved.getId(),
                 Map.of("documentId", documentId,
@@ -155,21 +155,21 @@ public class ReviewController {
     }
 
     @PatchMapping("/spans/{id}")
-    public Span updateSpan(@PathVariable String id,
-                           @RequestBody SpanUpdateRequest request,
-                           Authentication authentication) {
+    public Span updateSpan(@PathVariable final String id,
+                           @RequestBody final SpanUpdateRequest request,
+                           final Authentication authentication) {
         if (request == null || (request.status() == null && request.type() == null)) {
             throw new ResponseStatusException(BAD_REQUEST, "At least one of 'status' or 'type' must be provided.");
         }
-        Span span = spanRepository.findById(id)
+        final Span span = spanRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found: " + id));
-        Document document = documentRepository.findById(span.getDocumentId())
+        final Document document = documentRepository.findById(span.getDocumentId())
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND,
                         "Document not found: " + span.getDocumentId()));
         requireDocumentAccess(authentication, document);
         requireEditable(document);
 
-        Map<String, Object> changes = new LinkedHashMap<>();
+        final Map<String, Object> changes = new LinkedHashMap<>();
         if (request.status() != null) {
             if (!ALLOWED_STATUSES.contains(request.status())) {
                 throw new ResponseStatusException(BAD_REQUEST, "Invalid status: " + request.status());
@@ -179,7 +179,7 @@ public class ReviewController {
             span.changeStatus(request.status());
         }
         if (request.type() != null) {
-            String normalized = request.type().trim().toLowerCase();
+            final String normalized = request.type().trim().toLowerCase();
             if (!PiiTypes.isValid(normalized)) {
                 throw new ResponseStatusException(BAD_REQUEST, "Invalid PII type: " + request.type());
             }
@@ -187,17 +187,17 @@ public class ReviewController {
             changes.put("type", normalized);
             span.setType(normalized);
         }
-        Span saved = spanRepository.save(span);
+        final Span saved = spanRepository.save(span);
         changes.put("documentId", saved.getDocumentId() == null ? "" : saved.getDocumentId());
         auditLogService.log("SPAN_UPDATE", "Span", saved.getId(), changes);
         return saved;
     }
 
     @DeleteMapping("/spans/{id}")
-    public Map<String, Object> deleteSpan(@PathVariable String id, Authentication authentication) {
-        Span span = spanRepository.findById(id)
+    public Map<String, Object> deleteSpan(@PathVariable final String id, final Authentication authentication) {
+        final Span span = spanRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found: " + id));
-        Document document = documentRepository.findById(span.getDocumentId())
+        final Document document = documentRepository.findById(span.getDocumentId())
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND,
                         "Document not found: " + span.getDocumentId()));
         requireDocumentAccess(authentication, document);
@@ -217,31 +217,31 @@ public class ReviewController {
     }
 
     @PostMapping("/spans/{id}/redact-like")
-    public Map<String, Object> redactAllLike(@PathVariable String id, Authentication authentication) {
-        Span source = spanRepository.findById(id)
+    public Map<String, Object> redactAllLike(@PathVariable final String id, final Authentication authentication) {
+        final Span source = spanRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found: " + id));
 
-        String needle = source.getText();
+        final String needle = source.getText();
         if (needle == null || needle.isEmpty()) {
             throw new ResponseStatusException(BAD_REQUEST, "Source span has no text to match.");
         }
 
-        Document document = documentRepository.findById(source.getDocumentId())
+        final Document document = documentRepository.findById(source.getDocumentId())
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + source.getDocumentId()));
         requireDocumentAccess(authentication, document);
         requireEditable(document);
-        String haystack = document.getOriginalText();
+        final String haystack = document.getOriginalText();
         if (haystack == null || haystack.isEmpty()) {
             return Map.of("created", 0, "approved", 0);
         }
 
-        List<Span> existing = spanRepository.findByDocumentId(source.getDocumentId());
-        Map<Long, Span> byRange = new HashMap<>();
-        List<long[]> existingRanges = new ArrayList<>();
+        final List<Span> existing = spanRepository.findByDocumentId(source.getDocumentId());
+        final Map<Long, Span> byRange = new HashMap<>();
+        final List<long[]> existingRanges = new ArrayList<>();
         for (Span s : existing) {
             if (s.getLocation() == null) continue;
-            long start = s.getLocation().characterStart();
-            long end = s.getLocation().characterEnd();
+            final long start = s.getLocation().characterStart();
+            final long end = s.getLocation().characterEnd();
             byRange.put((start << 32) | (end & 0xFFFFFFFFL), s);
             existingRanges.add(new long[]{start, end});
         }
@@ -249,21 +249,21 @@ public class ReviewController {
         source.changeStatus("APPROVED");
         spanRepository.save(source);
 
-        List<Span> toSave = new ArrayList<>();
+        final List<Span> toSave = new ArrayList<>();
         int created = 0;
         int approved = 0;
         int cursor = 0;
         while (true) {
-            int idx = haystack.indexOf(needle, cursor);
+            final int idx = haystack.indexOf(needle, cursor);
             if (idx < 0) break;
-            int end = idx + needle.length();
+            final int end = idx + needle.length();
             cursor = end;
 
             if (idx == source.getLocation().characterStart() && end == source.getLocation().characterEnd()) {
                 continue;
             }
 
-            Span exact = byRange.get(((long) idx << 32) | (end & 0xFFFFFFFFL));
+            final Span exact = byRange.get(((long) idx << 32) | (end & 0xFFFFFFFFL));
             if (exact != null) {
                 exact.changeStatus("APPROVED");
                 exact.setType(source.getType());
@@ -276,7 +276,7 @@ public class ReviewController {
                 continue;
             }
 
-            Span fresh = new Span();
+            final Span fresh = new Span();
             fresh.setId(UUID.randomUUID().toString());
             fresh.setDocumentId(source.getDocumentId());
             fresh.setType(source.getType());
@@ -295,11 +295,11 @@ public class ReviewController {
             spanRepository.saveAll(toSave);
         }
 
-        Map<String, Object> result = new LinkedHashMap<>();
+        final Map<String, Object> result = new LinkedHashMap<>();
         result.put("created", created);
         result.put("approved", approved);
 
-        Map<String, Object> auditDetails = new LinkedHashMap<>();
+        final Map<String, Object> auditDetails = new LinkedHashMap<>();
         auditDetails.put("documentId", source.getDocumentId());
         auditDetails.put("type", source.getType() == null ? "" : source.getType());
         auditDetails.put("created", created);
@@ -308,7 +308,7 @@ public class ReviewController {
         return result;
     }
 
-    private static boolean overlapsExisting(List<long[]> ranges, int start, int end) {
+    private static boolean overlapsExisting(final List<long[]> ranges, final int start, final int end) {
         for (long[] r : ranges) {
             if (start < r[1] && end > r[0]) return true;
         }

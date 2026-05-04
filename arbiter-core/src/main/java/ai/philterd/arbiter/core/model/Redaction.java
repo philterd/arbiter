@@ -31,7 +31,7 @@ public class Redaction {
     public Redaction() {
     }
 
-    public Redaction(String id, String text, int start, int end, String type, double confidence) {
+    public Redaction(final String id, final String text, final int start, final int end, final String type, final double confidence) {
         this.id = id;
         this.text = text;
         this.start = start;
@@ -40,7 +40,7 @@ public class Redaction {
         this.confidence = confidence;
     }
 
-    public Redaction(String id, String text, int start, int end, String type, double confidence, int pageNumber, float lowerLeftX, float lowerLeftY, float upperRightX, float upperRightY) {
+    public Redaction(final String id, final String text, final int start, final int end, final String type, final double confidence, final int pageNumber, final float lowerLeftX, final float lowerLeftY, final float upperRightX, final float upperRightY) {
         this.id = id;
         this.text = text;
         this.start = start;
@@ -54,7 +54,7 @@ public class Redaction {
         this.upperRightY = upperRightY;
     }
 
-    public Redaction(String id, String text, int start, int end, String type) {
+    public Redaction(final String id, final String text, final int start, final int end, final String type) {
         this.id = id;
         this.text = text;
         this.start = start;
@@ -62,7 +62,7 @@ public class Redaction {
         this.type = type;
     }
 
-    public Redaction(String id, String text, int start, int end, String type, int pageNumber, float lowerLeftX, float lowerLeftY, float upperRightX, float upperRightY) {
+    public Redaction(final String id, final String text, final int start, final int end, final String type, final int pageNumber, final float lowerLeftX, final float lowerLeftY, final float upperRightX, final float upperRightY) {
         this.id = id;
         this.text = text;
         this.start = start;
@@ -79,7 +79,7 @@ public class Redaction {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(final String id) {
         this.id = id;
     }
 
@@ -87,7 +87,7 @@ public class Redaction {
         return text;
     }
 
-    public void setText(String text) {
+    public void setText(final String text) {
         this.text = text;
     }
 
@@ -95,7 +95,7 @@ public class Redaction {
         return start;
     }
 
-    public void setStart(int start) {
+    public void setStart(final int start) {
         this.start = start;
     }
 
@@ -103,7 +103,7 @@ public class Redaction {
         return end;
     }
 
-    public void setEnd(int end) {
+    public void setEnd(final int end) {
         this.end = end;
     }
 
@@ -111,7 +111,7 @@ public class Redaction {
         return type;
     }
 
-    public void setType(String type) {
+    public void setType(final String type) {
         this.type = type;
     }
 
@@ -119,7 +119,7 @@ public class Redaction {
         return confidence;
     }
 
-    public void setConfidence(double confidence) {
+    public void setConfidence(final double confidence) {
         this.confidence = confidence;
     }
 
@@ -127,7 +127,7 @@ public class Redaction {
         return pageNumber;
     }
 
-    public void setPageNumber(int pageNumber) {
+    public void setPageNumber(final int pageNumber) {
         this.pageNumber = pageNumber;
     }
 
@@ -135,7 +135,7 @@ public class Redaction {
         return lowerLeftX;
     }
 
-    public void setLowerLeftX(float lowerLeftX) {
+    public void setLowerLeftX(final float lowerLeftX) {
         this.lowerLeftX = lowerLeftX;
     }
 
@@ -143,7 +143,7 @@ public class Redaction {
         return lowerLeftY;
     }
 
-    public void setLowerLeftY(float lowerLeftY) {
+    public void setLowerLeftY(final float lowerLeftY) {
         this.lowerLeftY = lowerLeftY;
     }
 
@@ -151,7 +151,7 @@ public class Redaction {
         return upperRightX;
     }
 
-    public void setUpperRightX(float upperRightX) {
+    public void setUpperRightX(final float upperRightX) {
         this.upperRightX = upperRightX;
     }
 
@@ -159,7 +159,7 @@ public class Redaction {
         return upperRightY;
     }
 
-    public void setUpperRightY(float upperRightY) {
+    public void setUpperRightY(final float upperRightY) {
         this.upperRightY = upperRightY;
     }
 }

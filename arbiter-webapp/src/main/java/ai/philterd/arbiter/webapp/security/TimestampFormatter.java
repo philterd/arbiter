@@ -34,14 +34,14 @@ public class TimestampFormatter {
 
     private final GeneralSettingsService generalSettingsService;
 
-    public TimestampFormatter(GeneralSettingsService generalSettingsService) {
+    public TimestampFormatter(final GeneralSettingsService generalSettingsService) {
         this.generalSettingsService = generalSettingsService;
     }
 
-    public String format(LocalDateTime value, String pattern) {
+    public String format(final LocalDateTime value, final String pattern) {
         if (value == null) return "";
-        ZoneId target = displayZone();
-        ZonedDateTime zoned = value.atZone(ZoneId.systemDefault()).withZoneSameInstant(target);
+        final ZoneId target = displayZone();
+        final ZonedDateTime zoned = value.atZone(ZoneId.systemDefault()).withZoneSameInstant(target);
         return zoned.format(DateTimeFormatter.ofPattern(pattern));
     }
 
@@ -50,7 +50,7 @@ public class TimestampFormatter {
     }
 
     private ZoneId displayZone() {
-        String tz = generalSettingsService.load().getTimezone();
+        final String tz = generalSettingsService.load().getTimezone();
         if (tz == null || tz.isBlank()) return ZoneId.of("UTC");
         try {
             return ZoneId.of(tz);

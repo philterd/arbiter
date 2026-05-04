@@ -35,9 +35,9 @@ public class TriageController {
     private final BatchRepository batchRepository;
     private final UserGroupsService userGroupsService;
 
-    public TriageController(DocumentRepository documentRepository,
-                            BatchRepository batchRepository,
-                            UserGroupsService userGroupsService) {
+    public TriageController(final DocumentRepository documentRepository,
+                            final BatchRepository batchRepository,
+                            final UserGroupsService userGroupsService) {
         this.documentRepository = documentRepository;
         this.batchRepository = batchRepository;
         this.userGroupsService = userGroupsService;
@@ -47,29 +47,29 @@ public class TriageController {
 
     @GetMapping("/queue")
     public Page<Map<String, Object>> getQueue(
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(required = false) String batchId,
-            @RequestParam(required = false) String status,
-            @RequestParam(required = false) String filename,
-            @RequestParam(name = "myGroupsOnly", defaultValue = "false") boolean myGroupsOnly,
-            @RequestParam(name = "sort", defaultValue = "riskScore") String sort,
-            @RequestParam(name = "dir", defaultValue = "desc") String dir,
-            Authentication authentication) {
+            @RequestParam(defaultValue = "0") final int page,
+            @RequestParam(defaultValue = "10") final int size,
+            @RequestParam(required = false) final String batchId,
+            @RequestParam(required = false) final String status,
+            @RequestParam(required = false) final String filename,
+            @RequestParam(name = "myGroupsOnly", defaultValue = "false") final boolean myGroupsOnly,
+            @RequestParam(name = "sort", defaultValue = "riskScore") final String sort,
+            @RequestParam(name = "dir", defaultValue = "desc") final String dir,
+            final Authentication authentication) {
 
-        String activeSort = SORTABLE_FIELDS.contains(sort) ? sort : "riskScore";
-        Sort.Direction direction = "asc".equalsIgnoreCase(dir) ? Sort.Direction.ASC : Sort.Direction.DESC;
-        PageRequest pageRequest = PageRequest.of(page, size, Sort.by(direction, activeSort));
-        boolean hasBatch = batchId != null && !batchId.isBlank();
-        boolean hasStatus = status != null && !status.isBlank();
-        String trimmedFilename = filename == null ? "" : filename.trim();
-        boolean hasFilename = !trimmedFilename.isEmpty();
+        final String activeSort = SORTABLE_FIELDS.contains(sort) ? sort : "riskScore";
+        final Sort.Direction direction = "asc".equalsIgnoreCase(dir) ? Sort.Direction.ASC : Sort.Direction.DESC;
+        final PageRequest pageRequest = PageRequest.of(page, size, Sort.by(direction, activeSort));
+        final boolean hasBatch = batchId != null && !batchId.isBlank();
+        final boolean hasStatus = status != null && !status.isBlank();
+        final String trimmedFilename = filename == null ? "" : filename.trim();
+        final boolean hasFilename = !trimmedFilename.isEmpty();
 
-        boolean admin = isAdmin(authentication);
+        final boolean admin = isAdmin(authentication);
         // Non-admins are always restricted to their groups. Admins see everything by default,
         // but can opt in to the same scope via myGroupsOnly=true.
-        boolean restrict = !admin || myGroupsOnly;
-        Set<String> allowedBatchIds = restrict ? allowedBatchIds(authentication) : null;
+        final boolean restrict = !admin || myGroupsOnly;
+        final Set<String> allowedBatchIds = restrict ? allowedBatchIds(authentication) : null;
 
         if (restrict && allowedBatchIds.isEmpty()) {
             return new PageImpl<>(List.of(), pageRequest, 0);
@@ -110,13 +110,13 @@ public class TriageController {
             documents = documentRepository.findAll(pageRequest);
         }
 
-        Set<String> batchIds = documents.stream()
+        final Set<String> batchIds = documents.stream()
                 .map(Document::getBatchId)
                 .filter(id -> id != null && !id.isBlank())
                 .collect(Collectors.toSet());
 
-        Map<String, String> batchNames = new LinkedHashMap<>();
-        Map<String, Double> batchDocumentThresholds = new LinkedHashMap<>();
+        final Map<String, String> batchNames = new LinkedHashMap<>();
+        final Map<String, Double> batchDocumentThresholds = new LinkedHashMap<>();
         for (Batch b : batchRepository.findAllById(batchIds)) {
             batchNames.put(b.getId(), b.getName() == null ? b.getId() : b.getName());
             batchDocumentThresholds.put(b.getId(), b.getDocumentThreshold());
@@ -127,11 +127,11 @@ public class TriageController {
 
     @GetMapping("/batches")
     public List<Map<String, String>> getBatches(
-            @RequestParam(name = "myGroupsOnly", defaultValue = "false") boolean myGroupsOnly,
-            Authentication authentication) {
-        boolean admin = isAdmin(authentication);
-        boolean restrict = !admin || myGroupsOnly;
-        Set<String> myGroupIds = restrict
+            @RequestParam(name = "myGroupsOnly", defaultValue = "false") final boolean myGroupsOnly,
+            final Authentication authentication) {
+        final boolean admin = isAdmin(authentication);
+        final boolean restrict = !admin || myGroupsOnly;
+        final Set<String> myGroupIds = restrict
                 ? userGroupsService.groupIdsForEmail(authentication == null ? null : authentication.getName())
                 : null;
 
@@ -140,7 +140,7 @@ public class TriageController {
                 .sorted(Comparator.comparing(
                         (Batch b) -> b.getName() == null ? "" : b.getName().toLowerCase()))
                 .map(b -> {
-                    Map<String, String> entry = new LinkedHashMap<>();
+                    final Map<String, String> entry = new LinkedHashMap<>();
                     entry.put("id", b.getId());
                     entry.put("name", b.getName() == null ? b.getId() : b.getName());
                     return entry;
@@ -150,19 +150,19 @@ public class TriageController {
 
     private static final Set<String> USER_DECIDED_STATUSES = Set.of("APPROVED", "REJECTED", "FAILED");
 
-    private static Function<Document, Map<String, Object>> toRow(Map<String, String> batchNames,
-                                                                 Map<String, Double> batchDocumentThresholds) {
-        LocalDateTime now = LocalDateTime.now();
+    private static Function<Document, Map<String, Object>> toRow(final Map<String, String> batchNames,
+                                                                 final Map<String, Double> batchDocumentThresholds) {
+        final LocalDateTime now = LocalDateTime.now();
         return doc -> {
-            Map<String, Object> row = new LinkedHashMap<>();
+            final Map<String, Object> row = new LinkedHashMap<>();
             row.put("id", doc.getId());
             row.put("filename", doc.getFilename());
             row.put("status", doc.getStatus());
             row.put("riskScore", doc.getRiskScore());
             row.put("batchId", doc.getBatchId());
             row.put("batchName", batchNames.getOrDefault(doc.getBatchId(), doc.getBatchId()));
-            Double threshold = batchDocumentThresholds.get(doc.getBatchId());
-            boolean autoApproved = threshold != null
+            final Double threshold = batchDocumentThresholds.get(doc.getBatchId());
+            final boolean autoApproved = threshold != null
                     && !USER_DECIDED_STATUSES.contains(doc.getStatus())
                     && !"AUDIT_REQUIRED".equals(doc.getStatus())
                     && doc.getRiskScore() <= threshold;
@@ -175,7 +175,7 @@ public class TriageController {
         };
     }
 
-    private static boolean isAdmin(Authentication auth) {
+    private static boolean isAdmin(final Authentication auth) {
         if (auth == null) return false;
         for (GrantedAuthority a : auth.getAuthorities()) {
             if ("ROLE_ADMIN".equals(a.getAuthority())) return true;
@@ -183,10 +183,10 @@ public class TriageController {
         return false;
     }
 
-    private Set<String> allowedBatchIds(Authentication auth) {
-        Set<String> myGroupIds = userGroupsService.groupIdsForEmail(auth == null ? null : auth.getName());
+    private Set<String> allowedBatchIds(final Authentication auth) {
+        final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(auth == null ? null : auth.getName());
         if (myGroupIds.isEmpty()) return Set.of();
-        Set<String> ids = new HashSet<>();
+        final Set<String> ids = new HashSet<>();
         for (Batch b : batchRepository.findAll()) {
             if (b.getGroupId() != null && myGroupIds.contains(b.getGroupId())) {
                 ids.add(b.getId());

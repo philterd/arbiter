@@ -35,11 +35,11 @@ public class ExportController {
     private final BatchRepository batchRepository;
     private final UserGroupsService userGroupsService;
 
-    public ExportController(RedactionApiService redactionApiService,
-                            SpanRepository spanRepository,
-                            DocumentRepository documentRepository,
-                            BatchRepository batchRepository,
-                            UserGroupsService userGroupsService) {
+    public ExportController(final RedactionApiService redactionApiService,
+                            final SpanRepository spanRepository,
+                            final DocumentRepository documentRepository,
+                            final BatchRepository batchRepository,
+                            final UserGroupsService userGroupsService) {
         this.redactionApiService = redactionApiService;
         this.spanRepository = spanRepository;
         this.documentRepository = documentRepository;
@@ -48,20 +48,20 @@ public class ExportController {
     }
 
     @PostMapping("/documents/{id}/finalize")
-    public Map<String, String> finalize(@PathVariable String id, Authentication authentication) throws IOException {
-        Document document = documentRepository.findById(id)
+    public Map<String, String> finalize(@PathVariable final String id, final Authentication authentication) throws IOException {
+        final Document document = documentRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + id));
         requireDocumentAccess(authentication, document);
-        String finalizedText = redactionApiService.finalizeRedaction(id);
+        final String finalizedText = redactionApiService.finalizeRedaction(id);
         return Map.of("finalizedText", finalizedText);
     }
 
     @GetMapping("/documents/{id}/audit")
-    public List<Map<String, Object>> audit(@PathVariable String id, Authentication authentication) {
-        Document document = documentRepository.findById(id)
+    public List<Map<String, Object>> audit(@PathVariable final String id, final Authentication authentication) {
+        final Document document = documentRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + id));
         requireDocumentAccess(authentication, document);
-        List<Span> spans = spanRepository.findByDocumentId(id);
+        final List<Span> spans = spanRepository.findByDocumentId(id);
         return spans.stream().map(s -> Map.<String, Object>of(
             "text", s.getText(),
             "type", s.getType(),
@@ -70,21 +70,21 @@ public class ExportController {
         )).collect(Collectors.toList());
     }
 
-    private void requireDocumentAccess(Authentication auth, Document document) {
+    private void requireDocumentAccess(final Authentication auth, final Document document) {
         if (isAdmin(auth)) return;
-        Batch batch = document.getBatchId() == null ? null
+        final Batch batch = document.getBatchId() == null ? null
                 : batchRepository.findById(document.getBatchId()).orElse(null);
         if (batch == null || batch.getGroupId() == null) {
             throw new ResponseStatusException(NOT_FOUND, "Document not found: " + document.getId());
         }
-        Set<String> myGroupIds = userGroupsService.groupIdsForEmail(
+        final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(
                 auth == null ? null : auth.getName());
         if (!myGroupIds.contains(batch.getGroupId())) {
             throw new ResponseStatusException(NOT_FOUND, "Document not found: " + document.getId());
         }
     }
 
-    private static boolean isAdmin(Authentication auth) {
+    private static boolean isAdmin(final Authentication auth) {
         if (auth == null) return false;
         for (GrantedAuthority a : auth.getAuthorities()) {
             if ("ROLE_ADMIN".equals(a.getAuthority())) return true;

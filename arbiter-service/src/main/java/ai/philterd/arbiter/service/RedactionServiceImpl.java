@@ -41,19 +41,19 @@ public class RedactionServiceImpl implements RedactionService {
     private final PhilterClientFactory philterClientFactory;
     private final PhilterInstanceRepository philterInstanceRepository;
 
-    public RedactionServiceImpl(@Qualifier("phileasClient") PhilterClient phileasClient,
-                                PhilterClientFactory philterClientFactory,
-                                PhilterInstanceRepository philterInstanceRepository) {
+    public RedactionServiceImpl(@Qualifier("phileasClient") final PhilterClient phileasClient,
+                                final PhilterClientFactory philterClientFactory,
+                                final PhilterInstanceRepository philterInstanceRepository) {
         this.phileasClient = phileasClient;
         this.philterClientFactory = philterClientFactory;
         this.philterInstanceRepository = philterInstanceRepository;
     }
 
-    private PhilterClient getClient(String philterInstanceId) {
+    private PhilterClient getClient(final String philterInstanceId) {
         if (philterInstanceId != null && !philterInstanceId.isBlank()) {
-            Optional<PhilterInstance> instance = philterInstanceRepository.findById(philterInstanceId);
+            final Optional<PhilterInstance> instance = philterInstanceRepository.findById(philterInstanceId);
             if (instance.isPresent()) {
-                String url = baseUrl(instance.get());
+                final String url = baseUrl(instance.get());
                 log.info("Using Philter remote instance \"{}\" at {}", instance.get().getName(), url);
                 return philterClientFactory.create(url);
             }
@@ -63,7 +63,7 @@ public class RedactionServiceImpl implements RedactionService {
         return phileasClient;
     }
 
-    private static String baseUrl(PhilterInstance instance) {
+    private static String baseUrl(final PhilterInstance instance) {
         String host = instance.getEndpoint();
         if (host == null || host.isBlank()) host = "localhost";
         if (!host.startsWith("http://") && !host.startsWith("https://")) {
@@ -73,37 +73,37 @@ public class RedactionServiceImpl implements RedactionService {
     }
 
     @Override
-    public RedactionResponse redactText(String text, String philterInstanceId) throws IOException {
-        String context = UUID.randomUUID().toString();
+    public RedactionResponse redactText(final String text, final String philterInstanceId) throws IOException {
+        final String context = UUID.randomUUID().toString();
         return getClient(philterInstanceId).redact(text, context);
     }
 
     @Override
-    public RedactionResponse redactPdf(InputStream inputStream, String philterInstanceId) throws IOException {
-        byte[] bytes = inputStream.readAllBytes();
-        String context = UUID.randomUUID().toString();
+    public RedactionResponse redactPdf(final InputStream inputStream, final String philterInstanceId) throws IOException {
+        final byte[] bytes = inputStream.readAllBytes();
+        final String context = UUID.randomUUID().toString();
         return getClient(philterInstanceId).redactPdf(bytes, context);
     }
 
     @Override
-    public byte[] getRedactedPdf(InputStream originalPdf, RedactionResponse redactionResponse,
-                                 String philterInstanceId) throws IOException {
+    public byte[] getRedactedPdf(final InputStream originalPdf, final RedactionResponse redactionResponse,
+                                 final String philterInstanceId) throws IOException {
         // Apply redactions back to the PDF.
-        byte[] pdfBytes = originalPdf.readAllBytes();
+        final byte[] pdfBytes = originalPdf.readAllBytes();
 
-        PhilterClient client = getClient(philterInstanceId);
+        final PhilterClient client = getClient(philterInstanceId);
         if (client == phileasClient) {
             try {
-                Properties properties = new Properties();
-                ai.philterd.phileas.PhileasConfiguration phileasConfiguration = new ai.philterd.phileas.PhileasConfiguration(properties);
-                ai.philterd.phileas.services.filters.filtering.PdfFilterService filterService = new ai.philterd.phileas.services.filters.filtering.PdfFilterService(phileasConfiguration, null, null, null);
+                final Properties properties = new Properties();
+                final ai.philterd.phileas.PhileasConfiguration phileasConfiguration = new ai.philterd.phileas.PhileasConfiguration(properties);
+                final ai.philterd.phileas.services.filters.filtering.PdfFilterService filterService = new ai.philterd.phileas.services.filters.filtering.PdfFilterService(phileasConfiguration, null, null, null);
 
                 // Convert our Redaction objects back to Phileas Spans
-                java.util.List<ai.philterd.phileas.model.filtering.Span> spans = new java.util.ArrayList<>();
+                final java.util.List<ai.philterd.phileas.model.filtering.Span> spans = new java.util.ArrayList<>();
                 for (Redaction r : redactionResponse.getRedactions()) {
                     // Only add spans that have coordinates
                     if (r.getPageNumber() >= 0) {
-                        ai.philterd.phileas.model.filtering.Span span = new ai.philterd.phileas.model.filtering.Span();
+                        final ai.philterd.phileas.model.filtering.Span span = new ai.philterd.phileas.model.filtering.Span();
                         span.setText(r.getText());
                         span.setReplacement(r.getType().toUpperCase());
                         span.setPageNumber(r.getPageNumber());
@@ -118,7 +118,7 @@ public class RedactionServiceImpl implements RedactionService {
 
                 // Phileas apply() needs a non-null Policy if it uses it for anything, but PdfFilterService.apply usually doesn't.
                 // However, let's provide a basic one just in case.
-                ai.philterd.phileas.policy.Policy policy = new ai.philterd.phileas.policy.Policy();
+                final ai.philterd.phileas.policy.Policy policy = new ai.philterd.phileas.policy.Policy();
                 return filterService.apply(policy, pdfBytes, spans, ai.philterd.phileas.model.filtering.MimeType.APPLICATION_PDF);
             } catch (Exception e) {
                 log.error("Failed to apply redactions to PDF via Phileas", e);

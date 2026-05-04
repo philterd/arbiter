@@ -28,7 +28,7 @@ class GeneralSettingsServiceTest {
 
     @Test
     void loadReturnsDefaultsWhenNothingSaved() {
-        GeneralSettings settings = service.load();
+        final GeneralSettings settings = service.load();
         assertNotNull(settings);
         assertNotNull(settings.getArbiterUrl());
         assertTrue(settings.getArbiterUrl().startsWith("http://"),
@@ -40,24 +40,24 @@ class GeneralSettingsServiceTest {
 
     @Test
     void loadFillsInDefaultsForBlankFields() {
-        GeneralSettings stored = new GeneralSettings();
+        final GeneralSettings stored = new GeneralSettings();
         stored.setArbiterUrl("");
         stored.setTimezone(null);
         when(repository.findById(GeneralSettings.SINGLETON_ID)).thenReturn(Optional.of(stored));
 
-        GeneralSettings out = service.load();
+        final GeneralSettings out = service.load();
         assertTrue(out.getArbiterUrl().endsWith(":9090"));
         assertEquals("UTC", out.getTimezone());
     }
 
     @Test
     void loadKeepsStoredValues() {
-        GeneralSettings stored = new GeneralSettings();
+        final GeneralSettings stored = new GeneralSettings();
         stored.setArbiterUrl("https://arbiter.example.com");
         stored.setTimezone("America/New_York");
         when(repository.findById(GeneralSettings.SINGLETON_ID)).thenReturn(Optional.of(stored));
 
-        GeneralSettings out = service.load();
+        final GeneralSettings out = service.load();
         assertEquals("https://arbiter.example.com", out.getArbiterUrl());
         assertEquals("America/New_York", out.getTimezone());
     }

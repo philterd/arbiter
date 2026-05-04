@@ -137,19 +137,19 @@ public class RedactionControllerTest {
     @Test
     @WithMockUser(roles = "ADMIN")
     public void testRedactText() throws Exception {
-        String text = "George Washington lived in Mount Vernon.";
-        RedactionResponse response = new RedactionResponse(text, text, List.of(
+        final String text = "George Washington lived in Mount Vernon.";
+        final RedactionResponse response = new RedactionResponse(text, text, List.of(
                 new Redaction(UUID.randomUUID().toString(), "George Washington", 0, 17, "PERSON")
         ));
 
-        Batch batch = new Batch();
+        final Batch batch = new Batch();
         batch.setId("batch-1");
         batch.setName("Test batch");
 
         when(redactionService.redactText(any(), any())).thenReturn(response);
         when(batchRepository.findById("batch-1")).thenReturn(Optional.of(batch));
 
-        MockMultipartFile file = new MockMultipartFile("file", "test.txt", "text/plain", text.getBytes());
+        final MockMultipartFile file = new MockMultipartFile("file", "test.txt", "text/plain", text.getBytes());
 
         mockMvc.perform(multipart("/redact").file(file).param("batchId", "batch-1").with(csrf()))
                 .andExpect(status().isOk())

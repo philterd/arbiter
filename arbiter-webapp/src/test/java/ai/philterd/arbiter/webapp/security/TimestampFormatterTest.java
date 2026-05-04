@@ -24,9 +24,9 @@ import static org.mockito.Mockito.when;
 
 class TimestampFormatterTest {
 
-    private GeneralSettingsService settingsService(String tz) {
-        GeneralSettingsService svc = mock(GeneralSettingsService.class);
-        GeneralSettings s = new GeneralSettings();
+    private GeneralSettingsService settingsService(final String tz) {
+        final GeneralSettingsService svc = mock(GeneralSettingsService.class);
+        final GeneralSettings s = new GeneralSettings();
         s.setTimezone(tz);
         when(svc.load()).thenReturn(s);
         return svc;
@@ -39,7 +39,7 @@ class TimestampFormatterTest {
 
     @Test
     void invalidZoneFallsBackToUtc() {
-        TimestampFormatter f = new TimestampFormatter(settingsService("Atlantis/Trench"));
+        final TimestampFormatter f = new TimestampFormatter(settingsService("Atlantis/Trench"));
         // Should not throw; the method falls back to UTC silently.
         assertEquals("UTC", f.getZoneId());
         // Format works without exception.
@@ -54,14 +54,14 @@ class TimestampFormatterTest {
 
     @Test
     void convertsToConfiguredZone() {
-        TimestampFormatter f = new TimestampFormatter(settingsService("America/New_York"));
+        final TimestampFormatter f = new TimestampFormatter(settingsService("America/New_York"));
 
         // Take an instant well-known to be 2026-06-01T12:00 UTC, expressed in the JVM zone.
-        ZonedDateTime utcMidday = ZonedDateTime.of(LocalDateTime.of(2026, 6, 1, 12, 0), ZoneId.of("UTC"));
-        LocalDateTime asJvmLocal = utcMidday.withZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
+        final ZonedDateTime utcMidday = ZonedDateTime.of(LocalDateTime.of(2026, 6, 1, 12, 0), ZoneId.of("UTC"));
+        final LocalDateTime asJvmLocal = utcMidday.withZoneSameInstant(ZoneId.systemDefault()).toLocalDateTime();
 
         // In June, NY is UTC-4. So 12:00 UTC → 08:00 New York.
-        String formatted = f.format(asJvmLocal, "HH:mm");
+        final String formatted = f.format(asJvmLocal, "HH:mm");
         assertEquals("08:00", formatted);
     }
 }

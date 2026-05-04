@@ -29,28 +29,28 @@ public class AuditLogService {
     private final AuditLogRepository auditLogRepository;
     private final UserRepository userRepository;
 
-    public AuditLogService(AuditLogRepository auditLogRepository, UserRepository userRepository) {
+    public AuditLogService(final AuditLogRepository auditLogRepository, final UserRepository userRepository) {
         this.auditLogRepository = auditLogRepository;
         this.userRepository = userRepository;
     }
 
-    public void log(String action, String resourceType, String resourceId, Map<String, Object> details) {
+    public void log(final String action, final String resourceType, final String resourceId, final Map<String, Object> details) {
         record(action, resourceType, resourceId, OUTCOME_SUCCESS, currentUserEmail(), details);
     }
 
-    public void log(String action, String resourceType, String resourceId) {
+    public void log(final String action, final String resourceType, final String resourceId) {
         log(action, resourceType, resourceId, null);
     }
 
-    public void logForUser(String userEmail, String action, String resourceType, String resourceId,
-                           String outcome, Map<String, Object> details) {
+    public void logForUser(final String userEmail, final String action, final String resourceType, final String resourceId,
+                           final String outcome, final Map<String, Object> details) {
         record(action, resourceType, resourceId, outcome, userEmail, details);
     }
 
-    private void record(String action, String resourceType, String resourceId, String outcome,
-                        String userEmail, Map<String, Object> details) {
+    private void record(final String action, final String resourceType, final String resourceId, final String outcome,
+                        final String userEmail, final Map<String, Object> details) {
         try {
-            AuditLog entry = new AuditLog();
+            final AuditLog entry = new AuditLog();
             entry.setId(UUID.randomUUID().toString());
             entry.setTimestamp(Instant.now());
             entry.setAction(action);
@@ -59,7 +59,7 @@ public class AuditLogService {
             entry.setOutcome(outcome == null ? OUTCOME_SUCCESS : outcome);
             entry.setUserEmail(userEmail);
             if (userEmail != null && !userEmail.isBlank()) {
-                User user = userRepository.findByEmail(userEmail).orElse(null);
+                final User user = userRepository.findByEmail(userEmail).orElse(null);
                 if (user != null) entry.setUserId(user.getId());
             }
             entry.setIpAddress(currentRequestIp());
@@ -74,21 +74,21 @@ public class AuditLogService {
     }
 
     private static String currentUserEmail() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        final Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth == null) return null;
-        String name = auth.getName();
+        final String name = auth.getName();
         if (name == null || "anonymousUser".equals(name)) return null;
         return name;
     }
 
     private static String currentRequestIp() {
         try {
-            ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            final ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
             if (attrs == null) return null;
-            HttpServletRequest req = attrs.getRequest();
-            String forwarded = req.getHeader("X-Forwarded-For");
+            final HttpServletRequest req = attrs.getRequest();
+            final String forwarded = req.getHeader("X-Forwarded-For");
             if (forwarded != null && !forwarded.isBlank()) {
-                int comma = forwarded.indexOf(',');
+                final int comma = forwarded.indexOf(',');
                 return (comma >= 0 ? forwarded.substring(0, comma) : forwarded).trim();
             }
             return req.getRemoteAddr();

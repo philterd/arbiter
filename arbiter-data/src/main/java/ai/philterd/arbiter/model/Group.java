@@ -25,14 +25,14 @@ public class Group {
     public Group() {
     }
     public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public void setCreatedAt(final LocalDateTime createdAt) { this.createdAt = createdAt; }
 
 
     public String getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(final String id) {
         this.id = id;
     }
 
@@ -40,7 +40,7 @@ public class Group {
         return name;
     }
 
-    public void setName(String name) {
+    public void setName(final String name) {
         this.name = name;
     }
 
@@ -48,7 +48,7 @@ public class Group {
         return userIds;
     }
 
-    public void setUserIds(Set<String> userIds) {
+    public void setUserIds(final Set<String> userIds) {
         this.userIds = userIds;
     }
 }

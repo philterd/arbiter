@@ -40,32 +40,32 @@ public class AuditLog {
     }
 
     public String getId() { return id; }
-    public void setId(String id) { this.id = id; }
+    public void setId(final String id) { this.id = id; }
 
     public Instant getTimestamp() { return timestamp; }
-    public void setTimestamp(Instant timestamp) { this.timestamp = timestamp; }
+    public void setTimestamp(final Instant timestamp) { this.timestamp = timestamp; }
 
     public String getUserEmail() { return userEmail; }
-    public void setUserEmail(String userEmail) { this.userEmail = userEmail; }
+    public void setUserEmail(final String userEmail) { this.userEmail = userEmail; }
 
     public String getUserId() { return userId; }
-    public void setUserId(String userId) { this.userId = userId; }
+    public void setUserId(final String userId) { this.userId = userId; }
 
     public String getAction() { return action; }
-    public void setAction(String action) { this.action = action; }
+    public void setAction(final String action) { this.action = action; }
 
     public String getResourceType() { return resourceType; }
-    public void setResourceType(String resourceType) { this.resourceType = resourceType; }
+    public void setResourceType(final String resourceType) { this.resourceType = resourceType; }
 
     public String getResourceId() { return resourceId; }
-    public void setResourceId(String resourceId) { this.resourceId = resourceId; }
+    public void setResourceId(final String resourceId) { this.resourceId = resourceId; }
 
     public String getOutcome() { return outcome; }
-    public void setOutcome(String outcome) { this.outcome = outcome; }
+    public void setOutcome(final String outcome) { this.outcome = outcome; }
 
     public String getIpAddress() { return ipAddress; }
-    public void setIpAddress(String ipAddress) { this.ipAddress = ipAddress; }
+    public void setIpAddress(final String ipAddress) { this.ipAddress = ipAddress; }
 
     public Map<String, Object> getDetails() { return details; }
-    public void setDetails(Map<String, Object> details) { this.details = details; }
+    public void setDetails(final Map<String, Object> details) { this.details = details; }
 }

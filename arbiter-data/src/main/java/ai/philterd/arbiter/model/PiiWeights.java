@@ -11,7 +11,7 @@ public final class PiiWeights {
 
     private static final Map<String, Integer> DEFAULTS;
     static {
-        Map<String, Integer> m = new LinkedHashMap<>();
+        final Map<String, Integer> m = new LinkedHashMap<>();
         m.put("ssn", 10);
         m.put("credit-card", 10);
         m.put("phone-number", 5);
@@ -29,19 +29,19 @@ public final class PiiWeights {
         return DEFAULTS;
     }
 
-    public static int weightFor(String type, Map<String, Integer> overrides) {
+    public static int weightFor(final String type, final Map<String, Integer> overrides) {
         if (type == null) return DEFAULT_FALLBACK;
-        String key = type.trim().toLowerCase(Locale.ROOT);
+        final String key = type.trim().toLowerCase(Locale.ROOT);
         if (overrides != null) {
-            Integer override = overrides.get(key);
+            final Integer override = overrides.get(key);
             if (override != null) return Math.max(0, override);
         }
-        Integer def = DEFAULTS.get(key);
+        final Integer def = DEFAULTS.get(key);
         return def == null ? DEFAULT_FALLBACK : def;
     }
 
-    public static Map<String, Integer> effective(Map<String, Integer> overrides) {
-        Map<String, Integer> out = new LinkedHashMap<>();
+    public static Map<String, Integer> effective(final Map<String, Integer> overrides) {
+        final Map<String, Integer> out = new LinkedHashMap<>();
         for (String type : PiiTypes.values()) {
             out.put(type, weightFor(type, overrides));
         }

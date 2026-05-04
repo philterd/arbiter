@@ -39,22 +39,22 @@ public class AdminGeneralController {
     private final GeneralSettingsService generalSettingsService;
     private final AuditLogService auditLogService;
 
-    public AdminGeneralController(GeneralSettingsService generalSettingsService,
-                                  AuditLogService auditLogService) {
+    public AdminGeneralController(final GeneralSettingsService generalSettingsService,
+                                  final AuditLogService auditLogService) {
         this.generalSettingsService = generalSettingsService;
         this.auditLogService = auditLogService;
     }
 
     @GetMapping
-    public String form(Model model) {
+    public String form(final Model model) {
         model.addAttribute("settings", generalSettingsService.load());
         model.addAttribute("timezones", availableTimezones());
         return "admin-general";
     }
 
     @PostMapping("/url")
-    public String saveUrl(@RequestParam("arbiterUrl") String arbiterUrl,
-                          RedirectAttributes redirectAttributes) {
+    public String saveUrl(@RequestParam("arbiterUrl") final String arbiterUrl,
+                          final RedirectAttributes redirectAttributes) {
         String trimmed = arbiterUrl == null ? "" : arbiterUrl.trim();
         if (trimmed.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Arbiter URL is required.");
@@ -74,8 +74,8 @@ public class AdminGeneralController {
             trimmed = trimmed.substring(0, trimmed.length() - 1);
         }
 
-        GeneralSettings settings = generalSettingsService.load();
-        String previous = settings.getArbiterUrl();
+        final GeneralSettings settings = generalSettingsService.load();
+        final String previous = settings.getArbiterUrl();
         settings.setArbiterUrl(trimmed);
         generalSettingsService.save(settings);
 
@@ -87,9 +87,9 @@ public class AdminGeneralController {
     }
 
     @PostMapping("/timezone")
-    public String saveTimezone(@RequestParam("timezone") String timezone,
-                               RedirectAttributes redirectAttributes) {
-        String tz = timezone == null ? "" : timezone.trim();
+    public String saveTimezone(@RequestParam("timezone") final String timezone,
+                               final RedirectAttributes redirectAttributes) {
+        final String tz = timezone == null ? "" : timezone.trim();
         if (tz.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Timezone is required.");
             return "redirect:/admin/general";
@@ -101,8 +101,8 @@ public class AdminGeneralController {
             return "redirect:/admin/general";
         }
 
-        GeneralSettings settings = generalSettingsService.load();
-        String previous = settings.getTimezone();
+        final GeneralSettings settings = generalSettingsService.load();
+        final String previous = settings.getTimezone();
         settings.setTimezone(tz);
         generalSettingsService.save(settings);
 
@@ -114,7 +114,7 @@ public class AdminGeneralController {
     }
 
     private static List<String> availableTimezones() {
-        List<String> zones = new ArrayList<>();
+        final List<String> zones = new ArrayList<>();
         zones.add("UTC");
         ZoneId.getAvailableZoneIds().stream()
                 .filter(id -> id.contains("/"))
