@@ -17,6 +17,7 @@ package ai.philterd.arbiter.webapp;
 
 import ai.philterd.arbiter.model.Batch;
 import ai.philterd.arbiter.model.Document;
+import ai.philterd.arbiter.model.Domains;
 import ai.philterd.arbiter.model.PhilterInstance;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
@@ -33,8 +34,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -67,6 +70,7 @@ public class ReportingController {
     @GetMapping("/reporting")
     public String view(@RequestParam(name = "start", required = false) String start,
                        @RequestParam(name = "end", required = false) String end,
+                       @RequestParam(name = "domain", required = false) List<String> domain,
                        Authentication authentication,
                        Model model) {
         boolean admin = isAdmin(authentication);
@@ -86,9 +90,23 @@ public class ReportingController {
         LocalDateTime rangeStart = startDate.atStartOfDay();
         LocalDateTime rangeEndExclusive = endDate.plusDays(1).atStartOfDay();
 
+        // Domain filter — accept any number of repeated `domain=Legal&domain=Healthcare` params,
+        // ignoring values that aren't in the curated list.
+        Set<String> selectedDomains = new LinkedHashSet<>();
+        if (domain != null) {
+            for (String d : domain) {
+                if (d != null && Domains.isValid(d.trim())) {
+                    selectedDomains.add(d.trim());
+                }
+            }
+        }
+
         List<Batch> batches = batchRepository.findAll();
         if (restrict) {
             batches.removeIf(b -> b.getGroupId() == null || !myGroupIds.contains(b.getGroupId()));
+        }
+        if (!selectedDomains.isEmpty()) {
+            batches.removeIf(b -> b.getDomain() == null || !selectedDomains.contains(b.getDomain()));
         }
 
         Map<String, Long> globalStatusCounts = new LinkedHashMap<>();
@@ -113,6 +131,9 @@ public class ReportingController {
 
         // Aggregations keyed by "philterDisplayName::policyOrNone"
         Map<String, Map<String, Object>> policyAggregates = new LinkedHashMap<>();
+
+        // Aggregations keyed by domain name (or "(none)" for batches without a domain).
+        Map<String, Map<String, Object>> domainAggregates = new LinkedHashMap<>();
 
         List<Map<String, Object>> batchRows = new ArrayList<>();
         for (Batch batch : batches) {
@@ -188,6 +209,23 @@ public class ReportingController {
             agg.put("spansRejected", (Long) agg.get("spansRejected") + spansRejected);
             agg.put("spansManual", (Long) agg.get("spansManual") + spansManual);
 
+            String domainKey = batch.getDomain() == null ? "(none)" : batch.getDomain();
+            Map<String, Object> dAgg = domainAggregates.computeIfAbsent(domainKey, k -> {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("domain", k);
+                m.put("batches", 0L);
+                m.put("documents", 0L);
+                m.put("spansAccepted", 0L);
+                m.put("spansRejected", 0L);
+                m.put("spansManual", 0L);
+                return m;
+            });
+            dAgg.put("batches", (Long) dAgg.get("batches") + 1);
+            dAgg.put("documents", (Long) dAgg.get("documents") + (long) docs.size());
+            dAgg.put("spansAccepted", (Long) dAgg.get("spansAccepted") + spansAccepted);
+            dAgg.put("spansRejected", (Long) dAgg.get("spansRejected") + spansRejected);
+            dAgg.put("spansManual", (Long) dAgg.get("spansManual") + spansManual);
+
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("id", batch.getId());
             row.put("name", batch.getName() == null ? "" : batch.getName());
@@ -220,6 +258,20 @@ public class ReportingController {
                 .thenComparing(r -> ((String) r.get("philterName")).toLowerCase())
                 .thenComparing(r -> ((String) r.get("policyName")).toLowerCase()));
 
+        // Compute editRate for each domain aggregate.
+        for (Map<String, Object> agg : domainAggregates.values()) {
+            long acc = (Long) agg.get("spansAccepted");
+            long rej = (Long) agg.get("spansRejected");
+            long man = (Long) agg.get("spansManual");
+            long denom = Math.max(1L, acc + rej + man);
+            agg.put("editRate", (double) man / (double) denom);
+        }
+        List<Map<String, Object>> domainRows = new ArrayList<>(domainAggregates.values());
+        domainRows.sort(Comparator
+                .comparingDouble((Map<String, Object> r) -> ((Number) r.get("editRate")).doubleValue())
+                .reversed()
+                .thenComparing(r -> ((String) r.get("domain")).toLowerCase()));
+
         batchRows.sort(Comparator
                 .comparingLong((Map<String, Object> r) -> ((Number) r.get("documentCount")).longValue())
                 .reversed()
@@ -241,11 +293,14 @@ public class ReportingController {
         model.addAttribute("spansManualTotal", spansManualTotal);
         model.addAttribute("globalEditRate", globalEditRate);
         model.addAttribute("policyRows", policyRows);
+        model.addAttribute("domainRows", domainRows);
         model.addAttribute("batchRows", batchRows);
         model.addAttribute("knownStatuses", KNOWN_STATUSES);
         model.addAttribute("isAdmin", admin);
         model.addAttribute("startDate", startDate.toString());
         model.addAttribute("endDate", endDate.toString());
+        model.addAttribute("availableDomains", Domains.VALUES);
+        model.addAttribute("selectedDomains", Collections.unmodifiableSet(selectedDomains));
         return "reporting";
     }
 

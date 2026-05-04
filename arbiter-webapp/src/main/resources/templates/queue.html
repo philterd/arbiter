@@ -100,6 +100,10 @@
                 <div class="flex justify-between items-center mb-6">
                     <h2 class="text-3xl font-bold text-gray-900">Queue</h2>
                     <div class="flex items-center gap-4">
+                        <label sec:authorize="hasRole('ADMIN')" class="inline-flex items-center cursor-pointer text-sm text-gray-700">
+                            <input id="myGroupsOnlyCb" type="checkbox" class="mr-2">
+                            Just documents for my group
+                        </label>
                         <button id="refreshBtn" class="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-100 font-medium rounded-lg transition duration-200">
                             Refresh
                         </button>
@@ -213,6 +217,8 @@
             if (batchId) params.set('batchId', batchId);
             if (status) params.set('status', status);
             if (filename) params.set('filename', filename);
+            const myGroupsCb = document.getElementById('myGroupsOnlyCb');
+            if (myGroupsCb && myGroupsCb.checked) params.set('myGroupsOnly', 'true');
             params.set('sort', currentSort);
             params.set('dir', currentDir);
 
@@ -235,8 +241,12 @@
             const select = document.getElementById('batchFilter');
             const previousValue = select.value;
             select.innerHTML = '<option value="">All batches</option>';
+            const myGroupsCb = document.getElementById('myGroupsOnlyCb');
+            const url = myGroupsCb && myGroupsCb.checked
+                    ? '/api/v1/batches?myGroupsOnly=true'
+                    : '/api/v1/batches';
             try {
-                const response = await fetch('/api/v1/batches');
+                const response = await fetch(url);
                 if (!response.ok) return;
                 const batches = await response.json();
                 for (const b of batches) {
@@ -368,6 +378,16 @@
                 filenameInput.value = '';
                 onFilterChange();
             });
+
+            const myGroupsCb = document.getElementById('myGroupsOnlyCb');
+            if (myGroupsCb) {
+                myGroupsCb.addEventListener('change', async () => {
+                    document.getElementById('batchFilter').value = '';
+                    currentPage = 0;
+                    await loadBatches();
+                    loadQueue(currentPage);
+                });
+            }
         });
     </script>
 </body>

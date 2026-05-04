@@ -207,6 +207,49 @@
                 </div>
             </div>
 
+            <!-- Per-domain aggregates -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">Per domain</h3>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Aggregated across all batches sharing the same domain. Use the Domains
+                        filter above to focus on, or compare, a specific subset (e.g. Legal vs Healthcare).
+                    </p>
+                </div>
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Domain</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Batches</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Docs</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-green-700 uppercase tracking-wider">Accepted</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-red-700 uppercase tracking-wider">Rejected</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Manual</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Edit rate</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        <tr th:if="${#lists.isEmpty(domainRows)}">
+                            <td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500">
+                                No batches in scope.
+                            </td>
+                        </tr>
+                        <tr th:each="r : ${domainRows}" class="hover:bg-gray-50">
+                            <td class="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900"
+                                th:text="${r.domain}">Domain</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right" th:text="${r.batches}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right" th:text="${r.documents}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-green-700 text-right font-medium" th:text="${r.spansAccepted}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-red-700 text-right font-medium" th:text="${r.spansRejected}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-amber-700 text-right font-medium" th:text="${r.spansManual}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right"
+                                th:classappend="${r.editRate >= 0.20} ? 'text-red-700 font-semibold' : (${r.editRate >= 0.10} ? 'text-amber-700' : '')"
+                                th:text="${#numbers.formatDecimal(r.editRate * 100, 1, 1) + '%'}">0.0%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
             <!-- Per-Philter / Policy aggregates -->
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
                 <div class="px-6 py-4 border-b border-gray-200">

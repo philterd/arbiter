@@ -52,6 +52,7 @@ public class TriageController {
             @RequestParam(required = false) String batchId,
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String filename,
+            @RequestParam(name = "myGroupsOnly", defaultValue = "false") boolean myGroupsOnly,
             @RequestParam(name = "sort", defaultValue = "riskScore") String sort,
             @RequestParam(name = "dir", defaultValue = "desc") String dir,
             Authentication authentication) {
@@ -65,7 +66,9 @@ public class TriageController {
         boolean hasFilename = !trimmedFilename.isEmpty();
 
         boolean admin = isAdmin(authentication);
-        boolean restrict = !admin;
+        // Non-admins are always restricted to their groups. Admins see everything by default,
+        // but can opt in to the same scope via myGroupsOnly=true.
+        boolean restrict = !admin || myGroupsOnly;
         Set<String> allowedBatchIds = restrict ? allowedBatchIds(authentication) : null;
 
         if (restrict && allowedBatchIds.isEmpty()) {
@@ -123,9 +126,11 @@ public class TriageController {
     }
 
     @GetMapping("/batches")
-    public List<Map<String, String>> getBatches(Authentication authentication) {
+    public List<Map<String, String>> getBatches(
+            @RequestParam(name = "myGroupsOnly", defaultValue = "false") boolean myGroupsOnly,
+            Authentication authentication) {
         boolean admin = isAdmin(authentication);
-        boolean restrict = !admin;
+        boolean restrict = !admin || myGroupsOnly;
         Set<String> myGroupIds = restrict
                 ? userGroupsService.groupIdsForEmail(authentication == null ? null : authentication.getName())
                 : null;
