@@ -17,8 +17,11 @@ package ai.philterd.arbiter.webapp;
 
 import ai.philterd.arbiter.model.Batch;
 import ai.philterd.arbiter.model.Document;
+import ai.philterd.arbiter.model.PhilterInstance;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
+import ai.philterd.arbiter.repository.PhilterInstanceRepository;
+import ai.philterd.arbiter.repository.SpanRepository;
 import ai.philterd.arbiter.service.UserGroupsService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
@@ -43,13 +46,19 @@ public class ReportingController {
 
     private final BatchRepository batchRepository;
     private final DocumentRepository documentRepository;
+    private final SpanRepository spanRepository;
+    private final PhilterInstanceRepository philterInstanceRepository;
     private final UserGroupsService userGroupsService;
 
     public ReportingController(BatchRepository batchRepository,
                                DocumentRepository documentRepository,
+                               SpanRepository spanRepository,
+                               PhilterInstanceRepository philterInstanceRepository,
                                UserGroupsService userGroupsService) {
         this.batchRepository = batchRepository;
         this.documentRepository = documentRepository;
+        this.spanRepository = spanRepository;
+        this.philterInstanceRepository = philterInstanceRepository;
         this.userGroupsService = userGroupsService;
     }
 
@@ -78,6 +87,19 @@ public class ReportingController {
         long openBatches = 0;
         long closedBatches = 0;
 
+        Map<String, String> philterNames = new LinkedHashMap<>();
+        for (PhilterInstance i : philterInstanceRepository.findAll()) {
+            philterNames.put(i.getId(), i.getName() == null ? i.getId() : i.getName());
+        }
+
+        long spansAcceptedTotal = 0;
+        long spansRejectedTotal = 0;
+        long spansManualTotal = 0;
+        long spansTotal = 0;
+
+        // Aggregations keyed by "philterDisplayName::policyOrNone"
+        Map<String, Map<String, Object>> policyAggregates = new LinkedHashMap<>();
+
         List<Map<String, Object>> batchRows = new ArrayList<>();
         for (Batch batch : batches) {
             if (batch.isClosed()) closedBatches++;
@@ -104,6 +126,45 @@ public class ReportingController {
             }
             totalDocuments += docs.size();
 
+            // Span counts for this batch
+            List<String> docIds = docs.stream().map(Document::getId).filter(java.util.Objects::nonNull).toList();
+            long spansAccepted = docIds.isEmpty() ? 0L
+                    : spanRepository.countByDocumentIdInAndStatus(docIds, "APPROVED");
+            long spansRejected = docIds.isEmpty() ? 0L
+                    : spanRepository.countByDocumentIdInAndStatus(docIds, "REJECTED");
+            long spansManual = docIds.isEmpty() ? 0L
+                    : spanRepository.countByDocumentIdInAndManuallyCreated(docIds, true);
+            long spansBatchTotal = spansAccepted + spansRejected;
+            long editRateBaseline = Math.max(1L, spansBatchTotal + spansManual);
+            double editRate = (double) spansManual / (double) editRateBaseline;
+
+            spansAcceptedTotal += spansAccepted;
+            spansRejectedTotal += spansRejected;
+            spansManualTotal += spansManual;
+            spansTotal += spansBatchTotal;
+
+            String philterName = batch.getPhilterInstanceId() == null
+                    ? "Embedded Philter"
+                    : philterNames.getOrDefault(batch.getPhilterInstanceId(), "(missing)");
+            String policyName = batch.getPolicyName() == null ? "(no policy)" : batch.getPolicyName();
+            String aggKey = philterName + "::" + policyName;
+            Map<String, Object> agg = policyAggregates.computeIfAbsent(aggKey, k -> {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("philterName", philterName);
+                m.put("policyName", policyName);
+                m.put("batches", 0L);
+                m.put("documents", 0L);
+                m.put("spansAccepted", 0L);
+                m.put("spansRejected", 0L);
+                m.put("spansManual", 0L);
+                return m;
+            });
+            agg.put("batches", (Long) agg.get("batches") + 1);
+            agg.put("documents", (Long) agg.get("documents") + (long) docs.size());
+            agg.put("spansAccepted", (Long) agg.get("spansAccepted") + spansAccepted);
+            agg.put("spansRejected", (Long) agg.get("spansRejected") + spansRejected);
+            agg.put("spansManual", (Long) agg.get("spansManual") + spansManual);
+
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("id", batch.getId());
             row.put("name", batch.getName() == null ? "" : batch.getName());
@@ -112,13 +173,37 @@ public class ReportingController {
             row.put("statusCounts", statusCounts);
             row.put("autoApproved", batchAutoApproved);
             row.put("avgRiskScore", docs.isEmpty() ? 0.0 : batchRiskSum / docs.size());
+            row.put("philterName", philterName);
+            row.put("policyName", policyName);
+            row.put("spansAccepted", spansAccepted);
+            row.put("spansRejected", spansRejected);
+            row.put("spansManual", spansManual);
+            row.put("editRate", editRate);
             batchRows.add(row);
         }
+
+        // Compute editRate for each policy aggregate.
+        for (Map<String, Object> agg : policyAggregates.values()) {
+            long acc = (Long) agg.get("spansAccepted");
+            long rej = (Long) agg.get("spansRejected");
+            long man = (Long) agg.get("spansManual");
+            long denom = Math.max(1L, acc + rej + man);
+            agg.put("editRate", (double) man / (double) denom);
+        }
+        List<Map<String, Object>> policyRows = new ArrayList<>(policyAggregates.values());
+        policyRows.sort(Comparator
+                .comparingDouble((Map<String, Object> r) -> ((Number) r.get("editRate")).doubleValue())
+                .reversed()
+                .thenComparing(r -> ((String) r.get("philterName")).toLowerCase())
+                .thenComparing(r -> ((String) r.get("policyName")).toLowerCase()));
 
         batchRows.sort(Comparator
                 .comparingLong((Map<String, Object> r) -> ((Number) r.get("documentCount")).longValue())
                 .reversed()
                 .thenComparing(r -> ((String) r.get("name")).toLowerCase()));
+
+        long globalEditDenom = Math.max(1L, spansTotal + spansManualTotal);
+        double globalEditRate = (double) spansManualTotal / (double) globalEditDenom;
 
         model.addAttribute("totalBatches", (long) batches.size());
         model.addAttribute("openBatches", openBatches);
@@ -128,6 +213,11 @@ public class ReportingController {
         model.addAttribute("autoApprovedTotal", autoApprovedTotal);
         model.addAttribute("needsReviewTotal", needsReviewTotal);
         model.addAttribute("avgRiskScore", totalDocuments == 0 ? 0.0 : riskScoreSum / totalDocuments);
+        model.addAttribute("spansAcceptedTotal", spansAcceptedTotal);
+        model.addAttribute("spansRejectedTotal", spansRejectedTotal);
+        model.addAttribute("spansManualTotal", spansManualTotal);
+        model.addAttribute("globalEditRate", globalEditRate);
+        model.addAttribute("policyRows", policyRows);
         model.addAttribute("batchRows", batchRows);
         model.addAttribute("knownStatuses", KNOWN_STATUSES);
         model.addAttribute("isAdmin", admin);

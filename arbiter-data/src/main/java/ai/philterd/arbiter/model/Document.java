@@ -2,6 +2,8 @@ package ai.philterd.arbiter.model;
 
 import org.springframework.data.annotation.Id;
 
+import java.time.LocalDateTime;
+
 @org.springframework.data.mongodb.core.mapping.Document(collection = "documents")
 public class Document {
 
@@ -14,8 +16,17 @@ public class Document {
     private String status;
     private double riskScore;
     private String philterContextId;
+    private LocalDateTime createdAt;
 
     public Document() {
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
     }
 
     public String getId() {

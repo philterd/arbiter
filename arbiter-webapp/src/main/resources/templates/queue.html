@@ -18,7 +18,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Arbiter - Queue</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script th:src="@{/js/tailwind.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -72,7 +72,7 @@
                     </svg>
                     Settings
                 </a>
-                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/users}"
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/general}"
                    class="nav-link flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
@@ -130,6 +130,11 @@
                             <option value="FAILED">FAILED</option>
                         </select>
                     </div>
+                    <div>
+                        <label for="filenameFilter" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Filename</label>
+                        <input id="filenameFilter" type="search" placeholder="Search by filename"
+                               class="rounded-lg border border-gray-300 bg-white text-sm p-2 min-w-[16rem] focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
                     <button id="clearFiltersBtn" type="button" class="px-3 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
                         Clear
                     </button>
@@ -155,12 +160,13 @@
                                     class="sortable px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700">
                                     Risk Score <span class="sort-arrow"></span>
                                 </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days in Queue</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="queueBody" class="bg-white divide-y divide-gray-200">
                             <tr>
-                                <td colspan="5" class="px-6 py-8 text-center text-sm text-gray-500">Loading...</td>
+                                <td colspan="6" class="px-6 py-8 text-center text-sm text-gray-500">Loading...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -207,13 +213,15 @@
 
         async function loadQueue(page) {
             const body = document.getElementById('queueBody');
-            body.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-sm text-gray-500">Loading...</td></tr>';
+            body.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-sm text-gray-500">Loading...</td></tr>';
 
             const params = new URLSearchParams({ page, size: pageSize });
             const batchId = document.getElementById('batchFilter').value;
             const status = document.getElementById('statusFilter').value;
+            const filename = document.getElementById('filenameFilter').value.trim();
             if (batchId) params.set('batchId', batchId);
             if (status) params.set('status', status);
+            if (filename) params.set('filename', filename);
             params.set('myGroupsOnly', myGroupsOnlyValue());
             params.set('sort', currentSort);
             params.set('dir', currentDir);
@@ -226,7 +234,7 @@
                 const data = await response.json();
                 renderQueue(data);
             } catch (err) {
-                body.innerHTML = `<tr><td colspan="5" class="px-6 py-8 text-center text-sm text-red-600">Failed to load queue: ${escapeHtml(err.message)}</td></tr>`;
+                body.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-sm text-red-600">Failed to load queue: ${escapeHtml(err.message)}</td></tr>`;
                 document.getElementById('pageInfo').textContent = '';
                 document.getElementById('prevBtn').disabled = true;
                 document.getElementById('nextBtn').disabled = true;
@@ -261,7 +269,7 @@
             const docs = data.content || [];
 
             if (docs.length === 0) {
-                body.innerHTML = '<tr><td colspan="5" class="px-6 py-8 text-center text-sm text-gray-500">No documents in the queue.</td></tr>';
+                body.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-sm text-gray-500">No documents in the queue.</td></tr>';
             } else {
                 body.innerHTML = docs.map(doc => {
                     const displayStatus = doc.autoApproved ? 'AUTO_APPROVED' : (doc.status || '');
@@ -273,6 +281,7 @@
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass(displayStatus)}">${escapeHtml(displayStatus)}</span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${(doc.riskScore ?? 0).toFixed(2)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${doc.daysInQueue == null ? '<span class="text-gray-400">—</span>' : doc.daysInQueue}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm">
                             <a href="/review/${encodeURIComponent(doc.id)}" class="text-blue-600 hover:text-blue-800 font-medium">Review</a>
                         </td>
@@ -349,9 +358,25 @@
             };
             document.getElementById('batchFilter').addEventListener('change', onFilterChange);
             document.getElementById('statusFilter').addEventListener('change', onFilterChange);
+
+            let filenameDebounce = null;
+            const filenameInput = document.getElementById('filenameFilter');
+            filenameInput.addEventListener('input', () => {
+                clearTimeout(filenameDebounce);
+                filenameDebounce = setTimeout(onFilterChange, 250);
+            });
+            filenameInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    clearTimeout(filenameDebounce);
+                    onFilterChange();
+                }
+            });
+
             document.getElementById('clearFiltersBtn').addEventListener('click', () => {
                 document.getElementById('batchFilter').value = '';
                 document.getElementById('statusFilter').value = '';
+                filenameInput.value = '';
                 onFilterChange();
             });
             const myGroupsCb = document.getElementById('myGroupsOnlyCb');

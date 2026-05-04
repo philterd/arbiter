@@ -200,6 +200,7 @@ public class DemoDataLoader implements ApplicationRunner {
         Document document = new Document();
         document.setId(UUID.randomUUID().toString());
         document.setBatchId(batch.getId());
+        document.setCreatedAt(LocalDateTime.now());
         document.setFilename(file.getFileName().toString());
         document.setStoragePath(file.toAbsolutePath().toString());
         document.setOriginalText(text);

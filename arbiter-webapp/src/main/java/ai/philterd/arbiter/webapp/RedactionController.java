@@ -49,6 +49,7 @@ import jakarta.servlet.http.HttpSession;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -223,6 +224,7 @@ public class RedactionController {
         Document document = new Document();
         document.setId(UUID.randomUUID().toString());
         document.setBatchId(batch.getId());
+        document.setCreatedAt(LocalDateTime.now());
         document.setFilename(filename);
         document.setOriginalText(originalText);
 

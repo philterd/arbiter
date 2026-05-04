@@ -6,7 +6,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Arbiter - Reports</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script th:src="@{/js/tailwind.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -60,7 +60,7 @@
                     </svg>
                     Settings
                 </a>
-                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/users}"
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/general}"
                    class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
@@ -119,6 +119,31 @@
                 </div>
             </div>
 
+            <!-- Span KPI cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Spans accepted</div>
+                    <div class="text-3xl font-bold text-green-700 mt-1" th:text="${spansAcceptedTotal}">0</div>
+                    <div class="text-xs text-gray-500 mt-1">PII detections approved by reviewers</div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Spans rejected</div>
+                    <div class="text-3xl font-bold text-red-700 mt-1" th:text="${spansRejectedTotal}">0</div>
+                    <div class="text-xs text-gray-500 mt-1">false positives or incorrect detections</div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Manually created</div>
+                    <div class="text-3xl font-bold text-amber-700 mt-1" th:text="${spansManualTotal}">0</div>
+                    <div class="text-xs text-gray-500 mt-1">spans the redactor missed; reviewer added</div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Edit rate</div>
+                    <div class="text-3xl font-bold text-gray-900 mt-1"
+                         th:text="${#numbers.formatDecimal(globalEditRate * 100, 1, 1) + '%'}">0.0%</div>
+                    <div class="text-xs text-gray-500 mt-1">manual ÷ (accepted + rejected + manual)</div>
+                </div>
+            </div>
+
             <!-- Status breakdown -->
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                 <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
@@ -149,6 +174,49 @@
                 </div>
             </div>
 
+            <!-- Per-Philter / Policy aggregates -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">Per Philter / Policy</h3>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Aggregated across all batches sharing a Philter instance and policy. Sorted by edit rate descending — high values flag policies that are letting too much through (or false-positiving) so reviewers are doing extra manual work.
+                    </p>
+                </div>
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Philter</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Policy</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Batches</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Docs</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-green-700 uppercase tracking-wider">Accepted</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-red-700 uppercase tracking-wider">Rejected</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Manual</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Edit rate</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        <tr th:if="${#lists.isEmpty(policyRows)}">
+                            <td colspan="8" class="px-6 py-8 text-center text-sm text-gray-500">
+                                No batches in scope.
+                            </td>
+                        </tr>
+                        <tr th:each="r : ${policyRows}" class="hover:bg-gray-50">
+                            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-900" th:text="${r.philterName}">Philter</td>
+                            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700" th:text="${r.policyName}">Policy</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right" th:text="${r.batches}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right" th:text="${r.documents}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-green-700 text-right font-medium" th:text="${r.spansAccepted}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-red-700 text-right font-medium" th:text="${r.spansRejected}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-amber-700 text-right font-medium" th:text="${r.spansManual}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right"
+                                th:classappend="${r.editRate >= 0.20} ? 'text-red-700 font-semibold' : (${r.editRate >= 0.10} ? 'text-amber-700' : '')"
+                                th:text="${#numbers.formatDecimal(r.editRate * 100, 1, 1) + '%'}">0.0%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
             <!-- Per-batch table -->
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                 <div class="px-6 py-4 border-b border-gray-200">
@@ -158,17 +226,19 @@
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
-                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Documents</th>
-                            <th th:each="s : ${knownStatuses}"
-                                class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
-                                th:text="${s}">STATUS</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Philter / Policy</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Docs</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-green-700 uppercase tracking-wider">Accepted</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-red-700 uppercase tracking-wider">Rejected</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Manual</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Edit rate</th>
                             <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Auto-approved</th>
                             <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Avg risk</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
                         <tr th:if="${#lists.isEmpty(batchRows)}">
-                            <td th:attr="colspan=${knownStatuses.size() + 4}" class="px-6 py-8 text-center text-sm text-gray-500">
+                            <td colspan="9" class="px-6 py-8 text-center text-sm text-gray-500">
                                 No batches in scope.
                             </td>
                         </tr>
@@ -178,10 +248,17 @@
                                 <span th:if="${row.closed}"
                                       class="ml-2 px-2 inline-flex text-[10px] leading-5 font-semibold rounded-full bg-gray-200 text-gray-700 uppercase tracking-wide">Closed</span>
                             </td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm">
+                                <div class="text-gray-900" th:text="${row.philterName}">Philter</div>
+                                <div class="text-xs text-gray-500" th:text="${row.policyName}">Policy</div>
+                            </td>
                             <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-900 text-right" th:text="${row.documentCount}">0</td>
-                            <td th:each="s : ${knownStatuses}"
-                                class="px-3 py-3 whitespace-nowrap text-sm text-gray-700 text-right"
-                                th:text="${row.statusCounts.get(s) != null ? row.statusCounts.get(s) : 0}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-green-700 text-right font-medium" th:text="${row.spansAccepted}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-red-700 text-right font-medium" th:text="${row.spansRejected}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-amber-700 text-right font-medium" th:text="${row.spansManual}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right"
+                                th:classappend="${row.editRate >= 0.20} ? 'text-red-700 font-semibold' : (${row.editRate >= 0.10} ? 'text-amber-700' : '')"
+                                th:text="${#numbers.formatDecimal(row.editRate * 100, 1, 1) + '%'}">0.0%</td>
                             <td class="px-3 py-3 whitespace-nowrap text-sm text-emerald-700 text-right font-medium"
                                 th:text="${row.autoApproved}">0</td>
                             <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right"

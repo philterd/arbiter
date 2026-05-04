@@ -35,6 +35,9 @@ public class GeneralSettingsService {
         if (settings.getArbiterUrl() == null || settings.getArbiterUrl().isBlank()) {
             settings.setArbiterUrl(defaultArbiterUrl());
         }
+        if (settings.getTimezone() == null || settings.getTimezone().isBlank()) {
+            settings.setTimezone("UTC");
+        }
         return settings;
     }
 

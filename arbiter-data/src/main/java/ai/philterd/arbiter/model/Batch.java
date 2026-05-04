@@ -25,6 +25,7 @@ public class Batch {
     private String weightSetId;
     private String philterInstanceId;
     private String policyName;
+    private String domain;
     private boolean closed;
     private LocalDateTime closedAt;
     private String closedBy;
@@ -134,6 +135,14 @@ public class Batch {
 
     public void setPolicyName(String policyName) {
         this.policyName = policyName;
+    }
+
+    public String getDomain() {
+        return domain;
+    }
+
+    public void setDomain(String domain) {
+        this.domain = domain;
     }
 
     public boolean isClosed() {

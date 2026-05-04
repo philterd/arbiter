@@ -27,6 +27,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.net.URI;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 @Controller
@@ -45,12 +48,13 @@ public class AdminGeneralController {
     @GetMapping
     public String form(Model model) {
         model.addAttribute("settings", generalSettingsService.load());
+        model.addAttribute("timezones", availableTimezones());
         return "admin-general";
     }
 
-    @PostMapping
-    public String save(@RequestParam("arbiterUrl") String arbiterUrl,
-                       RedirectAttributes redirectAttributes) {
+    @PostMapping("/url")
+    public String saveUrl(@RequestParam("arbiterUrl") String arbiterUrl,
+                          RedirectAttributes redirectAttributes) {
         String trimmed = arbiterUrl == null ? "" : arbiterUrl.trim();
         if (trimmed.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Arbiter URL is required.");
@@ -78,7 +82,45 @@ public class AdminGeneralController {
         auditLogService.log("GENERAL_SETTINGS_CHANGE", "Settings", GeneralSettings.SINGLETON_ID,
                 Map.of("previousArbiterUrl", previous == null ? "" : previous,
                         "arbiterUrl", trimmed));
-        redirectAttributes.addFlashAttribute("success", "General settings saved.");
+        redirectAttributes.addFlashAttribute("success", "Arbiter URL saved.");
         return "redirect:/admin/general";
+    }
+
+    @PostMapping("/timezone")
+    public String saveTimezone(@RequestParam("timezone") String timezone,
+                               RedirectAttributes redirectAttributes) {
+        String tz = timezone == null ? "" : timezone.trim();
+        if (tz.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Timezone is required.");
+            return "redirect:/admin/general";
+        }
+        try {
+            ZoneId.of(tz);
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "Timezone \"" + tz + "\" is not a valid IANA zone.");
+            return "redirect:/admin/general";
+        }
+
+        GeneralSettings settings = generalSettingsService.load();
+        String previous = settings.getTimezone();
+        settings.setTimezone(tz);
+        generalSettingsService.save(settings);
+
+        auditLogService.log("GENERAL_SETTINGS_CHANGE", "Settings", GeneralSettings.SINGLETON_ID,
+                Map.of("previousTimezone", previous == null ? "" : previous,
+                        "timezone", tz));
+        redirectAttributes.addFlashAttribute("success", "Timezone saved.");
+        return "redirect:/admin/general";
+    }
+
+    private static List<String> availableTimezones() {
+        List<String> zones = new ArrayList<>();
+        zones.add("UTC");
+        ZoneId.getAvailableZoneIds().stream()
+                .filter(id -> id.contains("/"))
+                .filter(id -> !id.startsWith("Etc/") && !id.startsWith("SystemV/"))
+                .sorted()
+                .forEach(zones::add);
+        return zones;
     }
 }

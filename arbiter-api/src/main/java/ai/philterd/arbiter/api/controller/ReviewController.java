@@ -270,6 +270,7 @@ public class ReviewController {
             fresh.setConfidence(1.0);
             fresh.setStatus("APPROVED");
             fresh.setLocation(new Location(idx, end, 1, new Coordinates(0, 0, 0, 0)));
+            fresh.setManuallyCreated(true);
             toSave.add(fresh);
             existingRanges.add(new long[]{idx, end});
             created++;

@@ -16,6 +16,13 @@ public interface DocumentRepository extends MongoRepository<Document, String> {
     Page<Document> findByBatchIdAndStatusIn(String batchId, java.util.Collection<String> statuses, Pageable pageable);
     Page<Document> findByBatchIdIn(java.util.Collection<String> batchIds, Pageable pageable);
     Page<Document> findByBatchIdInAndStatus(java.util.Collection<String> batchIds, String status, Pageable pageable);
+
+    Page<Document> findByFilenameContainingIgnoreCase(String filename, Pageable pageable);
+    Page<Document> findByStatusAndFilenameContainingIgnoreCase(String status, String filename, Pageable pageable);
+    Page<Document> findByBatchIdAndFilenameContainingIgnoreCase(String batchId, String filename, Pageable pageable);
+    Page<Document> findByBatchIdAndStatusAndFilenameContainingIgnoreCase(String batchId, String status, String filename, Pageable pageable);
+    Page<Document> findByBatchIdInAndFilenameContainingIgnoreCase(java.util.Collection<String> batchIds, String filename, Pageable pageable);
+    Page<Document> findByBatchIdInAndStatusAndFilenameContainingIgnoreCase(java.util.Collection<String> batchIds, String status, String filename, Pageable pageable);
     long countByBatchId(String batchId);
     long countByBatchIdAndStatus(String batchId, String status);
     long countByBatchIdAndStatusIn(String batchId, java.util.Collection<String> statuses);

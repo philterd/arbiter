@@ -9,4 +9,6 @@ import java.util.List;
 @Repository
 public interface SpanRepository extends MongoRepository<Span, String> {
     List<Span> findByDocumentId(String documentId);
+    long countByDocumentIdInAndStatus(java.util.Collection<String> documentIds, String status);
+    long countByDocumentIdInAndManuallyCreated(java.util.Collection<String> documentIds, boolean manuallyCreated);
 }

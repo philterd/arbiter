@@ -17,8 +17,9 @@
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
+    <meta name="display-timezone" th:content="${@timestampFormatter.zoneId}" content="UTC">
     <title>Arbiter - Review Document</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <script th:src="@{/js/tailwind.js}"></script>
     <style>
         .text-pane {
             background-color: white;
@@ -175,7 +176,7 @@
                     </svg>
                     Settings
                 </a>
-                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/users}"
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/general}"
                    class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
@@ -947,9 +948,16 @@
                     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
                     .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
             }
+            const displayTimezone = (document.querySelector('meta[name="display-timezone"]') || {}).content || 'UTC';
             function fmtTimestamp(iso) {
                 if (!iso) return '';
-                try { return new Date(iso).toLocaleString(); } catch (_) { return iso; }
+                try {
+                    return new Intl.DateTimeFormat(undefined, {
+                        timeZone: displayTimezone,
+                        year: 'numeric', month: '2-digit', day: '2-digit',
+                        hour: '2-digit', minute: '2-digit',
+                    }).format(new Date(iso));
+                } catch (_) { return iso; }
             }
             function renderComments(comments) {
                 if (!comments || comments.length === 0) {

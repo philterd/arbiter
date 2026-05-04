@@ -12,6 +12,7 @@ public class GeneralSettings {
     private String id = SINGLETON_ID;
 
     private String arbiterUrl;
+    private String timezone;
 
     public GeneralSettings() {
     }
@@ -21,4 +22,7 @@ public class GeneralSettings {
 
     public String getArbiterUrl() { return arbiterUrl; }
     public void setArbiterUrl(String arbiterUrl) { this.arbiterUrl = arbiterUrl; }
+
+    public String getTimezone() { return timezone; }
+    public void setTimezone(String timezone) { this.timezone = timezone; }
 }

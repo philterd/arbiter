@@ -16,6 +16,7 @@
 package ai.philterd.arbiter.webapp;
 
 import ai.philterd.arbiter.model.Batch;
+import ai.philterd.arbiter.model.Domains;
 import ai.philterd.arbiter.model.Group;
 import ai.philterd.arbiter.model.PhilterDefaults;
 import ai.philterd.arbiter.model.PhilterInstance;
@@ -154,6 +155,7 @@ public class BatchController {
                     : philterInstanceNamesById.getOrDefault(batch.getPhilterInstanceId(), "(missing)");
             row.put("philterInstanceName", philterName);
             row.put("policyName", batch.getPolicyName());
+            row.put("domain", batch.getDomain());
             row.put("closed", batch.isClosed());
             row.put("closedAt", batch.getClosedAt());
             String firstUnreviewedId = null;
@@ -183,6 +185,7 @@ public class BatchController {
         model.addAttribute("groups", assignableGroups);
         model.addAttribute("philterInstances", philterInstances);
         model.addAttribute("defaultPhilterInstanceId", philterDefaults.getDefaultInstanceId());
+        model.addAttribute("domains", Domains.VALUES);
         model.addAttribute("isAdmin", admin);
         model.addAttribute("myGroupsOnly", myGroupsOnly);
         model.addAttribute("currentSort", activeSort);
@@ -213,6 +216,7 @@ public class BatchController {
                          @RequestParam("groupId") String groupId,
                          @RequestParam(value = "philterInstanceId", required = false) String philterInstanceId,
                          @RequestParam(value = "policyName", required = false) String policyName,
+                         @RequestParam(value = "domain", required = false) String domain,
                          Authentication authentication,
                          RedirectAttributes redirectAttributes) {
         if (!isAdmin(authentication)) {
@@ -243,6 +247,15 @@ public class BatchController {
             redirectAttributes.addFlashAttribute("error", "Selected Philter instance no longer exists.");
             return "redirect:/batches";
         }
+        String trimmedDomain = domain == null ? "" : domain.trim();
+        if (trimmedDomain.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Domain is required.");
+            return "redirect:/batches";
+        }
+        if (!Domains.isValid(trimmedDomain)) {
+            redirectAttributes.addFlashAttribute("error", "Domain \"" + trimmedDomain + "\" is not a valid choice.");
+            return "redirect:/batches";
+        }
         if (batchRepository.findByName(trimmed).isPresent()) {
             redirectAttributes.addFlashAttribute("error",
                     "A batch named \"" + trimmed + "\" already exists.");
@@ -257,6 +270,7 @@ public class BatchController {
         batch.setPhilterInstanceId(trimmedPhilterId.isEmpty() ? null : trimmedPhilterId);
         String trimmedPolicy = policyName == null ? "" : policyName.trim();
         batch.setPolicyName(trimmedPolicy.isEmpty() ? null : trimmedPolicy);
+        batch.setDomain(trimmedDomain);
         if (normalizedPii != null) {
             batch.setConfidenceThreshold(normalizedPii);
         }
@@ -275,6 +289,7 @@ public class BatchController {
                 Map.of("name", trimmed, "groupId", groupId,
                         "philterInstanceId", trimmedPhilterId.isEmpty() ? "embedded" : trimmedPhilterId,
                         "policyName", trimmedPolicy,
+                        "domain", trimmedDomain,
                         "confidenceThreshold", batch.getConfidenceThreshold(),
                         "documentThreshold", batch.getDocumentThreshold()));
         redirectAttributes.addFlashAttribute("success", "Batch \"" + trimmed + "\" created.");

@@ -16,6 +16,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -49,6 +51,7 @@ public class TriageController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String batchId,
             @RequestParam(required = false) String status,
+            @RequestParam(required = false) String filename,
             @RequestParam(name = "myGroupsOnly", defaultValue = "true") boolean myGroupsOnly,
             @RequestParam(name = "sort", defaultValue = "riskScore") String sort,
             @RequestParam(name = "dir", defaultValue = "desc") String dir,
@@ -59,6 +62,8 @@ public class TriageController {
         PageRequest pageRequest = PageRequest.of(page, size, Sort.by(direction, activeSort));
         boolean hasBatch = batchId != null && !batchId.isBlank();
         boolean hasStatus = status != null && !status.isBlank();
+        String trimmedFilename = filename == null ? "" : filename.trim();
+        boolean hasFilename = !trimmedFilename.isEmpty();
 
         boolean admin = isAdmin(authentication);
         boolean restrict = !admin || myGroupsOnly;
@@ -72,16 +77,33 @@ public class TriageController {
         }
 
         Page<Document> documents;
-        if (hasBatch && hasStatus) {
+        if (hasBatch && hasStatus && hasFilename) {
+            documents = documentRepository.findByBatchIdAndStatusAndFilenameContainingIgnoreCase(
+                    batchId, status, trimmedFilename, pageRequest);
+        } else if (hasBatch && hasStatus) {
             documents = documentRepository.findByBatchIdAndStatus(batchId, status, pageRequest);
+        } else if (hasBatch && hasFilename) {
+            documents = documentRepository.findByBatchIdAndFilenameContainingIgnoreCase(
+                    batchId, trimmedFilename, pageRequest);
         } else if (hasBatch) {
             documents = documentRepository.findByBatchId(batchId, pageRequest);
+        } else if (restrict && hasStatus && hasFilename) {
+            documents = documentRepository.findByBatchIdInAndStatusAndFilenameContainingIgnoreCase(
+                    allowedBatchIds, status, trimmedFilename, pageRequest);
         } else if (restrict && hasStatus) {
             documents = documentRepository.findByBatchIdInAndStatus(allowedBatchIds, status, pageRequest);
+        } else if (restrict && hasFilename) {
+            documents = documentRepository.findByBatchIdInAndFilenameContainingIgnoreCase(
+                    allowedBatchIds, trimmedFilename, pageRequest);
         } else if (restrict) {
             documents = documentRepository.findByBatchIdIn(allowedBatchIds, pageRequest);
+        } else if (hasStatus && hasFilename) {
+            documents = documentRepository.findByStatusAndFilenameContainingIgnoreCase(
+                    status, trimmedFilename, pageRequest);
         } else if (hasStatus) {
             documents = documentRepository.findByStatus(status, pageRequest);
+        } else if (hasFilename) {
+            documents = documentRepository.findByFilenameContainingIgnoreCase(trimmedFilename, pageRequest);
         } else {
             documents = documentRepository.findAll(pageRequest);
         }
@@ -128,6 +150,7 @@ public class TriageController {
 
     private static Function<Document, Map<String, Object>> toRow(Map<String, String> batchNames,
                                                                  Map<String, Double> batchDocumentThresholds) {
+        LocalDateTime now = LocalDateTime.now();
         return doc -> {
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("id", doc.getId());
@@ -143,6 +166,9 @@ public class TriageController {
                     && doc.getRiskScore() <= threshold;
             row.put("autoApproved", autoApproved);
             row.put("documentThreshold", threshold);
+            row.put("daysInQueue", doc.getCreatedAt() == null
+                    ? null
+                    : Math.max(0, Duration.between(doc.getCreatedAt(), now).toDays()));
             return row;
         };
     }

@@ -74,7 +74,7 @@ The "Default Philter instance" setting on **Admin → Philter** controls which
 option is pre-selected in the **Create batch** dropdown. It does not force
 all batches to use that instance — each batch makes its own choice.
 
-## 2. Author policies
+## 2. Create PII redaction policies
 
 A **policy** is a JSON document Philter uses to identify and redact PII. It
 declares which PII types to look for and what to do with each
