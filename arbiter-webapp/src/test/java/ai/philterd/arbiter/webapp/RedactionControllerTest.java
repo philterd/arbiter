@@ -146,7 +146,7 @@ public class RedactionControllerTest {
         batch.setId("batch-1");
         batch.setName("Test batch");
 
-        when(redactionService.redactText(any(), any())).thenReturn(response);
+        when(redactionService.redactText(any(), any(), any())).thenReturn(response);
         when(batchRepository.findById("batch-1")).thenReturn(Optional.of(batch));
 
         final MockMultipartFile file = new MockMultipartFile("file", "test.txt", "text/plain", text.getBytes());

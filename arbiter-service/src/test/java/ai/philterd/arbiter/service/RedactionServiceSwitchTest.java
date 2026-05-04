@@ -69,7 +69,7 @@ public class RedactionServiceSwitchTest {
         final RedactionResponse philterResponse = new RedactionResponse("test", "philter", new ArrayList<>());
         when(remotePhilterClient.redact(anyString(), anyString())).thenReturn(philterResponse);
 
-        final RedactionResponse response = redactionService.redactText("test", "philter-1");
+        final RedactionResponse response = redactionService.redactText("test", "philter-1", "");
 
         assertEquals("philter", response.getRedactedText());
         verify(remotePhilterClient, times(1)).redact(anyString(), anyString());
@@ -81,7 +81,7 @@ public class RedactionServiceSwitchTest {
         final RedactionResponse phileasResponse = new RedactionResponse("test", "phileas", new ArrayList<>());
         when(phileasClient.redact(anyString(), anyString())).thenReturn(phileasResponse);
 
-        final RedactionResponse response = redactionService.redactText("test", null);
+        final RedactionResponse response = redactionService.redactText("test", null, "");
 
         assertEquals("phileas", response.getRedactedText());
         verify(phileasClient, times(1)).redact(anyString(), anyString());
@@ -95,7 +95,7 @@ public class RedactionServiceSwitchTest {
         final RedactionResponse phileasResponse = new RedactionResponse("test", "phileas", new ArrayList<>());
         when(phileasClient.redact(anyString(), anyString())).thenReturn(phileasResponse);
 
-        final RedactionResponse response = redactionService.redactText("test", "ghost");
+        final RedactionResponse response = redactionService.redactText("test", "ghost", "");
 
         assertEquals("phileas", response.getRedactedText());
         verify(phileasClient, times(1)).redact(anyString(), anyString());

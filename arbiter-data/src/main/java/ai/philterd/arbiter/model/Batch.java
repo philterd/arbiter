@@ -26,6 +26,7 @@ public class Batch {
     private String philterInstanceId;
     private String policyName;
     private String domain;
+    private String context = "";
     private boolean closed;
     private LocalDateTime closedAt;
     private String closedBy;
@@ -131,6 +132,14 @@ public class Batch {
 
     public String getPolicyName() {
         return policyName;
+    }
+
+    public String getContext() {
+        return context == null ? "" : context;
+    }
+
+    public void setContext(final String context) {
+        this.context = context == null ? "" : context;
     }
 
     public void setPolicyName(final String policyName) {

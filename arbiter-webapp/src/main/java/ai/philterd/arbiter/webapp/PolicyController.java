@@ -22,6 +22,7 @@ import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import ai.philterd.arbiter.repository.PolicyRepository;
 import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.service.GeneralSettingsService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -67,6 +68,7 @@ public class PolicyController {
     private final BatchRepository batchRepository;
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
+    private final GeneralSettingsService generalSettingsService;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(CONNECT_TIMEOUT)
             .build();
@@ -75,12 +77,14 @@ public class PolicyController {
                             final PhilterInstanceRepository philterInstanceRepository,
                             final BatchRepository batchRepository,
                             final AuditLogService auditLogService,
-                            final ObjectMapper objectMapper) {
+                            final ObjectMapper objectMapper,
+                            final GeneralSettingsService generalSettingsService) {
         this.policyRepository = policyRepository;
         this.philterInstanceRepository = philterInstanceRepository;
         this.batchRepository = batchRepository;
         this.auditLogService = auditLogService;
         this.objectMapper = objectMapper;
+        this.generalSettingsService = generalSettingsService;
     }
 
     @GetMapping("/policies")
@@ -133,10 +137,27 @@ public class PolicyController {
         model.addAttribute("selectedInstanceName", selectedInstanceName);
         model.addAttribute("isEmbedded", isEmbedded);
         model.addAttribute("policies", rows);
+        model.addAttribute("policyEditorUrl", policyEditorUrl());
         if (fetchError != null) {
             model.addAttribute("fetchError", fetchError);
         }
         return "policies";
+    }
+
+    private String policyEditorUrl() {
+        final String arbiterUrl = generalSettingsService.load().getArbiterUrl();
+        if (arbiterUrl == null || arbiterUrl.isBlank()) {
+            return "http://localhost:8081";
+        }
+        try {
+            final URI uri = URI.create(arbiterUrl.trim());
+            final String scheme = uri.getScheme() == null ? "http" : uri.getScheme();
+            final String host = uri.getHost() == null ? "localhost" : uri.getHost();
+            return scheme + "://" + host + ":8081";
+        } catch (IllegalArgumentException e) {
+            log.debug("Could not parse Arbiter URL '{}': {}", arbiterUrl, e.getMessage());
+            return "http://localhost:8081";
+        }
     }
 
     @PostMapping("/policies")

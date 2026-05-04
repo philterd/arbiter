@@ -194,10 +194,10 @@ public class RedactionController {
         RedactionResponse response;
 
         if (MediaType.APPLICATION_PDF_VALUE.equals(contentType)) {
-            response = redactionService.redactPdf(new ByteArrayInputStream(fileBytes), batch.getPhilterInstanceId());
+            response = redactionService.redactPdf(new ByteArrayInputStream(fileBytes), batch.getPhilterInstanceId(), batch.getContext());
         } else {
             final String text = new String(fileBytes, StandardCharsets.UTF_8);
-            response = redactionService.redactText(text, batch.getPhilterInstanceId());
+            response = redactionService.redactText(text, batch.getPhilterInstanceId(), batch.getContext());
         }
 
         final Document persisted = persistDocument(batch, file.getOriginalFilename(), response);

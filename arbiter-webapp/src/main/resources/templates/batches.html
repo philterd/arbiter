@@ -164,6 +164,12 @@
                                    title="PII threshold (0.0–1.0)"
                                    class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
+                        <div class="sm:col-span-2 lg:col-span-2">
+                            <label for="newBatchContext" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Context</label>
+                            <input id="newBatchContext" type="text" name="context" value=""
+                                   placeholder="Optional - used for referential integrity"
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
                         <div>
                             <label for="newBatchDocumentThreshold" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Document Threshold</label>
                             <input id="newBatchDocumentThreshold" type="number" name="documentThreshold" step="0.01" min="0" max="1" value="0.25"
@@ -215,15 +221,14 @@
                                 </a>
                             </th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Queued</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Group</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Domain</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User Group</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Philter / Policy</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         <tr th:if="${#lists.isEmpty(batches)}">
-                            <td colspan="8" class="px-6 py-8 text-center text-sm text-gray-500">
+                            <td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500">
                                 No batches yet. Create one above.
                             </td>
                         </tr>
@@ -265,22 +270,6 @@
                                 </form>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                <form th:action="@{/batches/{id}/domain(id=${b.id})}" method="post" class="flex items-center gap-1">
-                                    <select name="domain"
-                                            class="rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                        <option value="" disabled th:selected="${b.domain == null}">— select —</option>
-                                        <option th:each="d : ${domains}"
-                                                th:value="${d}"
-                                                th:selected="${d == b.domain}"
-                                                th:text="${d}">Domain</option>
-                                    </select>
-                                    <button type="submit"
-                                            class="text-xs font-medium text-blue-600 hover:text-blue-800 px-2 py-1">
-                                        Save
-                                    </button>
-                                </form>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <div class="text-gray-900" th:text="${b.philterInstanceName}">Embedded Philter</div>
                                 <div class="text-xs text-gray-500">
                                     <span th:if="${b.policyName != null}" th:text="${b.policyName}">policy</span>
@@ -302,7 +291,9 @@
                                                  data-batch-name=${b.name},
                                                  data-pii=${#numbers.formatDecimal(b.confidenceThreshold, 1, 2)},
                                                  data-doc=${#numbers.formatDecimal(b.documentThreshold, 1, 2)},
-                                                 data-audit=${#numbers.formatDecimal(b.auditSamplingRate, 1, 2)}">
+                                                 data-audit=${#numbers.formatDecimal(b.auditSamplingRate, 1, 2)},
+                                                 data-context=${b.context == null ? '' : b.context},
+                                                 data-domain=${b.domain == null ? '' : b.domain}">
                                     Settings
                                 </button>
                                 <a th:href="@{/batches/{id}/weights(id=${b.id})}"
@@ -389,6 +380,20 @@
                            class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <p class="text-xs text-gray-500 mt-1">Fraction of would-be Auto-Approved documents randomly sent to human review.</p>
                 </div>
+                <div>
+                    <label for="thresholdsDomain" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Domain</label>
+                    <select id="thresholdsDomain" name="domain" required
+                            class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="" disabled>— select —</option>
+                        <option th:each="d : ${domains}" th:value="${d}" th:text="${d}">Domain</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="thresholdsContext" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Context</label>
+                    <input id="thresholdsContext" type="text" name="context"
+                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <p class="text-xs text-gray-500 mt-1">Used for referential integrity.</p>
+                </div>
             </div>
             <div class="flex items-center justify-end gap-2 mt-6">
                 <button type="button" id="thresholdsCancelBtn"
@@ -412,15 +417,19 @@
             const piiInput = document.getElementById('thresholdsPii');
             const docInput = document.getElementById('thresholdsDoc');
             const auditInput = document.getElementById('thresholdsAudit');
+            const contextInput = document.getElementById('thresholdsContext');
+            const domainSel = document.getElementById('thresholdsDomain');
             const cancelBtn = document.getElementById('thresholdsCancelBtn');
             const baseUrl = /*[[@{/batches}]]*/ '/batches';
 
-            function open(batchId, batchName, pii, doc, audit) {
+            function open(batchId, batchName, pii, doc, audit, context, domain) {
                 form.action = baseUrl + '/' + encodeURIComponent(batchId) + '/thresholds';
                 nameSpan.textContent = batchName;
                 piiInput.value = pii;
                 docInput.value = doc;
                 auditInput.value = audit;
+                contextInput.value = context || '';
+                domainSel.value = domain || '';
                 modal.classList.remove('hidden');
                 piiInput.focus();
             }
@@ -428,7 +437,7 @@
 
             document.querySelectorAll('.thresholds-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    open(btn.dataset.batchId, btn.dataset.batchName, btn.dataset.pii, btn.dataset.doc, btn.dataset.audit);
+                    open(btn.dataset.batchId, btn.dataset.batchName, btn.dataset.pii, btn.dataset.doc, btn.dataset.audit, btn.dataset.context, btn.dataset.domain);
                 });
             });
             cancelBtn.addEventListener('click', close);

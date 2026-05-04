@@ -209,7 +209,7 @@ public class DemoDataLoader implements ApplicationRunner {
 
         final List<Span> spans = new ArrayList<>();
         try {
-            final RedactionResponse response = redactionService.redactText(text, batch.getPhilterInstanceId());
+            final RedactionResponse response = redactionService.redactText(text, batch.getPhilterInstanceId(), batch.getContext());
             final List<Redaction> ordered = new ArrayList<>(response.getRedactions());
             ordered.sort(Comparator.comparingInt(Redaction::getStart));
             int cursor = 0;

@@ -15,6 +15,7 @@ import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import ai.philterd.arbiter.repository.PolicyRepository;
 import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.service.GeneralSettingsService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,6 +42,7 @@ class PolicyControllerTest {
     private PhilterInstanceRepository philterInstanceRepository;
     private BatchRepository batchRepository;
     private AuditLogService auditLogService;
+    private GeneralSettingsService generalSettingsService;
     private PolicyController controller;
 
     @BeforeEach
@@ -49,8 +51,9 @@ class PolicyControllerTest {
         philterInstanceRepository = mock(PhilterInstanceRepository.class);
         batchRepository = mock(BatchRepository.class);
         auditLogService = mock(AuditLogService.class);
+        generalSettingsService = mock(GeneralSettingsService.class);
         controller = new PolicyController(policyRepository, philterInstanceRepository,
-                batchRepository, auditLogService, new ObjectMapper());
+                batchRepository, auditLogService, new ObjectMapper(), generalSettingsService);
     }
 
     private RedirectAttributes flash() {

@@ -73,16 +73,14 @@ public class RedactionServiceImpl implements RedactionService {
     }
 
     @Override
-    public RedactionResponse redactText(final String text, final String philterInstanceId) throws IOException {
-        final String context = UUID.randomUUID().toString();
-        return getClient(philterInstanceId).redact(text, context);
+    public RedactionResponse redactText(final String text, final String philterInstanceId, final String context) throws IOException {
+        return getClient(philterInstanceId).redact(text, context == null ? "" : context);
     }
 
     @Override
-    public RedactionResponse redactPdf(final InputStream inputStream, final String philterInstanceId) throws IOException {
+    public RedactionResponse redactPdf(final InputStream inputStream, final String philterInstanceId, final String context) throws IOException {
         final byte[] bytes = inputStream.readAllBytes();
-        final String context = UUID.randomUUID().toString();
-        return getClient(philterInstanceId).redactPdf(bytes, context);
+        return getClient(philterInstanceId).redactPdf(bytes, context == null ? "" : context);
     }
 
     @Override

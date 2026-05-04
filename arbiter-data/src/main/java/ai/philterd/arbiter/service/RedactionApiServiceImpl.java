@@ -82,7 +82,12 @@ public class RedactionApiServiceImpl implements RedactionApiService {
         final Batch batch = batchRepository.findById(document.getBatchId() == null ? "" : document.getBatchId()).orElse(null);
         final double threshold = batch == null ? 0.8 : batch.getConfidenceThreshold();
 
-        final String contextId = UUID.randomUUID().toString();
+        // Use the batch's configured context if set, otherwise fall back to a unique id so that
+        // finalize-time redaction can replay the exact context.
+        final String batchContext = batch == null ? null : batch.getContext();
+        final String contextId = (batchContext != null && !batchContext.isEmpty())
+                ? batchContext
+                : UUID.randomUUID().toString();
         final Map<String, Object> explanation = philterClient(batch).explain(text, contextId);
 
         final List<Map<String, Object>> explanationSpans = (List<Map<String, Object>>) explanation.get("explanation");

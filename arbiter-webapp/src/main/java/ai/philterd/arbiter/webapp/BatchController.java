@@ -155,6 +155,7 @@ public class BatchController {
             row.put("philterInstanceName", philterName);
             row.put("policyName", batch.getPolicyName());
             row.put("domain", batch.getDomain());
+            row.put("context", batch.getContext());
             row.put("closed", batch.isClosed());
             row.put("closedAt", batch.getClosedAt());
             String firstUnreviewedId = null;
@@ -215,6 +216,7 @@ public class BatchController {
                          @RequestParam(value = "philterInstanceId", required = false) String philterInstanceId,
                          @RequestParam(value = "policyName", required = false) String policyName,
                          @RequestParam(value = "domain", required = false) String domain,
+                         @RequestParam(value = "context", required = false, defaultValue = "") String context,
                          Authentication authentication,
                          RedirectAttributes redirectAttributes) {
         if (!isAdmin(authentication)) {
@@ -269,6 +271,7 @@ public class BatchController {
         final String trimmedPolicy = policyName == null ? "" : policyName.trim();
         batch.setPolicyName(trimmedPolicy.isEmpty() ? null : trimmedPolicy);
         batch.setDomain(trimmedDomain);
+        batch.setContext(context == null ? "" : context);
         if (normalizedPii != null) {
             batch.setConfidenceThreshold(normalizedPii);
         }
@@ -288,6 +291,7 @@ public class BatchController {
                         "philterInstanceId", trimmedPhilterId.isEmpty() ? "embedded" : trimmedPhilterId,
                         "policyName", trimmedPolicy,
                         "domain", trimmedDomain,
+                        "contextLength", batch.getContext().length(),
                         "confidenceThreshold", batch.getConfidenceThreshold(),
                         "documentThreshold", batch.getDocumentThreshold()));
         redirectAttributes.addFlashAttribute("success", "Batch \"" + trimmed + "\" created.");
@@ -518,6 +522,8 @@ public class BatchController {
                                  @RequestParam("confidenceThreshold") final double confidenceThreshold,
                                  @RequestParam("documentThreshold") final double documentThreshold,
                                  @RequestParam(value = "auditSamplingRate", required = false) final Double auditSamplingRate,
+                                 @RequestParam(value = "context", required = false) final String context,
+                                 @RequestParam(value = "domain", required = false) final String domain,
                                  final Authentication authentication,
                                  final RedirectAttributes redirectAttributes) {
         if (!isAdmin(authentication)) {
@@ -544,18 +550,41 @@ public class BatchController {
             redirectAttributes.addFlashAttribute("error", "Audit sampling rate must be between 0 and 1.");
             return "redirect:/batches";
         }
+        // Domain is optional on this endpoint — only validated/applied when sent.
+        if (domain != null) {
+            final String trimmedDomain = domain.trim();
+            if (trimmedDomain.isEmpty() || !Domains.isValid(trimmedDomain)) {
+                redirectAttributes.addFlashAttribute("error",
+                        "Domain \"" + trimmedDomain + "\" is not a valid choice.");
+                return "redirect:/batches";
+            }
+        }
         final double previousPii = batch.getConfidenceThreshold();
         final double previousDoc = batch.getDocumentThreshold();
         final double previousRate = batch.getAuditSamplingRate();
+        final String previousContext = batch.getContext();
+        final String previousDomain = batch.getDomain();
         batch.setConfidenceThreshold(normalizedPii);
         batch.setDocumentThreshold(normalizedDoc);
         batch.setAuditSamplingRate(normalizedRate);
+        // context and domain are optional in the form — only update when explicitly sent.
+        if (context != null) {
+            batch.setContext(context);
+        }
+        if (domain != null) {
+            batch.setDomain(domain.trim());
+        }
         batchRepository.save(batch);
+        final boolean contextChanged = context != null && !batch.getContext().equals(previousContext);
+        final boolean domainChanged = domain != null
+                && !java.util.Objects.equals(batch.getDomain(), previousDomain);
         auditLogService.log("BATCH_THRESHOLDS_CHANGE", "Batch", batch.getId(),
                 Map.of(
                         "previousPii", previousPii, "currentPii", normalizedPii,
                         "previousDocument", previousDoc, "currentDocument", normalizedDoc,
-                        "previousAuditSamplingRate", previousRate, "currentAuditSamplingRate", normalizedRate));
+                        "previousAuditSamplingRate", previousRate, "currentAuditSamplingRate", normalizedRate,
+                        "contextChanged", contextChanged,
+                        "domainChanged", domainChanged));
         redirectAttributes.addFlashAttribute(
                 "success",
                 "Settings for \"" + batch.getName() + "\" updated.");
