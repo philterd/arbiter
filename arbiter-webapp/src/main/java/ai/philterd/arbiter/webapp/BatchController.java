@@ -99,6 +99,7 @@ public class BatchController {
 
     private static final Set<String> SORTABLE_FIELDS = Set.of("name", "createdAt", "documentCount");
     private static final Set<String> TERMINAL_STATUSES = Set.of("APPROVED", "REJECTED", "FAILED", "FINALIZED");
+    private static final Set<String> CLOSEABLE_STATUSES = Set.of("REJECTED", "FINALIZED");
     private static final Set<String> REVIEWABLE_STATUSES = Set.of("REVIEW_REQUIRED", "AUDIT_REQUIRED");
 
     @GetMapping
@@ -645,6 +646,16 @@ public class BatchController {
         }
         if (batch.isClosed()) {
             redirectAttributes.addFlashAttribute("error", "Batch is already closed.");
+            return "redirect:/batches";
+        }
+        final long total = documentRepository.countByBatchId(batchId);
+        final long ready = documentRepository.countByBatchIdAndStatusIn(batchId, CLOSEABLE_STATUSES);
+        if (total != ready) {
+            final long pending = total - ready;
+            redirectAttributes.addFlashAttribute("error",
+                    "Batch \"" + batch.getName() + "\" cannot be closed: " + pending
+                            + (pending == 1 ? " document is" : " documents are")
+                            + " not yet rejected or finalized.");
             return "redirect:/batches";
         }
         batch.setClosed(true);
