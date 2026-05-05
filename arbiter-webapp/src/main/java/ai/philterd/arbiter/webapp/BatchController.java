@@ -67,6 +67,7 @@ public class BatchController {
     private final WeightSetRepository weightSetRepository;
     private final PhilterInstanceRepository philterInstanceRepository;
     private final PhilterDefaultsService philterDefaultsService;
+    private final ai.philterd.arbiter.repository.FinalizationPolicyRepository finalizationPolicyRepository;
 
     public BatchController(final BatchRepository batchRepository,
                            final DocumentRepository documentRepository,
@@ -75,7 +76,8 @@ public class BatchController {
                            final AuditLogService auditLogService,
                            final WeightSetRepository weightSetRepository,
                            final PhilterInstanceRepository philterInstanceRepository,
-                           final PhilterDefaultsService philterDefaultsService) {
+                           final PhilterDefaultsService philterDefaultsService,
+                           final ai.philterd.arbiter.repository.FinalizationPolicyRepository finalizationPolicyRepository) {
         this.batchRepository = batchRepository;
         this.documentRepository = documentRepository;
         this.groupRepository = groupRepository;
@@ -84,6 +86,7 @@ public class BatchController {
         this.weightSetRepository = weightSetRepository;
         this.philterInstanceRepository = philterInstanceRepository;
         this.philterDefaultsService = philterDefaultsService;
+        this.finalizationPolicyRepository = finalizationPolicyRepository;
     }
 
     private static boolean isAdmin(final Authentication auth) {
@@ -95,7 +98,7 @@ public class BatchController {
     }
 
     private static final Set<String> SORTABLE_FIELDS = Set.of("name", "createdAt", "documentCount");
-    private static final Set<String> TERMINAL_STATUSES = Set.of("APPROVED", "REJECTED", "FAILED");
+    private static final Set<String> TERMINAL_STATUSES = Set.of("APPROVED", "REJECTED", "FAILED", "FINALIZED");
     private static final Set<String> REVIEWABLE_STATUSES = Set.of("REVIEW_REQUIRED", "AUDIT_REQUIRED");
 
     @GetMapping
@@ -132,6 +135,11 @@ public class BatchController {
             philterInstanceNamesById.put(i.getId(), i.getName());
         }
 
+        final Map<String, String> finalizationPolicyNamesById = new LinkedHashMap<>();
+        for (ai.philterd.arbiter.model.FinalizationPolicy p : finalizationPolicyRepository.findAll()) {
+            finalizationPolicyNamesById.put(p.getId(), p.getName());
+        }
+
         final PageRequest firstByFilename = PageRequest.of(0, 1, Sort.by("filename", "id"));
         final List<Map<String, Object>> rows = new ArrayList<>();
         for (Batch batch : batches) {
@@ -156,6 +164,9 @@ public class BatchController {
             row.put("policyName", batch.getPolicyName());
             row.put("domain", batch.getDomain());
             row.put("context", batch.getContext());
+            row.put("finalizationPolicyId", batch.getFinalizationPolicyId());
+            row.put("finalizationPolicyName", batch.getFinalizationPolicyId() == null
+                    ? null : finalizationPolicyNamesById.get(batch.getFinalizationPolicyId()));
             row.put("closed", batch.isClosed());
             row.put("closedAt", batch.getClosedAt());
             String firstUnreviewedId = null;
@@ -181,11 +192,20 @@ public class BatchController {
 
         final PhilterDefaults philterDefaults = philterDefaultsService.load();
 
+        // Build the finalization-policy dropdown — id + name, sorted by name. Required
+        // for new batches; legacy batches without one display a "—" until edited.
+        final List<ai.philterd.arbiter.model.FinalizationPolicy> finalizationPolicies =
+                finalizationPolicyRepository.findAll();
+        finalizationPolicies.sort(Comparator.comparing(
+                (ai.philterd.arbiter.model.FinalizationPolicy p) ->
+                        p.getName() == null ? "" : p.getName().toLowerCase()));
+
         model.addAttribute("batches", rows);
         model.addAttribute("groups", assignableGroups);
         model.addAttribute("philterInstances", philterInstances);
         model.addAttribute("defaultPhilterInstanceId", philterDefaults.getDefaultInstanceId());
         model.addAttribute("domains", Domains.VALUES);
+        model.addAttribute("finalizationPolicies", finalizationPolicies);
         model.addAttribute("isAdmin", admin);
         model.addAttribute("currentSort", activeSort);
         model.addAttribute("currentDir", ascending ? "asc" : "desc");
@@ -217,6 +237,7 @@ public class BatchController {
                          @RequestParam(value = "policyName", required = false) String policyName,
                          @RequestParam(value = "domain", required = false) String domain,
                          @RequestParam(value = "context", required = false, defaultValue = "") String context,
+                         @RequestParam(value = "finalizationPolicyId", required = false) String finalizationPolicyId,
                          Authentication authentication,
                          RedirectAttributes redirectAttributes) {
         if (!isAdmin(authentication)) {
@@ -261,6 +282,16 @@ public class BatchController {
                     "A batch named \"" + trimmed + "\" already exists.");
             return "redirect:/batches";
         }
+        final String trimmedFinalization = finalizationPolicyId == null ? "" : finalizationPolicyId.trim();
+        if (trimmedFinalization.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "A finalization policy must be selected.");
+            return "redirect:/batches";
+        }
+        if (!finalizationPolicyRepository.existsById(trimmedFinalization)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Selected finalization policy no longer exists.");
+            return "redirect:/batches";
+        }
         final Batch batch = new Batch();
         batch.setId(UUID.randomUUID().toString());
         batch.setName(trimmed);
@@ -272,6 +303,7 @@ public class BatchController {
         batch.setPolicyName(trimmedPolicy.isEmpty() ? null : trimmedPolicy);
         batch.setDomain(trimmedDomain);
         batch.setContext(context == null ? "" : context);
+        batch.setFinalizationPolicyId(trimmedFinalization);
         if (normalizedPii != null) {
             batch.setConfidenceThreshold(normalizedPii);
         }

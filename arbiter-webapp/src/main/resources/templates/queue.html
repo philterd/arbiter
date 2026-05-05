@@ -17,6 +17,8 @@
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
+    <meta name="_csrf" th:content="${_csrf != null ? _csrf.token : ''}"/>
+    <meta name="_csrf_header" th:content="${_csrf != null ? _csrf.headerName : 'X-CSRF-TOKEN'}"/>
     <title>Arbiter - Document Queue</title>
     <script th:src="@{/js/tailwind.js}"></script>
 </head>
@@ -225,6 +227,23 @@
         </div>
     </div>
 
+    <div id="certificateModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-3xl p-6 flex flex-col max-h-[80vh]">
+            <h3 class="text-lg font-semibold text-gray-900 mb-1">Certificate of Redaction</h3>
+            <p id="certificateMeta" class="text-xs text-gray-500 mb-3">—</p>
+            <div id="certificateSpinner" class="hidden text-sm text-gray-500 mb-3">Loading…</div>
+            <div id="certificateError" class="hidden text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 mb-3"></div>
+            <pre id="certificateJson"
+                 class="hidden flex-1 overflow-auto bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono whitespace-pre-wrap break-all"></pre>
+            <div class="flex justify-end mt-4">
+                <button type="button" id="certificateClose"
+                        class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         let currentPage = 0;
         const pageSize = 10;
@@ -245,6 +264,8 @@
                 }
             });
         }
+
+        const csrfToken = (document.querySelector('meta[name="_csrf"]') || {}).content || '';
 
         async function loadQueue(page) {
             const body = document.getElementById('queueBody');
@@ -317,9 +338,23 @@
                     const approvalsClass = (acquired >= required && required > 0)
                         ? 'text-green-700 font-semibold'
                         : (required > 1 ? 'text-amber-700 font-medium' : 'text-gray-700');
+                    const lockBadge = doc.lockActive
+                        ? `<span class="ml-2 inline-flex items-center text-amber-600"
+                                title="Currently being reviewed by ${escapeHtml(doc.lockedBy || 'another user')}">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                                     stroke="currentColor" stroke-width="2" class="h-4 w-4">
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                          d="M12 11c1.657 0 3 1.343 3 3v3a3 3 0 11-6 0v-3c0-1.657 1.343-3 3-3z"></path>
+                                    <path stroke-linecap="round" stroke-linejoin="round"
+                                          d="M8 11V8a4 4 0 118 0v3"></path>
+                                </svg>
+                            </span>`
+                        : '';
                     return `
                     <tr class="hover:bg-gray-50">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${escapeHtml(doc.filename || '')}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            <span class="inline-flex items-center">${escapeHtml(doc.filename || '')}${lockBadge}</span>
+                        </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${escapeHtml(doc.batchName || doc.batchId || '')}</td>
                         <td class="px-6 py-4 whitespace-nowrap">
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass(displayStatus)}">${escapeHtml(displayStatus)}</span>
@@ -329,6 +364,24 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${doc.daysInQueue == null ? '<span class="text-gray-400">—</span>' : doc.daysInQueue}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm">
                             <a href="/review/${encodeURIComponent(doc.id)}" class="text-blue-600 hover:text-blue-800 font-medium">Review</a>
+                            ${(doc.status === 'APPROVED' && acquired >= required && required > 0)
+                                ? `<form action="/review/${encodeURIComponent(doc.id)}/finalize" method="post" class="inline ml-3">
+                                    <input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}">
+                                    <button type="submit"
+                                          title="Finalize this document — locks it permanently"
+                                          class="inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-md border border-green-600 text-green-700 hover:bg-green-50">
+                                        Finalize
+                                    </button>
+                                </form>`
+                                : ''}
+                            ${doc.status === 'FINALIZED'
+                                ? `<button type="button"
+                                          data-view-certificate="${encodeURIComponent(doc.id)}"
+                                          title="View Certificate of Redaction"
+                                          class="ml-3 inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-md border border-gray-400 text-gray-700 hover:bg-gray-100">
+                                        View Certificate
+                                   </button>`
+                                : ''}
                         </td>
                     </tr>
                 `;
@@ -366,6 +419,41 @@
                 .replace(/'/g, "&#039;");
         }
 
+        async function openCertificate(documentId) {
+            const modal = document.getElementById('certificateModal');
+            const meta = document.getElementById('certificateMeta');
+            const spinner = document.getElementById('certificateSpinner');
+            const errorBox = document.getElementById('certificateError');
+            const pre = document.getElementById('certificateJson');
+
+            meta.textContent = `Document ID: ${documentId}`;
+            pre.textContent = '';
+            pre.classList.add('hidden');
+            errorBox.textContent = '';
+            errorBox.classList.add('hidden');
+            spinner.classList.remove('hidden');
+            modal.classList.remove('hidden');
+
+            try {
+                const resp = await fetch(`/api/v1/documents/${encodeURIComponent(documentId)}/certificate`);
+                spinner.classList.add('hidden');
+                if (!resp.ok) {
+                    errorBox.textContent = resp.status === 404
+                        ? 'No certificate found for this document.'
+                        : `Failed to load certificate: HTTP ${resp.status}`;
+                    errorBox.classList.remove('hidden');
+                    return;
+                }
+                const cert = await resp.json();
+                pre.textContent = JSON.stringify(cert, null, 2);
+                pre.classList.remove('hidden');
+            } catch (err) {
+                spinner.classList.add('hidden');
+                errorBox.textContent = `Failed to load certificate: ${err.message}`;
+                errorBox.classList.remove('hidden');
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
             updateSortIndicators();
             document.querySelectorAll('th.sortable').forEach(th => {
@@ -385,6 +473,15 @@
 
             await loadBatches();
             loadQueue(currentPage);
+
+            document.getElementById('queueBody').addEventListener('click', (e) => {
+                const btn = e.target.closest('[data-view-certificate]');
+                if (!btn) return;
+                openCertificate(decodeURIComponent(btn.getAttribute('data-view-certificate')));
+            });
+            document.getElementById('certificateClose').addEventListener('click', () => {
+                document.getElementById('certificateModal').classList.add('hidden');
+            });
 
             document.getElementById('refreshBtn').addEventListener('click', () => loadQueue(currentPage));
             document.getElementById('prevBtn').addEventListener('click', () => {

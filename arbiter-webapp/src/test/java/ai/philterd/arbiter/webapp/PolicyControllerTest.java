@@ -43,6 +43,7 @@ class PolicyControllerTest {
     private BatchRepository batchRepository;
     private AuditLogService auditLogService;
     private GeneralSettingsService generalSettingsService;
+    private ai.philterd.arbiter.repository.FinalizationPolicyRepository finalizationPolicyRepository;
     private PolicyController controller;
 
     @BeforeEach
@@ -52,8 +53,11 @@ class PolicyControllerTest {
         batchRepository = mock(BatchRepository.class);
         auditLogService = mock(AuditLogService.class);
         generalSettingsService = mock(GeneralSettingsService.class);
+        finalizationPolicyRepository =
+                mock(ai.philterd.arbiter.repository.FinalizationPolicyRepository.class);
         controller = new PolicyController(policyRepository, philterInstanceRepository,
-                batchRepository, auditLogService, new ObjectMapper(), generalSettingsService);
+                batchRepository, auditLogService, new ObjectMapper(), generalSettingsService,
+                finalizationPolicyRepository);
     }
 
     private RedirectAttributes flash() {

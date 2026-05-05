@@ -198,6 +198,20 @@
                             <p id="newBatchPolicyStatus" class="text-xs text-gray-500 mt-1"></p>
                         </div>
                         <div>
+                            <label for="newBatchFinalization" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Finalization Policy</label>
+                            <select id="newBatchFinalization" name="finalizationPolicyId" required
+                                    class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="" disabled selected>Select policy…</option>
+                                <option th:each="fp : ${finalizationPolicies}"
+                                        th:value="${fp.id}" th:text="${fp.name}">policy</option>
+                            </select>
+                            <p th:if="${#lists.isEmpty(finalizationPolicies)}"
+                               class="text-xs text-amber-700 mt-1">
+                                No finalization policies exist —
+                                <a th:href="@{/policies(tab='finalization')}" class="underline">create one</a> before adding a batch.
+                            </p>
+                        </div>
+                        <div>
                             <label for="newBatchPiiThreshold" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">PII Threshold</label>
                             <input id="newBatchPiiThreshold" type="number" name="confidenceThreshold" step="0.01" min="0" max="1" value="0.8"
                                    title="PII threshold (0.0–1.0)"
@@ -313,6 +327,11 @@
                                 <div class="text-xs text-gray-500">
                                     <span th:if="${b.policyName != null}" th:text="${b.policyName}">policy</span>
                                     <span th:if="${b.policyName == null}" class="italic">no policy</span>
+                                </div>
+                                <div class="text-xs text-gray-500">
+                                    Finalization:
+                                    <span th:if="${b.finalizationPolicyName != null}" th:text="${b.finalizationPolicyName}">policy</span>
+                                    <span th:if="${b.finalizationPolicyName == null}" class="italic">— not set —</span>
                                 </div>
                                 <button type="button"
                                         class="batch-philter-btn text-xs font-medium text-blue-600 hover:text-blue-800 mt-1"

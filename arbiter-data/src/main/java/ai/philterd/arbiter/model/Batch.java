@@ -40,6 +40,12 @@ public class Batch {
     private String policyName;
     private String domain;
     private String context = "";
+    /**
+     * Reference to a {@code FinalizationPolicy} that controls what happens to the
+     * original document files when documents in this batch are finalized. Required
+     * for new batches; pre-existing batches may be {@code null} until edited.
+     */
+    private String finalizationPolicyId;
     private boolean closed;
     private LocalDateTime closedAt;
     private String closedBy;
@@ -216,6 +222,14 @@ public class Batch {
 
     public void setDomain(final String domain) {
         this.domain = domain;
+    }
+
+    public String getFinalizationPolicyId() {
+        return finalizationPolicyId;
+    }
+
+    public void setFinalizationPolicyId(final String finalizationPolicyId) {
+        this.finalizationPolicyId = finalizationPolicyId;
     }
 
     public boolean isClosed() {

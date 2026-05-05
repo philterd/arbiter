@@ -268,9 +268,38 @@
                 <span class="font-semibold" th:text="${approvalsRequired}">1</span>
                 <span th:if="${approvalsRequired > 1}" class="text-xs font-normal ml-1">(dual approval required)</span>
             </div>
+
+            <div th:if="${lockedByOther}"
+                 class="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-900 flex items-center justify-between gap-3">
+                <div class="flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2" class="h-4 w-4">
+                        <path stroke-linecap="round" stroke-linejoin="round"
+                              d="M12 11c1.657 0 3 1.343 3 3v3a3 3 0 11-6 0v-3c0-1.657 1.343-3 3-3z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M8 11V8a4 4 0 118 0v3"></path>
+                    </svg>
+                    <span>
+                        This document is currently being reviewed by
+                        <span class="font-semibold" th:text="${lockHolder}">user@example.com</span>.
+                        It is read-only until they finish or the lock expires.
+                    </span>
+                </div>
+                <form sec:authorize="hasRole('ADMIN')"
+                      th:action="@{/review/{id}/break-lock(id=${document.id})}" method="post" class="inline">
+                    <button type="submit"
+                            class="px-3 py-1.5 border border-amber-700 text-amber-900 hover:bg-amber-100 font-medium rounded-lg text-sm">
+                        Break Lock
+                    </button>
+                </form>
+            </div>
+
             <div class="flex justify-between items-start mb-6 gap-4">
                 <div>
-                    <a th:href="@{/}" class="text-sm text-blue-600 hover:text-blue-800 mb-2 inline-block">&larr; Back to queue</a>
+                    <form th:action="@{/review/{id}/release(id=${document.id})}" method="post" class="inline mb-2">
+                        <button type="submit" class="text-sm text-blue-600 hover:text-blue-800 inline-block bg-transparent border-0 p-0 cursor-pointer">
+                            &larr; Back to queue
+                        </button>
+                    </form>
                     <div class="flex items-center gap-2 mb-2">
                         <a th:if="${prevDocumentId != null}"
                            th:href="@{/review/{id}(id=${prevDocumentId})}"
@@ -308,7 +337,7 @@
                     </div>
                 </div>
                 <div class="flex items-center space-x-2"
-                     th:with="terminal=${ {'APPROVED','REJECTED','FAILED'} }">
+                     th:with="terminal=${ {'APPROVED','REJECTED','FAILED','FINALIZED'} }">
                     <button id="commentsBtn" type="button"
                             class="inline-flex items-center gap-1 px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 font-medium rounded-lg transition duration-200">
                         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -366,6 +395,11 @@
                 Click <span class="font-semibold">Unreject</span> above to add, edit, or remove spans.
             </div>
 
+            <div th:if="${document.status == 'FINALIZED'}"
+                 class="mb-4 p-3 rounded-lg bg-gray-100 border border-gray-300 text-sm text-gray-800">
+                This document is <span class="font-semibold">FINALIZED</span>. No further changes can be made.
+            </div>
+
             <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_18rem] gap-6">
                 <div>
                     <h3 class="text-lg font-semibold mb-2 text-gray-800">Original</h3>
@@ -406,11 +440,21 @@
         const secondOpinionConfigured = /*[[${secondOpinionConfigured}]]*/ false;
         const documentApproved = /*[[${document.status == 'APPROVED'}]]*/ false;
         const documentRejected = /*[[${document.status == 'REJECTED'}]]*/ false;
-        const documentLocked = documentApproved || documentRejected;
-        const lockedReason = documentApproved
-            ? 'Document is APPROVED — Unapprove to edit spans'
-            : (documentRejected ? 'Document is REJECTED — Unreject to edit spans' : '');
+        const documentFinalized = /*[[${document.status == 'FINALIZED'}]]*/ false;
+        const lockedByOther = /*[[${lockedByOther}]]*/ false;
+        const lockHolder = /*[[${lockHolder}]]*/ '';
+        const documentLocked = documentApproved || documentRejected || documentFinalized || lockedByOther;
+        const lockedReason = documentFinalized
+            ? 'Document is FINALIZED — no further changes allowed'
+            : (documentApproved
+                ? 'Document is APPROVED — Unapprove to edit spans'
+                : (documentRejected
+                    ? 'Document is REJECTED — Unreject to edit spans'
+                    : (lockedByOther
+                        ? `Currently being reviewed by ${lockHolder}`
+                        : '')));
         const currentUserEmail = /*[[${currentUserEmail}]]*/ '';
+        const documentId = /*[[${document.id}]]*/ '';
 
         function escapeHtml(unsafe) {
             return String(unsafe)
@@ -635,6 +679,35 @@
             const filterToggle = document.getElementById('navFilterSecondOpinion');
             if (filterToggle) {
                 filterToggle.addEventListener('change', () => renderNavigator());
+            }
+
+            // Pessimistic-lock pulse loop. Skip when this user doesn't hold the lock
+            // (read-only mode, or document is in a terminal status).
+            if (!lockedByOther && !documentApproved && !documentRejected && documentId) {
+                const PULSE_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+                const pulse = async () => {
+                    try {
+                        const resp = await fetch(`/api/v1/review/${encodeURIComponent(documentId)}/pulse`, {
+                            method: 'POST',
+                            headers: { 'X-Requested-With': 'fetch' }
+                        });
+                        if (!resp.ok) return;
+                        const body = await resp.json().catch(() => ({}));
+                        if (body && body.ok === false && body.reason === 'LOCK_LOST') {
+                            // Lock taken by someone else (or expired and reclaimed). Reload
+                            // so the user sees read-only mode with the new holder named.
+                            window.location.reload();
+                        }
+                    } catch (_) { /* network blip — try again next tick */ }
+                };
+                setInterval(pulse, PULSE_INTERVAL_MS);
+                // Best-effort lock release on page navigation (browser close, URL change).
+                // The 15-minute server-side TTL is the safety net if this fires too late.
+                window.addEventListener('pagehide', () => {
+                    try {
+                        navigator.sendBeacon(`/api/v1/review/${encodeURIComponent(documentId)}/release`);
+                    } catch (_) {}
+                });
             }
 
             const left = document.getElementById('originalPane');

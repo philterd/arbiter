@@ -2,6 +2,7 @@ package ai.philterd.arbiter.model;
 
 import org.springframework.data.annotation.Id;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 @org.springframework.data.mongodb.core.mapping.Document(collection = "documents")
@@ -33,6 +34,16 @@ public class Document {
      * conservatively treats it as not sampled in.
      */
     private Double dualApprovalSamplingRoll;
+
+    /**
+     * Pessimistic-review lock fields. {@code lockExpiresAt} sliding-expires the lock so a
+     * reviewer who walks away without explicitly closing the document automatically frees
+     * it. The lock is acquired/extended via atomic {@code findAndModify} updates so two
+     * reviewers can't grab it at the same millisecond.
+     */
+    private String lockedBy;
+    private Instant lockedAt;
+    private Instant lockExpiresAt;
 
     public Document() {
     }
@@ -143,5 +154,19 @@ public class Document {
     public Double getDualApprovalSamplingRoll() { return dualApprovalSamplingRoll; }
     public void setDualApprovalSamplingRoll(final Double dualApprovalSamplingRoll) {
         this.dualApprovalSamplingRoll = dualApprovalSamplingRoll;
+    }
+
+    public String getLockedBy() { return lockedBy; }
+    public void setLockedBy(final String lockedBy) { this.lockedBy = lockedBy; }
+
+    public Instant getLockedAt() { return lockedAt; }
+    public void setLockedAt(final Instant lockedAt) { this.lockedAt = lockedAt; }
+
+    public Instant getLockExpiresAt() { return lockExpiresAt; }
+    public void setLockExpiresAt(final Instant lockExpiresAt) { this.lockExpiresAt = lockExpiresAt; }
+
+    /** A lock held in the past or unset means no active lock. */
+    public boolean isLocked(final Instant now) {
+        return lockExpiresAt != null && lockedBy != null && lockExpiresAt.isAfter(now);
     }
 }

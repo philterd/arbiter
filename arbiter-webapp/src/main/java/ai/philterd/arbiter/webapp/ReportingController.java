@@ -48,8 +48,9 @@ import java.util.Set;
 public class ReportingController {
 
     private static final List<String> KNOWN_STATUSES = List.of(
-            "PENDING", "REVIEW_REQUIRED", "AUDIT_REQUIRED", "AUTO_APPROVED", "APPROVED", "REJECTED", "FAILED");
-    private static final Set<String> USER_DECIDED = Set.of("APPROVED", "REJECTED", "FAILED");
+            "PENDING", "REVIEW_REQUIRED", "AUDIT_REQUIRED", "AUTO_APPROVED",
+            "APPROVED", "REJECTED", "FAILED", "FINALIZED");
+    private static final Set<String> USER_DECIDED = Set.of("APPROVED", "REJECTED", "FAILED", "FINALIZED");
 
     private final BatchRepository batchRepository;
     private final DocumentRepository documentRepository;

@@ -76,8 +76,9 @@ public class ReviewController {
     }
 
     /**
-     * Spans on a document in a terminal status are read-only. APPROVED documents must be
-     * Unapproved first; REJECTED documents must be Unrejected first.
+     * Spans on a document in a terminal status are read-only. APPROVED / REJECTED documents
+     * can be reopened (Unapprove / Unreject). FINALIZED is a permanent terminal state — no
+     * further edits are accepted via the API.
      */
     private static void requireEditable(final Document document) {
         if ("APPROVED".equals(document.getStatus())) {
@@ -87,6 +88,10 @@ public class ReviewController {
         if ("REJECTED".equals(document.getStatus())) {
             throw new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
                     "Document is REJECTED. Unreject it before adding, editing, or deleting spans.");
+        }
+        if ("FINALIZED".equals(document.getStatus())) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
+                    "Document is FINALIZED. Finalized documents cannot be modified.");
         }
     }
 

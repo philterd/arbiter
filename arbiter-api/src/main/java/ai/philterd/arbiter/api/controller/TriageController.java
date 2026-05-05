@@ -159,7 +159,7 @@ public class TriageController {
                 .toList();
     }
 
-    private static final Set<String> USER_DECIDED_STATUSES = Set.of("APPROVED", "REJECTED", "FAILED");
+    private static final Set<String> USER_DECIDED_STATUSES = Set.of("APPROVED", "REJECTED", "FAILED", "FINALIZED");
 
     private Function<Document, Map<String, Object>> toRow(final Map<String, String> batchNames,
                                                           final Map<String, Double> batchDocumentThresholds,
@@ -200,6 +200,16 @@ public class TriageController {
             }
             row.put("approvalsRequired", required);
             row.put("approvalsAcquired", acquired);
+
+            // Pessimistic review-lock state for the padlock indicator. lockedByOther = true
+            // means another user currently holds the lock; the row also surfaces who holds
+            // it (lockedBy) and when the current expiry runs out (lockExpiresAt) for the
+            // tooltip and break-lock affordance.
+            final java.time.Instant nowInstant = java.time.Instant.now();
+            final boolean lockActive = doc.isLocked(nowInstant);
+            row.put("lockActive", lockActive);
+            row.put("lockedBy", lockActive ? doc.getLockedBy() : null);
+            row.put("lockExpiresAt", lockActive ? doc.getLockExpiresAt() : null);
             return row;
         };
     }

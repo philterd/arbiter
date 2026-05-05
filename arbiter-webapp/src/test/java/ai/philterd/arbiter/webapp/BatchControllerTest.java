@@ -13,6 +13,7 @@ import ai.philterd.arbiter.model.Batch;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.GroupRepository;
+import ai.philterd.arbiter.repository.FinalizationPolicyRepository;
 import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import ai.philterd.arbiter.repository.WeightSetRepository;
 import ai.philterd.arbiter.service.AuditLogService;
@@ -50,6 +51,7 @@ class BatchControllerTest {
     private WeightSetRepository weightSetRepository;
     private PhilterInstanceRepository philterInstanceRepository;
     private PhilterDefaultsService philterDefaultsService;
+    private FinalizationPolicyRepository finalizationPolicyRepository;
     private BatchController controller;
 
     @BeforeEach
@@ -62,9 +64,12 @@ class BatchControllerTest {
         weightSetRepository = mock(WeightSetRepository.class);
         philterInstanceRepository = mock(PhilterInstanceRepository.class);
         philterDefaultsService = mock(PhilterDefaultsService.class);
+        finalizationPolicyRepository = mock(FinalizationPolicyRepository.class);
+        // The "fp1" finalization policy id is used by the happy-path test below.
+        when(finalizationPolicyRepository.existsById("fp1")).thenReturn(true);
         controller = new BatchController(batchRepository, documentRepository, groupRepository,
                 userGroupsService, auditLogService, weightSetRepository,
-                philterInstanceRepository, philterDefaultsService);
+                philterInstanceRepository, philterDefaultsService, finalizationPolicyRepository);
     }
 
     private static Authentication admin() {
@@ -90,7 +95,7 @@ class BatchControllerTest {
     @Test
     void createRequiresAdmin() {
         final RedirectAttributes ra = flash();
-        controller.create("b", null, null, "g", null, null, "Financial", "", user(), ra);
+        controller.create("b", null, null, "g", null, null, "Financial", "", null, user(), ra);
         assertEquals("Only administrators can create batches.", error(ra));
         verify(batchRepository, never()).save(any());
     }
@@ -98,7 +103,7 @@ class BatchControllerTest {
     @Test
     void createRejectsBlankName() {
         final RedirectAttributes ra = flash();
-        controller.create(" ", null, null, "g", null, null, "Financial", "", admin(), ra);
+        controller.create(" ", null, null, "g", null, null, "Financial", "", null, admin(), ra);
         assertEquals("Batch name is required.", error(ra));
         verify(batchRepository, never()).save(any());
     }
@@ -106,7 +111,7 @@ class BatchControllerTest {
     @Test
     void createRejectsThresholdOutOfRange() {
         final RedirectAttributes ra = flash();
-        controller.create("b", 1.5, null, "g", null, null, "Financial", "", admin(), ra);
+        controller.create("b", 1.5, null, "g", null, null, "Financial", "", null, admin(), ra);
         assertEquals("PII threshold must be between 0 and 1.", error(ra));
         verify(batchRepository, never()).save(any());
     }
@@ -115,7 +120,7 @@ class BatchControllerTest {
     void createRejectsMissingGroup() {
         final RedirectAttributes ra = flash();
         when(groupRepository.existsById("missing")).thenReturn(false);
-        controller.create("b", null, null, "missing", null, null, "Financial", "", admin(), ra);
+        controller.create("b", null, null, "missing", null, null, "Financial", "", null, admin(), ra);
         assertEquals("A valid group must be selected.", error(ra));
         verify(batchRepository, never()).save(any());
     }
@@ -126,7 +131,7 @@ class BatchControllerTest {
         when(philterInstanceRepository.existsById("ghost")).thenReturn(false);
 
         final RedirectAttributes ra = flash();
-        controller.create("b", null, null, "g1", "ghost", null, "Financial", "", admin(), ra);
+        controller.create("b", null, null, "g1", "ghost", null, "Financial", "", null, admin(), ra);
         assertEquals("Selected Philter instance no longer exists.", error(ra));
         verify(batchRepository, never()).save(any());
     }
@@ -136,7 +141,7 @@ class BatchControllerTest {
         when(groupRepository.existsById("g1")).thenReturn(true);
 
         final RedirectAttributes ra = flash();
-        controller.create("b", null, null, "g1", "", null, "  ", "", admin(), ra);
+        controller.create("b", null, null, "g1", "", null, "  ", "", null, admin(), ra);
         assertEquals("Domain is required.", error(ra));
         verify(batchRepository, never()).save(any());
     }
@@ -146,7 +151,7 @@ class BatchControllerTest {
         when(groupRepository.existsById("g1")).thenReturn(true);
 
         final RedirectAttributes ra = flash();
-        controller.create("b", null, null, "g1", "", null, "Aerospace", "", admin(), ra);
+        controller.create("b", null, null, "g1", "", null, "Aerospace", "", null, admin(), ra);
         assertNotNull(error(ra));
         assertTrue(error(ra).contains("not a valid choice"));
         verify(batchRepository, never()).save(any());
@@ -161,7 +166,7 @@ class BatchControllerTest {
         when(batchRepository.findByName("Sample")).thenReturn(Optional.of(existing));
 
         final RedirectAttributes ra = flash();
-        controller.create("Sample", null, null, "g1", "", null, "Financial", "", admin(), ra);
+        controller.create("Sample", null, null, "g1", "", null, "Financial", "", null, admin(), ra);
         assertEquals("A batch named \"Sample\" already exists.", error(ra));
         verify(batchRepository, never()).save(any());
     }
@@ -172,7 +177,7 @@ class BatchControllerTest {
         when(batchRepository.findByName("Sample")).thenReturn(Optional.empty());
 
         final RedirectAttributes ra = flash();
-        final String view = controller.create("Sample", 0.5, 0.2, "g1", "", null, "Healthcare", "", admin(), ra);
+        final String view = controller.create("Sample", 0.5, 0.2, "g1", "", null, "Healthcare", "", "fp1", admin(), ra);
         assertEquals("redirect:/batches", view);
         assertNull(error(ra));
         assertEquals("Batch \"Sample\" created.", success(ra));

@@ -69,6 +69,7 @@ public class PolicyController {
     private final AuditLogService auditLogService;
     private final ObjectMapper objectMapper;
     private final GeneralSettingsService generalSettingsService;
+    private final ai.philterd.arbiter.repository.FinalizationPolicyRepository finalizationPolicyRepository;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(CONNECT_TIMEOUT)
             .build();
@@ -78,13 +79,15 @@ public class PolicyController {
                             final BatchRepository batchRepository,
                             final AuditLogService auditLogService,
                             final ObjectMapper objectMapper,
-                            final GeneralSettingsService generalSettingsService) {
+                            final GeneralSettingsService generalSettingsService,
+                            final ai.philterd.arbiter.repository.FinalizationPolicyRepository finalizationPolicyRepository) {
         this.policyRepository = policyRepository;
         this.philterInstanceRepository = philterInstanceRepository;
         this.batchRepository = batchRepository;
         this.auditLogService = auditLogService;
         this.objectMapper = objectMapper;
         this.generalSettingsService = generalSettingsService;
+        this.finalizationPolicyRepository = finalizationPolicyRepository;
     }
 
     @GetMapping("/policies")
@@ -141,7 +144,148 @@ public class PolicyController {
         if (fetchError != null) {
             model.addAttribute("fetchError", fetchError);
         }
+
+        // Finalization-policy tab data: list every policy plus per-policy "in use by N
+        // batches" so the template can disable the Delete button when the policy is bound.
+        final List<ai.philterd.arbiter.model.FinalizationPolicy> finalizationPolicies =
+                finalizationPolicyRepository.findAll();
+        finalizationPolicies.sort(Comparator.comparing(
+                (ai.philterd.arbiter.model.FinalizationPolicy p) ->
+                        p.getName() == null ? "" : p.getName().toLowerCase()));
+        final List<Map<String, Object>> finalizationRows = new ArrayList<>();
+        for (ai.philterd.arbiter.model.FinalizationPolicy p : finalizationPolicies) {
+            final Map<String, Object> row = new java.util.LinkedHashMap<>();
+            row.put("id", p.getId());
+            row.put("name", p.getName());
+            row.put("option", p.getOption());
+            row.put("optionLabel", ai.philterd.arbiter.model.FinalizationPolicy.labels()
+                    .getOrDefault(p.getOption(), p.getOption()));
+            row.put("deleteAfterDays", p.getDeleteAfterDays());
+            row.put("inUse", batchRepository.existsByFinalizationPolicyId(p.getId()));
+            finalizationRows.add(row);
+        }
+        model.addAttribute("finalizationPolicies", finalizationRows);
+        model.addAttribute("finalizationOptions",
+                ai.philterd.arbiter.model.FinalizationPolicy.labels());
         return "policies";
+    }
+
+    @PostMapping("/policies/finalization")
+    public String createFinalizationPolicy(@RequestParam("name") final String name,
+                                           @RequestParam("option") final String option,
+                                           @RequestParam(value = "deleteAfterDays", required = false) final Long deleteAfterDays,
+                                           final RedirectAttributes redirectAttributes) {
+        final String trimmed = name == null ? "" : name.trim();
+        if (trimmed.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Name is required.");
+            return "redirect:/policies?tab=finalization";
+        }
+        if (!ai.philterd.arbiter.model.FinalizationPolicy.isValidOption(option)) {
+            redirectAttributes.addFlashAttribute("error", "Pick a valid finalization option.");
+            return "redirect:/policies?tab=finalization";
+        }
+        final long days = deleteAfterDays == null ? 0 : deleteAfterDays;
+        if (ai.philterd.arbiter.model.FinalizationPolicy.OPTION_DELETE_AFTER_X_DAYS.equals(option)
+                && days <= 0) {
+            redirectAttributes.addFlashAttribute("error",
+                    "\"Delete after X days\" requires a positive number of days.");
+            return "redirect:/policies?tab=finalization";
+        }
+        if (finalizationPolicyRepository.findByName(trimmed).isPresent()) {
+            redirectAttributes.addFlashAttribute("error",
+                    "A finalization policy named \"" + trimmed + "\" already exists.");
+            return "redirect:/policies?tab=finalization";
+        }
+        final ai.philterd.arbiter.model.FinalizationPolicy policy =
+                new ai.philterd.arbiter.model.FinalizationPolicy();
+        policy.setId(UUID.randomUUID().toString());
+        policy.setName(trimmed);
+        policy.setOption(option);
+        policy.setDeleteAfterDays(days);
+        policy.setCreatedAt(java.time.Instant.now());
+        policy.setUpdatedAt(policy.getCreatedAt());
+        try {
+            finalizationPolicyRepository.save(policy);
+        } catch (org.springframework.dao.DuplicateKeyException e) {
+            redirectAttributes.addFlashAttribute("error",
+                    "A finalization policy named \"" + trimmed + "\" already exists.");
+            return "redirect:/policies?tab=finalization";
+        }
+        auditLogService.log("FINALIZATION_POLICY_CREATE", "FinalizationPolicy", policy.getId(),
+                Map.of("name", trimmed, "option", option, "deleteAfterDays", days));
+        redirectAttributes.addFlashAttribute("success",
+                "Finalization policy \"" + trimmed + "\" created.");
+        return "redirect:/policies?tab=finalization";
+    }
+
+    @PostMapping("/policies/finalization/{id}/edit")
+    public String editFinalizationPolicy(@PathVariable final String id,
+                                         @RequestParam("name") final String name,
+                                         @RequestParam("option") final String option,
+                                         @RequestParam(value = "deleteAfterDays", required = false) final Long deleteAfterDays,
+                                         final RedirectAttributes redirectAttributes) {
+        final ai.philterd.arbiter.model.FinalizationPolicy policy =
+                finalizationPolicyRepository.findById(id).orElse(null);
+        if (policy == null) {
+            redirectAttributes.addFlashAttribute("error", "Finalization policy not found.");
+            return "redirect:/policies?tab=finalization";
+        }
+        final String trimmed = name == null ? "" : name.trim();
+        if (trimmed.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Name is required.");
+            return "redirect:/policies?tab=finalization";
+        }
+        if (!ai.philterd.arbiter.model.FinalizationPolicy.isValidOption(option)) {
+            redirectAttributes.addFlashAttribute("error", "Pick a valid finalization option.");
+            return "redirect:/policies?tab=finalization";
+        }
+        final long days = deleteAfterDays == null ? 0 : deleteAfterDays;
+        if (ai.philterd.arbiter.model.FinalizationPolicy.OPTION_DELETE_AFTER_X_DAYS.equals(option)
+                && days <= 0) {
+            redirectAttributes.addFlashAttribute("error",
+                    "\"Delete after X days\" requires a positive number of days.");
+            return "redirect:/policies?tab=finalization";
+        }
+        final java.util.Optional<ai.philterd.arbiter.model.FinalizationPolicy> existing =
+                finalizationPolicyRepository.findByName(trimmed);
+        if (existing.isPresent() && !existing.get().getId().equals(id)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "A finalization policy named \"" + trimmed + "\" already exists.");
+            return "redirect:/policies?tab=finalization";
+        }
+        policy.setName(trimmed);
+        policy.setOption(option);
+        policy.setDeleteAfterDays(days);
+        policy.setUpdatedAt(java.time.Instant.now());
+        finalizationPolicyRepository.save(policy);
+        auditLogService.log("FINALIZATION_POLICY_UPDATE", "FinalizationPolicy", policy.getId(),
+                Map.of("name", trimmed, "option", option, "deleteAfterDays", days));
+        redirectAttributes.addFlashAttribute("success",
+                "Finalization policy \"" + trimmed + "\" updated.");
+        return "redirect:/policies?tab=finalization";
+    }
+
+    @PostMapping("/policies/finalization/{id}/delete")
+    public String deleteFinalizationPolicy(@PathVariable final String id,
+                                           final RedirectAttributes redirectAttributes) {
+        final ai.philterd.arbiter.model.FinalizationPolicy policy =
+                finalizationPolicyRepository.findById(id).orElse(null);
+        if (policy == null) {
+            redirectAttributes.addFlashAttribute("error", "Finalization policy not found.");
+            return "redirect:/policies?tab=finalization";
+        }
+        if (batchRepository.existsByFinalizationPolicyId(id)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Finalization policy \"" + policy.getName()
+                            + "\" is in use by one or more batches and cannot be deleted.");
+            return "redirect:/policies?tab=finalization";
+        }
+        finalizationPolicyRepository.deleteById(id);
+        auditLogService.log("FINALIZATION_POLICY_DELETE", "FinalizationPolicy", id,
+                Map.of("name", policy.getName() == null ? "" : policy.getName()));
+        redirectAttributes.addFlashAttribute("success",
+                "Finalization policy \"" + policy.getName() + "\" deleted.");
+        return "redirect:/policies?tab=finalization";
     }
 
     private String policyEditorUrl() {

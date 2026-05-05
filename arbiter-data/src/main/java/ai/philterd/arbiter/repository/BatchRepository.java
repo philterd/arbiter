@@ -12,4 +12,6 @@ public interface BatchRepository extends MongoRepository<Batch, String> {
     boolean existsByWeightSetId(String weightSetId);
     java.util.List<Batch> findByWeightSetId(String weightSetId);
     java.util.List<Batch> findByPhilterInstanceIdIsNullAndPolicyName(String policyName);
+    boolean existsByFinalizationPolicyId(String finalizationPolicyId);
+    java.util.List<Batch> findByFinalizationPolicyId(String finalizationPolicyId);
 }

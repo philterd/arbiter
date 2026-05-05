@@ -65,6 +65,8 @@ public class ReviewViewController {
     private final UserSettingsService userSettingsService;
     private final UserRepository userRepository;
     private final ApprovalRuleEvaluator approvalRuleEvaluator;
+    private final ai.philterd.arbiter.service.DocumentLockService documentLockService;
+    private final RedactionCertificateService redactionCertificateService;
 
     public ReviewViewController(final DocumentRepository documentRepository,
                                 final SpanRepository spanRepository,
@@ -75,7 +77,9 @@ public class ReviewViewController {
                                 final LlmJudgeDefaultsService llmJudgeDefaultsService,
                                 final UserSettingsService userSettingsService,
                                 final UserRepository userRepository,
-                                final ApprovalRuleEvaluator approvalRuleEvaluator) {
+                                final ApprovalRuleEvaluator approvalRuleEvaluator,
+                                final ai.philterd.arbiter.service.DocumentLockService documentLockService,
+                                final RedactionCertificateService redactionCertificateService) {
         this.documentRepository = documentRepository;
         this.spanRepository = spanRepository;
         this.batchRepository = batchRepository;
@@ -86,6 +90,8 @@ public class ReviewViewController {
         this.userSettingsService = userSettingsService;
         this.userRepository = userRepository;
         this.approvalRuleEvaluator = approvalRuleEvaluator;
+        this.documentLockService = documentLockService;
+        this.redactionCertificateService = redactionCertificateService;
     }
 
     private static boolean isAdmin(final Authentication auth) {
@@ -111,9 +117,33 @@ public class ReviewViewController {
 
     @GetMapping("/review/{documentId}")
     public String review(@PathVariable final String documentId, final Authentication authentication, final Model model) {
-        final Document document = documentRepository.findById(documentId)
+        Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + documentId));
         requireAccess(authentication, document);
+
+        // Pessimistic lock acquisition. Atomic findAndModify guarantees only one reviewer
+        // gets a fresh lock; other openers see read-only mode with a banner naming the
+        // current holder. Admins can still open in read-only and choose to break the lock.
+        final String email = authentication == null ? null : authentication.getName();
+        final Document acquired = email == null ? null
+                : documentLockService.acquire(documentId, email);
+        boolean lockedByOther = false;
+        String lockHolder = null;
+        java.time.Instant lockExpiresAt = null;
+        if (acquired != null) {
+            document = acquired;
+            lockHolder = acquired.getLockedBy();
+            lockExpiresAt = acquired.getLockExpiresAt();
+        } else {
+            // Re-fetch to read who currently holds the lock.
+            document = documentRepository.findById(documentId).orElse(document);
+            if (document.isLocked(java.time.Instant.now())
+                    && (email == null || !email.equalsIgnoreCase(document.getLockedBy()))) {
+                lockedByOther = true;
+                lockHolder = document.getLockedBy();
+                lockExpiresAt = document.getLockExpiresAt();
+            }
+        }
 
         final String originalText = document.getOriginalText() == null ? "" : document.getOriginalText();
 
@@ -207,7 +237,118 @@ public class ReviewViewController {
         final int approvalsGiven = document.getApprovedBy().size();
         model.addAttribute("approvalsRequired", approvalsRequired);
         model.addAttribute("approvalsGiven", approvalsGiven);
+        model.addAttribute("lockedByOther", lockedByOther);
+        model.addAttribute("lockHolder", lockHolder == null ? "" : lockHolder);
+        model.addAttribute("lockExpiresAt", lockExpiresAt);
         return "review";
+    }
+
+    @PostMapping("/api/v1/review/{documentId}/pulse")
+    @org.springframework.web.bind.annotation.ResponseBody
+    public Map<String, Object> pulse(@PathVariable final String documentId,
+                                     final Authentication authentication) {
+        final String email = authentication == null ? null : authentication.getName();
+        final Document doc = email == null ? null : documentLockService.pulse(documentId, email);
+        final Map<String, Object> out = new java.util.LinkedHashMap<>();
+        if (doc == null) {
+            // Lock was lost (expired, broken, or held by someone else). The client should
+            // refresh the review page so the user sees read-only mode.
+            out.put("ok", false);
+            out.put("reason", "LOCK_LOST");
+            return out;
+        }
+        out.put("ok", true);
+        out.put("lockExpiresAt", doc.getLockExpiresAt());
+        return out;
+    }
+
+    @PostMapping("/review/{documentId}/finalize")
+    public String finalizeDocument(@PathVariable final String documentId,
+                                   final Authentication authentication,
+                                   final org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
+        final Document document = documentRepository.findById(documentId).orElse(null);
+        if (document == null) {
+            redirectAttributes.addFlashAttribute("error", "Document not found.");
+            return "redirect:/";
+        }
+        requireAccess(authentication, document);
+        // Finalize is reachable only from a fully-approved document; the queue button is
+        // gated on (status == APPROVED && approvalsAcquired >= approvalsRequired). Defend
+        // here as well so direct POSTs can't bypass the precondition.
+        if (!"APPROVED".equals(document.getStatus())) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Only APPROVED documents can be finalized.");
+            return "redirect:/review/" + documentId;
+        }
+        final String previous = document.getStatus();
+        document.changeStatus("FINALIZED");
+        documentRepository.save(document);
+        final String email = authentication == null ? null : authentication.getName();
+        if (email != null) {
+            documentLockService.release(documentId, email);
+        }
+        // Build the Certificate of Redaction from existing audit + document state. This
+        // happens *after* the FINALIZED save so the certificate's timestamps capture the
+        // post-finalize state of the document.
+        final ai.philterd.arbiter.model.RedactionCertificate certificate =
+                redactionCertificateService.generate(document, email);
+        auditLogService.log("DOCUMENT_FINALIZE", "Document", documentId,
+                Map.of("previous", previous == null ? "" : previous,
+                        "actor", email == null ? "" : email,
+                        "certificateId", certificate.getId(),
+                        "documentHash", certificate.getDocumentHash() == null
+                                ? "" : certificate.getDocumentHash()));
+        return "redirect:/";
+    }
+
+    @PostMapping("/review/{documentId}/release")
+    public String release(@PathVariable final String documentId,
+                          final Authentication authentication) {
+        final String email = authentication == null ? null : authentication.getName();
+        if (email != null) {
+            documentLockService.release(documentId, email);
+        }
+        return "redirect:/";
+    }
+
+    /**
+     * JSON-friendly release endpoint, for {@code navigator.sendBeacon} on page hide. Lives
+     * under {@code /api/**} so it bypasses CSRF (sendBeacon can't easily attach tokens).
+     */
+    @PostMapping("/api/v1/review/{documentId}/release")
+    @org.springframework.web.bind.annotation.ResponseBody
+    public Map<String, Object> releaseApi(@PathVariable final String documentId,
+                                          final Authentication authentication) {
+        final String email = authentication == null ? null : authentication.getName();
+        if (email != null) {
+            documentLockService.release(documentId, email);
+        }
+        return Map.of("ok", true);
+    }
+
+    @PostMapping("/review/{documentId}/break-lock")
+    public String breakLock(@PathVariable final String documentId,
+                            final Authentication authentication,
+                            final org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
+        if (!isAdmin(authentication)) {
+            redirectAttributes.addFlashAttribute("error", "Only admins can break a review lock.");
+            return "redirect:/review/" + documentId;
+        }
+        final Document doc = documentRepository.findById(documentId).orElse(null);
+        if (doc == null) {
+            redirectAttributes.addFlashAttribute("error", "Document not found.");
+            return "redirect:/";
+        }
+        final String previousHolder = doc.getLockedBy();
+        documentLockService.breakLock(documentId);
+        auditLogService.log("DOCUMENT_LOCK_BROKEN", "Document", documentId,
+                Map.of("actor", authentication == null ? "" : authentication.getName(),
+                        "previousHolder", previousHolder == null ? "" : previousHolder));
+        redirectAttributes.addFlashAttribute("success",
+                previousHolder == null
+                        ? "Lock cleared."
+                        : "Lock previously held by " + previousHolder + " has been cleared.");
+        return "redirect:/review/" + documentId;
     }
 
     @PostMapping("/review/{documentId}/approve")
@@ -279,6 +420,9 @@ public class ReviewViewController {
         }
         documentRepository.save(document);
         incrementReviewCount(reviewer);
+        if (email != null) {
+            documentLockService.release(documentId, email);
+        }
         auditLogService.log("DOCUMENT_APPROVAL", "Document", documentId,
                 Map.of(
                         "previous", previous == null ? "" : previous,
@@ -308,6 +452,10 @@ public class ReviewViewController {
     public String reject(@PathVariable final String documentId, final Authentication authentication) {
         updateStatus(documentId, "REJECTED", authentication);
         incrementReviewCountByEmail(authentication == null ? null : authentication.getName());
+        final String email = authentication == null ? null : authentication.getName();
+        if (email != null) {
+            documentLockService.release(documentId, email);
+        }
         return "redirect:/";
     }
 
@@ -323,7 +471,13 @@ public class ReviewViewController {
     }
 
     @PostMapping("/review/{documentId}/unapprove")
-    public String unapprove(@PathVariable final String documentId, final Authentication authentication) {
+    public String unapprove(@PathVariable final String documentId, final Authentication authentication,
+                            final org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
+        if (isFinalized(documentId)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Document is FINALIZED. Finalized documents cannot be reopened.");
+            return "redirect:/review/" + documentId;
+        }
         clearApprovals(documentId);
         updateStatus(documentId, "REVIEW_REQUIRED", authentication);
         auditLogService.log("DOCUMENT_UNAPPROVE", "Document", documentId,
@@ -332,12 +486,23 @@ public class ReviewViewController {
     }
 
     @PostMapping("/review/{documentId}/unreject")
-    public String unreject(@PathVariable final String documentId, final Authentication authentication) {
+    public String unreject(@PathVariable final String documentId, final Authentication authentication,
+                           final org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
+        if (isFinalized(documentId)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Document is FINALIZED. Finalized documents cannot be reopened.");
+            return "redirect:/review/" + documentId;
+        }
         clearApprovals(documentId);
         updateStatus(documentId, "REVIEW_REQUIRED", authentication);
         auditLogService.log("DOCUMENT_UNREJECT", "Document", documentId,
                 Map.of("actor", authentication == null ? "" : authentication.getName()));
         return "redirect:/review/" + documentId;
+    }
+
+    private boolean isFinalized(final String documentId) {
+        final Document doc = documentRepository.findById(documentId).orElse(null);
+        return doc != null && "FINALIZED".equals(doc.getStatus());
     }
 
     /**

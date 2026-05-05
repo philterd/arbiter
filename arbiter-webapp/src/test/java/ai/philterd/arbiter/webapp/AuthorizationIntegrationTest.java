@@ -20,6 +20,7 @@ import ai.philterd.arbiter.repository.LlmJudgeDefaultsRepository;
 import ai.philterd.arbiter.repository.NotificationSettingsRepository;
 import ai.philterd.arbiter.repository.OllamaInstanceRepository;
 import ai.philterd.arbiter.repository.PendingUploadRepository;
+import ai.philterd.arbiter.repository.RedactionCertificateRepository;
 import ai.philterd.arbiter.repository.PhilterDefaultsRepository;
 import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import ai.philterd.arbiter.repository.PolicyRepository;
@@ -98,6 +99,8 @@ public class AuthorizationIntegrationTest {
     @MockBean private UserSettingsRepository userSettingsRepository;
     @MockBean private InboxMessageRepository inboxMessageRepository;
     @MockBean private PendingUploadRepository pendingUploadRepository;
+    @MockBean private RedactionCertificateRepository redactionCertificateRepository;
+    @MockBean private ai.philterd.arbiter.repository.FinalizationPolicyRepository finalizationPolicyRepository;
     @MockBean private MongoOperations mongoOperations;
 
     // ---------------------------------------------------------------------
