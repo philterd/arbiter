@@ -17,7 +17,7 @@
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
-    <title>Arbiter - Queue</title>
+    <title>Arbiter - Document Queue</title>
     <script th:src="@{/js/tailwind.js}"></script>
 </head>
 <body class="bg-gray-50">
@@ -41,17 +41,62 @@
                     </svg>
                     Dashboard
                 </a>
-                <a th:href="@{/batches}" class="nav-link flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                <a th:href="@{/inbox}" class="relative flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
                     </svg>
-                    Batches
+                    Inbox
+                    <span th:if="${inboxUnreadCount != null and inboxUnreadCount > 0}"
+                          class="ml-auto inline-flex items-center justify-center min-w-[1.25rem] h-5 text-[10px] font-semibold rounded-full bg-red-600 text-white px-1.5"
+                          th:text="${inboxUnreadCount}">3</span>
                 </a>
                 <a th:href="@{/queue}" class="nav-link flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path>
                     </svg>
-                    Queue
+                    Document Queue
+                </a>
+                <a th:href="@{/second-opinions}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                    </svg>
+                    Second Opinions
+                </a>
+                <a th:href="@{/search}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"></path>
+                    </svg>
+                    Search
+                </a>
+                <a th:href="@{/settings}" class="nav-link flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    Settings
+                </a>
+                <div sec:authorize="hasRole('ADMIN')" class="mt-4 pt-3 border-t border-gray-200 space-y-1">
+                    <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Administration</p>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/batches}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                    </svg>
+                    Batches
+                </a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/ingest-queue}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Ingest Queue
+                </a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/rules}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                    </svg>
+                    Approval Rules
                 </a>
                 <a sec:authorize="hasRole('ADMIN')" th:href="@{/policies}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -65,13 +110,6 @@
                     </svg>
                     Reports
                 </a>
-                <a th:href="@{/settings}" class="nav-link flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
-                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                    </svg>
-                    Settings
-                </a>
                 <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/general}"
                    class="nav-link flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -79,6 +117,7 @@
                     </svg>
                     Admin
                 </a>
+                </div>
             </nav>
             <div class="px-3 py-4 border-t border-gray-200 text-sm text-gray-600">
                 <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd.png}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
@@ -98,7 +137,7 @@
         <main class="flex-1 p-8">
             <div id="queue-view">
                 <div class="flex justify-between items-center mb-6">
-                    <h2 class="text-3xl font-bold text-gray-900">Queue</h2>
+                    <h2 class="text-3xl font-bold text-gray-900">Document Queue</h2>
                     <div class="flex items-center gap-4">
                         <label sec:authorize="hasRole('ADMIN')" class="inline-flex items-center cursor-pointer text-sm text-gray-700">
                             <input id="myGroupsOnlyCb" type="checkbox" class="mr-2">
@@ -160,13 +199,14 @@
                                     class="sortable px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:text-gray-700">
                                     Risk Score <span class="sort-arrow"></span>
                                 </th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Approvals</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Days in Queue</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                             </tr>
                         </thead>
                         <tbody id="queueBody" class="bg-white divide-y divide-gray-200">
                             <tr>
-                                <td colspan="6" class="px-6 py-8 text-center text-sm text-gray-500">Loading...</td>
+                                <td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500">Loading...</td>
                             </tr>
                         </tbody>
                     </table>
@@ -208,7 +248,7 @@
 
         async function loadQueue(page) {
             const body = document.getElementById('queueBody');
-            body.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-sm text-gray-500">Loading...</td></tr>';
+            body.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500">Loading...</td></tr>';
 
             const params = new URLSearchParams({ page, size: pageSize });
             const batchId = document.getElementById('batchFilter').value;
@@ -230,7 +270,7 @@
                 const data = await response.json();
                 renderQueue(data);
             } catch (err) {
-                body.innerHTML = `<tr><td colspan="6" class="px-6 py-8 text-center text-sm text-red-600">Failed to load queue: ${escapeHtml(err.message)}</td></tr>`;
+                body.innerHTML = `<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-red-600">Failed to load queue: ${escapeHtml(err.message)}</td></tr>`;
                 document.getElementById('pageInfo').textContent = '';
                 document.getElementById('prevBtn').disabled = true;
                 document.getElementById('nextBtn').disabled = true;
@@ -268,10 +308,15 @@
             const docs = data.content || [];
 
             if (docs.length === 0) {
-                body.innerHTML = '<tr><td colspan="6" class="px-6 py-8 text-center text-sm text-gray-500">No documents in the queue.</td></tr>';
+                body.innerHTML = '<tr><td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500">No documents in the queue.</td></tr>';
             } else {
                 body.innerHTML = docs.map(doc => {
                     const displayStatus = doc.autoApproved ? 'AUTO_APPROVED' : (doc.status || '');
+                    const required = doc.approvalsRequired ?? 1;
+                    const acquired = doc.approvalsAcquired ?? 0;
+                    const approvalsClass = (acquired >= required && required > 0)
+                        ? 'text-green-700 font-semibold'
+                        : (required > 1 ? 'text-amber-700 font-medium' : 'text-gray-700');
                     return `
                     <tr class="hover:bg-gray-50">
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${escapeHtml(doc.filename || '')}</td>
@@ -280,6 +325,7 @@
                             <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${statusClass(displayStatus)}">${escapeHtml(displayStatus)}</span>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">${(doc.riskScore ?? 0).toFixed(2)}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm ${approvalsClass}">${acquired} of ${required}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${doc.daysInQueue == null ? '<span class="text-gray-400">—</span>' : doc.daysInQueue}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm">
                             <a href="/review/${encodeURIComponent(doc.id)}" class="text-blue-600 hover:text-blue-800 font-medium">Review</a>

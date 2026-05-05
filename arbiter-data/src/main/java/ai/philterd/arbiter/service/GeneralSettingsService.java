@@ -20,11 +20,14 @@ public class GeneralSettingsService {
 
     private final GeneralSettingsRepository repository;
     private final int serverPort;
+    private final String opensearchEndpointDefault;
 
     public GeneralSettingsService(final GeneralSettingsRepository repository,
-                                  @Value("${server.port:8080}") final int serverPort) {
+                                  @Value("${server.port:8080}") final int serverPort,
+                                  @Value("${arbiter.opensearch.endpoint:}") final String opensearchEndpointDefault) {
         this.repository = repository;
         this.serverPort = serverPort;
+        this.opensearchEndpointDefault = opensearchEndpointDefault == null ? "" : opensearchEndpointDefault.trim();
     }
 
     public GeneralSettings load() {
@@ -38,8 +41,18 @@ public class GeneralSettingsService {
         if (settings.getTimezone() == null || settings.getTimezone().isBlank()) {
             settings.setTimezone("UTC");
         }
+        if (settings.getOpensearchEndpoint() == null || settings.getOpensearchEndpoint().isBlank()) {
+            settings.setOpensearchEndpoint(opensearchEndpointDefault.isEmpty()
+                    ? "http://localhost:9200" : opensearchEndpointDefault);
+        }
+        if (settings.getMaxUploadFileSizeBytes() <= 0) {
+            settings.setMaxUploadFileSizeBytes(DEFAULT_MAX_UPLOAD_FILE_SIZE_BYTES);
+        }
         return settings;
     }
+
+    /** 10 MB default — applied at read time when the persisted value is unset. */
+    public static final long DEFAULT_MAX_UPLOAD_FILE_SIZE_BYTES = 10L * 1024L * 1024L;
 
     public GeneralSettings save(GeneralSettings settings) {
         settings.setId(GeneralSettings.SINGLETON_ID);

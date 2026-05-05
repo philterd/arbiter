@@ -29,6 +29,11 @@ public class DefaultPhilterClientFactory implements PhilterClientFactory {
 
     @Override
     public PhilterClient create(final String philterUrl) {
-        return new PhilterClientImpl(restTemplate, philterUrl);
+        return new PhilterClientImpl(restTemplate, philterUrl, null);
+    }
+
+    @Override
+    public PhilterClient create(final String philterUrl, final String apiKey) {
+        return new PhilterClientImpl(restTemplate, philterUrl, apiKey);
     }
 }

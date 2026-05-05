@@ -13,6 +13,13 @@ public class GeneralSettings {
 
     private String arbiterUrl;
     private String timezone;
+    private String opensearchEndpoint;
+    /**
+     * Maximum size of a single uploaded document, in bytes. Enforced by the upload and ingest
+     * endpoints regardless of which path is used. {@code 0} means unset (the service default
+     * applies on read).
+     */
+    private long maxUploadFileSizeBytes;
 
     public GeneralSettings() {
     }
@@ -25,4 +32,12 @@ public class GeneralSettings {
 
     public String getTimezone() { return timezone; }
     public void setTimezone(final String timezone) { this.timezone = timezone; }
+
+    public String getOpensearchEndpoint() { return opensearchEndpoint; }
+    public void setOpensearchEndpoint(final String opensearchEndpoint) { this.opensearchEndpoint = opensearchEndpoint; }
+
+    public long getMaxUploadFileSizeBytes() { return maxUploadFileSizeBytes; }
+    public void setMaxUploadFileSizeBytes(final long maxUploadFileSizeBytes) {
+        this.maxUploadFileSizeBytes = maxUploadFileSizeBytes;
+    }
 }

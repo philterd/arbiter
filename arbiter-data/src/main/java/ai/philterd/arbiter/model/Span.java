@@ -8,6 +8,13 @@ import java.time.LocalDateTime;
 @Document(collection = "spans")
 public class Span {
 
+    /**
+     * A reviewer has flagged this span for a second opinion. The span is neither approved
+     * nor rejected; another reviewer (not the one who flagged it) must resolve it before
+     * the document can be approved.
+     */
+    public static final String STATUS_NEEDS_SECOND_OPINION = "NEEDS_SECOND_OPINION";
+
     @Id
     private String id;
     private String documentId;
@@ -19,6 +26,12 @@ public class Span {
     private boolean manuallyCreated;
     private LocalDateTime createdAt;
     private LocalDateTime statusChangedAt;
+    /**
+     * Email of the user who last changed this span's status, or null if it was
+     * set by the system (e.g. auto-approved during ingest based on confidence).
+     * Used to detect when a second reviewer is overturning a prior decision.
+     */
+    private String statusChangedBy;
 
     public Span() {
     }
@@ -103,9 +116,27 @@ public class Span {
         this.statusChangedAt = statusChangedAt;
     }
 
-    /** Set both the status and its change timestamp atomically. */
+    public String getStatusChangedBy() {
+        return statusChangedBy;
+    }
+
+    public void setStatusChangedBy(final String statusChangedBy) {
+        this.statusChangedBy = statusChangedBy;
+    }
+
+    /** Set both the status and its change timestamp atomically. The actor is left untouched. */
     public void changeStatus(final String newStatus) {
         this.status = newStatus;
         this.statusChangedAt = LocalDateTime.now();
+    }
+
+    /**
+     * Set the status, change timestamp, and the email of the user making the change.
+     * Use the no-actor overload only for system-generated transitions.
+     */
+    public void changeStatus(final String newStatus, final String actorEmail) {
+        this.status = newStatus;
+        this.statusChangedAt = LocalDateTime.now();
+        this.statusChangedBy = actorEmail;
     }
 }

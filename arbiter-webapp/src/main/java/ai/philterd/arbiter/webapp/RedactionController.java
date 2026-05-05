@@ -28,6 +28,8 @@ import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.SpanRepository;
 import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.service.GeneralSettingsService;
+import ai.philterd.arbiter.service.OpenSearchIndexService;
 import ai.philterd.arbiter.service.RedactionService;
 import ai.philterd.arbiter.service.UserGroupsService;
 import org.springframework.security.core.Authentication;
@@ -68,19 +70,28 @@ public class RedactionController {
     private final SpanRepository spanRepository;
     private final UserGroupsService userGroupsService;
     private final AuditLogService auditLogService;
+    private final OpenSearchIndexService openSearchIndexService;
+    private final IngestQueueService ingestQueueService;
+    private final GeneralSettingsService generalSettingsService;
 
     public RedactionController(final RedactionService redactionService,
                                final BatchRepository batchRepository,
                                final DocumentRepository documentRepository,
                                final SpanRepository spanRepository,
                                final UserGroupsService userGroupsService,
-                               final AuditLogService auditLogService) {
+                               final AuditLogService auditLogService,
+                               final OpenSearchIndexService openSearchIndexService,
+                               final IngestQueueService ingestQueueService,
+                               final GeneralSettingsService generalSettingsService) {
         this.redactionService = redactionService;
         this.batchRepository = batchRepository;
         this.documentRepository = documentRepository;
         this.spanRepository = spanRepository;
         this.userGroupsService = userGroupsService;
         this.auditLogService = auditLogService;
+        this.openSearchIndexService = openSearchIndexService;
+        this.ingestQueueService = ingestQueueService;
+        this.generalSettingsService = generalSettingsService;
     }
 
     private static boolean isAdmin(final Authentication auth) {
@@ -186,34 +197,37 @@ public class RedactionController {
             return "redirect:/upload";
         }
 
-        final String contentType = file.getContentType();
-        final byte[] fileBytes = file.getBytes();
-        session.setAttribute("originalFile", fileBytes);
-        session.setAttribute("philterInstanceId", batch.getPhilterInstanceId());
-
-        RedactionResponse response;
-
-        if (MediaType.APPLICATION_PDF_VALUE.equals(contentType)) {
-            response = redactionService.redactPdf(new ByteArrayInputStream(fileBytes), batch.getPhilterInstanceId(), batch.getContext());
-        } else {
-            final String text = new String(fileBytes, StandardCharsets.UTF_8);
-            response = redactionService.redactText(text, batch.getPhilterInstanceId(), batch.getContext());
+        final long maxBytes = generalSettingsService.load().getMaxUploadFileSizeBytes();
+        if (file.getSize() > maxBytes) {
+            redirectAttributes.addFlashAttribute("error",
+                    "File exceeds the configured max upload size of "
+                            + String.format("%.2f", maxBytes / 1048576.0) + " MB.");
+            return "redirect:/upload";
         }
 
-        final Document persisted = persistDocument(batch, file.getOriginalFilename(), response);
-        auditLogService.log("DOCUMENT_UPLOAD", "Document", persisted.getId(),
+        final String contentType = file.getContentType();
+        final byte[] fileBytes = file.getBytes();
+        final String originalFilename = file.getOriginalFilename();
+
+        final Document queued;
+        if (MediaType.APPLICATION_PDF_VALUE.equals(contentType)) {
+            queued = ingestQueueService.enqueueFile(batch, originalFilename, fileBytes, contentType);
+        } else {
+            final String text = new String(fileBytes, StandardCharsets.UTF_8);
+            queued = ingestQueueService.enqueueText(batch, originalFilename, text);
+        }
+
+        auditLogService.log("DOCUMENT_QUEUED", "Document", queued.getId(),
                 Map.of(
                         "batchId", batch.getId(),
-                        "filename", file.getOriginalFilename() == null ? "" : file.getOriginalFilename(),
+                        "filename", originalFilename == null ? "" : originalFilename,
                         "contentType", contentType == null ? "" : contentType,
-                        "size", fileBytes.length,
-                        "spanCount", spanRepository.findByDocumentId(persisted.getId()).size()));
+                        "size", fileBytes.length));
 
-        model.addAttribute("redactionResponse", response);
-        model.addAttribute("fileName", file.getOriginalFilename());
-        model.addAttribute("contentType", contentType);
-
-        return "redact";
+        redirectAttributes.addFlashAttribute("success",
+                "\"" + (originalFilename == null ? "Document" : originalFilename)
+                        + "\" was queued for redaction. It will appear in the Document Queue once processed.");
+        return "redirect:/upload";
     }
 
     private Document persistDocument(Batch batch, String filename, RedactionResponse response) {
@@ -265,6 +279,7 @@ public class RedactionController {
         if (!spans.isEmpty()) {
             spanRepository.saveAll(spans);
         }
+        openSearchIndexService.indexDocument(document);
         return document;
     }
 

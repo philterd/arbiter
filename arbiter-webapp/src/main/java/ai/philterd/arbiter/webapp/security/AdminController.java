@@ -20,6 +20,7 @@ import ai.philterd.arbiter.model.Roles;
 import ai.philterd.arbiter.model.User;
 import ai.philterd.arbiter.repository.UserRepository;
 import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.service.InboxService;
 import ai.philterd.arbiter.service.NotificationSettingsService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -48,17 +49,20 @@ public class AdminController {
     private final AuditLogService auditLogService;
     private final NotificationSettingsService notificationSettingsService;
     private final UserNotificationService userNotificationService;
+    private final InboxService inboxService;
 
     public AdminController(final UserRepository userRepository,
                            final PasswordEncoder passwordEncoder,
                            final AuditLogService auditLogService,
                            final NotificationSettingsService notificationSettingsService,
-                           final UserNotificationService userNotificationService) {
+                           final UserNotificationService userNotificationService,
+                           final InboxService inboxService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.auditLogService = auditLogService;
         this.notificationSettingsService = notificationSettingsService;
         this.userNotificationService = userNotificationService;
+        this.inboxService = inboxService;
     }
 
     @GetMapping("/users")
@@ -104,6 +108,7 @@ public class AdminController {
         user.setPasswordHash(passwordEncoder.encode(password));
         user.setRoles(rolesFor(admin));
         userRepository.save(user);
+        inboxService.sendHtml(user.getId(), WelcomeMessage.html(admin));
         auditLogService.log("USER_CREATE", "User", user.getId(),
                 Map.of("email", trimmed, "admin", admin, "sendEmail", sendEmail));
 

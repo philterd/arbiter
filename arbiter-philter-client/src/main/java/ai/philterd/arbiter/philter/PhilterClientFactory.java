@@ -17,4 +17,12 @@ package ai.philterd.arbiter.philter;
 
 public interface PhilterClientFactory {
     PhilterClient create(String philterUrl);
+
+    /**
+     * Build a client that authenticates outbound calls with the supplied bearer API key. Pass
+     * {@code null} or empty for instances that don't require authentication.
+     */
+    default PhilterClient create(String philterUrl, String apiKey) {
+        return create(philterUrl);
+    }
 }

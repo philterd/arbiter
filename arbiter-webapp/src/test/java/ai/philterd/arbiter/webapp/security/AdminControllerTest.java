@@ -13,6 +13,7 @@ import ai.philterd.arbiter.model.NotificationSettings;
 import ai.philterd.arbiter.model.User;
 import ai.philterd.arbiter.repository.UserRepository;
 import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.service.InboxService;
 import ai.philterd.arbiter.service.NotificationSettingsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,6 +40,7 @@ class AdminControllerTest {
     private AuditLogService auditLogService;
     private NotificationSettingsService notificationSettingsService;
     private UserNotificationService userNotificationService;
+    private InboxService inboxService;
     private AdminController controller;
 
     @BeforeEach
@@ -49,8 +51,9 @@ class AdminControllerTest {
         auditLogService = mock(AuditLogService.class);
         notificationSettingsService = mock(NotificationSettingsService.class);
         userNotificationService = mock(UserNotificationService.class);
+        inboxService = mock(InboxService.class);
         controller = new AdminController(userRepository, passwordEncoder, auditLogService,
-                notificationSettingsService, userNotificationService);
+                notificationSettingsService, userNotificationService, inboxService);
     }
 
     private static RedirectAttributes flash() { return new RedirectAttributesModelMap(); }

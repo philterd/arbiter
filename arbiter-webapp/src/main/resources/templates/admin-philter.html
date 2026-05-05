@@ -41,17 +41,62 @@
                     </svg>
                     Dashboard
                 </a>
-                <a th:href="@{/batches}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                <a th:href="@{/inbox}" class="relative flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
                     </svg>
-                    Batches
+                    Inbox
+                    <span th:if="${inboxUnreadCount != null and inboxUnreadCount > 0}"
+                          class="ml-auto inline-flex items-center justify-center min-w-[1.25rem] h-5 text-[10px] font-semibold rounded-full bg-red-600 text-white px-1.5"
+                          th:text="${inboxUnreadCount}">3</span>
                 </a>
                 <a th:href="@{/queue}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path>
                     </svg>
-                    Queue
+                    Document Queue
+                </a>
+                <a th:href="@{/second-opinions}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                    </svg>
+                    Second Opinions
+                </a>
+                <a th:href="@{/search}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"></path>
+                    </svg>
+                    Search
+                </a>
+                <a th:href="@{/settings}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    Settings
+                </a>
+                <div sec:authorize="hasRole('ADMIN')" class="mt-4 pt-3 border-t border-gray-200 space-y-1">
+                    <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Administration</p>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/batches}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                    </svg>
+                    Batches
+                </a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/ingest-queue}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Ingest Queue
+                </a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/rules}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                    </svg>
+                    Approval Rules
                 </a>
                 <a sec:authorize="hasRole('ADMIN')" th:href="@{/policies}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -65,13 +110,6 @@
                     </svg>
                     Reports
                 </a>
-                <a th:href="@{/settings}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
-                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
-                    </svg>
-                    Settings
-                </a>
                 <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/general}"
                    class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -79,6 +117,7 @@
                     </svg>
                     Admin
                 </a>
+                </div>
             </nav>
             <div class="px-3 py-4 border-t border-gray-200 text-sm text-gray-600">
                 <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd.png}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
@@ -152,27 +191,39 @@
                 <p class="text-xs text-gray-500 mb-3">
                     Register a Philter server that Arbiter can call for redaction. Names must be unique.
                 </p>
-                <form th:action="@{/admin/philter}" method="post"
-                      class="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_8rem_auto] gap-2 items-end">
-                    <div>
-                        <label for="philterName" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Name</label>
-                        <input id="philterName" name="name" type="text" required placeholder="philter-prod"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <form th:action="@{/admin/philter}" method="post" class="space-y-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_8rem] gap-2">
+                        <div>
+                            <label for="philterName" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Name</label>
+                            <input id="philterName" name="name" type="text" required placeholder="philter-prod"
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="philterEndpoint" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Endpoint</label>
+                            <input id="philterEndpoint" name="endpoint" type="text" required placeholder="philter or 192.168.1.20"
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="philterPort" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Port</label>
+                            <input id="philterPort" name="port" type="number" required min="1" max="65535" value="8080"
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
                     </div>
                     <div>
-                        <label for="philterEndpoint" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Endpoint</label>
-                        <input id="philterEndpoint" name="endpoint" type="text" required placeholder="philter or 192.168.1.20"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <label for="philterApiKey" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">API key (optional)</label>
+                        <input id="philterApiKey" name="apiKey" type="password" autocomplete="off"
+                               placeholder="Sent as Authorization: Bearer …"
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <p class="text-xs text-gray-500 mt-1">
+                            Stored encrypted at rest with AES-GCM and sent on every outbound call to this instance.
+                        </p>
                     </div>
-                    <div>
-                        <label for="philterPort" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Port</label>
-                        <input id="philterPort" name="port" type="number" required min="1" max="65535" value="8080"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <div class="flex justify-end">
+                        <button type="submit"
+                                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                            Add
+                        </button>
                     </div>
-                    <button type="submit"
-                            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
-                        Add
-                    </button>
                 </form>
             </div>
 
@@ -183,16 +234,17 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Endpoint</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Port</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">API key</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
                         <tr th:if="${#lists.isEmpty(instances)}">
-                            <td colspan="4" class="px-6 py-8 text-center text-sm text-gray-500">
+                            <td colspan="5" class="px-6 py-8 text-center text-sm text-gray-500">
                                 No Philter instances registered yet.
                             </td>
                         </tr>
-                        <tr th:each="i : ${instances}" class="hover:bg-gray-50">
+                        <tr th:each="i : ${instances}" class="hover:bg-gray-50 align-top">
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                 <span th:text="${i.name}">name</span>
                                 <span th:if="${defaults.defaultInstanceId != null and i.id == defaults.defaultInstanceId}"
@@ -202,6 +254,27 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono" th:text="${i.endpoint}">endpoint</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700" th:text="${i.port}">8080</td>
+                            <td class="px-6 py-4 text-sm">
+                                <span th:if="${i.encryptedApiKey != null and !#strings.isEmpty(i.encryptedApiKey)}"
+                                      class="inline-flex px-2 py-0.5 rounded-full bg-green-100 text-green-800 text-[10px] font-semibold uppercase tracking-wide">
+                                    Configured
+                                </span>
+                                <span th:unless="${i.encryptedApiKey != null and !#strings.isEmpty(i.encryptedApiKey)}"
+                                      class="text-gray-400 text-xs">Not set</span>
+                                <details class="mt-1 text-xs text-gray-500">
+                                    <summary class="cursor-pointer hover:text-gray-700">Set / change</summary>
+                                    <form th:action="@{/admin/philter/{id}/api-key(id=${i.id})}" method="post"
+                                          class="mt-2 flex flex-col gap-1">
+                                        <input type="password" name="apiKey" autocomplete="off"
+                                               placeholder="New API key (leave blank to clear)"
+                                               class="block w-full rounded-md border border-gray-300 px-2 py-1 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <button type="submit"
+                                                class="self-start px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md">
+                                            Save
+                                        </button>
+                                    </form>
+                                </details>
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <form th:action="@{/admin/philter/{id}/test(id=${i.id})}" method="post" class="inline mr-3">
                                     <button type="submit" class="text-blue-600 hover:text-blue-800 font-medium">Test</button>

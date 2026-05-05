@@ -25,8 +25,10 @@ import ai.philterd.arbiter.repository.DocumentCommentRepository;
 import ai.philterd.arbiter.repository.GroupRepository;
 import ai.philterd.arbiter.repository.LlmJudgeDefaultsRepository;
 import ai.philterd.arbiter.repository.GeneralSettingsRepository;
+import ai.philterd.arbiter.repository.InboxMessageRepository;
 import ai.philterd.arbiter.repository.NotificationSettingsRepository;
 import ai.philterd.arbiter.repository.OllamaInstanceRepository;
+import ai.philterd.arbiter.repository.PendingUploadRepository;
 import ai.philterd.arbiter.repository.PhilterDefaultsRepository;
 import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import ai.philterd.arbiter.repository.PolicyRepository;
@@ -34,6 +36,8 @@ import ai.philterd.arbiter.repository.UserSettingsRepository;
 import ai.philterd.arbiter.repository.WeightSetRepository;
 import ai.philterd.arbiter.repository.SpanRepository;
 import ai.philterd.arbiter.repository.UserRepository;
+import ai.philterd.arbiter.model.GeneralSettings;
+import ai.philterd.arbiter.service.GeneralSettingsService;
 import ai.philterd.arbiter.service.RedactionService;
 import org.springframework.data.mongodb.core.MongoOperations;
 import ai.philterd.arbiter.webapp.security.MongoUserDetailsService;
@@ -56,7 +60,11 @@ import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.model;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 @WebMvcTest(RedactionController.class)
 @Import({SecurityConfig.class, MongoUserDetailsService.class})
@@ -118,7 +126,16 @@ public class RedactionControllerTest {
     private UserSettingsRepository userSettingsRepository;
 
     @MockBean
+    private InboxMessageRepository inboxMessageRepository;
+
+    @MockBean
+    private PendingUploadRepository pendingUploadRepository;
+
+    @MockBean
     private MongoOperations mongoOperations;
+
+    @MockBean
+    private GeneralSettingsService generalSettingsService;
 
     @Test
     public void testDashboard() throws Exception {
@@ -138,23 +155,24 @@ public class RedactionControllerTest {
     @WithMockUser(roles = "ADMIN")
     public void testRedactText() throws Exception {
         final String text = "George Washington lived in Mount Vernon.";
-        final RedactionResponse response = new RedactionResponse(text, text, List.of(
-                new Redaction(UUID.randomUUID().toString(), "George Washington", 0, 17, "PERSON")
-        ));
 
         final Batch batch = new Batch();
         batch.setId("batch-1");
         batch.setName("Test batch");
 
-        when(redactionService.redactText(any(), any(), any())).thenReturn(response);
         when(batchRepository.findById("batch-1")).thenReturn(Optional.of(batch));
+
+        final GeneralSettings settings = new GeneralSettings();
+        settings.setMaxUploadFileSizeBytes(10L * 1024L * 1024L);
+        when(generalSettingsService.load()).thenReturn(settings);
 
         final MockMultipartFile file = new MockMultipartFile("file", "test.txt", "text/plain", text.getBytes());
 
+        // The endpoint now enqueues the upload onto the redaction queue and redirects back to
+        // /upload with a success flash. The actual redaction runs asynchronously in the worker.
         mockMvc.perform(multipart("/redact").file(file).param("batchId", "batch-1").with(csrf()))
-                .andExpect(status().isOk())
-                .andExpect(view().name("redact"))
-                .andExpect(model().attributeExists("redactionResponse"))
-                .andExpect(model().attribute("fileName", "test.txt"));
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/upload"))
+                .andExpect(flash().attributeExists("success"));
     }
 }

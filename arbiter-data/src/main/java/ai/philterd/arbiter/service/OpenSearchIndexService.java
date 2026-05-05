@@ -1,0 +1,172 @@
+/*
+ * Copyright 2026 Philterd
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ */
+package ai.philterd.arbiter.service;
+
+import ai.philterd.arbiter.model.Document;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
+@Service
+public class OpenSearchIndexService {
+
+    private static final Logger log = LoggerFactory.getLogger(OpenSearchIndexService.class);
+
+    public static final String INDEX = "arbiter-documents";
+
+    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
+    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
+
+    private final GeneralSettingsService generalSettingsService;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final HttpClient httpClient = HttpClient.newBuilder()
+            .connectTimeout(CONNECT_TIMEOUT)
+            .build();
+
+    public OpenSearchIndexService(final GeneralSettingsService generalSettingsService) {
+        this.generalSettingsService = generalSettingsService;
+    }
+
+    /**
+     * Best-effort index of the document's full text. Failures are logged but not propagated —
+     * an unreachable OpenSearch should not block ingestion.
+     */
+    public void indexDocument(final Document document) {
+        if (document == null || document.getId() == null) return;
+        final String endpoint = endpoint();
+        if (endpoint == null) return;
+
+        final String url = endpoint + "/" + INDEX + "/_doc/"
+                + java.net.URLEncoder.encode(document.getId(), java.nio.charset.StandardCharsets.UTF_8);
+        try {
+            final ObjectNode body = objectMapper.createObjectNode();
+            body.put("id", document.getId());
+            body.put("batchId", document.getBatchId() == null ? "" : document.getBatchId());
+            body.put("filename", document.getFilename() == null ? "" : document.getFilename());
+            body.put("status", document.getStatus() == null ? "" : document.getStatus());
+            body.put("originalText", document.getOriginalText() == null ? "" : document.getOriginalText());
+
+            final HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .timeout(REQUEST_TIMEOUT)
+                    .header("Content-Type", "application/json")
+                    .PUT(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
+                    .build();
+            final HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() / 100 != 2) {
+                log.warn("OpenSearch indexing returned HTTP {} for document {} ({}): {}",
+                        resp.statusCode(), document.getId(), url, truncate(resp.body()));
+            }
+        } catch (Exception e) {
+            log.warn("OpenSearch indexing failed for document {} at {}: {}",
+                    document.getId(), url, e.getMessage());
+        }
+    }
+
+    public record SearchHit(String id, String batchId, String filename, String status, List<String> highlights) {}
+    public record SearchResults(long total, int from, int size, List<SearchHit> hits) {}
+
+    /**
+     * Run a full-text match query over the indexed documents. Returns an empty result set if
+     * OpenSearch is unreachable or returns an error — callers should not crash the request on
+     * search failures.
+     */
+    public SearchResults search(final String query, final int from, final int size) {
+        final SearchResults empty = new SearchResults(0, Math.max(0, from), Math.max(1, size), List.of());
+        if (query == null || query.isBlank()) return empty;
+        final String endpoint = endpoint();
+        if (endpoint == null) return empty;
+
+        final int safeFrom = Math.max(0, from);
+        final int safeSize = Math.max(1, Math.min(100, size));
+        final String url = endpoint + "/" + INDEX + "/_search";
+        try {
+            final ObjectNode body = objectMapper.createObjectNode();
+            body.put("from", safeFrom);
+            body.put("size", safeSize);
+            final ObjectNode match = objectMapper.createObjectNode();
+            match.put("originalText", query);
+            body.set("query", objectMapper.createObjectNode().set("match", match));
+            final ObjectNode highlightFields = objectMapper.createObjectNode();
+            highlightFields.set("originalText", objectMapper.createObjectNode());
+            body.set("highlight", objectMapper.createObjectNode().set("fields", highlightFields));
+
+            final HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .timeout(REQUEST_TIMEOUT)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
+                    .build();
+            final HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() == 404) {
+                // Index doesn't exist yet — no documents indexed.
+                return new SearchResults(0, safeFrom, safeSize, List.of());
+            }
+            if (resp.statusCode() / 100 != 2) {
+                log.warn("OpenSearch search returned HTTP {} for query '{}': {}",
+                        resp.statusCode(), query, truncate(resp.body()));
+                return empty;
+            }
+            final JsonNode root = objectMapper.readTree(resp.body());
+            final JsonNode hitsNode = root.path("hits");
+            final long total = hitsNode.path("total").path("value").asLong(0);
+            final ArrayNode hitsArray = hitsNode.path("hits").isArray()
+                    ? (ArrayNode) hitsNode.path("hits") : objectMapper.createArrayNode();
+            final List<SearchHit> hits = new ArrayList<>();
+            for (JsonNode hit : hitsArray) {
+                final JsonNode source = hit.path("_source");
+                final List<String> highlights = new ArrayList<>();
+                final JsonNode hl = hit.path("highlight").path("originalText");
+                if (hl.isArray()) {
+                    for (JsonNode h : hl) highlights.add(h.asText());
+                }
+                hits.add(new SearchHit(
+                        hit.path("_id").asText(""),
+                        source.path("batchId").asText(""),
+                        source.path("filename").asText(""),
+                        source.path("status").asText(""),
+                        Collections.unmodifiableList(highlights)));
+            }
+            return new SearchResults(total, safeFrom, safeSize, List.copyOf(hits));
+        } catch (Exception e) {
+            log.warn("OpenSearch search failed for query '{}' at {}: {}", query, url, e.getMessage());
+            return empty;
+        }
+    }
+
+    private String endpoint() {
+        try {
+            final String e = generalSettingsService.load().getOpensearchEndpoint();
+            if (e == null || e.isBlank()) return null;
+            return e.endsWith("/") ? e.substring(0, e.length() - 1) : e;
+        } catch (Exception e) {
+            log.warn("Could not load OpenSearch endpoint setting: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    private static String truncate(final String s) {
+        if (s == null) return "";
+        return s.length() <= 200 ? s : s.substring(0, 200) + "…";
+    }
+}

@@ -15,9 +15,11 @@ import ai.philterd.arbiter.repository.DocumentCommentRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.GeneralSettingsRepository;
 import ai.philterd.arbiter.repository.GroupRepository;
+import ai.philterd.arbiter.repository.InboxMessageRepository;
 import ai.philterd.arbiter.repository.LlmJudgeDefaultsRepository;
 import ai.philterd.arbiter.repository.NotificationSettingsRepository;
 import ai.philterd.arbiter.repository.OllamaInstanceRepository;
+import ai.philterd.arbiter.repository.PendingUploadRepository;
 import ai.philterd.arbiter.repository.PhilterDefaultsRepository;
 import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import ai.philterd.arbiter.repository.PolicyRepository;
@@ -94,6 +96,8 @@ public class AuthorizationIntegrationTest {
     @MockBean private WeightSetRepository weightSetRepository;
     @MockBean private LlmJudgeDefaultsRepository llmJudgeDefaultsRepository;
     @MockBean private UserSettingsRepository userSettingsRepository;
+    @MockBean private InboxMessageRepository inboxMessageRepository;
+    @MockBean private PendingUploadRepository pendingUploadRepository;
     @MockBean private MongoOperations mongoOperations;
 
     // ---------------------------------------------------------------------
@@ -164,12 +168,13 @@ public class AuthorizationIntegrationTest {
                 .with(user("u").roles("USER"))).andExpect(status().isForbidden());
         mockMvc.perform(get("/reporting").with(user("u").roles("USER")))
                 .andExpect(status().isForbidden());
+        mockMvc.perform(get("/batches").with(user("u").roles("USER")))
+                .andExpect(status().isForbidden());
     }
 
     @Test
     void userRoleAllowedOnRegularPaths() throws Exception {
         mockMvc.perform(get("/").with(user("u").roles("USER"))).andExpect(status().isOk());
-        mockMvc.perform(get("/batches").with(user("u").roles("USER"))).andExpect(status().isOk());
         mockMvc.perform(get("/upload").with(user("u").roles("USER"))).andExpect(status().isOk());
     }
 
@@ -214,18 +219,14 @@ public class AuthorizationIntegrationTest {
     }
 
     // ---------------------------------------------------------------------
-    // Batch modification endpoints additionally enforce admin role inline.
+    // /batches is URL-gated to ADMIN: every method is rejected at the security
+    // filter chain for non-admin roles, ahead of any controller-level check.
     // ---------------------------------------------------------------------
 
     @Test
     void userRoleCannotModifyBatches() throws Exception {
-        // These POSTs reach the controller (since /batches is not URL-gated to ADMIN), but the
-        // controller itself returns a flash error for non-admins. The redirect proves the control
-        // path was taken; the controller-level check itself is exercised in BatchControllerTest.
         mockMvc.perform(post("/batches/abc/group").with(user("u").roles("USER")).with(csrf())
                         .param("groupId", "g1"))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers
-                        .redirectedUrl("/batches"));
+                .andExpect(status().isForbidden());
     }
 }

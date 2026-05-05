@@ -23,7 +23,7 @@ class GeneralSettingsServiceTest {
     void setUp() {
         repository = mock(GeneralSettingsRepository.class);
         when(repository.findById(any())).thenReturn(Optional.empty());
-        service = new GeneralSettingsService(repository, 9090);
+        service = new GeneralSettingsService(repository, 9090, "");
     }
 
     @Test

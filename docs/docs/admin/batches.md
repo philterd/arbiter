@@ -3,7 +3,9 @@
 Batches live at `/batches`. The page shows every batch you have access to,
 sorted by date created (newest first by default). The **Name**, **Created**,
 and **Documents** columns are click-to-sort headers — click again to flip
-direction.
+direction. Additional columns include **Queued** (count of non-terminal
+documents) and a **Review** link/badge that opens the first reviewable
+document in the batch.
 
 ## Create a batch (admin only)
 
@@ -13,8 +15,12 @@ A card at the top of the page lets administrators create a batch. Fill in:
 | ------------------- | ------- | -------------------------------------------------------------- |
 | Name                | —       | Required                                                       |
 | Group               | —       | Required; only existing groups appear in the dropdown          |
+| Philter instance    | default | Pick the Philter that redacts this batch's documents           |
+| Policy              | —       | A policy name that exists on the chosen Philter instance       |
+| Domain              | —       | Optional grouping tag used in the Reports page aggregates      |
 | PII Threshold       | `0.80`  | Per-span confidence floor for auto-accepting detections        |
 | Document Threshold  | `0.25`  | Risk-score ceiling for auto-approving whole documents          |
+| Audit Sampling Rate | `0.10`  | Fraction of would-be auto-approved documents pulled into review |
 
 Non-admins do not see the create card. The endpoint refuses non-admin POSTs.
 
@@ -24,14 +30,18 @@ Each batch row has:
 
 - An inline **Group** selector with a **Save** button (changes the assigned
   group; non-admins are limited to groups they belong to).
-- A **Thresholds** button that opens a modal to edit the PII Threshold and
-  Document Threshold together. Both values are validated to `[0.0, 1.0]`.
+- A **Settings** button that opens a modal to edit the PII Threshold,
+  Document Threshold, **and Audit Sampling Rate**. All three are validated to
+  `[0.0, 1.0]`.
 - A **Weights** link that opens the per-batch PII weight editor (see below).
 - A **Close** button (admin only) that marks the batch closed.
 - A **Closed** badge next to the name when the batch is in the closed state.
 
-Only admins can create or close a batch. All other settings (group,
-thresholds, weights) remain editable for users with access to the batch.
+Only admins can create or close a batch. Approval rules for each batch are
+managed separately under **Admin → Approval Rules**; see
+[Approval rule sets](rules.md) for the AND-within / OR-across model and
+worked examples. All other settings (group, thresholds, weights) remain
+editable for users with access to the batch.
 
 ## Closing a batch
 

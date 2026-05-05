@@ -33,6 +33,7 @@ nav:
   - Admin guide:
       - Users and groups: admin/users-and-groups.md
       - Batches: admin/batches.md
+      - Approval rule sets: admin/rules.md
       - Audit log: admin/audit-log.md
       - Notifications: admin/notifications.md
   - Reference:

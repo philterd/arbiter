@@ -86,6 +86,62 @@ public class AdminGeneralController {
         return "redirect:/admin/general";
     }
 
+    @PostMapping("/opensearch-endpoint")
+    public String saveOpensearchEndpoint(@RequestParam("opensearchEndpoint") final String opensearchEndpoint,
+                                         final RedirectAttributes redirectAttributes) {
+        String trimmed = opensearchEndpoint == null ? "" : opensearchEndpoint.trim();
+        if (trimmed.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "OpenSearch endpoint is required.");
+            return "redirect:/admin/general";
+        }
+        if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+            redirectAttributes.addFlashAttribute("error", "OpenSearch endpoint must start with http:// or https://.");
+            return "redirect:/admin/general";
+        }
+        try {
+            URI.create(trimmed);
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", "OpenSearch endpoint is not a valid URI: " + e.getMessage());
+            return "redirect:/admin/general";
+        }
+        if (trimmed.endsWith("/")) {
+            trimmed = trimmed.substring(0, trimmed.length() - 1);
+        }
+
+        final GeneralSettings settings = generalSettingsService.load();
+        final String previous = settings.getOpensearchEndpoint();
+        settings.setOpensearchEndpoint(trimmed);
+        generalSettingsService.save(settings);
+
+        auditLogService.log("GENERAL_SETTINGS_CHANGE", "Settings", GeneralSettings.SINGLETON_ID,
+                Map.of("previousOpensearchEndpoint", previous == null ? "" : previous,
+                        "opensearchEndpoint", trimmed));
+        redirectAttributes.addFlashAttribute("success", "OpenSearch endpoint saved.");
+        return "redirect:/admin/general";
+    }
+
+    @PostMapping("/max-upload-mb")
+    public String saveMaxUploadFileSize(@RequestParam("maxUploadMb") final double maxUploadMb,
+                                        final RedirectAttributes redirectAttributes) {
+        if (Double.isNaN(maxUploadMb) || maxUploadMb <= 0) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Max upload size must be greater than 0 MB.");
+            return "redirect:/admin/general";
+        }
+        final long bytes = (long) Math.round(maxUploadMb * 1024.0 * 1024.0);
+
+        final GeneralSettings settings = generalSettingsService.load();
+        final long previous = settings.getMaxUploadFileSizeBytes();
+        settings.setMaxUploadFileSizeBytes(bytes);
+        generalSettingsService.save(settings);
+
+        auditLogService.log("GENERAL_SETTINGS_CHANGE", "Settings", GeneralSettings.SINGLETON_ID,
+                Map.of("previousMaxUploadFileSizeBytes", previous,
+                        "maxUploadFileSizeBytes", bytes));
+        redirectAttributes.addFlashAttribute("success", "Max upload file size saved.");
+        return "redirect:/admin/general";
+    }
+
     @PostMapping("/timezone")
     public String saveTimezone(@RequestParam("timezone") final String timezone,
                                final RedirectAttributes redirectAttributes) {

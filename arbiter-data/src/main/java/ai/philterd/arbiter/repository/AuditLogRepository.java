@@ -6,4 +6,17 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface AuditLogRepository extends MongoRepository<AuditLog, String> {
+
+    /**
+     * Audit entries whose action is in {@code actions} with timestamp in [start, end] (inclusive).
+     * Spring Data Mongo's derived-query criteria builder can't compose two clauses on the same
+     * field, so this uses {@code Between} (inclusive both ends) — the boundary inclusivity is a
+     * one-instant difference that doesn't matter for day-granularity reporting filters.
+     */
+    java.util.List<AuditLog> findByTimestampBetweenAndActionIn(
+            java.time.Instant start, java.time.Instant end, java.util.Collection<String> actions);
+
+    /** Resource-scoped history, oldest-first, used to build per-resource activity views. */
+    java.util.List<AuditLog> findByResourceTypeAndResourceIdOrderByTimestampAsc(
+            String resourceType, String resourceId);
 }

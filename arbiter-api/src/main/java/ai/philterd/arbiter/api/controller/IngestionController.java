@@ -6,6 +6,7 @@ import ai.philterd.arbiter.model.Document;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.service.GeneralSettingsService;
 import ai.philterd.arbiter.service.RedactionApiService;
 import ai.philterd.arbiter.service.UserGroupsService;
 import jakarta.validation.Valid;
@@ -17,6 +18,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.Set;
@@ -32,17 +34,20 @@ public class IngestionController {
     private final BatchRepository batchRepository;
     private final UserGroupsService userGroupsService;
     private final AuditLogService auditLogService;
+    private final GeneralSettingsService generalSettingsService;
 
     public IngestionController(final RedactionApiService redactionApiService,
                                final DocumentRepository documentRepository,
                                final BatchRepository batchRepository,
                                final UserGroupsService userGroupsService,
-                               final AuditLogService auditLogService) {
+                               final AuditLogService auditLogService,
+                               final GeneralSettingsService generalSettingsService) {
         this.redactionApiService = redactionApiService;
         this.documentRepository = documentRepository;
         this.batchRepository = batchRepository;
         this.userGroupsService = userGroupsService;
         this.auditLogService = auditLogService;
+        this.generalSettingsService = generalSettingsService;
     }
 
     @PostMapping("/ingest")
@@ -62,8 +67,19 @@ public class IngestionController {
                     "closed", true));
         }
 
-        final String taskId = UUID.randomUUID().toString();
+        final long maxBytes = generalSettingsService.load().getMaxUploadFileSizeBytes();
+        final long size = request.text() == null ? 0L
+                : request.text().getBytes(StandardCharsets.UTF_8).length;
+        if (size > maxBytes) {
+            return ResponseEntity.status(413).body(Map.of(
+                    "error", "Document exceeds the configured max upload size.",
+                    "maxBytes", maxBytes,
+                    "sizeBytes", size));
+        }
 
+        // Persist a PENDING document; the background ingest-queue worker (in the webapp module)
+        // will pick it up in arrival order, run Philter, and transition the document out of PENDING.
+        final String taskId = UUID.randomUUID().toString();
         final Document document = new Document();
         document.setId(taskId);
         document.setBatchId(request.batchId());
@@ -72,21 +88,12 @@ public class IngestionController {
         document.setOriginalText(request.text());
         document.changeStatus("PENDING");
         documentRepository.save(document);
+
         auditLogService.log("DOCUMENT_INGEST", "Document", taskId,
                 Map.of(
                         "batchId", request.batchId(),
                         "name", request.name() == null ? "" : request.name(),
                         "textLength", request.text() == null ? 0 : request.text().length()));
-
-        // Start asynchronous process
-        CompletableFuture.runAsync(() -> {
-            try {
-                redactionApiService.processDocument(taskId, request.text());
-            } catch (Exception e) {
-                // In a real app, update document status to FAILED
-                e.printStackTrace();
-            }
-        });
 
         return ResponseEntity.accepted().body(Map.of("taskId", taskId));
     }

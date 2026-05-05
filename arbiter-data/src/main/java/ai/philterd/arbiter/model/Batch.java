@@ -21,6 +21,19 @@ public class Batch {
     private double confidenceThreshold = 0.8;
     private double documentThreshold = 0.25;
     private double auditSamplingRate = 0.10;
+    /**
+     * Approval rule sets configured on this batch. Rules within a set are AND-ed; the sets
+     * themselves are OR-ed (any rule set whose rules all hold triggers dual approval).
+     */
+    private java.util.List<ApprovalRuleSet> approvalRuleSets = new java.util.ArrayList<>();
+
+    // Legacy single-rule-set fields preserved for read-side migration of existing documents.
+    // Newly saved batches write only to {@code approvalRuleSets}; on first read these fields
+    // are folded into a synthetic rule set if the new field is empty.
+    @Deprecated private java.util.Set<String> approvalRuleNames = new java.util.LinkedHashSet<>();
+    @Deprecated private double riskScoreRuleThreshold = 0.9;
+    @Deprecated private double rejectedConfidenceRuleThreshold = 0.95;
+    @Deprecated private long experiencedReviewerRuleThreshold = 100;
     private Map<String, Integer> piiTypeWeights;
     private String weightSetId;
     private String philterInstanceId;
@@ -105,6 +118,57 @@ public class Batch {
     public void setAuditSamplingRate(final double auditSamplingRate) {
         this.auditSamplingRate = auditSamplingRate;
     }
+
+    public java.util.List<ApprovalRuleSet> getApprovalRuleSets() {
+        if (approvalRuleSets == null) approvalRuleSets = new java.util.ArrayList<>();
+        return approvalRuleSets;
+    }
+
+    public void setApprovalRuleSets(final java.util.List<ApprovalRuleSet> approvalRuleSets) {
+        this.approvalRuleSets = approvalRuleSets == null
+                ? new java.util.ArrayList<>() : approvalRuleSets;
+    }
+
+    /**
+     * Effective rule sets at read time: returns {@link #getApprovalRuleSets()} when non-empty,
+     * otherwise synthesizes a single rule set from the legacy single-set fields so old documents
+     * keep evaluating identically until they're saved through the new UI.
+     */
+    public java.util.List<ApprovalRuleSet> effectiveRuleSets() {
+        final java.util.List<ApprovalRuleSet> sets = getApprovalRuleSets();
+        if (!sets.isEmpty()) return sets;
+        if (approvalRuleNames == null || approvalRuleNames.isEmpty()) {
+            return java.util.List.of();
+        }
+        final ApprovalRuleSet legacy = new ApprovalRuleSet();
+        legacy.setId(id == null ? "legacy" : id + "-legacy");
+        legacy.setRules(new java.util.LinkedHashSet<>(approvalRuleNames));
+        legacy.setRiskScoreThreshold(riskScoreRuleThreshold);
+        legacy.setRejectedConfidenceThreshold(rejectedConfidenceRuleThreshold);
+        legacy.setExperiencedReviewerThreshold(experiencedReviewerRuleThreshold);
+        return java.util.List.of(legacy);
+    }
+
+    @Deprecated
+    public java.util.Set<String> getApprovalRuleNames() {
+        if (approvalRuleNames == null) approvalRuleNames = new java.util.LinkedHashSet<>();
+        return approvalRuleNames;
+    }
+
+    @Deprecated
+    public void setApprovalRuleNames(final java.util.Set<String> approvalRuleNames) {
+        this.approvalRuleNames = approvalRuleNames == null
+                ? new java.util.LinkedHashSet<>() : approvalRuleNames;
+    }
+
+    @Deprecated public double getRiskScoreRuleThreshold() { return riskScoreRuleThreshold; }
+    @Deprecated public void setRiskScoreRuleThreshold(final double v) { this.riskScoreRuleThreshold = v; }
+
+    @Deprecated public double getRejectedConfidenceRuleThreshold() { return rejectedConfidenceRuleThreshold; }
+    @Deprecated public void setRejectedConfidenceRuleThreshold(final double v) { this.rejectedConfidenceRuleThreshold = v; }
+
+    @Deprecated public long getExperiencedReviewerRuleThreshold() { return experiencedReviewerRuleThreshold; }
+    @Deprecated public void setExperiencedReviewerRuleThreshold(final long v) { this.experiencedReviewerRuleThreshold = v; }
 
     public Map<String, Integer> getPiiTypeWeights() {
         return piiTypeWeights;

@@ -25,7 +25,10 @@ import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.OllamaInstanceRepository;
 import ai.philterd.arbiter.repository.SpanRepository;
+import ai.philterd.arbiter.repository.UserRepository;
+import ai.philterd.arbiter.model.User;
 import ai.philterd.arbiter.model.UserSettings;
+import ai.philterd.arbiter.service.ApprovalRuleEvaluator;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.LlmJudgeDefaultsService;
 import ai.philterd.arbiter.service.UserGroupsService;
@@ -60,6 +63,8 @@ public class ReviewViewController {
     private final OllamaInstanceRepository ollamaInstanceRepository;
     private final LlmJudgeDefaultsService llmJudgeDefaultsService;
     private final UserSettingsService userSettingsService;
+    private final UserRepository userRepository;
+    private final ApprovalRuleEvaluator approvalRuleEvaluator;
 
     public ReviewViewController(final DocumentRepository documentRepository,
                                 final SpanRepository spanRepository,
@@ -68,7 +73,9 @@ public class ReviewViewController {
                                 final AuditLogService auditLogService,
                                 final OllamaInstanceRepository ollamaInstanceRepository,
                                 final LlmJudgeDefaultsService llmJudgeDefaultsService,
-                                final UserSettingsService userSettingsService) {
+                                final UserSettingsService userSettingsService,
+                                final UserRepository userRepository,
+                                final ApprovalRuleEvaluator approvalRuleEvaluator) {
         this.documentRepository = documentRepository;
         this.spanRepository = spanRepository;
         this.batchRepository = batchRepository;
@@ -77,6 +84,8 @@ public class ReviewViewController {
         this.ollamaInstanceRepository = ollamaInstanceRepository;
         this.llmJudgeDefaultsService = llmJudgeDefaultsService;
         this.userSettingsService = userSettingsService;
+        this.userRepository = userRepository;
+        this.approvalRuleEvaluator = approvalRuleEvaluator;
     }
 
     private static boolean isAdmin(final Authentication auth) {
@@ -187,20 +196,110 @@ public class ReviewViewController {
         model.addAttribute("secondOpinionConfigured", secondOpinionConfigured);
         model.addAttribute("prevDocumentId", prevDocumentId);
         model.addAttribute("nextDocumentId", nextDocumentId);
+        model.addAttribute("currentUserEmail", authentication == null ? "" : authentication.getName());
+
+        // Worst-case approvals required (queue-display semantics): doesn't depend on
+        // who the eventual reviewer will be, so reviewers see the same number whether
+        // they're inexperienced or not.
+        final Batch approvalBatch = document.getBatchId() == null ? null
+                : batchRepository.findById(document.getBatchId()).orElse(null);
+        final int approvalsRequired = approvalRuleEvaluator.approvalsRequired(approvalBatch, document, spans);
+        final int approvalsGiven = document.getApprovedBy().size();
+        model.addAttribute("approvalsRequired", approvalsRequired);
+        model.addAttribute("approvalsGiven", approvalsGiven);
         return "review";
     }
 
     @PostMapping("/review/{documentId}/approve")
-    public String approve(@PathVariable final String documentId, final Authentication authentication) {
-        updateStatus(documentId, "APPROVED", authentication);
-        final UserSettings settings = userSettingsService.loadForEmail(
-                authentication == null ? null : authentication.getName());
-        if (settings.isAdvanceToNextOnApprove()) {
-            final Document approved = documentRepository.findById(documentId).orElse(null);
-            if (approved != null) {
-                final String nextId = findSiblingId(approved, settings.isSkipCompletedInReview(), 1);
-                if (nextId != null) return "redirect:/review/" + nextId;
+    public String approve(@PathVariable final String documentId,
+                          final Authentication authentication,
+                          final org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
+        final Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + documentId));
+        requireAccess(authentication, document);
+
+        final String email = authentication == null ? null : authentication.getName();
+        final Batch batch = document.getBatchId() == null ? null
+                : batchRepository.findById(document.getBatchId()).orElse(null);
+        final List<Span> spans = spanRepository.findByDocumentId(documentId);
+        final User reviewer = email == null ? null
+                : userRepository.findByEmail(email).orElse(null);
+
+        // Disallow the same user from approving twice — a second approval must come from
+        // a different reviewer. This guard runs even when the doc currently only requires
+        // a single approval, so a user can't pre-emptively double-approve.
+        if (email != null && document.getApprovedBy().contains(email)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "You have already approved this document. A different reviewer must give the next approval.");
+            return "redirect:/review/" + documentId;
+        }
+
+        // Every span must be either APPROVED or REJECTED before the document can be
+        // approved. Spans awaiting a second opinion get a tailored message; any other
+        // non-terminal status (PENDING, missing) is rolled up into a generic prompt.
+        final long awaitingSecondOpinion = spans.stream()
+                .filter(s -> Span.STATUS_NEEDS_SECOND_OPINION.equals(s.getStatus()))
+                .count();
+        final long undecided = spans.stream()
+                .filter(s -> !"APPROVED".equals(s.getStatus())
+                        && !"REJECTED".equals(s.getStatus())
+                        && !Span.STATUS_NEEDS_SECOND_OPINION.equals(s.getStatus()))
+                .count();
+        if (awaitingSecondOpinion > 0 || undecided > 0) {
+            final StringBuilder error = new StringBuilder();
+            if (awaitingSecondOpinion > 0) {
+                error.append(awaitingSecondOpinion).append(" span")
+                        .append(awaitingSecondOpinion == 1 ? " is" : "s are")
+                        .append(" awaiting a second opinion");
             }
+            if (undecided > 0) {
+                if (error.length() > 0) error.append("; ");
+                error.append(undecided).append(" span")
+                        .append(undecided == 1 ? " has" : "s have")
+                        .append(" not yet been approved or refused");
+            }
+            error.append(". Every span must be approved or refused before the document can be approved.");
+            redirectAttributes.addFlashAttribute("error", error.toString());
+            return "redirect:/review/" + documentId;
+        }
+
+        final int required = approvalRuleEvaluator.dualApprovalRequired(batch, document, spans, reviewer)
+                ? 2 : 1;
+
+        // Record this approval.
+        document.getApprovedBy().add(email == null ? "" : email);
+        final int acquired = document.getApprovedBy().size();
+
+        final String previous = document.getStatus();
+        if (acquired >= required) {
+            document.changeStatus("APPROVED");
+        } else {
+            // Stay in REVIEW_REQUIRED so the doc remains visible to other reviewers.
+            document.changeStatus("REVIEW_REQUIRED");
+        }
+        documentRepository.save(document);
+        incrementReviewCount(reviewer);
+        auditLogService.log("DOCUMENT_APPROVAL", "Document", documentId,
+                Map.of(
+                        "previous", previous == null ? "" : previous,
+                        "current", document.getStatus() == null ? "" : document.getStatus(),
+                        "approvedBy", email == null ? "" : email,
+                        "acquired", acquired,
+                        "required", required));
+
+        if (acquired < required) {
+            redirectAttributes.addFlashAttribute("success",
+                    "Approval recorded (" + acquired + " of " + required
+                            + "). " + (required - acquired) + " more approval"
+                            + (required - acquired == 1 ? "" : "s")
+                            + " needed from a different reviewer.");
+            return "redirect:/";
+        }
+
+        final UserSettings settings = userSettingsService.loadForEmail(email);
+        if (settings.isAdvanceToNextOnApprove()) {
+            final String nextId = findSiblingId(document, settings.isSkipCompletedInReview(), 1);
+            if (nextId != null) return "redirect:/review/" + nextId;
         }
         return "redirect:/";
     }
@@ -208,15 +307,51 @@ public class ReviewViewController {
     @PostMapping("/review/{documentId}/reject")
     public String reject(@PathVariable final String documentId, final Authentication authentication) {
         updateStatus(documentId, "REJECTED", authentication);
+        incrementReviewCountByEmail(authentication == null ? null : authentication.getName());
         return "redirect:/";
+    }
+
+    private void incrementReviewCountByEmail(final String email) {
+        if (email == null || email.isBlank()) return;
+        incrementReviewCount(userRepository.findByEmail(email).orElse(null));
+    }
+
+    private void incrementReviewCount(final User reviewer) {
+        if (reviewer == null) return;
+        reviewer.setReviewCount(reviewer.getReviewCount() + 1);
+        userRepository.save(reviewer);
     }
 
     @PostMapping("/review/{documentId}/unapprove")
     public String unapprove(@PathVariable final String documentId, final Authentication authentication) {
+        clearApprovals(documentId);
         updateStatus(documentId, "REVIEW_REQUIRED", authentication);
         auditLogService.log("DOCUMENT_UNAPPROVE", "Document", documentId,
                 Map.of("actor", authentication == null ? "" : authentication.getName()));
         return "redirect:/review/" + documentId;
+    }
+
+    @PostMapping("/review/{documentId}/unreject")
+    public String unreject(@PathVariable final String documentId, final Authentication authentication) {
+        clearApprovals(documentId);
+        updateStatus(documentId, "REVIEW_REQUIRED", authentication);
+        auditLogService.log("DOCUMENT_UNREJECT", "Document", documentId,
+                Map.of("actor", authentication == null ? "" : authentication.getName()));
+        return "redirect:/review/" + documentId;
+    }
+
+    /**
+     * Drop any recorded approvals so the badge resets to {@code 0 of N} when the document
+     * is sent back to {@code REVIEW_REQUIRED}. Called from both {@code unapprove} and
+     * {@code unreject} — in either case the prior decision is being reopened, so prior
+     * approver records no longer apply.
+     */
+    private void clearApprovals(final String documentId) {
+        final Document document = documentRepository.findById(documentId).orElse(null);
+        if (document == null) return;
+        if (document.getApprovedBy().isEmpty()) return;
+        document.getApprovedBy().clear();
+        documentRepository.save(document);
     }
 
     private String findSiblingId(final Document document, final boolean skipCompleted, final int direction) {
@@ -262,6 +397,7 @@ public class ReviewViewController {
         entry.put("start", start);
         entry.put("end", end);
         entry.put("manuallyCreated", span.isManuallyCreated());
+        entry.put("statusChangedBy", span.getStatusChangedBy());
         return entry;
     }
 }

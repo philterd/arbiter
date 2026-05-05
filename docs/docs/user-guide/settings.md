@@ -1,7 +1,22 @@
 # Personal settings
 
-The **Settings** page (`/settings`) is where you change your password and
-manage your API key.
+The **Settings** page (`/settings`) is where you change your password,
+configure how the Review page navigates, and manage your API key.
+
+## Review page preferences
+
+Two checkboxes tune how Previous/Next behave on the Review page and what
+happens when you approve a document:
+
+- **Skip completed documents when navigating with Previous and Next** —
+  when on, Prev/Next jump past `AUTO_APPROVED` documents so you only stop
+  on documents that need attention.
+- **Automatically go to the next document when a document is approved** —
+  when on, hitting Approve takes you straight to the next document
+  (respecting the skip-completed setting). Falls back to the queue if there
+  is no next document.
+
+Settings are persisted per user in MongoDB (`user_settings` collection).
 
 ## Change password
 

@@ -18,6 +18,7 @@ package ai.philterd.arbiter.webapp.security;
 import ai.philterd.arbiter.model.Roles;
 import ai.philterd.arbiter.model.User;
 import ai.philterd.arbiter.repository.UserRepository;
+import ai.philterd.arbiter.service.InboxService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
@@ -36,10 +37,14 @@ public class DefaultUserLoader implements ApplicationRunner {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final InboxService inboxService;
 
-    public DefaultUserLoader(final UserRepository userRepository, final PasswordEncoder passwordEncoder) {
+    public DefaultUserLoader(final UserRepository userRepository,
+                             final PasswordEncoder passwordEncoder,
+                             final InboxService inboxService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
+        this.inboxService = inboxService;
     }
 
     @Override
@@ -54,6 +59,7 @@ public class DefaultUserLoader implements ApplicationRunner {
         admin.setPasswordHash(passwordEncoder.encode("admin"));
         admin.setRoles(Set.of(Roles.ADMIN));
         userRepository.save(admin);
+        inboxService.sendHtml(admin.getId(), WelcomeMessage.html(true));
         log.info("Seeded default user '{}' with role {}.", admin.getEmail(), Roles.ADMIN);
     }
 }

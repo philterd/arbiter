@@ -84,6 +84,24 @@ Arbiter can present it at send time. Treat the database as sensitive
 storage — encrypt at rest at the storage layer or front it with a secret
 manager if your deployment policy demands it.
 
+## Philter API keys
+
+Each Philter instance configured under **Admin → Philter** can carry an
+optional API key that Arbiter sends as `Authorization: Bearer …` on every
+outbound call (and on the per-row Test). The plaintext key is **encrypted
+with AES-GCM** before being written to MongoDB:
+
+- 32-byte AES key derived from the `arbiter.crypto.secret` property
+  (accepts a base64-encoded 32-byte key directly, or any passphrase, in
+  which case Arbiter SHA-256-derives 32 bytes from it).
+- 12-byte random IV per encryption; ciphertext + GCM auth tag stored as
+  base64.
+
+If `arbiter.crypto.secret` is unset, Arbiter falls back to an insecure
+deterministic dev key with a logged warning — set the property in any
+non-development deployment. The plaintext key is never displayed back; the
+admin UI only shows whether a key is configured.
+
 ## CSRF and CORS
 
 CSRF protection is enabled for HTML form posts and disabled only for the

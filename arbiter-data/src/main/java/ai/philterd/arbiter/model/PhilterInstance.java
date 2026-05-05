@@ -19,6 +19,13 @@ public class PhilterInstance {
 
     private int port = 8080;
 
+    /**
+     * Encrypted API key for this Philter instance. The plaintext is never stored — the value
+     * is encrypted with the application's symmetric secret before persistence and decrypted at
+     * the moment of use. Null/empty means no API key is configured for the instance.
+     */
+    private String encryptedApiKey;
+
     private LocalDateTime createdAt;
 
     public PhilterInstance() {
@@ -38,4 +45,7 @@ public class PhilterInstance {
 
     public int getPort() { return port; }
     public void setPort(final int port) { this.port = port; }
+
+    public String getEncryptedApiKey() { return encryptedApiKey; }
+    public void setEncryptedApiKey(final String encryptedApiKey) { this.encryptedApiKey = encryptedApiKey; }
 }

@@ -20,8 +20,10 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.domain.EntityScan;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.data.mongodb.repository.config.EnableMongoRepositories;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
+@EnableScheduling
 @ComponentScan(basePackages = "ai.philterd.arbiter")
 @EntityScan(basePackages = "ai.philterd.arbiter.model")
 @EnableMongoRepositories(basePackages = "ai.philterd.arbiter.repository")

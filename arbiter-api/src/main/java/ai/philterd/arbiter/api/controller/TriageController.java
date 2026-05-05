@@ -2,8 +2,11 @@ package ai.philterd.arbiter.api.controller;
 
 import ai.philterd.arbiter.model.Batch;
 import ai.philterd.arbiter.model.Document;
+import ai.philterd.arbiter.model.Span;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
+import ai.philterd.arbiter.repository.SpanRepository;
+import ai.philterd.arbiter.service.ApprovalRuleEvaluator;
 import ai.philterd.arbiter.service.UserGroupsService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -33,14 +36,20 @@ public class TriageController {
 
     private final DocumentRepository documentRepository;
     private final BatchRepository batchRepository;
+    private final SpanRepository spanRepository;
     private final UserGroupsService userGroupsService;
+    private final ApprovalRuleEvaluator approvalRuleEvaluator;
 
     public TriageController(final DocumentRepository documentRepository,
                             final BatchRepository batchRepository,
-                            final UserGroupsService userGroupsService) {
+                            final SpanRepository spanRepository,
+                            final UserGroupsService userGroupsService,
+                            final ApprovalRuleEvaluator approvalRuleEvaluator) {
         this.documentRepository = documentRepository;
         this.batchRepository = batchRepository;
+        this.spanRepository = spanRepository;
         this.userGroupsService = userGroupsService;
+        this.approvalRuleEvaluator = approvalRuleEvaluator;
     }
 
     private static final Set<String> SORTABLE_FIELDS = Set.of("riskScore", "status", "batchId", "filename");
@@ -117,12 +126,14 @@ public class TriageController {
 
         final Map<String, String> batchNames = new LinkedHashMap<>();
         final Map<String, Double> batchDocumentThresholds = new LinkedHashMap<>();
+        final Map<String, Batch> batchesById = new LinkedHashMap<>();
         for (Batch b : batchRepository.findAllById(batchIds)) {
             batchNames.put(b.getId(), b.getName() == null ? b.getId() : b.getName());
             batchDocumentThresholds.put(b.getId(), b.getDocumentThreshold());
+            batchesById.put(b.getId(), b);
         }
 
-        return documents.map(toRow(batchNames, batchDocumentThresholds));
+        return documents.map(toRow(batchNames, batchDocumentThresholds, batchesById));
     }
 
     @GetMapping("/batches")
@@ -150,8 +161,9 @@ public class TriageController {
 
     private static final Set<String> USER_DECIDED_STATUSES = Set.of("APPROVED", "REJECTED", "FAILED");
 
-    private static Function<Document, Map<String, Object>> toRow(final Map<String, String> batchNames,
-                                                                 final Map<String, Double> batchDocumentThresholds) {
+    private Function<Document, Map<String, Object>> toRow(final Map<String, String> batchNames,
+                                                          final Map<String, Double> batchDocumentThresholds,
+                                                          final Map<String, Batch> batchesById) {
         final LocalDateTime now = LocalDateTime.now();
         return doc -> {
             final Map<String, Object> row = new LinkedHashMap<>();
@@ -171,6 +183,23 @@ public class TriageController {
             row.put("daysInQueue", doc.getCreatedAt() == null
                     ? null
                     : Math.max(0, Duration.between(doc.getCreatedAt(), now).toDays()));
+
+            // Approval-rule status: how many approvals does this document need vs already has?
+            // Only meaningful while the document is reachable for review; once APPROVED the
+            // count is whatever the final tally was.
+            final Batch batch = batchesById.get(doc.getBatchId());
+            final int acquired = doc.getApprovedBy() == null ? 0 : doc.getApprovedBy().size();
+            final int required;
+            if ("APPROVED".equals(doc.getStatus())) {
+                required = Math.max(1, acquired);
+            } else if (batch == null) {
+                required = 1;
+            } else {
+                final List<Span> spans = spanRepository.findByDocumentId(doc.getId());
+                required = approvalRuleEvaluator.approvalsRequired(batch, doc, spans);
+            }
+            row.put("approvalsRequired", required);
+            row.put("approvalsAcquired", acquired);
             return row;
         };
     }

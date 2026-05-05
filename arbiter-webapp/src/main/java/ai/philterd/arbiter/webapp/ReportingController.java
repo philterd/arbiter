@@ -18,7 +18,9 @@ package ai.philterd.arbiter.webapp;
 import ai.philterd.arbiter.model.Batch;
 import ai.philterd.arbiter.model.Document;
 import ai.philterd.arbiter.model.Domains;
+import ai.philterd.arbiter.model.AuditLog;
 import ai.philterd.arbiter.model.PhilterInstance;
+import ai.philterd.arbiter.repository.AuditLogRepository;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.PhilterInstanceRepository;
@@ -54,17 +56,20 @@ public class ReportingController {
     private final SpanRepository spanRepository;
     private final PhilterInstanceRepository philterInstanceRepository;
     private final UserGroupsService userGroupsService;
+    private final AuditLogRepository auditLogRepository;
 
     public ReportingController(final BatchRepository batchRepository,
                                final DocumentRepository documentRepository,
                                final SpanRepository spanRepository,
                                final PhilterInstanceRepository philterInstanceRepository,
-                               final UserGroupsService userGroupsService) {
+                               final UserGroupsService userGroupsService,
+                               final AuditLogRepository auditLogRepository) {
         this.batchRepository = batchRepository;
         this.documentRepository = documentRepository;
         this.spanRepository = spanRepository;
         this.philterInstanceRepository = philterInstanceRepository;
         this.userGroupsService = userGroupsService;
+        this.auditLogRepository = auditLogRepository;
     }
 
     @GetMapping("/reporting")
@@ -300,6 +305,43 @@ public class ReportingController {
         model.addAttribute("startDate", startDate.toString());
         model.addAttribute("endDate", endDate.toString());
         model.addAttribute("availableDomains", Domains.VALUES);
+
+        // Per-reviewer counts over the same date range. Each entry tallies decisions made by
+        // a single user — DOCUMENT_APPROVAL (any approval click) and DOCUMENT_STATUS_CHANGE
+        // entries that landed at REJECTED.
+        final java.time.Instant rangeStartInstant = rangeStart.atZone(java.time.ZoneOffset.UTC).toInstant();
+        final java.time.Instant rangeEndInstant = rangeEndExclusive.atZone(java.time.ZoneOffset.UTC).toInstant();
+        final List<AuditLog> entries = auditLogRepository
+                .findByTimestampBetweenAndActionIn(
+                        rangeStartInstant, rangeEndInstant,
+                        List.of("DOCUMENT_APPROVAL", "DOCUMENT_STATUS_CHANGE"));
+        final Map<String, long[]> reviewerTotals = new LinkedHashMap<>(); // [approvals, rejections]
+        for (AuditLog e : entries) {
+            final String email = e.getUserEmail() == null ? "(unknown)" : e.getUserEmail();
+            if ("DOCUMENT_APPROVAL".equals(e.getAction())) {
+                reviewerTotals.computeIfAbsent(email, k -> new long[]{0, 0})[0]++;
+            } else if ("DOCUMENT_STATUS_CHANGE".equals(e.getAction())
+                    && e.getDetails() != null
+                    && "REJECTED".equals(String.valueOf(e.getDetails().get("current")))) {
+                reviewerTotals.computeIfAbsent(email, k -> new long[]{0, 0})[1]++;
+            }
+        }
+        final List<Map<String, Object>> reviewerRows = new ArrayList<>();
+        for (Map.Entry<String, long[]> en : reviewerTotals.entrySet()) {
+            final long approvals = en.getValue()[0];
+            final long rejections = en.getValue()[1];
+            final Map<String, Object> row = new LinkedHashMap<>();
+            row.put("email", en.getKey());
+            row.put("approvals", approvals);
+            row.put("rejections", rejections);
+            row.put("total", approvals + rejections);
+            reviewerRows.add(row);
+        }
+        reviewerRows.sort(Comparator
+                .comparingLong((Map<String, Object> r) -> ((Number) r.get("total")).longValue())
+                .reversed()
+                .thenComparing(r -> ((String) r.get("email")).toLowerCase()));
+        model.addAttribute("reviewerRows", reviewerRows);
         model.addAttribute("selectedDomains", Collections.unmodifiableSet(selectedDomains));
         return "reporting";
     }

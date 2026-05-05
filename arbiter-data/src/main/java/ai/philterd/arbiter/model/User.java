@@ -27,8 +27,14 @@ public class User {
 
     private LocalDateTime createdAt;
 
+    /** Total documents this user has approved or rejected. Used by approval rules. */
+    private long reviewCount;
+
     public User() {
     }
+
+    public long getReviewCount() { return reviewCount; }
+    public void setReviewCount(final long reviewCount) { this.reviewCount = reviewCount; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(final LocalDateTime createdAt) { this.createdAt = createdAt; }
 

@@ -36,19 +36,25 @@ public class RedactionApiServiceImpl implements RedactionApiService {
     private final DocumentRepository documentRepository;
     private final SpanRepository spanRepository;
     private final BatchRepository batchRepository;
+    private final OpenSearchIndexService openSearchIndexService;
+    private final SymmetricCipher symmetricCipher;
 
     public RedactionApiServiceImpl(@Qualifier("phileasClient") final PhilterClient phileasClient,
                                    final PhilterClientFactory philterClientFactory,
                                    final PhilterInstanceRepository philterInstanceRepository,
                                    final DocumentRepository documentRepository,
                                    final SpanRepository spanRepository,
-                                   final BatchRepository batchRepository) {
+                                   final BatchRepository batchRepository,
+                                   final OpenSearchIndexService openSearchIndexService,
+                                   final SymmetricCipher symmetricCipher) {
         this.phileasClient = phileasClient;
         this.philterClientFactory = philterClientFactory;
         this.philterInstanceRepository = philterInstanceRepository;
         this.documentRepository = documentRepository;
         this.spanRepository = spanRepository;
         this.batchRepository = batchRepository;
+        this.openSearchIndexService = openSearchIndexService;
+        this.symmetricCipher = symmetricCipher;
     }
 
     private PhilterClient philterClient(final Batch batch) {
@@ -64,7 +70,16 @@ public class RedactionApiServiceImpl implements RedactionApiService {
                     + "falling back to Embedded Philter.", instanceId, batch.getName());
             return phileasClient;
         }
-        return philterClientFactory.create(baseUrl(instance.get()));
+        final PhilterInstance pi = instance.get();
+        final String apiKey;
+        try {
+            apiKey = symmetricCipher.decrypt(pi.getEncryptedApiKey());
+        } catch (Exception e) {
+            log.warn("Could not decrypt API key for Philter instance \"{}\": {}",
+                    pi.getName(), e.getMessage());
+            return philterClientFactory.create(baseUrl(pi));
+        }
+        return philterClientFactory.create(baseUrl(pi), apiKey);
     }
 
     private static String baseUrl(final PhilterInstance instance) {
@@ -120,6 +135,10 @@ public class RedactionApiServiceImpl implements RedactionApiService {
         document.setPhilterContextId(contextId);
         document.changeStatus(IngestStatus.pick(batch, needsReview));
         documentRepository.save(document);
+        if (document.getOriginalText() == null) {
+            document.setOriginalText(text);
+        }
+        openSearchIndexService.indexDocument(document);
     }
 
     @Override

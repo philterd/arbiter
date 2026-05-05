@@ -182,7 +182,13 @@ batch is closed.
 
 ### What happens after upload
 
-For each document:
+Ingestion is **asynchronous**. The upload (or `POST /api/v1/ingest`) persists
+the document in `PENDING` and returns immediately; a background worker drains
+the redaction queue oldest-first. Multiple Arbiter replicas claim documents
+atomically (`PENDING → PROCESSING`) via Mongo `findAndModify` so a document is
+never processed twice. Admins watch the queue at **Admin → Ingest Queue**.
+
+When the worker picks up a document, for each one:
 
 1. Spans are extracted by Philter, scored by confidence.
 2. Each span's initial status is set from the batch's PII Threshold:
@@ -191,14 +197,22 @@ For each document:
 3. The document's risk score is computed using the batch's PII weights and
    the count of unresolved spans.
 4. The document's status is set:
-    - No spans → `AUTO_APPROVED`.
     - Any `PENDING` span → `REVIEW_REQUIRED`.
-    - Otherwise → `AUTO_APPROVED`.
-5. The document appears in the queue.
+    - Otherwise the worker rolls the batch's **Audit Sampling Rate**:
+        - sampled in → `AUDIT_REQUIRED` (sent to review for spot-check).
+        - not sampled → `AUTO_APPROVED`.
+5. The document is indexed in OpenSearch (full original text + metadata) and
+   appears in the queue.
 
 A document whose risk score is at or below the batch's Document Threshold
-is shown with the `AUTO_APPROVED` label even before human review;
-re-tuning the threshold relabels existing rows on the next page load.
+and that isn't in `AUDIT_REQUIRED` is shown with the `AUTO_APPROVED` label
+even before human review; re-tuning the threshold relabels existing rows on
+the next page load.
+
+If Philter fails for any reason the document moves to `FAILED` and the
+exception is captured both in the Arbiter logs and in a `failureMessage`
+field on the document — admins can view the failure detail from the
+**View log** link in the Recent failures table on Ingest Queue.
 
 For more detail see [Uploading documents](user-guide/uploading.md).
 

@@ -3,8 +3,10 @@ package ai.philterd.arbiter.api.controller;
 import ai.philterd.arbiter.dto.IngestRequest;
 import ai.philterd.arbiter.model.Batch;
 import ai.philterd.arbiter.model.Document;
+import ai.philterd.arbiter.model.GeneralSettings;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
+import ai.philterd.arbiter.service.GeneralSettingsService;
 import ai.philterd.arbiter.service.RedactionApiService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -33,6 +35,7 @@ class IngestionControllerTest {
     private BatchRepository batchRepository;
     private TestDoubles.FakeUserGroups userGroupsService;
     private TestDoubles.RecordingAuditLog auditLogService;
+    private GeneralSettingsService generalSettingsService;
     private IngestionController controller;
 
     @BeforeEach
@@ -42,8 +45,12 @@ class IngestionControllerTest {
         batchRepository = mock(BatchRepository.class);
         userGroupsService = TestDoubles.userGroups();
         auditLogService = TestDoubles.auditLog();
+        generalSettingsService = mock(GeneralSettingsService.class);
+        final GeneralSettings settings = new GeneralSettings();
+        settings.setMaxUploadFileSizeBytes(10L * 1024L * 1024L);
+        when(generalSettingsService.load()).thenReturn(settings);
         controller = new IngestionController(redactionApiService, documentRepository,
-                batchRepository, userGroupsService, auditLogService);
+                batchRepository, userGroupsService, auditLogService, generalSettingsService);
     }
 
     private static Batch openBatch(final String id, final String groupId, final String name) {

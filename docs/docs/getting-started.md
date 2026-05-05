@@ -2,25 +2,31 @@
 
 ## Prerequisites
 
-- Java 17+
+- Java 21+
 - A running MongoDB instance Arbiter can reach
-- A running Philter / Phileas redaction service Arbiter can call (for the
-  redaction backend)
+- A running OpenSearch instance Arbiter can reach (for full-text search)
+- A running Philter / Phileas redaction service Arbiter can call (Embedded
+  Phileas works out of the box for development)
 
 ## Configuration
 
 Arbiter is a Spring Boot application. The standard application properties apply.
 The settings most users need to set are:
 
-| Property                          | Purpose                                                |
-| --------------------------------- | ------------------------------------------------------ |
-| `spring.data.mongodb.uri`         | Connection URI for MongoDB                             |
-| `spring.data.mongodb.database`    | Database name (default: `arbiter`)                     |
-| `arbiter.demo-data.enabled`       | Load sample files at startup if collections are empty  |
-| `arbiter.demo-data.directory`     | Directory of files to seed (default: `sample-files`)   |
+| Property                                  | Purpose                                                |
+| ----------------------------------------- | ------------------------------------------------------ |
+| `spring.data.mongodb.uri`                 | Connection URI for MongoDB                             |
+| `spring.data.mongodb.database`            | Database name (default: `arbiter`)                     |
+| `arbiter.opensearch.endpoint`             | OpenSearch base URL (default `http://localhost:9200`)  |
+| `arbiter.crypto.secret`                   | 32-byte base64 (or any passphrase) used as the AES key for encrypting Philter API keys at rest. **Set this in any non-development deployment.** |
+| `arbiter.ingest-queue.poll-millis`        | Worker poll interval (default `5000`)                  |
+| `arbiter.demo-data.enabled`               | Load sample files at startup if collections are empty  |
+| `arbiter.demo-data.directory`             | Directory of files to seed (default: `sample-files`)   |
 
-The redaction service URL is configured per the Philter client (see
-`arbiter-philter-client`).
+External Philter instances are added under **Admin → Philter** at runtime;
+each instance can carry an optional API key (encrypted at rest with the
+`arbiter.crypto.secret` above and sent as `Authorization: Bearer …` on every
+outbound call).
 
 ## First run
 
@@ -38,13 +44,20 @@ immediately** under [Personal settings](user-guide/settings.md).
 
 ## What you'll see after sign-in
 
-| Area              | URL                  | Who can reach it                |
-| ----------------- | -------------------- | ------------------------------- |
-| Queue (dashboard) | `/`                  | All authenticated users         |
-| Batches           | `/batches`           | All authenticated users         |
-| Upload            | `/upload`            | All authenticated users         |
-| Personal settings | `/settings`          | All authenticated users         |
-| Admin settings    | `/admin/users` …     | Admin role only                 |
+| Area               | URL                       | Who can reach it                |
+| ------------------ | ------------------------- | ------------------------------- |
+| Dashboard          | `/`                       | All authenticated users         |
+| Inbox              | `/inbox`                  | All authenticated users         |
+| Batches            | `/batches`                | All authenticated users         |
+| Document Queue       | `/queue`                  | All authenticated users         |
+| Search             | `/search`                 | All authenticated users         |
+| Upload             | `/upload`                 | All authenticated users         |
+| Personal settings  | `/settings`               | All authenticated users         |
+| Ingest Queue       | `/admin/ingest-queue`     | Admin role only                 |
+| Approval Rules     | `/admin/rules`            | Admin role only                 |
+| Reports            | `/reporting`              | Admin role only                 |
+| Policies           | `/policies`               | Admin role only                 |
+| Admin settings     | `/admin/users` …          | Admin role only                 |
 
 Group membership scopes what reviewers see. By default reviewers only see
 batches and documents in groups they belong to; admins can toggle a "Limit to

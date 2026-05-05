@@ -173,6 +173,26 @@ class ReviewControllerTest {
     }
 
     @Test
+    void redactAllLikeRejectsRejectedSourceSpan() {
+        final Span source = span("s1", "d1", "ssn", "REJECTED", 0, 5, "hello");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(source));
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.redactAllLike("s1", ADMIN));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        verify(spanRepository, never()).saveAll(anyList());
+    }
+
+    @Test
+    void redactAllLikeRejectsSecondOpinionSourceSpan() {
+        final Span source = span("s1", "d1", "ssn", Span.STATUS_NEEDS_SECOND_OPINION, 0, 5, "hello");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(source));
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.redactAllLike("s1", ADMIN));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        verify(spanRepository, never()).saveAll(anyList());
+    }
+
+    @Test
     void redactAllLikeRejectsEmptySourceText() {
         final Span source = span("s1", "d1", "ssn", "APPROVED", 0, 0, "");
         when(spanRepository.findById("s1")).thenReturn(Optional.of(source));
@@ -402,6 +422,244 @@ class ReviewControllerTest {
         assertTrue(result.isManuallyCreated());
         assertEquals(1.0, result.getConfidence());
         assertEquals("APPROVED", result.getStatus());
+    }
+
+    // ---- overturn-reason enforcement ----
+
+    private static final org.springframework.security.core.Authentication ALICE =
+            TestAuth.admin("alice@example.com");
+    private static final org.springframework.security.core.Authentication BOB =
+            TestAuth.admin("bob@example.com");
+
+    private static Span approvedBy(final String id, final String docId, final String approver) {
+        final Span s = span(id, docId, "ssn", "APPROVED", 0, 5, "hello");
+        s.setStatusChangedBy(approver);
+        return s;
+    }
+
+    private TestDoubles.RecordingAuditLog.Entry lastSpanUpdateAudit() {
+        for (int i = auditLogService.entries.size() - 1; i >= 0; i--) {
+            final TestDoubles.RecordingAuditLog.Entry e = auditLogService.entries.get(i);
+            if ("SPAN_UPDATE".equals(e.action())) return e;
+        }
+        return null;
+    }
+
+    @Test
+    void sameReviewerCanFlipTheirOwnApprovedSpanWithoutReason() {
+        final Span existing = approvedBy("s1", "d1", "alice@example.com");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(existing));
+        when(spanRepository.save(any(Span.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        final Span updated = controller.updateSpan("s1",
+                new SpanUpdateRequest("REJECTED", null), ALICE);
+
+        assertEquals("REJECTED", updated.getStatus());
+        assertEquals("alice@example.com", updated.getStatusChangedBy());
+        assertEquals(false, lastSpanUpdateAudit().details().getOrDefault("overturn", false));
+    }
+
+    @Test
+    void differentReviewerOverturningApprovedSpanWithoutReasonReturns409() {
+        final Span existing = approvedBy("s1", "d1", "alice@example.com");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(existing));
+
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.updateSpan("s1",
+                        new SpanUpdateRequest("REJECTED", null, null), BOB));
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("OVERTURN_REASON_REQUIRED"));
+        verify(spanRepository, never()).save(any(Span.class));
+    }
+
+    @Test
+    void differentReviewerOverturningApprovedSpanWithBlankReasonReturns409() {
+        final Span existing = approvedBy("s1", "d1", "alice@example.com");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(existing));
+
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.updateSpan("s1",
+                        new SpanUpdateRequest("REJECTED", null, "   "), BOB));
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+    }
+
+    @Test
+    void differentReviewerOverturningApprovedSpanWithReasonSucceedsAndAuditsReason() {
+        final Span existing = approvedBy("s1", "d1", "alice@example.com");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(existing));
+        when(spanRepository.save(any(Span.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        final Span updated = controller.updateSpan("s1",
+                new SpanUpdateRequest("REJECTED", null, "PII not actually present"), BOB);
+
+        assertEquals("REJECTED", updated.getStatus());
+        assertEquals("bob@example.com", updated.getStatusChangedBy());
+        final Map<String, Object> details = lastSpanUpdateAudit().details();
+        assertEquals(true, details.get("overturn"));
+        assertEquals("PII not actually present", details.get("reason"));
+        assertEquals("alice@example.com", details.get("previousStatusChangedBy"));
+    }
+
+    @Test
+    void overturnIsCaseInsensitiveForReviewerEmail() {
+        final Span existing = approvedBy("s1", "d1", "Alice@Example.com");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(existing));
+        when(spanRepository.save(any(Span.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        // Same human, different casing of email — should NOT trigger an overturn.
+        final Span updated = controller.updateSpan("s1",
+                new SpanUpdateRequest("REJECTED", null), ALICE);
+
+        assertEquals("REJECTED", updated.getStatus());
+        assertEquals(false, lastSpanUpdateAudit().details().getOrDefault("overturn", false));
+    }
+
+    @Test
+    void noReasonRequiredWhenPriorActorWasSystem() {
+        // System-set APPROVED (e.g. auto-approved during ingest) leaves statusChangedBy null.
+        // A reviewer can flip it without a reason — no human decision is being overturned.
+        final Span existing = span("s1", "d1", "ssn", "APPROVED", 0, 5, "hello");
+        // statusChangedBy intentionally left null
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(existing));
+        when(spanRepository.save(any(Span.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        final Span updated = controller.updateSpan("s1",
+                new SpanUpdateRequest("REJECTED", null), BOB);
+
+        assertEquals("REJECTED", updated.getStatus());
+        assertEquals("bob@example.com", updated.getStatusChangedBy());
+    }
+
+    @Test
+    void noReasonRequiredWhenPriorStatusWasNotApproved() {
+        // Bob flips a PENDING span (originally touched by Alice somehow, e.g. type change)
+        // to REJECTED — that's not an overturn of an approval.
+        final Span existing = span("s1", "d1", "ssn", "PENDING", 0, 5, "hello");
+        existing.setStatusChangedBy("alice@example.com");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(existing));
+        when(spanRepository.save(any(Span.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        final Span updated = controller.updateSpan("s1",
+                new SpanUpdateRequest("REJECTED", null), BOB);
+
+        assertEquals("REJECTED", updated.getStatus());
+    }
+
+    @Test
+    void typeOnlyChangeOnApprovedSpanByDifferentReviewerNeedsNoReason() {
+        // Status doesn't change — no overturn check applies.
+        final Span existing = approvedBy("s1", "d1", "alice@example.com");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(existing));
+        when(spanRepository.save(any(Span.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        final Span updated = controller.updateSpan("s1",
+                new SpanUpdateRequest(null, "phone-number"), BOB);
+
+        assertEquals("APPROVED", updated.getStatus());
+        assertEquals("phone-number", updated.getType());
+    }
+
+    @Test
+    void approvedReapprovedByDifferentReviewerNeedsNoReason() {
+        // Setting APPROVED again on an already-APPROVED span isn't an overturn.
+        final Span existing = approvedBy("s1", "d1", "alice@example.com");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(existing));
+        when(spanRepository.save(any(Span.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        final Span updated = controller.updateSpan("s1",
+                new SpanUpdateRequest("APPROVED", null), BOB);
+
+        assertEquals("APPROVED", updated.getStatus());
+        assertEquals("bob@example.com", updated.getStatusChangedBy());
+    }
+
+    // ---- second-opinion enforcement ----
+
+    @Test
+    void requesterCanResolveTheirOwnSecondOpinionToApproved() {
+        // Any reviewer — including the requester — may flip a NEEDS_SECOND_OPINION span
+        // to APPROVED or REJECTED. The "another reviewer must resolve" constraint is no
+        // longer enforced at the span level.
+        final Span existing = span("s1", "d1", "ssn", Span.STATUS_NEEDS_SECOND_OPINION, 0, 5, "hello");
+        existing.setStatusChangedBy("alice@example.com");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(existing));
+        when(spanRepository.save(any(Span.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        final Span updated = controller.updateSpan("s1",
+                new SpanUpdateRequest("APPROVED", null), ALICE);
+
+        assertEquals("APPROVED", updated.getStatus());
+        assertEquals("alice@example.com", updated.getStatusChangedBy());
+    }
+
+    @Test
+    void requesterCanResolveTheirOwnSecondOpinionToRejected() {
+        final Span existing = span("s1", "d1", "ssn", Span.STATUS_NEEDS_SECOND_OPINION, 0, 5, "hello");
+        existing.setStatusChangedBy("alice@example.com");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(existing));
+        when(spanRepository.save(any(Span.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        final Span updated = controller.updateSpan("s1",
+                new SpanUpdateRequest("REJECTED", null), ALICE);
+
+        assertEquals("REJECTED", updated.getStatus());
+    }
+
+    @Test
+    void differentReviewerCanResolveSecondOpinionToApproved() {
+        final Span existing = span("s1", "d1", "ssn", Span.STATUS_NEEDS_SECOND_OPINION, 0, 5, "hello");
+        existing.setStatusChangedBy("alice@example.com");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(existing));
+        when(spanRepository.save(any(Span.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        final Span updated = controller.updateSpan("s1",
+                new SpanUpdateRequest("APPROVED", null), BOB);
+
+        assertEquals("APPROVED", updated.getStatus());
+        assertEquals("bob@example.com", updated.getStatusChangedBy());
+    }
+
+    @Test
+    void differentReviewerCanResolveSecondOpinionToRejected() {
+        final Span existing = span("s1", "d1", "ssn", Span.STATUS_NEEDS_SECOND_OPINION, 0, 5, "hello");
+        existing.setStatusChangedBy("alice@example.com");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(existing));
+        when(spanRepository.save(any(Span.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        final Span updated = controller.updateSpan("s1",
+                new SpanUpdateRequest("REJECTED", null), BOB);
+
+        assertEquals("REJECTED", updated.getStatus());
+    }
+
+    @Test
+    void requesterCanCancelTheirOwnSecondOpinionByMovingToPending() {
+        // Self-resolve guard only applies to APPROVED/REJECTED; the requester can return
+        // the span to PENDING (effectively cancelling their own request).
+        final Span existing = span("s1", "d1", "ssn", Span.STATUS_NEEDS_SECOND_OPINION, 0, 5, "hello");
+        existing.setStatusChangedBy("alice@example.com");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(existing));
+        when(spanRepository.save(any(Span.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        final Span updated = controller.updateSpan("s1",
+                new SpanUpdateRequest("PENDING", null), ALICE);
+
+        assertEquals("PENDING", updated.getStatus());
+    }
+
+    @Test
+    void rejectedDocumentBlocksSpanEdits() {
+        final Document rejected = document("d1", "");
+        rejected.changeStatus("REJECTED");
+        when(documentRepository.findById("d1")).thenReturn(Optional.of(rejected));
+        final Span existing = span("s1", "d1", "ssn", "PENDING", 0, 5, "hello");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(existing));
+
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.updateSpan("s1",
+                        new SpanUpdateRequest("APPROVED", null), ADMIN));
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("REJECTED"));
     }
 
     @Test

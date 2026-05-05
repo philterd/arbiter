@@ -71,7 +71,7 @@ public class DemoDataLoader implements ApplicationRunner {
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
     private final PolicyRepository policyRepository;
-    private final RedactionService redactionService;
+    private final IngestQueueService ingestQueueService;
     private final String sampleFilesDirectory;
 
     public DemoDataLoader(final BatchRepository batchRepository,
@@ -80,7 +80,7 @@ public class DemoDataLoader implements ApplicationRunner {
                           final GroupRepository groupRepository,
                           final UserRepository userRepository,
                           final PolicyRepository policyRepository,
-                          final RedactionService redactionService,
+                          final IngestQueueService ingestQueueService,
                           @Value("${arbiter.demo-data.directory:sample-files}") final String sampleFilesDirectory) {
         this.batchRepository = batchRepository;
         this.documentRepository = documentRepository;
@@ -88,7 +88,7 @@ public class DemoDataLoader implements ApplicationRunner {
         this.groupRepository = groupRepository;
         this.userRepository = userRepository;
         this.policyRepository = policyRepository;
-        this.redactionService = redactionService;
+        this.ingestQueueService = ingestQueueService;
         this.sampleFilesDirectory = sampleFilesDirectory;
     }
 
@@ -191,7 +191,7 @@ public class DemoDataLoader implements ApplicationRunner {
     }
 
     private boolean loadFile(final Path file, final Batch batch) {
-        String text;
+        final String text;
         try {
             text = Files.readString(file, StandardCharsets.UTF_8);
         } catch (IOException e) {
@@ -199,49 +199,10 @@ public class DemoDataLoader implements ApplicationRunner {
             return false;
         }
 
-        final Document document = new Document();
-        document.setId(UUID.randomUUID().toString());
-        document.setBatchId(batch.getId());
-        document.setCreatedAt(LocalDateTime.now());
-        document.setFilename(file.getFileName().toString());
-        document.setStoragePath(file.toAbsolutePath().toString());
-        document.setOriginalText(text);
-
-        final List<Span> spans = new ArrayList<>();
-        try {
-            final RedactionResponse response = redactionService.redactText(text, batch.getPhilterInstanceId(), batch.getContext());
-            final List<Redaction> ordered = new ArrayList<>(response.getRedactions());
-            ordered.sort(Comparator.comparingInt(Redaction::getStart));
-            int cursor = 0;
-            for (Redaction redaction : ordered) {
-                final int originalStart = text.indexOf(redaction.getText(), cursor);
-                if (originalStart < 0) {
-                    log.warn("Could not locate '{}' in original text of {}; skipping span.",
-                            redaction.getText(), file.getFileName());
-                    continue;
-                }
-                final int originalEnd = originalStart + redaction.getText().length();
-                spans.add(toSpan(document.getId(), redaction, originalStart, originalEnd, batch.getConfidenceThreshold()));
-                cursor = originalEnd;
-            }
-            final boolean needsReview = !spans.isEmpty()
-                    && spans.stream().anyMatch(s -> "PENDING".equals(s.getStatus()));
-            document.changeStatus(IngestStatus.pick(batch, needsReview));
-        } catch (Exception e) {
-            log.warn("Redaction failed for {}: {}. Storing as PENDING.", file.getFileName(), e.getMessage());
-            document.changeStatus("PENDING");
-            spans.clear();
-        }
-
-        document.setRiskScore(RiskScore.compute(spans, text, batch.getPiiTypeWeights()));
-
-        documentRepository.save(document);
-        if (!spans.isEmpty()) {
-            spanRepository.saveAll(spans);
-        }
-        log.info("Loaded {} ({} span(s), risk score {}).",
-                file.getFileName(), spans.size(),
-                String.format("%.4f", document.getRiskScore()));
+        // Submit through the same code path the API uses: persist as PENDING and let the
+        // background ingest-queue worker run Philter and produce spans.
+        final Document queued = ingestQueueService.enqueueText(batch, file.getFileName().toString(), text);
+        log.info("Queued {} for redaction (document id {}).", file.getFileName(), queued.getId());
         return true;
     }
 

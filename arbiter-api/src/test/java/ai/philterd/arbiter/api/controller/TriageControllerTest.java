@@ -4,6 +4,8 @@ import ai.philterd.arbiter.model.Batch;
 import ai.philterd.arbiter.model.Document;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
+import ai.philterd.arbiter.repository.SpanRepository;
+import ai.philterd.arbiter.service.ApprovalRuleEvaluator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -31,6 +33,7 @@ class TriageControllerTest {
 
     private DocumentRepository documentRepository;
     private BatchRepository batchRepository;
+    private SpanRepository spanRepository;
     private TestDoubles.FakeUserGroups userGroupsService;
     private TriageController controller;
 
@@ -38,8 +41,11 @@ class TriageControllerTest {
     void setUp() {
         documentRepository = mock(DocumentRepository.class);
         batchRepository = mock(BatchRepository.class);
+        spanRepository = mock(SpanRepository.class);
+        when(spanRepository.findByDocumentId(anyString())).thenReturn(List.of());
         userGroupsService = TestDoubles.userGroups();
-        controller = new TriageController(documentRepository, batchRepository, userGroupsService);
+        controller = new TriageController(documentRepository, batchRepository, spanRepository,
+                userGroupsService, new ApprovalRuleEvaluator());
     }
 
     private static Batch batch(final String id, final String groupId, final String name, final double documentThreshold) {

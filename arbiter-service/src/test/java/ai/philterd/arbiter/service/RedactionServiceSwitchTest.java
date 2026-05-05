@@ -29,7 +29,9 @@ import java.util.ArrayList;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 public class RedactionServiceSwitchTest {
@@ -52,7 +54,7 @@ public class RedactionServiceSwitchTest {
     public void setup() {
         MockitoAnnotations.openMocks(this);
         redactionService = new RedactionServiceImpl(phileasClient, philterClientFactory,
-                philterInstanceRepository);
+                philterInstanceRepository, new ai.philterd.arbiter.service.SymmetricCipher(""));
     }
 
     @Test
@@ -64,7 +66,7 @@ public class RedactionServiceSwitchTest {
         instance.setPort(8080);
 
         when(philterInstanceRepository.findById("philter-1")).thenReturn(Optional.of(instance));
-        when(philterClientFactory.create("http://philter:8080")).thenReturn(remotePhilterClient);
+        when(philterClientFactory.create(eq("http://philter:8080"), any())).thenReturn(remotePhilterClient);
 
         final RedactionResponse philterResponse = new RedactionResponse("test", "philter", new ArrayList<>());
         when(remotePhilterClient.redact(anyString(), anyString())).thenReturn(philterResponse);

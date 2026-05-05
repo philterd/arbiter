@@ -40,22 +40,34 @@ public class RedactionServiceImpl implements RedactionService {
     private final PhilterClient phileasClient;
     private final PhilterClientFactory philterClientFactory;
     private final PhilterInstanceRepository philterInstanceRepository;
+    private final ai.philterd.arbiter.service.SymmetricCipher symmetricCipher;
 
     public RedactionServiceImpl(@Qualifier("phileasClient") final PhilterClient phileasClient,
                                 final PhilterClientFactory philterClientFactory,
-                                final PhilterInstanceRepository philterInstanceRepository) {
+                                final PhilterInstanceRepository philterInstanceRepository,
+                                final ai.philterd.arbiter.service.SymmetricCipher symmetricCipher) {
         this.phileasClient = phileasClient;
         this.philterClientFactory = philterClientFactory;
         this.philterInstanceRepository = philterInstanceRepository;
+        this.symmetricCipher = symmetricCipher;
     }
 
     private PhilterClient getClient(final String philterInstanceId) {
         if (philterInstanceId != null && !philterInstanceId.isBlank()) {
             final Optional<PhilterInstance> instance = philterInstanceRepository.findById(philterInstanceId);
             if (instance.isPresent()) {
-                final String url = baseUrl(instance.get());
-                log.info("Using Philter remote instance \"{}\" at {}", instance.get().getName(), url);
-                return philterClientFactory.create(url);
+                final PhilterInstance pi = instance.get();
+                final String url = baseUrl(pi);
+                String apiKey = null;
+                try {
+                    apiKey = symmetricCipher.decrypt(pi.getEncryptedApiKey());
+                } catch (Exception e) {
+                    log.warn("Could not decrypt API key for Philter instance \"{}\": {}",
+                            pi.getName(), e.getMessage());
+                }
+                log.info("Using Philter remote instance \"{}\" at {} (api key {})",
+                        pi.getName(), url, (apiKey != null && !apiKey.isBlank() ? "set" : "not set"));
+                return philterClientFactory.create(url, apiKey);
             }
             log.warn("Philter instance {} not found; falling back to local Phileas.", philterInstanceId);
         }

@@ -40,7 +40,8 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 @RequestMapping("/api/v1")
 public class ReviewController {
 
-    private static final Set<String> ALLOWED_STATUSES = Set.of("APPROVED", "REJECTED", "PENDING");
+    private static final Set<String> ALLOWED_STATUSES = Set.of(
+            "APPROVED", "REJECTED", "PENDING", Span.STATUS_NEEDS_SECOND_OPINION);
 
     private final SpanRepository spanRepository;
     private final DocumentRepository documentRepository;
@@ -74,11 +75,18 @@ public class ReviewController {
         }
     }
 
-    /** Spans on an APPROVED document are read-only — the document must be unapproved first. */
+    /**
+     * Spans on a document in a terminal status are read-only. APPROVED documents must be
+     * Unapproved first; REJECTED documents must be Unrejected first.
+     */
     private static void requireEditable(final Document document) {
         if ("APPROVED".equals(document.getStatus())) {
             throw new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
                     "Document is APPROVED. Unapprove it before adding, editing, or deleting spans.");
+        }
+        if ("REJECTED".equals(document.getStatus())) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
+                    "Document is REJECTED. Unreject it before adding, editing, or deleting spans.");
         }
     }
 
@@ -142,7 +150,7 @@ public class ReviewController {
         span.setLocation(new Location(start, end, 1, new Coordinates(0, 0, 0, 0)));
         span.setManuallyCreated(true);
         span.setCreatedAt(LocalDateTime.now());
-        span.changeStatus("APPROVED");
+        span.changeStatus("APPROVED", authentication == null ? null : authentication.getName());
         final Span saved = spanRepository.save(span);
 
         auditLogService.log("SPAN_CREATE", "Span", saved.getId(),
@@ -169,14 +177,37 @@ public class ReviewController {
         requireDocumentAccess(authentication, document);
         requireEditable(document);
 
+        final String actor = authentication == null ? null : authentication.getName();
         final Map<String, Object> changes = new LinkedHashMap<>();
         if (request.status() != null) {
             if (!ALLOWED_STATUSES.contains(request.status())) {
                 throw new ResponseStatusException(BAD_REQUEST, "Invalid status: " + request.status());
             }
+            // Overturn check: moving a span *out of* APPROVED, where the prior approval
+            // was recorded by a different reviewer, requires a reason for the audit trail.
+            final boolean leavingApproved = "APPROVED".equals(span.getStatus())
+                    && !"APPROVED".equals(request.status());
+            final String priorActor = span.getStatusChangedBy();
+            final boolean differentReviewer = priorActor != null && actor != null
+                    && !priorActor.equalsIgnoreCase(actor);
+            final String reason = request.reason() == null ? "" : request.reason().trim();
+            if (leavingApproved && differentReviewer && reason.isEmpty()) {
+                throw new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
+                        "OVERTURN_REASON_REQUIRED: a reason is required to overturn another reviewer's approval.");
+            }
             changes.put("previousStatus", span.getStatus() == null ? "" : span.getStatus());
             changes.put("status", request.status());
-            span.changeStatus(request.status());
+            if (priorActor != null) {
+                changes.put("previousStatusChangedBy", priorActor);
+            }
+            if (leavingApproved && differentReviewer) {
+                changes.put("overturn", true);
+                changes.put("reason", reason);
+            } else if (!reason.isEmpty()) {
+                // Reason supplied without an overturn — record it for traceability.
+                changes.put("reason", reason);
+            }
+            span.changeStatus(request.status(), actor);
         }
         if (request.type() != null) {
             final String normalized = request.type().trim().toLowerCase();
@@ -230,6 +261,15 @@ public class ReviewController {
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + source.getDocumentId()));
         requireDocumentAccess(authentication, document);
         requireEditable(document);
+        // Redact All Like This is only meaningful while the source span is still a redaction
+        // candidate. If the reviewer refused it or flagged it for a second opinion, the action
+        // is disabled — propagating the source's redaction across the document doesn't make
+        // sense in either case.
+        if ("REJECTED".equals(source.getStatus())
+                || Span.STATUS_NEEDS_SECOND_OPINION.equals(source.getStatus())) {
+            throw new ResponseStatusException(BAD_REQUEST,
+                    "Redact All Like This is only available for approved or pending spans.");
+        }
         final String haystack = document.getOriginalText();
         if (haystack == null || haystack.isEmpty()) {
             return Map.of("created", 0, "approved", 0);
@@ -246,7 +286,8 @@ public class ReviewController {
             existingRanges.add(new long[]{start, end});
         }
 
-        source.changeStatus("APPROVED");
+        final String actor = authentication == null ? null : authentication.getName();
+        source.changeStatus("APPROVED", actor);
         spanRepository.save(source);
 
         final List<Span> toSave = new ArrayList<>();
@@ -265,7 +306,7 @@ public class ReviewController {
 
             final Span exact = byRange.get(((long) idx << 32) | (end & 0xFFFFFFFFL));
             if (exact != null) {
-                exact.changeStatus("APPROVED");
+                exact.changeStatus("APPROVED", actor);
                 exact.setType(source.getType());
                 toSave.add(exact);
                 approved++;
@@ -285,7 +326,7 @@ public class ReviewController {
             fresh.setLocation(new Location(idx, end, 1, new Coordinates(0, 0, 0, 0)));
             fresh.setManuallyCreated(true);
             fresh.setCreatedAt(LocalDateTime.now());
-            fresh.changeStatus("APPROVED");
+            fresh.changeStatus("APPROVED", actor);
             toSave.add(fresh);
             existingRanges.add(new long[]{idx, end});
             created++;

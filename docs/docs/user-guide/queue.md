@@ -1,8 +1,8 @@
-# Queue
+# Document Queue
 
-The **Queue** (the page at `/`, also linked from the sidebar) is your starting
-point as a reviewer. It lists every document you have access to, ordered by
-risk score (highest risk first), so you can work top-down.
+The **Document Queue** (linked from the sidebar) is your starting point as a
+reviewer. It lists every document you have access to, ordered by risk score
+(highest risk first) by default, so you can work top-down.
 
 ## Columns
 
@@ -16,7 +16,9 @@ risk score (highest risk first), so you can work top-down.
 
 The status pill colors are:
 
-- Green — `APPROVED`, `AUTO_APPROVED`
+- Green — `APPROVED`
+- Emerald — `AUTO_APPROVED`
+- Amber — `AUDIT_REQUIRED`
 - Yellow — `REVIEW_REQUIRED`
 - Blue — `PENDING`
 - Red — `REJECTED`, `FAILED`

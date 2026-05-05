@@ -36,10 +36,23 @@ public class PhilterClientImpl implements PhilterClient {
 
     private final RestTemplate restTemplate;
     private final String philterUrl;
+    private final String apiKey;
 
     public PhilterClientImpl(final RestTemplate restTemplate, final String philterUrl) {
+        this(restTemplate, philterUrl, null);
+    }
+
+    public PhilterClientImpl(final RestTemplate restTemplate, final String philterUrl, final String apiKey) {
         this.restTemplate = restTemplate;
         this.philterUrl = philterUrl;
+        this.apiKey = apiKey;
+    }
+
+    /** Add an Authorization header to the supplied headers when this instance has an API key. */
+    private void applyAuth(final HttpHeaders headers) {
+        if (apiKey != null && !apiKey.isBlank()) {
+            headers.set(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey);
+        }
     }
 
     @Override
@@ -57,6 +70,7 @@ public class PhilterClientImpl implements PhilterClient {
         final HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.TEXT_PLAIN);
         headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+        applyAuth(headers);
 
         final HttpEntity<String> explainRequest = new HttpEntity<>(text, headers);
 
@@ -82,6 +96,7 @@ public class PhilterClientImpl implements PhilterClient {
         final String redactUrl = philterUrl + "/api/redact?context=" + context;
         final HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        applyAuth(headers);
 
         final Map<String, Object> body = Map.of(
                 "text", text,
@@ -104,6 +119,7 @@ public class PhilterClientImpl implements PhilterClient {
 
         final HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.TEXT_PLAIN);
+        applyAuth(headers);
 
         final HttpEntity<String> request = new HttpEntity<>(text, headers);
 

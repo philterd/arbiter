@@ -9,10 +9,13 @@ services:
       - "8080:8080"
     environment:
       - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/arbiter
+      - ARBITER_OPENSEARCH_ENDPOINT=http://opensearch:9200
     volumes:
       - ./sample-files:/app/sample-files:ro
     depends_on:
       mongodb:
+        condition: service_healthy
+      opensearch:
         condition: service_healthy
     networks:
       - arbiter
@@ -36,6 +39,30 @@ services:
     container_name: arbiter-policy-editor
     ports:
       - "8081:8080"
+    networks:
+      - arbiter
+
+  opensearch:
+    image: opensearchproject/opensearch:3.6.0
+    container_name: arbiter-opensearch
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "DISABLE_SECURITY_PLUGIN=true"
+      - "DISABLE_INSTALL_DEMO_CONFIG=true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "9200:9200"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
     networks:
       - arbiter
 

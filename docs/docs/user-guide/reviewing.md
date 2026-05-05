@@ -34,13 +34,27 @@ Each navigator entry shows:
 
 ## Document-level actions
 
-The header has Approve / Reject / Unapprove buttons. These set the *document's*
+The header has **Previous** / **Next** buttons that step through the
+documents in this batch (sorted by filename). Whether they skip
+`AUTO_APPROVED` documents is controlled by your
+[personal review-page preferences](settings.md).
+
+It also has Approve / Reject / Unapprove buttons. These set the *document's*
 status:
 
-- **Approve** — moves the document to `APPROVED` and returns you to the queue.
+- **Approve** — records your approval and returns you to the queue (or
+  jumps to the next document if your "advance to next on approve"
+  preference is on). Whether the document moves to `APPROVED` immediately
+  depends on the batch's [approval rule sets](../admin/rules.md): if dual
+  approval is required and you're the first approver, the document stays
+  in `REVIEW_REQUIRED` until a second different reviewer approves.
 - **Reject** — moves the document to `REJECTED` and returns you to the queue.
 - **Unapprove** — only shown for already-approved documents; flips the document
   back to `REVIEW_REQUIRED` so it can be re-reviewed.
+
+The same reviewer can never approve a document twice — a duplicate click
+shows an inline error. The Document Queue's **Approvals** column tracks
+progress (e.g. `1 of 2`, `0 of 1`).
 
 Approve / Reject are hidden once the document is in a terminal status
 (`APPROVED`, `REJECTED`, or `FAILED`). The decision is captured in the audit

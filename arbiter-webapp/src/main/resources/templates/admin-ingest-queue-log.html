@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd
+  -->
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Arbiter - Ingest Failure</title>
+    <script th:src="@{/js/tailwind.js}"></script>
+</head>
+<body class="bg-gray-50">
+<div class="flex min-h-screen">
+    <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
+        <div class="px-6 py-5 border-b border-gray-200">
+            <h1 class="text-2xl font-bold text-gray-900">Arbiter</h1>
+        </div>
+        <nav class="flex-1 px-3 py-4 space-y-1">
+            <a th:href="@{/admin/ingest-queue}"
+               class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700">
+                &larr; Back to Ingest Queue
+            </a>
+        </nav>
+        <div class="px-3 py-4 border-t border-gray-200 text-sm text-gray-600">
+            <div class="px-3 mb-2">
+                Signed in as <span class="font-medium" sec:authentication="name">user</span>
+                <span sec:authorize="hasRole('ADMIN')" class="ml-1 text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Admin</span>
+            </div>
+            <form th:action="@{/logout}" method="post">
+                <button type="submit" class="w-full text-left px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100">Sign out</button>
+            </form>
+        </div>
+    </aside>
+
+    <div class="flex-1 flex flex-col min-w-0">
+        <main class="flex-1 p-8">
+            <a th:href="@{/admin/ingest-queue}" class="text-sm text-blue-600 hover:text-blue-800 mb-2 inline-block">&larr; Back to Ingest Queue</a>
+            <h2 class="text-3xl font-bold text-gray-900 mb-1">Ingest failure</h2>
+            <p class="text-sm text-gray-600 mb-6">
+                Why redaction did not complete for this document.
+            </p>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6 max-w-3xl">
+                <dl class="grid grid-cols-3 gap-y-2 text-sm">
+                    <dt class="text-gray-500">Filename</dt>
+                    <dd class="col-span-2 font-medium text-gray-900" th:text="${doc.filename}">file.txt</dd>
+                    <dt class="text-gray-500">Document id</dt>
+                    <dd class="col-span-2 font-mono text-gray-700" th:text="${doc.id}">id</dd>
+                    <dt class="text-gray-500">Batch</dt>
+                    <dd class="col-span-2 text-gray-900" th:text="${batchName}">batch</dd>
+                    <dt class="text-gray-500">Status</dt>
+                    <dd class="col-span-2">
+                        <span class="inline-flex px-2 py-0.5 rounded-full bg-red-100 text-red-800 text-xs font-mono uppercase tracking-wide"
+                              th:text="${doc.status}">FAILED</span>
+                    </dd>
+                    <dt class="text-gray-500">Queued at</dt>
+                    <dd class="col-span-2 font-mono text-gray-700"
+                        th:text="${doc.createdAt != null ? #temporals.format(doc.createdAt, 'yyyy-MM-dd HH:mm:ss') : '—'}">2026-01-01 00:00:00</dd>
+                    <dt class="text-gray-500">Failed at</dt>
+                    <dd class="col-span-2 font-mono text-red-700"
+                        th:text="${doc.statusChangedAt != null ? #temporals.format(doc.statusChangedAt, 'yyyy-MM-dd HH:mm:ss') : '—'}">2026-01-01 00:00:00</dd>
+                </dl>
+            </div>
+
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Failure log</h3>
+            <div th:if="${doc.failureMessage == null or #strings.isEmpty(doc.failureMessage)}"
+                 class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 text-sm text-gray-500">
+                No failure detail was captured for this document. The application logs may have
+                additional context (search the application log for the document id above).
+            </div>
+            <pre th:if="${doc.failureMessage != null and !#strings.isEmpty(doc.failureMessage)}"
+                 class="bg-gray-900 text-gray-100 rounded-xl p-4 overflow-x-auto text-xs leading-5 whitespace-pre-wrap"
+                 th:text="${doc.failureMessage}">stack trace</pre>
+        </main>
+        <div th:replace="~{fragments/footer :: footer}"></div>
+    </div>
+</div>
+</body>
+</html>

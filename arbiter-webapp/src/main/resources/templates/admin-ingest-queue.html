@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd
+  -->
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Arbiter - Ingest Queue</title>
+    <script th:src="@{/js/tailwind.js}"></script>
+</head>
+<body class="bg-gray-50">
+<div class="flex min-h-screen">
+    <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
+        <div class="px-6 py-5 border-b border-gray-200">
+            <h1 class="text-2xl font-bold text-gray-900">Arbiter</h1>
+        </div>
+        <div class="px-3 py-3 border-b border-gray-200">
+            <a th:href="@{/upload}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12"></path>
+                </svg>
+                Upload
+            </a>
+        </div>
+        <nav class="flex-1 px-3 py-4 space-y-1">
+            <a th:href="@{/}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                </svg>
+                Dashboard
+            </a>
+            <a th:href="@{/inbox}" class="relative flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                </svg>
+                Inbox
+                <span th:if="${inboxUnreadCount != null and inboxUnreadCount > 0}"
+                      class="ml-auto inline-flex items-center justify-center min-w-[1.25rem] h-5 text-[10px] font-semibold rounded-full bg-red-600 text-white px-1.5"
+                      th:text="${inboxUnreadCount}">3</span>
+            </a>
+            <a th:href="@{/queue}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path>
+                </svg>
+                Document Queue
+            </a>
+            <a th:href="@{/second-opinions}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                </svg>
+                Second Opinions
+            </a>
+            <a th:href="@{/search}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"></path>
+                </svg>
+                Search
+            </a>
+            <a th:href="@{/settings}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+                Settings
+            </a>
+            <div sec:authorize="hasRole('ADMIN')" class="mt-4 pt-3 border-t border-gray-200 space-y-1">
+                <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Administration</p>
+            <a sec:authorize="hasRole('ADMIN')" th:href="@{/batches}"
+               class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                </svg>
+                Batches
+            </a>
+            <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/ingest-queue}"
+               class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700">
+                <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Ingest Queue
+            </a>
+            <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/rules}"
+               class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                </svg>
+                Approval Rules
+            </a>
+            <a sec:authorize="hasRole('ADMIN')" th:href="@{/policies}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                Policies
+            </a>
+            <a sec:authorize="hasRole('ADMIN')" th:href="@{/reporting}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v18h18M9 17v-7m4 7v-12m4 12v-4"></path>
+                </svg>
+                Reports
+            </a>
+            <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/general}"
+               class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+                </svg>
+                Admin
+            </a>
+            </div>
+        </nav>
+        <div class="px-3 py-4 border-t border-gray-200 text-sm text-gray-600">
+            <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd.png}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
+            <div class="px-3 mb-2">
+                Signed in as <span class="font-medium" sec:authentication="name">user</span>
+                <span sec:authorize="hasRole('ADMIN')" class="ml-1 text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Admin</span>
+            </div>
+            <form th:action="@{/logout}" method="post">
+                <button type="submit" class="w-full text-left px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100">Sign out</button>
+            </form>
+        </div>
+    </aside>
+
+    <div class="flex-1 flex flex-col min-w-0">
+        <main class="flex-1 p-8">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-3xl font-bold text-gray-900">Ingest Queue</h2>
+                <a th:href="@{/admin/ingest-queue}"
+                   class="px-3 py-1.5 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
+                    Refresh
+                </a>
+            </div>
+            <p class="text-sm text-gray-600 mb-6">
+                Documents are processed oldest-first by a background worker. Once redaction
+                completes, they move into the Document Queue or are auto-approved per the batch's
+                document threshold.
+            </p>
+
+            <div th:if="${success}" class="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700"
+                 th:text="${success}">Success</div>
+            <div th:if="${error}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
+                 th:text="${error}">Error</div>
+
+            <div class="grid grid-cols-3 gap-3 mb-6 max-w-2xl">
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Pending</div>
+                    <div class="mt-1 text-2xl font-semibold text-gray-900" th:text="${pendingTotal}">0</div>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Processing</div>
+                    <div class="mt-1 text-2xl font-semibold text-blue-700" th:text="${processingTotal}">0</div>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Failed</div>
+                    <div class="mt-1 text-2xl font-semibold" th:text="${failedTotal}"
+                         th:classappend="${failedTotal > 0} ? 'text-red-700' : 'text-gray-900'">0</div>
+                </div>
+            </div>
+
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Pending</h3>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Filename</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Queued</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        <tr th:if="${#lists.isEmpty(pending)}">
+                            <td colspan="5" class="px-6 py-8 text-center text-sm text-gray-500">
+                                The ingest queue is empty.
+                            </td>
+                        </tr>
+                        <tr th:each="row : ${pending}" class="hover:bg-gray-50">
+                            <td class="px-6 py-3 text-sm text-gray-900 font-medium" th:text="${row.filename}">file.txt</td>
+                            <td class="px-6 py-3 text-sm text-gray-700" th:text="${row.batchName}">batch</td>
+                            <td class="px-6 py-3 text-sm text-gray-600 font-mono"
+                                th:text="${row.createdAt != null ? #temporals.format(row.createdAt, 'yyyy-MM-dd HH:mm:ss') : '—'}">
+                                2026-01-01 00:00:00
+                            </td>
+                            <td class="px-6 py-3 text-sm text-gray-600" th:text="${row.age}">5s</td>
+                            <td class="px-6 py-3 text-sm whitespace-nowrap">
+                                <form th:action="@{/admin/ingest-queue/{id}/delete(id=${row.id})}" method="post"
+                                      class="inline"
+                                      onsubmit="return confirm('Remove this document from the ingest queue? It will not be redacted.');">
+                                    <button type="submit" class="text-red-600 hover:text-red-800 font-medium">Remove</button>
+                                </form>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Processing</h3>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Filename</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Claimed at</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Age</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        <tr th:if="${#lists.isEmpty(processing)}">
+                            <td colspan="4" class="px-6 py-8 text-center text-sm text-gray-500">
+                                No documents currently being processed.
+                            </td>
+                        </tr>
+                        <tr th:each="row : ${processing}" class="hover:bg-gray-50">
+                            <td class="px-6 py-3 text-sm text-gray-900 font-medium" th:text="${row.filename}">file.txt</td>
+                            <td class="px-6 py-3 text-sm text-gray-700" th:text="${row.batchName}">batch</td>
+                            <td class="px-6 py-3 text-sm text-gray-600 font-mono"
+                                th:text="${row.statusChangedAt != null ? #temporals.format(row.statusChangedAt, 'yyyy-MM-dd HH:mm:ss') : '—'}">
+                                2026-01-01 00:00:00
+                            </td>
+                            <td class="px-6 py-3 text-sm text-gray-600" th:text="${row.age}">5s</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex items-center justify-between mb-2">
+                <h3 class="text-lg font-semibold text-gray-900">Recent failures</h3>
+                <form th:if="${failedTotal > 0}"
+                      th:action="@{/admin/ingest-queue/failures/clear}" method="post"
+                      onsubmit="return confirm('Clear all failed documents? This permanently deletes them and cannot be undone.');"
+                      class="inline">
+                    <button type="submit"
+                            class="px-3 py-1.5 border border-red-600 text-red-600 hover:bg-red-50 text-sm font-medium rounded-lg">
+                        Clear all
+                    </button>
+                </form>
+            </div>
+            <p class="text-xs text-gray-500 mb-2">
+                Showing the most recent failed redactions, newest first. There is no time
+                window — older failures appear here too if they're among the most recent.
+            </p>
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Filename</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Failed at</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Reason</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        <tr th:if="${#lists.isEmpty(failed)}">
+                            <td colspan="5" class="px-6 py-8 text-center text-sm text-gray-500">
+                                No failed redactions.
+                            </td>
+                        </tr>
+                        <tr th:each="row : ${failed}" class="hover:bg-gray-50">
+                            <td class="px-6 py-3 text-sm text-gray-900 font-medium" th:text="${row.filename}">file.txt</td>
+                            <td class="px-6 py-3 text-sm text-gray-700" th:text="${row.batchName}">batch</td>
+                            <td class="px-6 py-3 text-sm text-red-700 font-mono"
+                                th:text="${row.statusChangedAt != null ? #temporals.format(row.statusChangedAt, 'yyyy-MM-dd HH:mm:ss') : '—'}">
+                                2026-01-01 00:00:00
+                            </td>
+                            <td class="px-6 py-3 text-sm text-gray-700 font-mono break-words"
+                                th:text="${row.failureSummary != null ? row.failureSummary : '—'}">…</td>
+                            <td class="px-6 py-3 text-sm whitespace-nowrap">
+                                <a th:href="@{/admin/ingest-queue/{id}/log(id=${row.id})}"
+                                   class="text-blue-600 hover:text-blue-800 font-medium mr-3">View log</a>
+                                <form th:action="@{/admin/ingest-queue/{id}/clear-failure(id=${row.id})}"
+                                      method="post" class="inline"
+                                      onsubmit="return confirm('Remove this failed document from the list? This permanently deletes it.');">
+                                    <button type="submit" class="text-red-600 hover:text-red-800 font-medium">Remove</button>
+                                </form>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+        <div th:replace="~{fragments/footer :: footer}"></div>
+    </div>
+</div>
+</body>
+</html>

@@ -8,16 +8,28 @@ considered redacted.
 ## What Arbiter does
 
 - **Ingests** plain-text and PDF documents through a web upload form or a REST
-  API.
+  API. Uploads are queued and a background worker drains the queue oldest-first
+  (with a Mongo-level claim so multiple replicas are safe). Admins watch the
+  queue at **Admin → Ingest Queue**.
 - **Detects PII** in each document and stores every detection as a *span* with a
   type (SSN, phone-number, etc.), confidence, and character offsets.
 - **Scores risk** for each document using a configurable, weighted formula that
   combines span confidence, PII-type sensitivity, and a length-aware penalty for
   unresolved detections.
 - **Auto-approves** documents whose risk score is below a per-batch threshold,
-  so reviewers focus only on the documents that need human eyes.
+  so reviewers focus only on the documents that need human eyes — with a
+  configurable **audit sampling rate** that randomly pulls a fraction of those
+  back for spot-checks.
+- **Optionally requires dual approval** per batch — admins choose conditions
+  under **Approval Rules**, and matching documents need approvals from two
+  different reviewers before they move to `APPROVED`.
 - **Lets reviewers** accept, refuse, change the type of, or bulk-redact every
   occurrence of a span — all from a single side-by-side review pane.
+- **Indexes the full text** of every ingested document into OpenSearch so
+  reviewers (and the API) can run free-text searches; results in batches the
+  caller can't see are masked rather than dropped.
+- **Notifies users** through a per-user **Inbox** for system messages, with an
+  unread-count badge on the sidebar.
 - **Audits everything**: every action (login, batch change, span update,
   document approval, settings change) is recorded with user, resource, and
   timestamp, and admins can export filtered slices as JSON or CSV.
@@ -48,6 +60,7 @@ considered redacted.
 - **Reference** —
   [Risk score formula](reference/risk-score.md),
   [PII types and default weights](reference/pii-types.md),
-  [REST API](reference/api.md).
+  [REST API](reference/api.md) (covers ingest, search, comments, LLM-judge,
+  finalize/audit, and span CRUD).
 - **[Security](security.md)** — authentication, authorization, password and
   API-key storage.
