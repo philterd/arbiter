@@ -15,6 +15,12 @@ public class Document {
     private String storagePath;
     private String originalText;
     /**
+     * Redacted text rendered at finalize time. Persisted so the Download button on the
+     * Document Queue still works after a batch's finalization policy has cleared
+     * {@link #originalText} and removed the spans.
+     */
+    private String redactedText;
+    /**
      * SHA-512 hash (lowercase hex) of the document content as ingested. For text uploads this
      * is the hash of the UTF-8 bytes; for binary uploads (e.g. PDF) it is the hash of the raw
      * bytes received. Set once at ingest time and never updated thereafter, so it can be used
@@ -115,6 +121,14 @@ public class Document {
 
     public void setOriginalText(final String originalText) {
         this.originalText = originalText;
+    }
+
+    public String getRedactedText() {
+        return redactedText;
+    }
+
+    public void setRedactedText(final String redactedText) {
+        this.redactedText = redactedText;
     }
 
     public String getContentSha512() {

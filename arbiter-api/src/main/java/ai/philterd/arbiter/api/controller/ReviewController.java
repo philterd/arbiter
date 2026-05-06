@@ -108,6 +108,11 @@ public class ReviewController {
         final Document document = documentRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + id));
         requireDocumentAccess(authentication, document);
+        if (document.getOriginalText() == null || document.getOriginalText().isEmpty()) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
+                    "Document source has been deleted by the batch's finalization policy "
+                            + "and is no longer available for review.");
+        }
         return spanRepository.findByDocumentId(id);
     }
 

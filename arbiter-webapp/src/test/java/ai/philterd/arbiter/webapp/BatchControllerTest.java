@@ -263,4 +263,106 @@ class BatchControllerTest {
         assertEquals("A valid group must be selected.", error(ra));
         verify(batchRepository, never()).save(any());
     }
+
+    // ---------- close ----------
+
+    @Test
+    void closeRequiresAdmin() {
+        final RedirectAttributes ra = flash();
+        controller.close("b1", user(), ra);
+        assertEquals("Only administrators can close batches.", error(ra));
+        verify(batchRepository, never()).save(any());
+    }
+
+    @Test
+    void closeRejectsMissingBatch() {
+        when(batchRepository.findById("b1")).thenReturn(Optional.empty());
+
+        final RedirectAttributes ra = flash();
+        controller.close("b1", admin(), ra);
+        assertEquals("Batch not found.", error(ra));
+        verify(batchRepository, never()).save(any());
+    }
+
+    @Test
+    void closeRejectsAlreadyClosed() {
+        final Batch b = new Batch();
+        b.setId("b1");
+        b.setName("B");
+        b.setClosed(true);
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
+
+        final RedirectAttributes ra = flash();
+        controller.close("b1", admin(), ra);
+        assertEquals("Batch is already closed.", error(ra));
+        verify(batchRepository, never()).save(any());
+    }
+
+    @Test
+    void closeRejectsWhenDocumentsAreNotAllRejectedOrFinalized() {
+        final Batch b = new Batch();
+        b.setId("b1");
+        b.setName("Sample");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
+        when(documentRepository.countByBatchId("b1")).thenReturn(5L);
+        when(documentRepository.countByBatchIdAndStatusIn("b1", Set.of("REJECTED", "FINALIZED"))).thenReturn(3L);
+
+        final RedirectAttributes ra = flash();
+        controller.close("b1", admin(), ra);
+        assertNotNull(error(ra));
+        assertTrue(error(ra).contains("cannot be closed"));
+        assertTrue(error(ra).contains("2 documents are"));
+        verify(batchRepository, never()).save(any());
+    }
+
+    @Test
+    void closeUsesSingularWhenOneDocumentRemains() {
+        final Batch b = new Batch();
+        b.setId("b1");
+        b.setName("Sample");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
+        when(documentRepository.countByBatchId("b1")).thenReturn(2L);
+        when(documentRepository.countByBatchIdAndStatusIn("b1", Set.of("REJECTED", "FINALIZED"))).thenReturn(1L);
+
+        final RedirectAttributes ra = flash();
+        controller.close("b1", admin(), ra);
+        assertNotNull(error(ra));
+        assertTrue(error(ra).contains("1 document is"));
+        verify(batchRepository, never()).save(any());
+    }
+
+    @Test
+    void closeSucceedsWhenAllDocumentsAreRejectedOrFinalized() {
+        final Batch b = new Batch();
+        b.setId("b1");
+        b.setName("Sample");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
+        when(documentRepository.countByBatchId("b1")).thenReturn(4L);
+        when(documentRepository.countByBatchIdAndStatusIn("b1", Set.of("REJECTED", "FINALIZED"))).thenReturn(4L);
+
+        final RedirectAttributes ra = flash();
+        final String view = controller.close("b1", admin(), ra);
+        assertEquals("redirect:/batches", view);
+        assertNull(error(ra));
+        assertEquals("Batch \"Sample\" closed.", success(ra));
+        assertTrue(b.isClosed());
+        assertNotNull(b.getClosedAt());
+        verify(batchRepository).save(b);
+    }
+
+    @Test
+    void closeSucceedsForEmptyBatch() {
+        final Batch b = new Batch();
+        b.setId("b1");
+        b.setName("Empty");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
+        when(documentRepository.countByBatchId("b1")).thenReturn(0L);
+        when(documentRepository.countByBatchIdAndStatusIn("b1", Set.of("REJECTED", "FINALIZED"))).thenReturn(0L);
+
+        final RedirectAttributes ra = flash();
+        final String view = controller.close("b1", admin(), ra);
+        assertEquals("redirect:/batches", view);
+        assertEquals("Batch \"Empty\" closed.", success(ra));
+        verify(batchRepository).save(b);
+    }
 }

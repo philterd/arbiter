@@ -302,12 +302,13 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User Group</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Compliance Profile</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Philter / Policy</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Finalization Policy</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200">
                         <tr th:if="${#lists.isEmpty(batches)}">
-                            <td colspan="8" class="px-6 py-8 text-center text-sm text-gray-500">
+                            <td colspan="9" class="px-6 py-8 text-center text-sm text-gray-500">
                                 No batches yet. Create one above.
                             </td>
                         </tr>
@@ -358,11 +359,6 @@
                                     <span th:if="${b.policyName != null}" th:text="${b.policyName}">policy</span>
                                     <span th:if="${b.policyName == null}" class="italic">no policy</span>
                                 </div>
-                                <div class="text-xs text-gray-500">
-                                    Finalization:
-                                    <span th:if="${b.finalizationPolicyName != null}" th:text="${b.finalizationPolicyName}">policy</span>
-                                    <span th:if="${b.finalizationPolicyName == null}" class="italic">— not set —</span>
-                                </div>
                                 <button type="button"
                                         class="batch-philter-btn text-xs font-medium text-blue-600 hover:text-blue-800 mt-1"
                                         th:attr="data-batch-id=${b.id},
@@ -371,6 +367,10 @@
                                                  data-policy-name=${b.policyName == null ? '' : b.policyName}">
                                     Change…
                                 </button>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                <span th:if="${b.finalizationPolicyName != null}" th:text="${b.finalizationPolicyName}">policy</span>
+                                <span th:if="${b.finalizationPolicyName == null}" class="text-gray-400 italic">— not set —</span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <button type="button"

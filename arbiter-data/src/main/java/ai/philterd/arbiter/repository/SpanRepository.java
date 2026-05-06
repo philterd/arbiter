@@ -13,4 +13,5 @@ public interface SpanRepository extends MongoRepository<Span, String> {
     long countByDocumentIdInAndStatus(java.util.Collection<String> documentIds, String status);
     long countByDocumentIdAndStatus(String documentId, String status);
     long countByDocumentIdInAndManuallyCreated(java.util.Collection<String> documentIds, boolean manuallyCreated);
+    long deleteByDocumentId(String documentId);
 }

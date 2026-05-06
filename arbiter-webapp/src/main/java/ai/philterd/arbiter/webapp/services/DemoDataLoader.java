@@ -77,6 +77,7 @@ public class DemoDataLoader implements ApplicationRunner {
     private final UserRepository userRepository;
     private final PolicyRepository policyRepository;
     private final ComplianceProfileRepository complianceProfileRepository;
+    private final ai.philterd.arbiter.repository.FinalizationPolicyRepository finalizationPolicyRepository;
     private final IngestQueueService ingestQueueService;
     private final String sampleFilesDirectory;
 
@@ -87,6 +88,7 @@ public class DemoDataLoader implements ApplicationRunner {
                           final UserRepository userRepository,
                           final PolicyRepository policyRepository,
                           final ComplianceProfileRepository complianceProfileRepository,
+                          final ai.philterd.arbiter.repository.FinalizationPolicyRepository finalizationPolicyRepository,
                           final IngestQueueService ingestQueueService,
                           @Value("${arbiter.demo-data.directory:sample-files}") final String sampleFilesDirectory) {
         this.batchRepository = batchRepository;
@@ -96,6 +98,7 @@ public class DemoDataLoader implements ApplicationRunner {
         this.userRepository = userRepository;
         this.policyRepository = policyRepository;
         this.complianceProfileRepository = complianceProfileRepository;
+        this.finalizationPolicyRepository = finalizationPolicyRepository;
         this.ingestQueueService = ingestQueueService;
         this.sampleFilesDirectory = sampleFilesDirectory;
     }
@@ -141,6 +144,7 @@ public class DemoDataLoader implements ApplicationRunner {
         batch.setStats(Map.of("source", directory.toString()));
         complianceProfileRepository.findByName("HIPAA")
                 .ifPresent(p -> batch.setComplianceProfileId(p.getId()));
+        batch.setFinalizationPolicyId(ensureDeleteImmediatelyPolicy().getId());
         batchRepository.save(batch);
 
         int loaded = 0;
@@ -181,6 +185,20 @@ public class DemoDataLoader implements ApplicationRunner {
               }
             }
             """;
+
+    private ai.philterd.arbiter.model.FinalizationPolicy ensureDeleteImmediatelyPolicy() {
+        return finalizationPolicyRepository.findByName("Delete Immediately").orElseGet(() -> {
+            final ai.philterd.arbiter.model.FinalizationPolicy policy =
+                    new ai.philterd.arbiter.model.FinalizationPolicy();
+            policy.setId(UUID.randomUUID().toString());
+            policy.setName("Delete Immediately");
+            policy.setOption(ai.philterd.arbiter.model.FinalizationPolicy.OPTION_DELETE_IMMEDIATELY);
+            policy.setCreatedAt(java.time.Instant.now());
+            policy.setUpdatedAt(java.time.Instant.now());
+            finalizationPolicyRepository.save(policy);
+            return policy;
+        });
+    }
 
     private Group ensureDemoGroup() {
         return groupRepository.findByName(DEMO_GROUP_NAME).orElseGet(() -> {

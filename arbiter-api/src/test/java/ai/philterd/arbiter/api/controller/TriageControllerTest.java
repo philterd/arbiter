@@ -166,6 +166,27 @@ class TriageControllerTest {
     }
 
     @Test
+    void sourceAvailableReflectsOriginalText() {
+        final Document withSource = doc("d1", "b1", "FINALIZED", 0.10);
+        withSource.setOriginalText("hello world");
+        final Document sourceCleared = doc("d2", "b1", "FINALIZED", 0.10);
+        sourceCleared.setOriginalText(null);
+        final Document emptySource = doc("d3", "b1", "FINALIZED", 0.10);
+        emptySource.setOriginalText("");
+        when(documentRepository.findAll(any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(withSource, sourceCleared, emptySource), PageRequest.of(0, 10), 3));
+        when(batchRepository.findAllById(any()))
+                .thenReturn(List.of(batch("b1", "g1", "B", 0.25)));
+
+        final Page<Map<String, Object>> page = controller.getQueue(0, 10, null, null, null, false, "riskScore", "desc",
+                TestAuth.admin("admin@example.com"));
+
+        assertEquals(true, page.getContent().get(0).get("sourceAvailable"));
+        assertEquals(false, page.getContent().get(1).get("sourceAvailable"));
+        assertEquals(false, page.getContent().get(2).get("sourceAvailable"));
+    }
+
+    @Test
     void getBatchesAdminUnscoped() {
         when(batchRepository.findAll())
                 .thenReturn(List.of(batch("b2", "g1", "Zebra", 0.25), batch("b1", "g1", "Alpha", 0.25)));

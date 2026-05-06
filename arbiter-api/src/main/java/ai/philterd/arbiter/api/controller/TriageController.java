@@ -180,6 +180,7 @@ public class TriageController {
                     && doc.getRiskScore() <= threshold;
             row.put("autoApproved", autoApproved);
             row.put("documentThreshold", threshold);
+            row.put("sourceAvailable", doc.getOriginalText() != null && !doc.getOriginalText().isEmpty());
             row.put("daysInQueue", doc.getCreatedAt() == null
                     ? null
                     : Math.max(0, Duration.between(doc.getCreatedAt(), now).toDays()));

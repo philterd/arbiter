@@ -175,6 +175,7 @@
                             <option value="AUTO_APPROVED">AUTO_APPROVED</option>
                             <option value="APPROVED">APPROVED</option>
                             <option value="REJECTED">REJECTED</option>
+                            <option value="FINALIZED">FINALIZED</option>
                             <option value="FAILED">FAILED</option>
                         </select>
                     </div>
@@ -408,7 +409,9 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm ${approvalsClass}">${acquired} of ${required}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">${doc.daysInQueue == null ? '<span class="text-gray-400">—</span>' : doc.daysInQueue}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm">
-                            <a href="/review/${encodeURIComponent(doc.id)}" class="text-blue-600 hover:text-blue-800 font-medium">Review</a>
+                            ${doc.sourceAvailable === false
+                                ? ''
+                                : `<a href="/review/${encodeURIComponent(doc.id)}" class="text-blue-600 hover:text-blue-800 font-medium">Review</a>`}
                             ${(doc.status === 'APPROVED' && acquired >= required && required > 0)
                                 ? `<form action="/review/${encodeURIComponent(doc.id)}/finalize" method="post" class="inline ml-3">
                                     <input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}">
@@ -425,7 +428,12 @@
                                           title="View Certificate of Redaction"
                                           class="ml-3 inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-md border border-gray-400 text-gray-700 hover:bg-gray-100">
                                         View Certificate
-                                   </button>`
+                                   </button>
+                                   <a href="/review/${encodeURIComponent(doc.id)}/download"
+                                      title="Download the redacted file"
+                                      class="ml-3 inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-md border border-blue-600 text-blue-700 hover:bg-blue-50">
+                                        Download
+                                   </a>`
                                 : ''}
                             <button type="button"
                                     data-view-audit="${encodeURIComponent(doc.id)}"

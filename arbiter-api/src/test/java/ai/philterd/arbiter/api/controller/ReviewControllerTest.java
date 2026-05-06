@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -50,7 +51,7 @@ class ReviewControllerTest {
                 batchRepository, userGroupsService, auditLogService);
         // Default stub: a document "d1" the access helper can resolve.
         // Tests that need a different shape override this.
-        when(documentRepository.findById("d1")).thenReturn(Optional.of(document("d1", "")));
+        when(documentRepository.findById("d1")).thenReturn(Optional.of(document("d1", "the original text")));
     }
 
     private static Span span(final String id, final String docId, final String type, final String status,
@@ -83,6 +84,26 @@ class ReviewControllerTest {
 
         assertEquals(1, result.size());
         assertEquals("s1", result.get(0).getId());
+    }
+
+    @Test
+    void getSpansReturns409WhenSourceCleared() {
+        when(documentRepository.findById("d1")).thenReturn(Optional.of(document("d1", null)));
+
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.getSpans("d1", ADMIN));
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        assertTrue(ex.getReason().contains("finalization policy"));
+        verify(spanRepository, never()).findByDocumentId(anyString());
+    }
+
+    @Test
+    void getSpansReturns409WhenSourceEmpty() {
+        when(documentRepository.findById("d1")).thenReturn(Optional.of(document("d1", "")));
+
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.getSpans("d1", ADMIN));
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
     }
 
     // ---- updateSpan ----
@@ -294,7 +315,7 @@ class ReviewControllerTest {
      * something to compare against. The non-admin user is created by the caller.
      */
     private void seedGroupedDocument() {
-        final Document doc = document("d1", "");
+        final Document doc = document("d1", "the original text");
         doc.setBatchId("b1");
         when(documentRepository.findById("d1")).thenReturn(Optional.of(doc));
         final Batch batch = new Batch();
