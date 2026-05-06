@@ -17,6 +17,7 @@ import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.PendingUploadRepository;
 import ai.philterd.arbiter.service.RedactionService;
+import ai.philterd.arbiter.util.Hashing;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
@@ -89,6 +90,7 @@ public class IngestQueueService {
         doc.setBatchId(batch.getId());
         doc.setFilename(filename);
         doc.setOriginalText(text == null ? "" : text);
+        doc.setContentSha512(Hashing.sha512Hex(text == null ? "" : text));
         doc.setCreatedAt(LocalDateTime.now());
         doc.changeStatus("PENDING");
         documentRepository.save(doc);
@@ -106,6 +108,7 @@ public class IngestQueueService {
         doc.setId(UUID.randomUUID().toString());
         doc.setBatchId(batch.getId());
         doc.setFilename(filename);
+        doc.setContentSha512(Hashing.sha512Hex(bytes == null ? new byte[0] : bytes));
         doc.setCreatedAt(LocalDateTime.now());
         doc.changeStatus("PENDING");
         documentRepository.save(doc);

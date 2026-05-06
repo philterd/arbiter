@@ -9,6 +9,7 @@ import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.GeneralSettingsService;
 import ai.philterd.arbiter.service.RedactionApiService;
 import ai.philterd.arbiter.service.UserGroupsService;
+import ai.philterd.arbiter.util.Hashing;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
@@ -86,6 +87,7 @@ public class IngestionController {
         document.setCreatedAt(LocalDateTime.now());
         document.setFilename(request.name());
         document.setOriginalText(request.text());
+        document.setContentSha512(Hashing.sha512Hex(request.text() == null ? "" : request.text()));
         document.changeStatus("PENDING");
         documentRepository.save(document);
 

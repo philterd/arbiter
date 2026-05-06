@@ -271,10 +271,20 @@
                     </button>
                     <span id="auditPageInfo" class="text-xs text-gray-500"></span>
                 </div>
-                <button type="button" id="auditClose"
-                        class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
-                    Close
-                </button>
+                <div class="flex items-center gap-2">
+                    <button type="button" id="auditDownload"
+                            class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled
+                            th:data-is-admin="${isAdmin}"
+                            th:title="${isAdmin}
+                                ? 'Download the full audit log as CSV (PII text is omitted; span location is included)'
+                                : 'Only administrators can download the audit log.'">
+                        Download
+                    </button>
+                    <button type="button" id="auditClose"
+                            class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
+                        Close
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -499,6 +509,7 @@
         const AUDIT_PAGE_SIZE = 10;
         let auditEntries = [];
         let auditPage = 0;
+        let auditDocumentId = null;
 
         function renderAuditPage() {
             const list = document.getElementById('auditList');
@@ -566,9 +577,11 @@
             const prevBtn = document.getElementById('auditPrev');
             const nextBtn = document.getElementById('auditNext');
             const pageInfo = document.getElementById('auditPageInfo');
+            const downloadBtn = document.getElementById('auditDownload');
 
             auditEntries = [];
             auditPage = 0;
+            auditDocumentId = documentId;
             meta.textContent = filename ? `${filename} (${documentId})` : documentId;
             list.innerHTML = '';
             emptyEl.classList.add('hidden');
@@ -577,6 +590,7 @@
             pageInfo.textContent = '';
             prevBtn.disabled = true;
             nextBtn.disabled = true;
+            downloadBtn.disabled = true;
             spinner.classList.remove('hidden');
             modal.classList.remove('hidden');
 
@@ -589,6 +603,8 @@
                     return;
                 }
                 auditEntries = (await resp.json()) || [];
+                const isAdminUser = downloadBtn.dataset.isAdmin === 'true';
+                downloadBtn.disabled = !isAdminUser || auditEntries.length === 0;
                 renderAuditPage();
             } catch (err) {
                 spinner.classList.add('hidden');
@@ -636,6 +652,10 @@
             });
             document.getElementById('auditClose').addEventListener('click', () => {
                 document.getElementById('auditModal').classList.add('hidden');
+            });
+            document.getElementById('auditDownload').addEventListener('click', () => {
+                if (!auditDocumentId) return;
+                window.location.href = `/api/v1/documents/${encodeURIComponent(auditDocumentId)}/history.csv`;
             });
             document.getElementById('auditPrev').addEventListener('click', () => {
                 if (auditPage > 0) { auditPage--; renderAuditPage(); }

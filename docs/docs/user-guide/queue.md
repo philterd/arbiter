@@ -12,7 +12,7 @@ reviewer. It lists every document you have access to, ordered by risk score
 | Batch      | The batch the document belongs to                                           |
 | Status     | Document status (see below)                                                 |
 | Risk Score | A number between 0.00 and 1.00 — see [Risk score](../reference/risk-score.md) |
-| Actions    | A **Review** link that opens the side-by-side review pane                   |
+| Actions    | A **Review** link that opens the side-by-side review pane, plus an **Audit Log** button (see below) |
 
 The status pill colors are:
 
@@ -47,6 +47,18 @@ batch dropdown to match the new scope.
 
 The checkbox state isn't persisted across pages — it resets to "checked" each
 time you load the queue.
+
+## Audit Log popup
+
+Each row has an **Audit Log** button that opens a modal with the full
+history for that document — document-level events plus events on every span
+it contains, sorted newest first. See [Audit log](../admin/audit-log.md#per-document-audit-log)
+for the full description.
+
+The popup also has a **Download** button that exports the history as a CSV
+file. The download is restricted to administrators; reviewers see the
+button rendered disabled. The exported CSV omits PII text and includes span
+location instead, so it can be safely shared as a chain-of-custody record.
 
 ## Pagination
 

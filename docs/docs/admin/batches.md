@@ -17,7 +17,7 @@ A card at the top of the page lets administrators create a batch. Fill in:
 | Group                | —       | Required; only existing groups appear in the dropdown                                      |
 | Philter instance     | default | Pick the Philter that redacts this batch's documents                                       |
 | Policy               | —       | A policy name that exists on the chosen Philter instance                                   |
-| Finalization Policy  | —       | Required; governs document retention when the batch is finalized                           |
+| Batch Finalization Policy | —  | Required; governs document retention when the batch is finalized                           |
 | Compliance Profile   | —       | Required; **cannot be changed after the batch is created**                                 |
 | Domain               | —       | Optional grouping tag used in the Reports page aggregates                                  |
 | PII Threshold        | `0.80`  | Per-span confidence floor for auto-accepting detections                                    |

@@ -1,5 +1,6 @@
 package ai.philterd.arbiter.webapp.security;
 
+import ai.philterd.arbiter.util.Hashing;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

@@ -17,6 +17,7 @@ package ai.philterd.arbiter.webapp.security;
 
 import ai.philterd.arbiter.model.User;
 import ai.philterd.arbiter.repository.UserRepository;
+import ai.philterd.arbiter.util.Hashing;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

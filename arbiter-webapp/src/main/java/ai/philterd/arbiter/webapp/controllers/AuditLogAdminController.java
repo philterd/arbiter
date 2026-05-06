@@ -28,6 +28,7 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
@@ -47,6 +48,7 @@ import static org.springframework.http.HttpStatus.BAD_REQUEST;
 public class AuditLogAdminController {
 
     private static final int EXPORT_LIMIT = 100_000;
+    private static final int PREVIEW_LIMIT = 10;
 
     private final AuditLogQueryService auditLogQueryService;
     private final ObjectMapper objectMapper;
@@ -101,6 +103,27 @@ public class AuditLogAdminController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + ".json\"")
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(body);
+    }
+
+    /**
+     * JSON preview of the first {@link #PREVIEW_LIMIT} entries that the export form's
+     * current filter set would return. Same query as {@link #export} so the preview
+     * faithfully represents what the download will contain — if the preview is empty,
+     * the export will be empty too.
+     */
+    @GetMapping("/preview")
+    @ResponseBody
+    public List<AuditLog> preview(@RequestParam(name = "startTime", required = false) final String startTime,
+                                  @RequestParam(name = "endTime", required = false) final String endTime,
+                                  @RequestParam(name = "userEmail", required = false) final String userEmail,
+                                  @RequestParam(name = "resourceType", required = false) final String resourceType,
+                                  @RequestParam(name = "resourceId", required = false) final String resourceId) {
+        final Instant start = parseInstant(startTime, "startTime");
+        final Instant end = parseInstant(endTime, "endTime");
+        if (start != null && end != null && start.isAfter(end)) {
+            throw new ResponseStatusException(BAD_REQUEST, "startTime must be before endTime");
+        }
+        return auditLogQueryService.find(start, end, userEmail, resourceType, resourceId, PREVIEW_LIMIT);
     }
 
     private void writeCsv(final Writer w, final List<AuditLog> entries) throws IOException {

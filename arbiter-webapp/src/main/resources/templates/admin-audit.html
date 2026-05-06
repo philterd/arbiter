@@ -201,6 +201,10 @@
                         </div>
                     </div>
                     <div class="flex items-center gap-3 pt-2">
+                        <button type="button" id="previewBtn"
+                                class="px-5 py-2.5 bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 font-medium rounded-lg transition duration-200">
+                            Preview
+                        </button>
                         <button type="submit" name="format" value="json"
                                 class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
                             Download JSON
@@ -211,6 +215,39 @@
                         </button>
                     </div>
                 </form>
+
+                <div id="previewPanel" class="hidden mt-6 pt-5 border-t border-gray-200">
+                    <div class="flex items-center justify-between mb-3">
+                        <h4 class="text-sm font-semibold text-gray-900">
+                            Preview <span id="previewCount" class="text-gray-500 font-normal"></span>
+                        </h4>
+                        <button type="button" id="previewClose"
+                                class="text-xs text-gray-500 hover:text-gray-700">Hide</button>
+                    </div>
+                    <div id="previewSpinner" class="hidden text-sm text-gray-500">Loading…</div>
+                    <div id="previewError" class="hidden text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3"></div>
+                    <div id="previewEmpty" class="hidden text-sm text-gray-500 italic">
+                        No entries match these filters. Adjust the time range or filters and try again.
+                    </div>
+                    <div id="previewResults" class="hidden overflow-x-auto">
+                        <table class="min-w-full text-xs">
+                            <thead class="bg-gray-50 text-gray-600 uppercase tracking-wide">
+                                <tr>
+                                    <th class="px-3 py-2 text-left font-medium">Timestamp</th>
+                                    <th class="px-3 py-2 text-left font-medium">User</th>
+                                    <th class="px-3 py-2 text-left font-medium">Action</th>
+                                    <th class="px-3 py-2 text-left font-medium">Resource</th>
+                                    <th class="px-3 py-2 text-left font-medium">Outcome</th>
+                                    <th class="px-3 py-2 text-left font-medium">Details</th>
+                                </tr>
+                            </thead>
+                            <tbody id="previewBody" class="divide-y divide-gray-100"></tbody>
+                        </table>
+                        <p class="mt-2 text-xs text-gray-500">
+                            Showing the first 10 rows that the download will return, in the same order as the exported file.
+                        </p>
+                    </div>
+                </div>
             </div>
         </main>
         <div th:replace="~{fragments/footer :: footer}"></div>
@@ -229,6 +266,99 @@
             const endEl = document.getElementById('endTime');
             if (!startEl.value) startEl.value = toLocalInput(startDefault);
             if (!endEl.value) endEl.value = toLocalInput(now);
+
+            function escapeHtml(s) {
+                if (s == null) return '';
+                return String(s)
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            const previewBtn = document.getElementById('previewBtn');
+            const panel = document.getElementById('previewPanel');
+            const spinner = document.getElementById('previewSpinner');
+            const errorBox = document.getElementById('previewError');
+            const emptyEl = document.getElementById('previewEmpty');
+            const resultsEl = document.getElementById('previewResults');
+            const body = document.getElementById('previewBody');
+            const countEl = document.getElementById('previewCount');
+
+            function resetPanel() {
+                spinner.classList.add('hidden');
+                errorBox.classList.add('hidden');
+                errorBox.textContent = '';
+                emptyEl.classList.add('hidden');
+                resultsEl.classList.add('hidden');
+                body.innerHTML = '';
+                countEl.textContent = '';
+            }
+
+            previewBtn.addEventListener('click', async () => {
+                const form = document.getElementById('exportForm');
+                if (!form.reportValidity()) return;
+
+                panel.classList.remove('hidden');
+                resetPanel();
+                spinner.classList.remove('hidden');
+
+                const params = new URLSearchParams();
+                ['startTime', 'endTime', 'userEmail', 'resourceType', 'resourceId'].forEach(name => {
+                    const el = document.getElementById(name);
+                    if (el && el.value) params.set(name, el.value);
+                });
+
+                try {
+                    const resp = await fetch(`/admin/audit/preview?${params.toString()}`,
+                        { headers: { 'Accept': 'application/json' } });
+                    spinner.classList.add('hidden');
+                    if (!resp.ok) {
+                        let msg = `HTTP ${resp.status}`;
+                        try {
+                            const data = await resp.json();
+                            if (data && (data.message || data.error)) msg = data.message || data.error;
+                        } catch (_) { /* ignore */ }
+                        errorBox.textContent = `Preview failed: ${msg}`;
+                        errorBox.classList.remove('hidden');
+                        return;
+                    }
+                    const entries = (await resp.json()) || [];
+                    if (entries.length === 0) {
+                        emptyEl.classList.remove('hidden');
+                        return;
+                    }
+                    countEl.textContent = `(showing ${entries.length} ${entries.length === 1 ? 'row' : 'rows'})`;
+                    body.innerHTML = entries.map(e => {
+                        const ts = e.timestamp ? new Date(e.timestamp).toLocaleString() : '';
+                        const resourceTxt = (e.resourceType || '') + (e.resourceId ? ` / ${e.resourceId}` : '');
+                        let detailsTxt = '';
+                        if (e.details) {
+                            try { detailsTxt = JSON.stringify(e.details); } catch (_) { detailsTxt = String(e.details); }
+                        }
+                        if (detailsTxt.length > 200) detailsTxt = detailsTxt.slice(0, 200) + '…';
+                        return `<tr>
+                            <td class="px-3 py-2 font-mono text-gray-700 whitespace-nowrap">${escapeHtml(ts)}</td>
+                            <td class="px-3 py-2 text-gray-800">${escapeHtml(e.userEmail || '')}</td>
+                            <td class="px-3 py-2 font-mono text-gray-700">${escapeHtml(e.action || '')}</td>
+                            <td class="px-3 py-2 text-gray-700">${escapeHtml(resourceTxt)}</td>
+                            <td class="px-3 py-2 text-gray-700">${escapeHtml(e.outcome || '')}</td>
+                            <td class="px-3 py-2 text-gray-600 font-mono">${escapeHtml(detailsTxt)}</td>
+                        </tr>`;
+                    }).join('');
+                    resultsEl.classList.remove('hidden');
+                } catch (err) {
+                    spinner.classList.add('hidden');
+                    errorBox.textContent = `Preview failed: ${err.message}`;
+                    errorBox.classList.remove('hidden');
+                }
+            });
+
+            document.getElementById('previewClose').addEventListener('click', () => {
+                panel.classList.add('hidden');
+                resetPanel();
+            });
         });
     </script>
 </body>

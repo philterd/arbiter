@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package ai.philterd.arbiter.webapp.security;
+package ai.philterd.arbiter.util;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -24,9 +24,14 @@ public final class Hashing {
 
     public static String sha512Hex(final String input) {
         if (input == null) return null;
+        return sha512Hex(input.getBytes(StandardCharsets.UTF_8));
+    }
+
+    public static String sha512Hex(final byte[] input) {
+        if (input == null) return null;
         try {
             final MessageDigest md = MessageDigest.getInstance("SHA-512");
-            return HexFormat.of().formatHex(md.digest(input.getBytes(StandardCharsets.UTF_8)));
+            return HexFormat.of().formatHex(md.digest(input));
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-512 unavailable", e);
         }

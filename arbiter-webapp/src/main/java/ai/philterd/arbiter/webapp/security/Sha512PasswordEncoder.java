@@ -15,6 +15,7 @@
  */
 package ai.philterd.arbiter.webapp.security;
 
+import ai.philterd.arbiter.util.Hashing;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.nio.charset.StandardCharsets;

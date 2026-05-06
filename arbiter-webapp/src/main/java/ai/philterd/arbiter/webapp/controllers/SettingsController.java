@@ -20,7 +20,7 @@ import ai.philterd.arbiter.model.UserSettings;
 import ai.philterd.arbiter.repository.UserRepository;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.UserSettingsService;
-import ai.philterd.arbiter.webapp.security.Hashing;
+import ai.philterd.arbiter.util.Hashing;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;

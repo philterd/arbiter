@@ -14,6 +14,13 @@ public class Document {
     private String filename;
     private String storagePath;
     private String originalText;
+    /**
+     * SHA-512 hash (lowercase hex) of the document content as ingested. For text uploads this
+     * is the hash of the UTF-8 bytes; for binary uploads (e.g. PDF) it is the hash of the raw
+     * bytes received. Set once at ingest time and never updated thereafter, so it can be used
+     * to detect duplicates and to attest the original content.
+     */
+    private String contentSha512;
     private String status;
     private double riskScore;
     private String philterContextId;
@@ -108,6 +115,14 @@ public class Document {
 
     public void setOriginalText(final String originalText) {
         this.originalText = originalText;
+    }
+
+    public String getContentSha512() {
+        return contentSha512;
+    }
+
+    public void setContentSha512(final String contentSha512) {
+        this.contentSha512 = contentSha512;
     }
 
     public String getStatus() {

@@ -160,6 +160,17 @@ review or compliance reporting.
 
 `404` if the document doesn't exist or the caller lacks group access.
 
+### `GET /api/v1/documents/{id}/history.csv`
+
+Download the document's full audit history (document-level events plus all
+events on its spans) as a CSV, sorted newest first. Powers the **Download**
+button on the Document Queue's Audit Log popup. See
+[Audit log](../admin/audit-log.md#download-csv) for the column list.
+
+**Admin only.** Returns `403` for non-admin callers. The CSV deliberately
+omits PII text — span entries include `spanCharacterStart`,
+`spanCharacterEnd`, and `spanPage` instead.
+
 ### `GET /api/v1/documents/{id}/comments`
 
 Return reviewer comments left on the document, oldest first.

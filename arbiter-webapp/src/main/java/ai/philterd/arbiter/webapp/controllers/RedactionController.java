@@ -165,7 +165,8 @@ public class RedactionController {
     }
 
     @GetMapping("/queue")
-    public String queue() {
+    public String queue(final Authentication authentication, final Model model) {
+        model.addAttribute("isAdmin", isAdmin(authentication));
         return "queue";
     }
 
