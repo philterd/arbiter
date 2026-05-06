@@ -33,6 +33,7 @@ import ai.philterd.arbiter.model.UserSettings;
 import ai.philterd.arbiter.service.ApprovalRuleEvaluator;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.LlmJudgeDefaultsService;
+import ai.philterd.arbiter.service.OpenSearchIndexService;
 import ai.philterd.arbiter.service.UserGroupsService;
 import ai.philterd.arbiter.service.UserSettingsService;
 import ai.philterd.arbiter.webapp.services.RedactionCertificateService;
@@ -72,6 +73,7 @@ public class ReviewViewController {
     private final UserSettingsService userSettingsService;
     private final UserRepository userRepository;
     private final ApprovalRuleEvaluator approvalRuleEvaluator;
+    private final OpenSearchIndexService openSearchIndexService;
     private final ai.philterd.arbiter.service.DocumentLockService documentLockService;
     private final RedactionCertificateService redactionCertificateService;
     private final FinalizationPolicyRepository finalizationPolicyRepository;
@@ -87,6 +89,7 @@ public class ReviewViewController {
                                 final UserSettingsService userSettingsService,
                                 final UserRepository userRepository,
                                 final ApprovalRuleEvaluator approvalRuleEvaluator,
+                                final OpenSearchIndexService openSearchIndexService,
                                 final ai.philterd.arbiter.service.DocumentLockService documentLockService,
                                 final RedactionCertificateService redactionCertificateService,
                                 final FinalizationPolicyRepository finalizationPolicyRepository) {
@@ -101,6 +104,7 @@ public class ReviewViewController {
         this.userSettingsService = userSettingsService;
         this.userRepository = userRepository;
         this.approvalRuleEvaluator = approvalRuleEvaluator;
+        this.openSearchIndexService = openSearchIndexService;
         this.documentLockService = documentLockService;
         this.redactionCertificateService = redactionCertificateService;
         this.finalizationPolicyRepository = finalizationPolicyRepository;
@@ -267,6 +271,8 @@ public class ReviewViewController {
         final String complianceProfileName = complianceProfile != null ? complianceProfile.getName() : null;
         model.addAttribute("exemptionCodes", exemptionCodes);
         model.addAttribute("complianceProfileName", complianceProfileName);
+        model.addAttribute("batchName", approvalBatch == null ? "" : (approvalBatch.getName() == null ? "" : approvalBatch.getName()));
+        model.addAttribute("batchDescription", approvalBatch == null ? "" : (approvalBatch.getDescription() == null ? "" : approvalBatch.getDescription()));
 
         return "review";
     }
@@ -288,6 +294,63 @@ public class ReviewViewController {
         out.put("ok", true);
         out.put("lockExpiresAt", doc.getLockExpiresAt());
         return out;
+    }
+
+    @GetMapping("/api/v1/review/{documentId}/similar")
+    @org.springframework.web.bind.annotation.ResponseBody
+    public List<Map<String, Object>> findSimilar(@PathVariable final String documentId,
+                                                  final Authentication authentication) {
+        final Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + documentId));
+        // Verify the caller can access the source document's batch.
+        requireAccess(authentication, document);
+
+        final OpenSearchIndexService.SearchResults results =
+                openSearchIndexService.findSimilar(documentId, document.getBatchId(), 10);
+
+        // Filter every returned hit against the caller's accessible batches. Admins see
+        // all results; non-admins only see hits whose batchId is in one of their groups.
+        // This is defense-in-depth: the OpenSearch query already scopes to the source
+        // document's batchId (which requireAccess already validated), but explicit
+        // per-hit filtering ensures the check holds even if the search logic changes.
+        final boolean admin = isAdmin(authentication);
+        final Set<String> allowedBatchIds = admin ? null : similarAllowedBatchIds(authentication);
+
+        final java.util.Set<String> docIds = new java.util.HashSet<>();
+        for (OpenSearchIndexService.SearchHit h : results.hits()) {
+            if (h.id() != null && !h.id().isBlank()) docIds.add(h.id());
+        }
+        final Map<String, Document> liveDocs = new java.util.HashMap<>();
+        for (Document d : documentRepository.findAllById(docIds)) {
+            liveDocs.put(d.getId(), d);
+        }
+
+        final List<Map<String, Object>> out = new ArrayList<>();
+        for (OpenSearchIndexService.SearchHit h : results.hits()) {
+            if (!admin && (h.batchId() == null || !allowedBatchIds.contains(h.batchId()))) {
+                continue;
+            }
+            final Document live = liveDocs.get(h.id());
+            final Map<String, Object> row = new LinkedHashMap<>();
+            row.put("id", h.id());
+            row.put("filename", h.filename());
+            row.put("status", live != null && live.getStatus() != null ? live.getStatus() : h.status());
+            row.put("batchId", h.batchId());
+            out.add(row);
+        }
+        return out;
+    }
+
+    private Set<String> similarAllowedBatchIds(final Authentication auth) {
+        final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(
+                auth == null ? null : auth.getName());
+        final Set<String> ids = new java.util.HashSet<>();
+        for (Batch b : batchRepository.findAll(PageRequest.of(0, 500, Sort.by("name"))).getContent()) {
+            if (b.getGroupId() != null && myGroupIds.contains(b.getGroupId())) {
+                ids.add(b.getId());
+            }
+        }
+        return ids;
     }
 
     @PostMapping("/review/{documentId}/finalize")

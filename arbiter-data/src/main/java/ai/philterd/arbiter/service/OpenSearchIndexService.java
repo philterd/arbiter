@@ -154,6 +154,80 @@ public class OpenSearchIndexService {
         }
     }
 
+    /**
+     * Find documents in the same batch that are textually similar to the given document,
+     * using OpenSearch's more_like_this query. The source document is automatically excluded
+     * from the results. Returns an empty result set on any failure.
+     */
+    public SearchResults findSimilar(final String documentId, final String batchId, final int size) {
+        final SearchResults empty = new SearchResults(0, 0, size, List.of());
+        if (documentId == null || documentId.isBlank()) return empty;
+        final String endpoint = endpoint();
+        if (endpoint == null) return empty;
+
+        final int safeSize = Math.max(1, Math.min(20, size));
+        final String url = endpoint + "/" + INDEX + "/_search";
+        try {
+            final ObjectNode mlt = objectMapper.createObjectNode();
+            final ArrayNode fields = objectMapper.createArrayNode();
+            fields.add("originalText");
+            mlt.set("fields", fields);
+            final ArrayNode like = objectMapper.createArrayNode();
+            final ObjectNode likeDoc = objectMapper.createObjectNode();
+            likeDoc.put("_index", INDEX);
+            likeDoc.put("_id", documentId);
+            like.add(likeDoc);
+            mlt.set("like", like);
+            mlt.put("min_term_freq", 1);
+            mlt.put("min_doc_freq", 1);
+
+            final ObjectNode boolQuery = objectMapper.createObjectNode();
+            boolQuery.set("must", objectMapper.createObjectNode().set("more_like_this", mlt));
+            if (batchId != null && !batchId.isBlank()) {
+                final ObjectNode term = objectMapper.createObjectNode();
+                term.put("batchId", batchId);
+                boolQuery.set("filter", objectMapper.createObjectNode().set("term", term));
+            }
+
+            final ObjectNode body = objectMapper.createObjectNode();
+            body.put("size", safeSize);
+            body.set("query", objectMapper.createObjectNode().set("bool", boolQuery));
+
+            final HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .timeout(REQUEST_TIMEOUT)
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
+                    .build();
+            final HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
+            if (resp.statusCode() == 404) return empty;
+            if (resp.statusCode() / 100 != 2) {
+                log.warn("OpenSearch findSimilar returned HTTP {} for document {}: {}",
+                        resp.statusCode(), documentId, truncate(resp.body()));
+                return empty;
+            }
+            final JsonNode root = objectMapper.readTree(resp.body());
+            final JsonNode hitsNode = root.path("hits");
+            final long total = hitsNode.path("total").path("value").asLong(0);
+            final ArrayNode hitsArray = hitsNode.path("hits").isArray()
+                    ? (ArrayNode) hitsNode.path("hits") : objectMapper.createArrayNode();
+            final List<SearchHit> hits = new ArrayList<>();
+            for (JsonNode hit : hitsArray) {
+                final JsonNode source = hit.path("_source");
+                hits.add(new SearchHit(
+                        hit.path("_id").asText(""),
+                        source.path("batchId").asText(""),
+                        source.path("filename").asText(""),
+                        source.path("status").asText(""),
+                        List.of()));
+            }
+            return new SearchResults(total, 0, safeSize, Collections.unmodifiableList(hits));
+        } catch (Exception e) {
+            log.warn("OpenSearch findSimilar failed for document {} at {}: {}", documentId, url, e.getMessage());
+            return empty;
+        }
+    }
+
     private String endpoint() {
         try {
             final String e = generalSettingsService.load().getOpensearchEndpoint();

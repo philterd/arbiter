@@ -27,6 +27,7 @@ import ai.philterd.arbiter.service.ApprovalRuleEvaluator;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.DocumentLockService;
 import ai.philterd.arbiter.service.LlmJudgeDefaultsService;
+import ai.philterd.arbiter.service.OpenSearchIndexService;
 import ai.philterd.arbiter.service.UserGroupsService;
 import ai.philterd.arbiter.service.UserSettingsService;
 import ai.philterd.arbiter.webapp.services.RedactionCertificateService;
@@ -82,6 +83,7 @@ class ReviewViewControllerTest {
     private UserRepository userRepository;
     private ApprovalRuleEvaluator approvalRuleEvaluator;
     private DocumentLockService documentLockService;
+    private OpenSearchIndexService openSearchIndexService;
     private RedactionCertificateService redactionCertificateService;
     private FinalizationPolicyRepository finalizationPolicyRepository;
     private ReviewViewController controller;
@@ -100,13 +102,14 @@ class ReviewViewControllerTest {
         userRepository = mock(UserRepository.class);
         approvalRuleEvaluator = mock(ApprovalRuleEvaluator.class);
         documentLockService = mock(DocumentLockService.class);
+        openSearchIndexService = mock(OpenSearchIndexService.class);
         redactionCertificateService = mock(RedactionCertificateService.class);
         finalizationPolicyRepository = mock(FinalizationPolicyRepository.class);
 
         controller = new ReviewViewController(documentRepository, spanRepository, batchRepository,
                 complianceProfileRepository, userGroupsService, auditLogService,
                 ollamaInstanceRepository, llmJudgeDefaultsService, userSettingsService,
-                userRepository, approvalRuleEvaluator, documentLockService,
+                userRepository, approvalRuleEvaluator, openSearchIndexService, documentLockService,
                 redactionCertificateService, finalizationPolicyRepository);
 
         // Certificate generation always returns a stub so the audit-log payload doesn't NPE.
