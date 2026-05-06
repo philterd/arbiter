@@ -6,12 +6,6 @@
  * You may obtain a copy of the License at
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
  */
 package ai.philterd.arbiter.webapp.security;
 
@@ -24,6 +18,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
+import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
@@ -40,12 +36,25 @@ public class SecurityConfig {
     }
 
     @Bean
+    public SecurityContextRepository securityContextRepository() {
+        return new HttpSessionSecurityContextRepository();
+    }
+
+    @Bean
+    public MfaAuthenticationSuccessHandler mfaAuthenticationSuccessHandler(
+            final UserRepository userRepository,
+            final SecurityContextRepository securityContextRepository) {
+        return new MfaAuthenticationSuccessHandler(userRepository, securityContextRepository);
+    }
+
+    @Bean
     public SecurityFilterChain securityFilterChain(final HttpSecurity http,
                                                    final ApiKeyAuthFilter apiKeyAuthFilter,
-                                                   final AuditLogoutHandler auditLogoutHandler) throws Exception {
+                                                   final AuditLogoutHandler auditLogoutHandler,
+                                                   final MfaAuthenticationSuccessHandler mfaSuccessHandler) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login", "/css/**", "/js/**", "/images/**", "/webjars/**", "/error").permitAll()
+                        .requestMatchers("/login", "/mfa", "/css/**", "/js/**", "/images/**", "/webjars/**", "/error").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/admin/**", "/reporting",
                                 "/batches", "/batches/**",
@@ -55,7 +64,7 @@ public class SecurityConfig {
                 .formLogin(form -> form
                         .loginPage("/login")
                         .usernameParameter("email")
-                        .defaultSuccessUrl("/", true)
+                        .successHandler(mfaSuccessHandler)
                         .failureUrl("/login?error")
                         .permitAll())
                 .logout(logout -> logout

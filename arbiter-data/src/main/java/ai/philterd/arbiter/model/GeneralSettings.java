@@ -20,6 +20,7 @@ public class GeneralSettings {
      * applies on read).
      */
     private long maxUploadFileSizeBytes;
+    private boolean requireMfa;
 
     public GeneralSettings() {
     }
@@ -40,4 +41,7 @@ public class GeneralSettings {
     public void setMaxUploadFileSizeBytes(final long maxUploadFileSizeBytes) {
         this.maxUploadFileSizeBytes = maxUploadFileSizeBytes;
     }
+
+    public boolean isRequireMfa() { return requireMfa; }
+    public void setRequireMfa(final boolean requireMfa) { this.requireMfa = requireMfa; }
 }

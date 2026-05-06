@@ -21,6 +21,37 @@ Both login success and login failure are recorded in the audit log
 (`LOGIN`, with `outcome` either `SUCCESS` or `FAILURE`). Logout produces a
 `LOGOUT` entry.
 
+### Multi-factor authentication (TOTP)
+
+Arbiter supports TOTP-based MFA as a second factor for form-login sessions. API key
+authentication is unaffected — keys are high-entropy secrets and are not subject to the MFA
+gate.
+
+**Per-user opt-in**: any user can enable MFA from their [Settings page](user-guide/settings.md#two-factor-authentication).
+A shared secret is generated server-side, displayed as a QR code for the user to scan into an
+authenticator app, and stored against their user record in the `users` collection.
+
+**Login flow when MFA is active**:
+
+1. Password verification succeeds but the session is not yet established.
+2. The pending `Authentication` object is stored in the HTTP session under the key
+   `PENDING_MFA_AUTH`; the security context is cleared.
+3. The user is redirected to `/mfa`, which requires no authentication.
+4. The user submits the 6-digit TOTP code. If valid, the pending authentication is promoted
+   into a full Spring Security context (saved to the session via
+   `HttpSessionSecurityContextRepository`) and the user proceeds to the application.
+5. An invalid code returns to `/mfa` with an error; the pending authentication remains in the
+   session for retry.
+
+**Admin-enforced MFA**: administrators can turn on **Require MFA for all users** in
+[Admin → Security](admin/security.md). When this policy is active, any authenticated user who
+has not completed MFA enrollment is intercepted by `MfaEnrollmentInterceptor` and redirected
+to `/settings/mfa/setup?required=true`. The interceptor runs on every request and releases the
+user only once their `mfaEnabled` flag is `true` in the database.
+
+MFA setup and removal are recorded in the audit log as `MFA_ENABLED` and `MFA_DISABLED`; the
+admin policy change is recorded as `SECURITY_SETTINGS_CHANGE`.
+
 ## Authorization
 
 Two roles, applied per-endpoint:

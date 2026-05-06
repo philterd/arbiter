@@ -21,6 +21,8 @@ import ai.philterd.arbiter.repository.UserRepository;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.UserSettingsService;
 import ai.philterd.arbiter.util.Hashing;
+import ai.philterd.arbiter.webapp.security.TotpService;
+import jakarta.servlet.http.HttpSession;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
@@ -38,19 +40,24 @@ import java.util.Base64;
 @RequestMapping("/settings")
 public class SettingsController {
 
+    private static final String TOTP_SETUP_SECRET = "TOTP_SETUP_SECRET";
+
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuditLogService auditLogService;
     private final UserSettingsService userSettingsService;
+    private final TotpService totpService;
 
     public SettingsController(final UserRepository userRepository,
                               final PasswordEncoder passwordEncoder,
                               final AuditLogService auditLogService,
-                              final UserSettingsService userSettingsService) {
+                              final UserSettingsService userSettingsService,
+                              final TotpService totpService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.auditLogService = auditLogService;
         this.userSettingsService = userSettingsService;
+        this.totpService = totpService;
     }
 
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -59,15 +66,86 @@ public class SettingsController {
     @GetMapping
     public String settings(final Authentication authentication, final Model model) {
         boolean hasApiKey = false;
+        boolean mfaEnabled = false;
         final UserSettings settings = userSettingsService.loadForEmail(
                 authentication == null ? null : authentication.getName());
         if (authentication != null) {
             final User user = userRepository.findByEmail(authentication.getName()).orElse(null);
             hasApiKey = user != null && user.getApiKey() != null && !user.getApiKey().isBlank();
+            mfaEnabled = user != null && user.isMfaEnabled();
         }
         model.addAttribute("hasApiKey", hasApiKey);
+        model.addAttribute("mfaEnabled", mfaEnabled);
         model.addAttribute("userSettings", settings);
         return "settings";
+    }
+
+    @GetMapping("/mfa/setup")
+    public String mfaSetup(final Authentication authentication,
+                           final HttpSession session,
+                           final Model model) {
+        final User user = userRepository.findByEmail(authentication.getName()).orElse(null);
+        if (user == null) return "redirect:/settings";
+
+        final String secret = totpService.generateSecret();
+        session.setAttribute(TOTP_SETUP_SECRET, secret);
+        model.addAttribute("qrCodeDataUri", totpService.qrCodeDataUri(authentication.getName(), secret));
+        model.addAttribute("secret", secret);
+        return "mfa-setup";
+    }
+
+    @PostMapping("/mfa/enable")
+    public String mfaEnable(@RequestParam("code") final String code,
+                            @RequestParam(value = "required", defaultValue = "false") final boolean required,
+                            final Authentication authentication,
+                            final HttpSession session,
+                            final RedirectAttributes redirectAttributes) {
+        final User user = userRepository.findByEmail(authentication.getName()).orElse(null);
+        if (user == null) {
+            redirectAttributes.addFlashAttribute("error", "Account not found.");
+            return "redirect:/settings";
+        }
+        final String secret = (String) session.getAttribute(TOTP_SETUP_SECRET);
+        if (secret == null) {
+            redirectAttributes.addFlashAttribute("error", "Setup session expired. Please try again.");
+            return required ? "redirect:/settings/mfa/setup?required=true" : "redirect:/settings/mfa/setup";
+        }
+        if (!totpService.verify(secret, code)) {
+            redirectAttributes.addFlashAttribute("error", "Invalid code. Please scan the QR code again and try once more.");
+            return required ? "redirect:/settings/mfa/setup?required=true" : "redirect:/settings/mfa/setup";
+        }
+        user.setTotpSecret(secret);
+        user.setMfaEnabled(true);
+        userRepository.save(user);
+        session.removeAttribute(TOTP_SETUP_SECRET);
+        auditLogService.log("MFA_ENABLED", "User", user.getId(), null);
+        redirectAttributes.addFlashAttribute("success", "Two-factor authentication enabled.");
+        return "redirect:/settings";
+    }
+
+    @PostMapping("/mfa/disable")
+    public String mfaDisable(@RequestParam("code") final String code,
+                             final Authentication authentication,
+                             final RedirectAttributes redirectAttributes) {
+        final User user = userRepository.findByEmail(authentication.getName()).orElse(null);
+        if (user == null) {
+            redirectAttributes.addFlashAttribute("error", "Account not found.");
+            return "redirect:/settings";
+        }
+        if (!user.isMfaEnabled()) {
+            redirectAttributes.addFlashAttribute("error", "MFA is not currently enabled.");
+            return "redirect:/settings";
+        }
+        if (!totpService.verify(user.getTotpSecret(), code)) {
+            redirectAttributes.addFlashAttribute("error", "Invalid code. MFA was not disabled.");
+            return "redirect:/settings";
+        }
+        user.setTotpSecret(null);
+        user.setMfaEnabled(false);
+        userRepository.save(user);
+        auditLogService.log("MFA_DISABLED", "User", user.getId(), null);
+        redirectAttributes.addFlashAttribute("success", "Two-factor authentication disabled.");
+        return "redirect:/settings";
     }
 
     @PostMapping("/preferences")

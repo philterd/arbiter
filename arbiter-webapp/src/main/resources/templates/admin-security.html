@@ -7,17 +7,11 @@
   ~ You may obtain a copy of the License at
   ~
   ~     http://www.apache.org/licenses/LICENSE-2.0
-  ~
-  ~ Unless required by applicable law or agreed to in writing, software
-  ~ distributed under the License is distributed on an "AS IS" BASIS,
-  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-  ~ See the License for the specific language governing permissions and
-  ~ limitations under the License.
   -->
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
-    <title>Arbiter - Notifications</title>
+    <title>Arbiter - Security</title>
     <script th:src="@{/js/tailwind.js}"></script>
 </head>
 <body class="bg-gray-50">
@@ -156,11 +150,11 @@
                 <a th:href="@{/admin/users}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Users</a>
                 <a th:href="@{/admin/groups}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Groups</a>
                 <a th:href="@{/admin/audit}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Audit log</a>
-                <a th:href="@{/admin/notifications}" class="px-4 py-2 text-blue-700 font-medium border-b-2 border-blue-600">Notifications</a>
+                <a th:href="@{/admin/notifications}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Notifications</a>
                 <a th:href="@{/admin/llm-judge}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">LLM-as-a-Judge</a>
                 <a th:href="@{/admin/philter}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Philter</a>
                 <a th:href="@{/admin/weights}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Weight Sets</a>
-                <a th:href="@{/admin/security}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Security</a>
+                <a th:href="@{/admin/security}" class="px-4 py-2 text-blue-700 font-medium border-b-2 border-blue-600">Security</a>
             </nav>
 
             <div th:if="${error}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
@@ -169,88 +163,42 @@
                  th:text="${success}">Success</div>
 
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-3xl">
-                <h3 class="text-lg font-semibold text-gray-900 mb-1">SMTP server</h3>
-                <p class="text-sm text-gray-600 mb-4">
-                    Configure outbound email delivery for notifications.
+                <h3 class="text-lg font-semibold text-gray-900 mb-1">Multi-factor authentication</h3>
+                <p class="text-sm text-gray-600 mb-6">
+                    Control whether MFA is optional or required for all users. When required, users
+                    who have not yet set up an authenticator app will be redirected to the MFA setup
+                    page immediately after login and cannot access any other page until they complete
+                    enrollment.
                 </p>
 
-                <form th:action="@{/admin/notifications}" method="post" class="space-y-4">
-                    <label class="inline-flex items-center text-sm">
-                        <input type="checkbox" name="enabled" value="true"
-                               th:checked="${settings.enabled}" class="mr-2">
-                        Enable outbound email
-                    </label>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-[minmax(0,2fr)_8rem] gap-4">
-                        <div>
-                            <label for="host" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Host</label>
-                            <input id="host" name="host" type="text" placeholder="smtp.example.com"
-                                   th:value="${settings.host}"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <form th:action="@{/admin/security/mfa}" method="post">
+                    <div class="flex items-start gap-4 p-4 rounded-lg border border-gray-200 bg-gray-50">
+                        <div class="flex items-center h-5 mt-0.5">
+                            <input id="requireMfa" name="requireMfa" type="checkbox" value="true"
+                                   th:checked="${settings.requireMfa}"
+                                   class="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
                         </div>
                         <div>
-                            <label for="port" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Port</label>
-                            <input id="port" name="port" type="number" min="1" max="65535"
-                                   th:value="${settings.port}"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <label for="requireMfa" class="text-sm font-medium text-gray-900">Require MFA for all users</label>
+                            <p class="text-xs text-gray-500 mt-0.5">
+                                Users without MFA configured will be forced to set it up before accessing the application.
+                                Users who already have MFA enabled are unaffected.
+                            </p>
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label for="username" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Username</label>
-                            <input id="username" name="username" type="text" autocomplete="off"
-                                   th:value="${settings.username}"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label for="password" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Password</label>
-                            <input id="password" name="password" type="password" autocomplete="new-password"
-                                   th:placeholder="${hasPassword} ? 'Leave blank to keep current password' : ''"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <label th:if="${hasPassword}" class="inline-flex items-center text-xs text-gray-600 mt-1">
-                                <input type="checkbox" name="clearPassword" value="true" class="mr-1.5">
-                                Clear stored password
-                            </label>
-                        </div>
+                    <div th:if="${settings.requireMfa}"
+                         class="mt-4 flex items-start gap-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                        <svg class="h-4 w-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"></path>
+                        </svg>
+                        <span>MFA is currently required. Users without an authenticator app configured cannot access the application.</span>
                     </div>
 
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                            <label for="fromAddress" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">From address</label>
-                            <input id="fromAddress" name="fromAddress" type="email" placeholder="no-reply@example.com"
-                                   th:value="${settings.fromAddress}"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label for="fromName" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">From name</label>
-                            <input id="fromName" name="fromName" type="text" placeholder="Arbiter"
-                                   th:value="${settings.fromName}"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                    </div>
-
-                    <div class="space-y-2">
-                        <label class="inline-flex items-center text-sm">
-                            <input type="checkbox" name="useStartTls" value="true"
-                                   th:checked="${settings.useStartTls}" class="mr-2">
-                            Use STARTTLS (typical for port 587)
-                        </label>
-                        <label class="inline-flex items-center text-sm">
-                            <input type="checkbox" name="useSsl" value="true"
-                                   th:checked="${settings.useSsl}" class="mr-2">
-                            Use implicit SSL/TLS (typical for port 465)
-                        </label>
-                    </div>
-
-                    <div class="pt-2 flex items-center gap-2">
+                    <div class="flex justify-end mt-4">
                         <button type="submit"
-                                class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
                             Save
-                        </button>
-                        <button type="button" id="openTestSettingsBtn"
-                                class="px-5 py-2.5 border border-gray-300 text-gray-700 hover:bg-gray-100 font-medium rounded-lg transition duration-200">
-                            Test settings
                         </button>
                     </div>
                 </form>
@@ -259,121 +207,5 @@
         <div th:replace="~{fragments/footer :: footer}"></div>
         </div>
     </div>
-
-    <div id="smtpTestModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-        <div class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-md p-6">
-            <div class="flex items-center justify-between mb-2">
-                <h3 class="text-lg font-semibold text-gray-900">Test SMTP settings</h3>
-                <button type="button" id="smtpTestClose"
-                        class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
-            </div>
-            <p class="text-sm text-gray-600 mb-4">
-                Send a test message using the values currently in the form (without saving them).
-            </p>
-            <div>
-                <label for="smtpTestRecipient" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Recipient</label>
-                <input id="smtpTestRecipient" type="email" required placeholder="you@example.com"
-                       class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-            </div>
-            <p id="smtpTestStatus" class="mt-3 text-sm hidden"></p>
-            <div class="flex items-center justify-end gap-2 mt-4">
-                <button type="button" id="smtpTestCancel"
-                        class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
-                <button type="button" id="smtpTestSend"
-                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg disabled:opacity-50">
-                    Test
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <script th:inline="javascript">
-        /*<![CDATA[*/
-        (function () {
-            const modal = document.getElementById('smtpTestModal');
-            const openBtn = document.getElementById('openTestSettingsBtn');
-            const closeBtn = document.getElementById('smtpTestClose');
-            const cancelBtn = document.getElementById('smtpTestCancel');
-            const sendBtn = document.getElementById('smtpTestSend');
-            const recipient = document.getElementById('smtpTestRecipient');
-            const statusEl = document.getElementById('smtpTestStatus');
-            const csrfToken = document.querySelector('input[name="_csrf"]');
-
-            function open() {
-                statusEl.className = 'mt-3 text-sm hidden';
-                statusEl.textContent = '';
-                recipient.value = '';
-                sendBtn.disabled = false;
-                modal.classList.remove('hidden');
-                recipient.focus();
-            }
-            function close() { modal.classList.add('hidden'); }
-
-            function val(id) {
-                const el = document.getElementById(id);
-                return el ? el.value : '';
-            }
-            function checked(name) {
-                const el = document.querySelector('input[name="' + name + '"]');
-                return el && el.checked ? 'true' : 'false';
-            }
-
-            async function sendTest() {
-                const to = recipient.value.trim();
-                if (!to) {
-                    statusEl.className = 'mt-3 text-sm text-red-700';
-                    statusEl.textContent = 'Recipient email is required.';
-                    return;
-                }
-                sendBtn.disabled = true;
-                statusEl.className = 'mt-3 text-sm text-gray-600';
-                statusEl.textContent = 'Sending…';
-
-                const body = new URLSearchParams();
-                body.set('recipient', to);
-                body.set('host', val('host'));
-                body.set('port', val('port'));
-                body.set('username', val('username'));
-                body.set('password', val('password'));
-                body.set('fromAddress', val('fromAddress'));
-                body.set('fromName', val('fromName'));
-                body.set('useStartTls', checked('useStartTls'));
-                body.set('useSsl', checked('useSsl'));
-                if (csrfToken) body.set('_csrf', csrfToken.value);
-
-                try {
-                    const resp = await fetch(/*[[@{/admin/notifications/test}]]*/ '/admin/notifications/test', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                        body: body.toString(),
-                    });
-                    let data = {};
-                    try { data = await resp.json(); } catch (_) {}
-                    if (resp.ok && data.ok) {
-                        statusEl.className = 'mt-3 text-sm text-green-700';
-                        statusEl.textContent = data.message || 'Test email sent.';
-                    } else {
-                        statusEl.className = 'mt-3 text-sm text-red-700';
-                        statusEl.textContent = data.message || ('HTTP ' + resp.status);
-                    }
-                } catch (err) {
-                    statusEl.className = 'mt-3 text-sm text-red-700';
-                    statusEl.textContent = 'Could not reach the server: ' + err.message;
-                } finally {
-                    sendBtn.disabled = false;
-                }
-            }
-
-            openBtn.addEventListener('click', open);
-            closeBtn.addEventListener('click', close);
-            cancelBtn.addEventListener('click', close);
-            sendBtn.addEventListener('click', sendTest);
-            modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
-            });
-        })();
-        /*]]>*/
-    </script>
 </body>
 </html>

@@ -191,15 +191,86 @@
                             </div>
                         </div>
                         <button type="button"
-                                th:attr="data-doc-id=${r.id}"
-                                class="open-doc-btn shrink-0 px-3 py-1.5 text-sm font-medium rounded-md border border-blue-200 text-blue-700 hover:bg-blue-50">
-                            Open
+                                class="details-btn shrink-0 px-3 py-1.5 text-sm font-medium rounded-md border border-blue-200 text-blue-700 hover:bg-blue-50"
+                                th:attr="data-id=${r.id},
+                                         data-filename=${r.filename},
+                                         data-batch=${r.batchName},
+                                         data-batch-id=${r.batchId},
+                                         data-status=${r.status},
+                                         data-created-at=${r.createdAt},
+                                         data-status-changed-at=${r.statusChangedAt},
+                                         data-risk-score=${r.riskScore},
+                                         data-approved-by=${r.approvedBy}">
+                            Details
                         </button>
                     </div>
                     <div th:if="${!r.restricted and !#lists.isEmpty(r.highlights)}" class="mt-3 space-y-1.5">
                         <p th:each="snippet : ${r.highlights}"
                            class="text-sm text-gray-700 bg-yellow-50 border-l-2 border-yellow-300 px-3 py-1.5 rounded"
                            th:utext="${snippet}">snippet</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Document details modal -->
+            <div id="detailsModal"
+                 class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden"
+                 onclick="if(event.target===this)closeModal()">
+                <div class="bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 overflow-hidden">
+                    <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
+                        <h3 class="text-lg font-semibold text-gray-900">Document details</h3>
+                        <button onclick="closeModal()"
+                                class="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
+                    </div>
+                    <div class="px-6 py-5 space-y-4">
+                        <div>
+                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Filename</p>
+                            <p id="d-filename" class="text-sm text-gray-900 font-medium break-all"></p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Status</p>
+                                <span id="d-status-badge" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold"></span>
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Risk score</p>
+                                <p id="d-risk-score" class="text-sm text-gray-900"></p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Batch</p>
+                                <p id="d-batch" class="text-sm text-gray-900"></p>
+                            </div>
+                            <div>
+                                <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Uploaded</p>
+                                <p id="d-created-at" class="text-sm text-gray-900"></p>
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Status changed</p>
+                                <p id="d-status-changed-at" class="text-sm text-gray-900"></p>
+                            </div>
+                            <div id="d-approved-by-section">
+                                <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Approved by</p>
+                                <p id="d-approved-by" class="text-sm text-gray-900"></p>
+                            </div>
+                        </div>
+                        <div>
+                            <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Document ID</p>
+                            <p id="d-id" class="text-xs text-gray-400 font-mono break-all"></p>
+                        </div>
+                    </div>
+                    <div class="px-6 py-4 border-t border-gray-100 flex justify-between items-center">
+                        <a id="d-review-link" href="#"
+                           class="text-sm font-medium text-blue-600 hover:underline">
+                            Open in review &rarr;
+                        </a>
+                        <button onclick="closeModal()"
+                                class="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">
+                            Close
+                        </button>
                     </div>
                 </div>
             </div>
@@ -231,14 +302,56 @@
 </div>
 
 <script>
-    // Open the document in a popup window — small browser window beside the search results.
-    document.querySelectorAll('.open-doc-btn').forEach(function(btn) {
+    var statusColors = {
+        'APPROVED':         'bg-green-100 text-green-800',
+        'REJECTED':         'bg-red-100 text-red-800',
+        'REVIEW_REQUIRED':  'bg-yellow-100 text-yellow-800',
+        'PENDING':          'bg-gray-100 text-gray-700',
+        'ARCHIVED':         'bg-gray-100 text-gray-500'
+    };
+
+    function closeModal() {
+        document.getElementById('detailsModal').classList.add('hidden');
+    }
+
+    document.querySelectorAll('.details-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
-            var id = btn.getAttribute('data-doc-id');
-            if (!id) return;
-            var url = '/review/' + encodeURIComponent(id);
-            window.open(url, 'arbiter-doc-' + id,
-                'noopener,noreferrer,width=1100,height=820,resizable=yes,scrollbars=yes');
+            var id          = btn.getAttribute('data-id') || '';
+            var filename    = btn.getAttribute('data-filename') || '';
+            var batch       = btn.getAttribute('data-batch') || '';
+            var status      = btn.getAttribute('data-status') || '';
+            var createdAt   = btn.getAttribute('data-created-at') || '';
+            var changedAt   = btn.getAttribute('data-status-changed-at') || '';
+            var riskScore   = btn.getAttribute('data-risk-score') || '';
+            var approvedBy  = btn.getAttribute('data-approved-by') || '';
+
+            document.getElementById('d-filename').textContent    = filename;
+            document.getElementById('d-risk-score').textContent  = riskScore || '—';
+            document.getElementById('d-batch').textContent       = batch;
+            document.getElementById('d-created-at').textContent  = createdAt || '—';
+            document.getElementById('d-status-changed-at').textContent = changedAt || '—';
+            document.getElementById('d-approved-by').textContent = approvedBy;
+            document.getElementById('d-id').textContent          = id;
+
+            var badge = document.getElementById('d-status-badge');
+            badge.textContent  = status;
+            badge.className    = 'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ' +
+                                 (statusColors[status] || 'bg-gray-100 text-gray-700');
+
+            var approvedSection = document.getElementById('d-approved-by-section');
+            approvedSection.classList.toggle('hidden', !approvedBy);
+
+            var terminalStatuses = ['APPROVED', 'REJECTED', 'ARCHIVED'];
+            var reviewLink = document.getElementById('d-review-link');
+            if (id && !terminalStatuses.includes(status)) {
+                reviewLink.href = '/review/' + encodeURIComponent(id);
+                reviewLink.classList.remove('hidden');
+            } else {
+                reviewLink.href = '#';
+                reviewLink.classList.add('hidden');
+            }
+
+            document.getElementById('detailsModal').classList.remove('hidden');
         });
     });
 </script>

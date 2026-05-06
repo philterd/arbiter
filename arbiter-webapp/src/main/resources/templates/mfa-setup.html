@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  -->
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Arbiter - Set Up Two-Factor Authentication</title>
+    <script th:src="@{/js/tailwind.js}"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+    <div class="flex-1 flex items-center justify-center p-4">
+    <div class="w-full max-w-md bg-white p-8 rounded-xl shadow-md border border-gray-100">
+        <h1 class="text-2xl font-bold text-gray-900 mb-1">Set Up Two-Factor Authentication</h1>
+        <p class="text-sm text-gray-600 mb-6">
+            Scan the QR code below with an authenticator app (Google Authenticator, Authy, etc.),
+            then enter the 6-digit code to confirm.
+        </p>
+
+        <div th:if="${param.required}" class="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+            Your administrator requires all users to enable two-factor authentication before
+            accessing the application. Please complete the setup below.
+        </div>
+
+        <div th:if="${error}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
+             th:text="${error}">Error</div>
+
+        <div class="flex justify-center mb-4">
+            <img th:src="${qrCodeDataUri}" alt="QR Code" class="w-48 h-48 border border-gray-200 rounded-lg p-1">
+        </div>
+
+        <div class="mb-6">
+            <p class="text-xs text-gray-500 mb-1">Can't scan? Enter this key manually:</p>
+            <code class="block text-xs font-mono bg-gray-50 border border-gray-200 rounded p-2 break-all"
+                  th:text="${secret}">SECRET</code>
+        </div>
+
+        <form th:action="@{/settings/mfa/enable}" method="post" class="space-y-4">
+            <input th:if="${param.required}" type="hidden" name="required" value="true">
+            <div>
+                <label for="code" class="block text-sm font-medium text-gray-700 mb-1">Verification code</label>
+                <input id="code" name="code" type="text" inputmode="numeric" pattern="[0-9]{6}"
+                       maxlength="6" required autofocus autocomplete="one-time-code"
+                       placeholder="000000"
+                       class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm text-center tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div class="flex gap-3">
+                <button type="submit"
+                        class="flex-1 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition duration-200">
+                    Enable 2FA
+                </button>
+                <a th:href="@{/settings}"
+                   class="flex-1 text-center px-4 py-2.5 border border-gray-300 text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition duration-200">
+                    Cancel
+                </a>
+            </div>
+        </form>
+    </div>
+    </div>
+    <div th:replace="~{fragments/footer :: footer}"></div>
+</body>
+</html>

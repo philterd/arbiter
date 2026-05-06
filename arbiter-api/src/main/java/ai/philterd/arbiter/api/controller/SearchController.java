@@ -10,7 +10,10 @@
 package ai.philterd.arbiter.api.controller;
 
 import ai.philterd.arbiter.model.Batch;
+import ai.philterd.arbiter.model.Document;
 import ai.philterd.arbiter.repository.BatchRepository;
+import ai.philterd.arbiter.repository.DocumentRepository;
+import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.OpenSearchIndexService;
 import ai.philterd.arbiter.service.OpenSearchIndexService.SearchHit;
 import ai.philterd.arbiter.service.OpenSearchIndexService.SearchResults;
@@ -37,14 +40,20 @@ public class SearchController {
 
     private final OpenSearchIndexService openSearchIndexService;
     private final BatchRepository batchRepository;
+    private final DocumentRepository documentRepository;
     private final UserGroupsService userGroupsService;
+    private final AuditLogService auditLogService;
 
     public SearchController(final OpenSearchIndexService openSearchIndexService,
                             final BatchRepository batchRepository,
-                            final UserGroupsService userGroupsService) {
+                            final DocumentRepository documentRepository,
+                            final UserGroupsService userGroupsService,
+                            final AuditLogService auditLogService) {
         this.openSearchIndexService = openSearchIndexService;
         this.batchRepository = batchRepository;
+        this.documentRepository = documentRepository;
         this.userGroupsService = userGroupsService;
+        this.auditLogService = auditLogService;
     }
 
     @GetMapping("/search")
@@ -53,6 +62,21 @@ public class SearchController {
                                       @RequestParam(name = "size", defaultValue = "10") final int size,
                                       final Authentication authentication) {
         final SearchResults results = openSearchIndexService.search(query, offset, size);
+        if (offset == 0) {
+            auditLogService.log("DOCUMENT_SEARCH", "Document", null,
+                    java.util.Map.of("query", query == null ? "" : query, "total", results.total()));
+        }
+
+        // Live status from MongoDB — the indexed status can be stale if the document
+        // was updated after it was last indexed.
+        final java.util.Set<String> docIds = new java.util.HashSet<>();
+        for (SearchHit h : results.hits()) {
+            if (h.id() != null && !h.id().isBlank()) docIds.add(h.id());
+        }
+        final java.util.Map<String, String> liveStatuses = new java.util.HashMap<>();
+        for (Document d : documentRepository.findAllById(docIds)) {
+            liveStatuses.put(d.getId(), d.getStatus() == null ? "" : d.getStatus());
+        }
 
         // Filter to batches the caller can see. Admins see everything; others only batches in their groups.
         final boolean admin = isAdmin(authentication);
@@ -73,7 +97,7 @@ public class SearchController {
                 hit.put("id", h.id());
                 hit.put("batchId", h.batchId());
                 hit.put("filename", h.filename());
-                hit.put("status", h.status());
+                hit.put("status", liveStatuses.getOrDefault(h.id(), h.status()));
                 hit.put("highlights", h.highlights());
             }
             hits.add(hit);
