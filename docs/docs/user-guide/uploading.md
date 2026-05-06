@@ -28,6 +28,9 @@ When you click Redact Document, Arbiter:
 
 1. Persists a `Document` row in the chosen batch with status `PENDING` and
    stores the original bytes (text inline; PDFs in a sidecar collection).
+   A SHA-512 hash of the original content is also recorded on the document
+   for chain-of-custody and tamper detection — see
+   [Security · Document content integrity](../security.md#document-content-integrity).
 2. Returns control to the browser — your upload is on the queue.
 
 Independently, a background worker drains the queue oldest-first. For each

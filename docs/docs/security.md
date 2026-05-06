@@ -102,6 +102,24 @@ deterministic dev key with a logged warning — set the property in any
 non-development deployment. The plaintext key is never displayed back; the
 admin UI only shows whether a key is configured.
 
+## Document content integrity
+
+Every document Arbiter ingests — whether through the web upload form or
+through `POST /api/v1/ingest` — has its raw content **SHA-512 hashed** at
+ingest time and the hash recorded on the document row in the `documents`
+collection (field `contentSha512`, lowercase hex). The hash is computed from
+the bytes you submitted: UTF-8 bytes for text uploads, the raw file bytes
+for PDFs.
+
+The hash is set once at ingest and is never overwritten thereafter. Because
+the per-document audit log includes the ingest event with its timestamp and
+the actor, you can pair the two to attest "user X ingested a document with
+this exact content at this time" — useful for chain-of-custody, deduplication,
+and tamper detection against a separately-archived original.
+
+The hash is *not* surfaced in the UI today; query MongoDB directly if you
+need it for an out-of-band reconciliation.
+
 ## CSRF and CORS
 
 CSRF protection is enabled for HTML form posts and disabled only for the

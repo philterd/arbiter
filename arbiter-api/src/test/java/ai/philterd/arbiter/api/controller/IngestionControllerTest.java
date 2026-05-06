@@ -8,6 +8,7 @@ import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.service.GeneralSettingsService;
 import ai.philterd.arbiter.service.RedactionApiService;
+import ai.philterd.arbiter.util.Hashing;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -141,6 +142,23 @@ class IngestionControllerTest {
         assertEquals("PENDING", saved.getStatus());
 
         assertTrue(auditLogService.hasAction("DOCUMENT_INGEST"));
+        // Content SHA-512 is recorded for chain-of-custody.
+        assertEquals(Hashing.sha512Hex("hello world"), saved.getContentSha512());
+    }
+
+    @Test
+    void emptyTextStillGetsContentHash() {
+        final Batch batch = openBatch("b1", "g1", "Open");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(batch));
+        userGroupsService.withMembership("alice@example.com", Set.of("g1"));
+
+        controller.ingest(new IngestRequest("doc.txt", "b1", null),
+                TestAuth.user("alice@example.com"));
+
+        final ArgumentCaptor<Document> docCaptor = ArgumentCaptor.forClass(Document.class);
+        verify(documentRepository).save(docCaptor.capture());
+        // Null/missing text is hashed as empty string so every persisted document has a hash.
+        assertEquals(Hashing.sha512Hex(""), docCaptor.getValue().getContentSha512());
     }
 
     @Test

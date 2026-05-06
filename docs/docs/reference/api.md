@@ -52,6 +52,10 @@ The returned `taskId` is the document's id. Poll
 [`GET /api/v1/documents/{id}/spans`](#get-apiv1documentsidspans) or
 [`GET /api/v1/queue`](#get-apiv1queue) to track its progress out of `PENDING`.
 
+A SHA-512 hash of the submitted `text` (UTF-8 bytes) is recorded on the
+document at ingest time — see
+[Security · Document content integrity](../security.md#document-content-integrity).
+
 ## Triage
 
 ### `GET /api/v1/queue`
