@@ -211,6 +211,7 @@ public class TriageController {
             row.put("lockActive", lockActive);
             row.put("lockedBy", lockActive ? doc.getLockedBy() : null);
             row.put("lockExpiresAt", lockActive ? doc.getLockExpiresAt() : null);
+            row.put("priority", doc.getPriority());
             return row;
         };
     }

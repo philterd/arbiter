@@ -191,6 +191,7 @@ public class RedactionController {
     @PostMapping("/redact")
     public String redact(@RequestParam("file") final MultipartFile file,
                          @RequestParam("batchId") final String batchId,
+                         @RequestParam(value = "priority", defaultValue = "2") final int priority,
                          final Authentication authentication,
                          final Model model,
                          final HttpSession session,
@@ -218,12 +219,13 @@ public class RedactionController {
         final byte[] fileBytes = file.getBytes();
         final String originalFilename = file.getOriginalFilename();
 
+        final int safePriority = (priority >= 1 && priority <= 3) ? priority : 2;
         final Document queued;
         if (MediaType.APPLICATION_PDF_VALUE.equals(contentType)) {
-            queued = ingestQueueService.enqueueFile(batch, originalFilename, fileBytes, contentType);
+            queued = ingestQueueService.enqueueFile(batch, originalFilename, fileBytes, contentType, safePriority);
         } else {
             final String text = new String(fileBytes, StandardCharsets.UTF_8);
-            queued = ingestQueueService.enqueueText(batch, originalFilename, text);
+            queued = ingestQueueService.enqueueText(batch, originalFilename, text, safePriority);
         }
 
         auditLogService.log("DOCUMENT_QUEUED", "Document", queued.getId(),

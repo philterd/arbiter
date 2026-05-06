@@ -176,6 +176,15 @@
                         <a sec:authorize="hasRole('ADMIN')" th:href="@{/batches}" class="mt-1 inline-block text-sm text-blue-600 hover:text-blue-800">Create a new batch.</a>
                     </div>
                     <div>
+                        <label for="priority" class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+                        <select id="priority" name="priority"
+                                class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 p-2.5">
+                            <option value="1">1 - Low</option>
+                            <option value="2" selected>2 - Normal</option>
+                            <option value="3">3 - High</option>
+                        </select>
+                    </div>
+                    <div>
                         <label for="fileInput" class="block text-sm font-medium text-gray-700 mb-1">Document</label>
                         <input class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 p-2.5"
                                type="file" name="file" id="fileInput" required>

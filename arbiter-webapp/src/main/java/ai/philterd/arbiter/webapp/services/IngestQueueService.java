@@ -84,7 +84,7 @@ public class IngestQueueService {
      * Enqueue a text document. The text is stored on the {@code Document} itself —
      * no sidecar is needed. Returns the persisted document with status {@code PENDING}.
      */
-    public Document enqueueText(final Batch batch, final String filename, final String text) {
+    public Document enqueueText(final Batch batch, final String filename, final String text, final int priority) {
         final Document doc = new Document();
         doc.setId(UUID.randomUUID().toString());
         doc.setBatchId(batch.getId());
@@ -92,6 +92,7 @@ public class IngestQueueService {
         doc.setOriginalText(text == null ? "" : text);
         doc.setContentSha512(Hashing.sha512Hex(text == null ? "" : text));
         doc.setCreatedAt(LocalDateTime.now());
+        doc.setPriority(priority);
         doc.changeStatus("PENDING");
         documentRepository.save(doc);
         return doc;
@@ -103,13 +104,14 @@ public class IngestQueueService {
      * it during async processing.
      */
     public Document enqueueFile(final Batch batch, final String filename,
-                                final byte[] bytes, final String contentType) {
+                                final byte[] bytes, final String contentType, final int priority) {
         final Document doc = new Document();
         doc.setId(UUID.randomUUID().toString());
         doc.setBatchId(batch.getId());
         doc.setFilename(filename);
         doc.setContentSha512(Hashing.sha512Hex(bytes == null ? new byte[0] : bytes));
         doc.setCreatedAt(LocalDateTime.now());
+        doc.setPriority(priority);
         doc.changeStatus("PENDING");
         documentRepository.save(doc);
 

@@ -58,8 +58,14 @@ public class Document {
     private Instant lockedAt;
     private Instant lockExpiresAt;
 
+    /** 1 = Low, 2 = Normal, 3 = High. Defaults to Normal (2). */
+    private int priority = 2;
+
     public Document() {
     }
+
+    public int getPriority() { return priority; }
+    public void setPriority(final int priority) { this.priority = priority; }
 
     public LocalDateTime getCreatedAt() {
         return createdAt;

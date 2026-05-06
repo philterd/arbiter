@@ -198,13 +198,13 @@
                                 <input type="checkbox" name="skipCompletedInReview" value="true"
                                        th:checked="${userSettings != null and userSettings.skipCompletedInReview}"
                                        class="mr-2 mt-0.5">
-                                <span>Skip completed documents when navigating with Previous and Next</span>
+                                <span>Skip accepted and rejected documents when navigating with Previous and Next</span>
                             </label>
                             <label class="flex items-start text-sm text-gray-700">
                                 <input type="checkbox" name="advanceToNextOnApprove" value="true"
                                        th:checked="${userSettings != null and userSettings.advanceToNextOnApprove}"
                                        class="mr-2 mt-0.5">
-                                <span>Automatically go to the next document when a document is approved</span>
+                                <span>Automatically go to the next document when a document is approved or rejected</span>
                             </label>
                             <div>
                                 <button type="submit"

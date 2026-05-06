@@ -57,6 +57,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Stream;
@@ -147,9 +148,10 @@ public class DemoDataLoader implements ApplicationRunner {
         batch.setFinalizationPolicyId(ensureDeleteImmediatelyPolicy().getId());
         batchRepository.save(batch);
 
+        final Random rng = new Random();
         int loaded = 0;
         for (Path file : files) {
-            if (loadFile(file, batch)) {
+            if (loadFile(file, batch, 1 + rng.nextInt(3))) {
                 loaded++;
             }
         }
@@ -220,7 +222,7 @@ public class DemoDataLoader implements ApplicationRunner {
         });
     }
 
-    private boolean loadFile(final Path file, final Batch batch) {
+    private boolean loadFile(final Path file, final Batch batch, final int priority) {
         final String text;
         try {
             text = Files.readString(file, StandardCharsets.UTF_8);
@@ -231,8 +233,8 @@ public class DemoDataLoader implements ApplicationRunner {
 
         // Submit through the same code path the API uses: persist as PENDING and let the
         // background ingest-queue worker run Philter and produce spans.
-        final Document queued = ingestQueueService.enqueueText(batch, file.getFileName().toString(), text);
-        log.info("Queued {} for redaction (document id {}).", file.getFileName(), queued.getId());
+        final Document queued = ingestQueueService.enqueueText(batch, file.getFileName().toString(), text, priority);
+        log.info("Queued {} for redaction (document id {}, priority {}).", file.getFileName(), queued.getId(), priority);
         return true;
     }
 

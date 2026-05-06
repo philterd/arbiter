@@ -80,6 +80,7 @@ public class IngestionController {
 
         // Persist a PENDING document; the background ingest-queue worker (in the webapp module)
         // will pick it up in arrival order, run Philter, and transition the document out of PENDING.
+        final int priority = (request.priority() != null) ? request.priority() : 2;
         final String taskId = UUID.randomUUID().toString();
         final Document document = new Document();
         document.setId(taskId);
@@ -88,6 +89,7 @@ public class IngestionController {
         document.setFilename(request.name());
         document.setOriginalText(request.text());
         document.setContentSha512(Hashing.sha512Hex(request.text() == null ? "" : request.text()));
+        document.setPriority(priority);
         document.changeStatus("PENDING");
         documentRepository.save(document);
 

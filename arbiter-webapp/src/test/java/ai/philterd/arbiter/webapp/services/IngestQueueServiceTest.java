@@ -61,7 +61,7 @@ class IngestQueueServiceTest {
 
     @Test
     void enqueueTextHashesUtf8BytesOfText() {
-        final Document saved = service.enqueueText(batch("b1"), "doc.txt", "hello world");
+        final Document saved = service.enqueueText(batch("b1"), "doc.txt", "hello world", 2);
 
         assertEquals("PENDING", saved.getStatus());
         assertEquals("hello world", saved.getOriginalText());
@@ -74,7 +74,7 @@ class IngestQueueServiceTest {
 
     @Test
     void enqueueTextHandlesNullTextAsEmptyString() {
-        final Document saved = service.enqueueText(batch("b1"), "empty.txt", null);
+        final Document saved = service.enqueueText(batch("b1"), "empty.txt", null, 2);
 
         // Null is normalized to empty string so the document still has a deterministic hash.
         assertEquals("", saved.getOriginalText());
@@ -85,7 +85,7 @@ class IngestQueueServiceTest {
     void enqueueFileHashesRawBytes() {
         final byte[] bytes = new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D };  // "%PDF-"
         final Document saved = service.enqueueFile(batch("b1"), "file.pdf", bytes,
-                MediaType.APPLICATION_PDF_VALUE);
+                MediaType.APPLICATION_PDF_VALUE, 2);
 
         assertNotNull(saved.getId());
         assertEquals("PENDING", saved.getStatus());
@@ -99,7 +99,7 @@ class IngestQueueServiceTest {
 
     @Test
     void enqueueFileHandlesNullBytesAsEmpty() {
-        final Document saved = service.enqueueFile(batch("b1"), "empty.bin", null, "application/octet-stream");
+        final Document saved = service.enqueueFile(batch("b1"), "empty.bin", null, "application/octet-stream", 2);
 
         assertEquals(Hashing.sha512Hex(new byte[0]), saved.getContentSha512());
     }

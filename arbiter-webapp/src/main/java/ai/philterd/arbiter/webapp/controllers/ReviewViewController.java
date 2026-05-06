@@ -62,6 +62,13 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 @Controller
 public class ReviewViewController {
 
+    // Highest risk score first; stable tie-break on ID.
+    private static final Comparator<Document> BATCH_ORDER = (a, b) -> {
+        final int c = Double.compare(b.getRiskScore(), a.getRiskScore());
+        return c != 0 ? c : (a.getId() == null ? "" : a.getId())
+                .compareTo(b.getId() == null ? "" : b.getId());
+    };
+
     private final DocumentRepository documentRepository;
     private final SpanRepository spanRepository;
     private final BatchRepository batchRepository;
@@ -232,6 +239,24 @@ public class ReviewViewController {
 
         final String prevDocumentId = findSiblingId(document, skipCompleted, -1);
         final String nextDocumentId = findSiblingId(document, skipCompleted, 1);
+
+        // "Document X of Y" counter: Y = pending (not approved/rejected) docs in the batch,
+        // X = 1-based position of the current doc within that sorted pending set.
+        final List<Document> batchDocs = document.getBatchId() == null
+                ? List.of() : documentRepository.findByBatchId(document.getBatchId());
+        batchDocs.sort(BATCH_ORDER);
+        final List<Document> pendingDocs = batchDocs.stream()
+                .filter(d -> !isAcceptedOrRejected(d.getStatus()))
+                .collect(java.util.stream.Collectors.toList());
+        int docPosition = 0;
+        for (int i = 0; i < pendingDocs.size(); i++) {
+            if (document.getId().equals(pendingDocs.get(i).getId())) {
+                docPosition = i + 1;
+                break;
+            }
+        }
+        model.addAttribute("docPosition", docPosition);
+        model.addAttribute("pendingCount", pendingDocs.size());
 
         model.addAttribute("document", document);
         model.addAttribute("originalText", originalText);
@@ -656,12 +681,20 @@ public class ReviewViewController {
     @PostMapping("/review/{documentId}/reject")
     public String reject(@PathVariable final String documentId, final Authentication authentication) {
         updateStatus(documentId, "REJECTED", authentication);
-        incrementReviewCountByEmail(authentication == null ? null : authentication.getName());
         final String email = authentication == null ? null : authentication.getName();
+        incrementReviewCountByEmail(email);
         if (email != null) {
             documentLockService.release(documentId, email);
         }
-        return "redirect:/";
+        final UserSettings settings = userSettingsService.loadForEmail(email);
+        if (settings.isAdvanceToNextOnApprove()) {
+            final Document document = documentRepository.findById(documentId).orElse(null);
+            if (document != null) {
+                final String nextId = findSiblingId(document, settings.isSkipCompletedInReview(), 1);
+                if (nextId != null) return "redirect:/review/" + nextId;
+            }
+        }
+        return "redirect:/queue";
     }
 
     private void incrementReviewCountByEmail(final String email) {
@@ -727,9 +760,7 @@ public class ReviewViewController {
     private String findSiblingId(final Document document, final boolean skipCompleted, final int direction) {
         if (document.getBatchId() == null) return null;
         final List<Document> siblings = documentRepository.findByBatchId(document.getBatchId());
-        siblings.sort(Comparator
-                .comparing((Document d) -> d.getFilename() == null ? "" : d.getFilename().toLowerCase())
-                .thenComparing(d -> d.getId() == null ? "" : d.getId()));
+        siblings.sort(BATCH_ORDER);
         int index = -1;
         for (int i = 0; i < siblings.size(); i++) {
             if (document.getId().equals(siblings.get(i).getId())) {
@@ -740,10 +771,14 @@ public class ReviewViewController {
         if (index < 0) return null;
         for (int i = index + direction; i >= 0 && i < siblings.size(); i += direction) {
             final Document candidate = siblings.get(i);
-            if (skipCompleted && "AUTO_APPROVED".equals(candidate.getStatus())) continue;
+            if (skipCompleted && isAcceptedOrRejected(candidate.getStatus())) continue;
             return candidate.getId();
         }
         return null;
+    }
+
+    private static boolean isAcceptedOrRejected(final String status) {
+        return "APPROVED".equals(status) || "AUTO_APPROVED".equals(status) || "REJECTED".equals(status);
     }
 
     private void updateStatus(final String documentId, final String status, final Authentication authentication) {

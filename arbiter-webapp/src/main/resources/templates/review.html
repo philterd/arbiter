@@ -130,11 +130,12 @@
         }
         .type-select:hover { background-color: #bfdbfe; }
         .type-select:focus { outline: none; box-shadow: 0 0 0 2px #93c5fd; }
+        body.focus-mode .focus-hide { display: none !important; }
     </style>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
-        <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
+        <aside class="focus-hide w-64 bg-white border-r border-gray-200 flex flex-col">
             <div class="px-6 py-5 border-b border-gray-200">
                 <h1 class="text-2xl font-bold text-gray-900">Arbiter</h1>
             </div>
@@ -266,7 +267,7 @@
             <div th:if="${success}"
                  class="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700"
                  th:text="${success}">Success</div>
-            <div class="mb-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium"
+            <div class="focus-hide mb-4 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium"
                  th:classappend="${approvalsGiven >= approvalsRequired}
                     ? 'bg-green-50 border-green-200 text-green-800'
                     : 'bg-blue-50 border-blue-200 text-blue-800'">
@@ -283,7 +284,7 @@
             </div>
 
             <div th:if="${lockedByOther}"
-                 class="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-900 flex items-center justify-between gap-3">
+                 class="focus-hide mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-900 flex items-center justify-between gap-3">
                 <div class="flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
                          stroke="currentColor" stroke-width="2" class="h-4 w-4">
@@ -308,7 +309,7 @@
 
             <div class="flex justify-between items-start mb-6 gap-4">
                 <div>
-                    <form th:action="@{/review/{id}/release(id=${document.id})}" method="post" class="inline mb-2">
+                    <form th:action="@{/review/{id}/release(id=${document.id})}" method="post" class="focus-hide inline mb-2">
                         <button type="submit" class="text-sm text-blue-600 hover:text-blue-800 inline-block bg-transparent border-0 p-0 cursor-pointer">
                             &larr; Back to queue
                         </button>
@@ -332,9 +333,14 @@
                               class="inline-flex items-center px-3 py-1.5 border border-gray-200 text-sm text-gray-400 font-medium rounded-lg cursor-not-allowed bg-gray-50">
                             Next &rarr;
                         </span>
+                        <span th:if="${docPosition > 0}"
+                              class="text-sm text-gray-500 ml-1">
+                            Document <span class="font-medium text-gray-700" th:text="${docPosition}">1</span>
+                            of <span class="font-medium text-gray-700" th:text="${pendingCount}">1</span>
+                        </span>
                     </div>
                     <h2 class="text-3xl font-bold text-gray-900" th:text="${document.filename}">Document</h2>
-                    <div class="text-sm text-gray-600 mt-1 flex items-center gap-3 flex-wrap">
+                    <div class="focus-hide text-sm text-gray-600 mt-1 flex items-center gap-3 flex-wrap">
                         <span>Status: <span class="font-medium" th:text="${document.status}">STATUS</span></span>
                         <span class="flex items-center gap-2">
                             Risk Score: <span class="font-medium" th:text="${#numbers.formatDecimal(document.riskScore, 1, 2)}">0.00</span>
@@ -349,26 +355,28 @@
                         </span>
                     </div>
                 </div>
-                <div class="flex items-center space-x-2"
+                <div class="flex items-center gap-2"
                      th:with="terminal=${ {'APPROVED','REJECTED','FAILED','FINALIZED'} }">
-                    <div th:if="${terminal.contains(document.status)}" class="flex items-center space-x-3">
-                        <span class="text-sm text-gray-500">
-                            Decision recorded: <span class="font-medium" th:text="${document.status}">STATUS</span>
-                        </span>
-                        <form th:if="${document.status == 'APPROVED'}"
-                              th:action="@{/review/{id}/unapprove(id=${document.id})}" method="post" class="inline">
-                            <button type="submit"
-                                    class="px-3 py-1.5 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 font-medium rounded-lg transition duration-200">
-                                Unapprove
-                            </button>
-                        </form>
-                        <form th:if="${document.status == 'REJECTED'}"
-                              th:action="@{/review/{id}/unreject(id=${document.id})}" method="post" class="inline">
-                            <button type="submit"
-                                    class="px-3 py-1.5 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 font-medium rounded-lg transition duration-200">
-                                Unreject
-                            </button>
-                        </form>
+                    <div class="focus-hide flex items-center space-x-2">
+                        <div th:if="${terminal.contains(document.status)}" class="flex items-center space-x-3">
+                            <span class="text-sm text-gray-500">
+                                Decision recorded: <span class="font-medium" th:text="${document.status}">STATUS</span>
+                            </span>
+                            <form th:if="${document.status == 'APPROVED'}"
+                                  th:action="@{/review/{id}/unapprove(id=${document.id})}" method="post" class="inline">
+                                <button type="submit"
+                                        class="px-3 py-1.5 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 font-medium rounded-lg transition duration-200">
+                                    Unapprove
+                                </button>
+                            </form>
+                            <form th:if="${document.status == 'REJECTED'}"
+                                  th:action="@{/review/{id}/unreject(id=${document.id})}" method="post" class="inline">
+                                <button type="submit"
+                                        class="px-3 py-1.5 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 font-medium rounded-lg transition duration-200">
+                                    Unreject
+                                </button>
+                            </form>
+                        </div>
                     </div>
                     <form th:if="${!terminal.contains(document.status)}"
                           th:action="@{/review/{id}/reject(id=${document.id})}" method="post" class="inline">
@@ -384,23 +392,32 @@
                             Approve
                         </button>
                     </form>
+                    <button id="focusToggle" type="button"
+                            class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium transition duration-200 bg-white border-gray-300 text-gray-700 hover:bg-gray-50">
+                        <svg id="focusIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
+                             stroke="currentColor" stroke-width="2" class="h-4 w-4">
+                            <path stroke-linecap="round" stroke-linejoin="round"
+                                  d="M4 8V5a1 1 0 011-1h3M4 16v3a1 1 0 001 1h3m10-16h3a1 1 0 011 1v3m0 10v3a1 1 0 01-1 1h-3"></path>
+                        </svg>
+                        <span id="focusLabel">Focus</span>
+                    </button>
                 </div>
             </div>
 
             <div th:if="${document.status == 'APPROVED'}"
-                 class="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-900">
+                 class="focus-hide mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-900">
                 This document is <span class="font-semibold">APPROVED</span> and its PII spans are locked.
                 Click <span class="font-semibold">Unapprove</span> above to add, edit, or remove spans.
             </div>
 
             <div th:if="${document.status == 'REJECTED'}"
-                 class="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-900">
+                 class="focus-hide mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-900">
                 This document is <span class="font-semibold">REJECTED</span> and its PII spans are locked.
                 Click <span class="font-semibold">Unreject</span> above to add, edit, or remove spans.
             </div>
 
             <div th:if="${document.status == 'FINALIZED'}"
-                 class="mb-4 p-3 rounded-lg bg-gray-100 border border-gray-300 text-sm text-gray-800">
+                 class="focus-hide mb-4 p-3 rounded-lg bg-gray-100 border border-gray-300 text-sm text-gray-800">
                 This document is <span class="font-semibold">FINALIZED</span>. No further changes can be made.
             </div>
 
@@ -460,7 +477,7 @@
                 </aside>
             </div>
         </main>
-        <div th:replace="~{fragments/footer :: footer}"></div>
+        <div class="focus-hide" th:replace="~{fragments/footer :: footer}"></div>
         </div>
     </div>
 
@@ -1906,6 +1923,33 @@
         })();
         /*]]>*/
     </script>
+
+<script>
+    (function() {
+        var btn   = document.getElementById('focusToggle');
+        var label = document.getElementById('focusLabel');
+        var icon  = document.getElementById('focusIcon');
+
+        function applyFocus(active) {
+            if (active) {
+                document.body.classList.add('focus-mode');
+                label.textContent = 'Exit focus';
+                btn.classList.remove('bg-white', 'border-gray-300', 'text-gray-700', 'hover:bg-gray-50');
+                btn.classList.add('bg-blue-600', 'border-blue-600', 'text-white', 'hover:bg-blue-700');
+                icon.setAttribute('stroke', 'currentColor');
+            } else {
+                document.body.classList.remove('focus-mode');
+                label.textContent = 'Focus';
+                btn.classList.remove('bg-blue-600', 'border-blue-600', 'text-white', 'hover:bg-blue-700');
+                btn.classList.add('bg-white', 'border-gray-300', 'text-gray-700', 'hover:bg-gray-50');
+            }
+        }
+
+        btn.addEventListener('click', function() {
+            applyFocus(!document.body.classList.contains('focus-mode'));
+        });
+    })();
+</script>
 
 <!-- Batch information modal -->
 <div id="batchInfoModal"

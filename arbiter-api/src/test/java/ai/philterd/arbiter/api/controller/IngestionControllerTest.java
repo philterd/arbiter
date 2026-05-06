@@ -76,7 +76,7 @@ class IngestionControllerTest {
     @Test
     void unknownBatchReturns400() {
         when(batchRepository.findById("missing")).thenReturn(Optional.empty());
-        final IngestRequest req = new IngestRequest("doc.txt", "missing", "hello");
+        final IngestRequest req = new IngestRequest("doc.txt", "missing", "hello", null);
 
         final ResponseEntity<?> response = controller.ingest(req, TestAuth.user("alice@example.com"));
 
@@ -92,7 +92,7 @@ class IngestionControllerTest {
         userGroupsService.withMembership("alice@example.com", Set.of("g2"));
 
         final ResponseEntity<?> response = controller.ingest(
-                new IngestRequest("doc.txt", "b1", "hello"),
+                new IngestRequest("doc.txt", "b1", "hello", null),
                 TestAuth.user("alice@example.com"));
 
         assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
@@ -106,7 +106,7 @@ class IngestionControllerTest {
         userGroupsService.withMembership("alice@example.com", Set.of("g1"));
 
         final ResponseEntity<?> response = controller.ingest(
-                new IngestRequest("doc.txt", "b1", "hello"),
+                new IngestRequest("doc.txt", "b1", "hello", null),
                 TestAuth.user("alice@example.com"));
 
         assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
@@ -124,7 +124,7 @@ class IngestionControllerTest {
         userGroupsService.withMembership("alice@example.com", Set.of("g1"));
 
         final ResponseEntity<?> response = controller.ingest(
-                new IngestRequest("doc.txt", "b1", "hello world"),
+                new IngestRequest("doc.txt", "b1", "hello world", null),
                 TestAuth.user("alice@example.com"));
 
         assertEquals(HttpStatus.ACCEPTED, response.getStatusCode());
@@ -152,7 +152,7 @@ class IngestionControllerTest {
         when(batchRepository.findById("b1")).thenReturn(Optional.of(batch));
         userGroupsService.withMembership("alice@example.com", Set.of("g1"));
 
-        controller.ingest(new IngestRequest("doc.txt", "b1", null),
+        controller.ingest(new IngestRequest("doc.txt", "b1", null, null),
                 TestAuth.user("alice@example.com"));
 
         final ArgumentCaptor<Document> docCaptor = ArgumentCaptor.forClass(Document.class);
@@ -168,7 +168,7 @@ class IngestionControllerTest {
         // admin not in any group
 
         final ResponseEntity<?> response = controller.ingest(
-                new IngestRequest("doc.txt", "b1", "hi"),
+                new IngestRequest("doc.txt", "b1", "hi", null),
                 TestAuth.admin("admin@example.com"));
 
         assertEquals(HttpStatus.ACCEPTED, response.getStatusCode());
@@ -181,7 +181,7 @@ class IngestionControllerTest {
         when(batchRepository.findById("b1")).thenReturn(Optional.of(batch));
 
         final ResponseEntity<?> response = controller.ingest(
-                new IngestRequest("doc.txt", "b1", "hi"),
+                new IngestRequest("doc.txt", "b1", "hi", null),
                 (Authentication) null);
 
         assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
