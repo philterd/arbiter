@@ -534,8 +534,14 @@
                 const spanTooltip = (e.complianceProfileName && e.spanExemptionCode)
                     ? `${escapeHtml(String(e.complianceProfileName))}: ${escapeHtml(String(e.spanExemptionCode))}`
                     : escapeHtml(String(e.spanText));
+                const spanStatus = e.status || e.current || '';
+                const spanBadgeClass = spanStatus === 'APPROVED'
+                    ? 'bg-green-50 text-green-800 border-green-200'
+                    : spanStatus === 'REJECTED'
+                        ? 'bg-red-50 text-red-800 border-red-200'
+                        : 'bg-yellow-50 text-yellow-800 border-yellow-200';
                 const spanTextEl = (e.resourceType === 'Span' && e.spanText)
-                    ? `<span class="inline-block ml-2 px-1.5 py-0.5 text-[10px] font-mono bg-yellow-50 text-yellow-800 border border-yellow-200 rounded max-w-[160px] truncate align-bottom" title="${spanTooltip}">${escapeHtml(String(e.spanText))}</span>`
+                    ? `<span class="inline-block ml-2 px-1.5 py-0.5 text-[10px] font-mono ${spanBadgeClass} border rounded max-w-[160px] truncate align-bottom" title="${spanTooltip}">${escapeHtml(String(e.spanText))}</span>`
                     : '';
                 return `<li class="py-2">
                     <div class="flex items-baseline justify-between gap-3">
