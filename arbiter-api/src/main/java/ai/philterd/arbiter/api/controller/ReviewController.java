@@ -159,7 +159,8 @@ public class ReviewController {
         final Span saved = spanRepository.save(span);
 
         auditLogService.log("SPAN_CREATE", "Span", saved.getId(),
-                Map.of("documentId", documentId,
+                Map.of("spanId", saved.getId(),
+                        "documentId", documentId,
                         "type", normalized,
                         "start", start,
                         "end", end,
@@ -213,6 +214,15 @@ public class ReviewController {
                 changes.put("reason", reason);
             }
             span.changeStatus(request.status(), actor);
+            if ("APPROVED".equals(request.status())) {
+                final String code = request.exemptionCode() == null ? null : request.exemptionCode().trim();
+                span.setExemptionCode(code == null || code.isEmpty() ? null : code);
+                if (span.getExemptionCode() != null) {
+                    changes.put("exemptionCode", span.getExemptionCode());
+                }
+            } else {
+                span.setExemptionCode(null);
+            }
         }
         if (request.type() != null) {
             final String normalized = request.type().trim().toLowerCase();
@@ -224,6 +234,7 @@ public class ReviewController {
             span.setType(normalized);
         }
         final Span saved = spanRepository.save(span);
+        changes.put("spanId", saved.getId());
         changes.put("documentId", saved.getDocumentId() == null ? "" : saved.getDocumentId());
         auditLogService.log("SPAN_UPDATE", "Span", saved.getId(), changes);
         return saved;
@@ -247,7 +258,8 @@ public class ReviewController {
 
         spanRepository.deleteById(id);
         auditLogService.log("SPAN_DELETE", "Span", id,
-                Map.of("documentId", document.getId(),
+                Map.of("spanId", id,
+                        "documentId", document.getId(),
                         "type", span.getType() == null ? "" : span.getType()));
         return Map.of("id", id, "deleted", true);
     }
@@ -346,12 +358,43 @@ public class ReviewController {
         result.put("approved", approved);
 
         final Map<String, Object> auditDetails = new LinkedHashMap<>();
+        auditDetails.put("spanId", source.getId());
         auditDetails.put("documentId", source.getDocumentId());
         auditDetails.put("type", source.getType() == null ? "" : source.getType());
         auditDetails.put("created", created);
         auditDetails.put("approved", approved);
         auditLogService.log("SPAN_REDACT_LIKE", "Span", source.getId(), auditDetails);
         return result;
+    }
+
+    public record ResetSpanRequest(String originalStatus) {}
+
+    @PostMapping("/spans/{id}/reset")
+    public Span resetSpan(@PathVariable final String id,
+                          @RequestBody(required = false) final ResetSpanRequest request,
+                          final Authentication authentication) {
+        final Span span = spanRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found: " + id));
+        final Document document = documentRepository.findById(span.getDocumentId())
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND,
+                        "Document not found: " + span.getDocumentId()));
+        requireDocumentAccess(authentication, document);
+        requireEditable(document);
+
+        final String actor = authentication == null ? null : authentication.getName();
+        final String previousStatus = span.getStatus() == null ? "" : span.getStatus();
+        final String originalStatus = request == null ? null : request.originalStatus();
+
+        span.changeStatus(originalStatus, actor);
+        final Span saved = spanRepository.save(span);
+
+        final Map<String, Object> details = new LinkedHashMap<>();
+        details.put("spanId", saved.getId());
+        details.put("documentId", saved.getDocumentId() == null ? "" : saved.getDocumentId());
+        details.put("previousStatus", previousStatus);
+        details.put("originalStatus", originalStatus == null ? "" : originalStatus);
+        auditLogService.log("SPAN_RESET", "Span", saved.getId(), details);
+        return saved;
     }
 
     private static boolean overlapsExisting(final List<long[]> ranges, final int start, final int end) {

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 @Service
@@ -52,6 +53,21 @@ public class AuditLogQueryService {
         if (limit > 0) {
             query.limit(limit);
         }
+        return mongoOperations.find(query, AuditLog.class);
+    }
+
+    /**
+     * Fetches all audit entries for a document and its spans in a single query,
+     * sorted newest-first by the database.
+     */
+    public List<AuditLog> findForDocument(final String documentId, final Collection<String> spanIds) {
+        final List<Criteria> orClauses = new ArrayList<>();
+        orClauses.add(Criteria.where("resourceType").is("Document").and("resourceId").is(documentId));
+        if (spanIds != null && !spanIds.isEmpty()) {
+            orClauses.add(Criteria.where("resourceType").is("Span").and("resourceId").in(spanIds));
+        }
+        final Query query = new Query(new Criteria().orOperator(orClauses.toArray(new Criteria[0])));
+        query.with(Sort.by(Sort.Direction.DESC, "timestamp"));
         return mongoOperations.find(query, AuditLog.class);
     }
 }

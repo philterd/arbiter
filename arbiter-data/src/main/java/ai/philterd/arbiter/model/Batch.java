@@ -46,6 +46,7 @@ public class Batch {
      * for new batches; pre-existing batches may be {@code null} until edited.
      */
     private String finalizationPolicyId;
+    private String complianceProfileId;
     private boolean closed;
     private LocalDateTime closedAt;
     private String closedBy;
@@ -231,6 +232,9 @@ public class Batch {
     public void setFinalizationPolicyId(final String finalizationPolicyId) {
         this.finalizationPolicyId = finalizationPolicyId;
     }
+
+    public String getComplianceProfileId() { return complianceProfileId; }
+    public void setComplianceProfileId(final String complianceProfileId) { this.complianceProfileId = complianceProfileId; }
 
     public boolean isClosed() {
         return closed;

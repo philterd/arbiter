@@ -64,6 +64,7 @@ public class GeneralSettingsService {
     }
 
     private static String detectLocalAddress() {
+
         try {
             final Enumeration<NetworkInterface> ifaces = NetworkInterface.getNetworkInterfaces();
             while (ifaces.hasMoreElements()) {
@@ -80,10 +81,13 @@ public class GeneralSettingsService {
         } catch (SocketException e) {
             log.debug("Could not enumerate network interfaces: {}", e.getMessage());
         }
+
         try {
             return InetAddress.getLocalHost().getHostAddress();
         } catch (UnknownHostException e) {
             return "localhost";
         }
+
     }
+
 }

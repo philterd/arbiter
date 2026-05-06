@@ -167,5 +167,7 @@ public class RedactionApiServiceImpl implements RedactionApiService {
         documentRepository.save(document);
 
         return finalizedText;
+
     }
+
 }

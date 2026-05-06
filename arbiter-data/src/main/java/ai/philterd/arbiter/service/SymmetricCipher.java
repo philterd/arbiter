@@ -109,4 +109,5 @@ public class SymmetricCipher {
             throw new IllegalStateException("Decryption failed", e);
         }
     }
+
 }

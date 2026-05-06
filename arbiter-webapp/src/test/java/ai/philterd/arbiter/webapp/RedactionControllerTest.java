@@ -40,6 +40,7 @@ import ai.philterd.arbiter.repository.UserRepository;
 import ai.philterd.arbiter.model.GeneralSettings;
 import ai.philterd.arbiter.service.GeneralSettingsService;
 import ai.philterd.arbiter.service.RedactionService;
+import ai.philterd.arbiter.webapp.controllers.RedactionController;
 import org.springframework.data.mongodb.core.MongoOperations;
 import ai.philterd.arbiter.webapp.security.MongoUserDetailsService;
 import ai.philterd.arbiter.webapp.security.SecurityConfig;
@@ -137,6 +138,9 @@ public class RedactionControllerTest {
 
     @MockBean
     private ai.philterd.arbiter.repository.FinalizationPolicyRepository finalizationPolicyRepository;
+
+    @MockBean
+    private ai.philterd.arbiter.repository.ComplianceProfileRepository complianceProfileRepository;
 
     @MockBean
     private MongoOperations mongoOperations;

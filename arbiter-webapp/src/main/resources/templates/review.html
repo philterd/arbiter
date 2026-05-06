@@ -210,6 +210,13 @@
                     </svg>
                     Approval Rules
                 </a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/compliance-profiles}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                    </svg>
+                    Compliance Profiles
+                </a>
                 <a sec:authorize="hasRole('ADMIN')" th:href="@{/policies}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
@@ -455,6 +462,8 @@
                         : '')));
         const currentUserEmail = /*[[${currentUserEmail}]]*/ '';
         const documentId = /*[[${document.id}]]*/ '';
+        const exemptionCodes = /*[[${exemptionCodes}]]*/ [];
+        const complianceProfileName = /*[[${complianceProfileName}]]*/ null;
 
         function escapeHtml(unsafe) {
             return String(unsafe)
@@ -467,6 +476,10 @@
 
         const acceptedById = new Map();
         originalRedactions.forEach(r => acceptedById.set(r.id, r.status !== 'REJECTED'));
+
+        // Snapshot of each span's status at page-load time — used by the Reset button.
+        const originalStatusById = new Map();
+        originalRedactions.forEach(r => originalStatusById.set(r.id, r.status ?? null));
 
         function buildRedacted() {
             const sorted = [...originalRedactions].sort((a, b) => a.start - b.start);
@@ -573,6 +586,10 @@
                         : (isSecondOpinion
                             ? 'This span is awaiting a second opinion — Redact All Like This is disabled'
                             : 'Apply this same decision to every other matching occurrence'));
+                const isPending = item.status == null || item.status === 'PENDING';
+                const resetDisabled = documentLocked || isPending;
+                const resetAttr = resetDisabled ? ' disabled' : '';
+                const resetTitle = documentLocked ? lockedReason : (isPending ? 'Already unreviewed' : 'Mark as unreviewed (PENDING)');
                 const triState = manual
                     ? `<button type="button"
                                 class="toggle-btn refused"
@@ -592,6 +609,11 @@
                                     title="Need a second opinion from another reviewer"
                                     class="px-2 py-1 text-xs font-semibold border-l border-gray-300 ${isSecondOpinion ? 'bg-amber-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}"${lockedAttr}${lockedTitle}>
                                 2nd Opinion
+                            </button>
+                            <button type="button" data-reset-span="${escapeHtml(item.id)}"
+                                    title="${resetTitle}"
+                                    class="px-2 py-1 text-xs font-semibold border-l border-gray-300 bg-white text-gray-500 hover:bg-gray-50 disabled:text-gray-300 disabled:cursor-not-allowed"${resetAttr}>
+                                Reset
                             </button>
                         </div>`;
                 const manualBadge = manual
@@ -787,6 +809,15 @@
                     }
                     return;
                 }
+                const resetSpan = e.target.closest('[data-reset-span]');
+                if (resetSpan) {
+                    e.stopPropagation();
+                    if (documentLocked) return;
+                    if (resetSpan.disabled) return;
+                    const id = resetSpan.getAttribute('data-reset-span');
+                    await doResetSpan(id);
+                    return;
+                }
                 const setStatus = e.target.closest('[data-set-status]');
                 if (setStatus) {
                     e.stopPropagation();
@@ -806,7 +837,12 @@
                         reason = await promptOverturnReason(item);
                         if (reason === null) return;
                     }
-                    await applySpanStatus(id, newStatus, previousStatus, reason);
+                    let exemptionCode = null;
+                    if (newStatus === 'APPROVED' && exemptionCodes.length > 0) {
+                        exemptionCode = await promptExemptionCode(item);
+                        if (exemptionCode === null) return;
+                    }
+                    await applySpanStatus(id, newStatus, previousStatus, reason, exemptionCode);
                     return;
                 }
                 const history = e.target.closest('[data-history]');
@@ -859,7 +895,7 @@
             });
         });
 
-        async function applySpanStatus(id, newStatus, previousStatus, reason) {
+        async function applySpanStatus(id, newStatus, previousStatus, reason, exemptionCode) {
             const item = originalRedactions.find(r => r.id === id);
             if (item) item.status = newStatus;
             // Redacted preview keeps NEEDS_SECOND_OPINION visible (treated as accepted).
@@ -869,6 +905,7 @@
             try {
                 const body = { status: newStatus };
                 if (reason) body.reason = reason;
+                if (exemptionCode) body.exemptionCode = exemptionCode;
                 const response = await fetch(`/api/v1/spans/${encodeURIComponent(id)}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
@@ -882,7 +919,7 @@
                             rollbackSpanStatus(id, previousStatus);
                             const fresh = await promptOverturnReason(item);
                             if (fresh === null) return;
-                            await applySpanStatus(id, newStatus, previousStatus, fresh);
+                            await applySpanStatus(id, newStatus, previousStatus, fresh, exemptionCode);
                             return;
                         }
                     }
@@ -905,6 +942,39 @@
             acceptedById.set(id, previousStatus !== 'REJECTED');
             rerender();
             focusRedaction(id);
+        }
+
+        async function doResetSpan(id) {
+            const item = originalRedactions.find(r => r.id === id);
+            const previousStatus = item ? item.status : null;
+            if (previousStatus == null || previousStatus === 'PENDING') return;
+
+            if (item) item.status = 'PENDING';
+            acceptedById.set(id, true);
+            rerender();
+            focusRedaction(id);
+
+            try {
+                const response = await fetch(`/api/v1/spans/${encodeURIComponent(id)}/reset`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ originalStatus: 'PENDING' })
+                });
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                const updated = await response.json();
+                if (item && updated) {
+                    if (updated.statusChangedBy !== undefined) item.statusChangedBy = updated.statusChangedBy;
+                    if (updated.status !== undefined) item.status = updated.status;
+                }
+                rerender();
+                focusRedaction(id);
+            } catch (err) {
+                if (item) item.status = previousStatus;
+                acceptedById.set(id, previousStatus !== 'REJECTED');
+                rerender();
+                focusRedaction(id);
+                alert(`Failed to reset span: ${err.message}`);
+            }
         }
 
         async function openSpanHistory(spanId) {
@@ -977,6 +1047,81 @@
 
         function closeHistoryModal() {
             document.getElementById('historyModal').classList.add('hidden');
+        }
+
+        // Suggested exemption code by [complianceProfileName][piiType].
+        // Keys are lower-cased for comparison.
+        const exemptionSuggestions = {
+            'hipaa': {
+                'ssn': 'ID', 'tax-id': 'ID', 'id': 'ID',
+                'person': 'NAME', 'first-name': 'NAME', 'surname': 'NAME',
+                'physician-name': 'NAME',
+                'street-address': 'GEO', 'zip-code': 'GEO', 'location': 'GEO',
+                'phone-number': 'PHONE', 'phone': 'PHONE',
+                'date-of-birth': 'DATE', 'date': 'DATE',
+                'bio': 'BIO', 'photo': 'PHOTO'
+            },
+            'general': {
+                'person': 'Third-Party Privacy', 'first-name': 'Third-Party Privacy',
+                'surname': 'Third-Party Privacy'
+            }
+        };
+
+        function suggestExemptionCode(item) {
+            if (!complianceProfileName || !item || !item.type) return null;
+            const profileKey = complianceProfileName.toLowerCase();
+            const typeKey = (item.type || '').toLowerCase();
+            const map = exemptionSuggestions[profileKey];
+            if (!map) return null;
+            return map[typeKey] || null;
+        }
+
+        function promptExemptionCode(item) {
+            return new Promise(resolve => {
+                const modal = document.getElementById('exemptionCodeModal');
+                const spanText = document.getElementById('exemptionCodeSpanText');
+                const spanMeta = document.getElementById('exemptionCodeSpanMeta');
+                const select = document.getElementById('exemptionCodeSelect');
+                const suggestion = document.getElementById('exemptionCodeSuggestion');
+                const cancel = document.getElementById('exemptionCodeCancel');
+                const confirm = document.getElementById('exemptionCodeConfirm');
+
+                spanText.textContent = item ? item.text : '';
+                spanMeta.textContent = item ? `${item.type} · ${(item.confidence * 100).toFixed(0)}% confidence` : '';
+
+                select.innerHTML = exemptionCodes.map(code =>
+                    `<option value="${escapeHtml(code)}">${escapeHtml(code)}</option>`
+                ).join('');
+
+                const suggested = suggestExemptionCode(item);
+                if (suggested && exemptionCodes.includes(suggested)) {
+                    select.value = suggested;
+                    suggestion.textContent = `Suggested: ${suggested}`;
+                    suggestion.classList.remove('hidden');
+                } else {
+                    suggestion.classList.add('hidden');
+                }
+
+                modal.classList.remove('hidden');
+                setTimeout(() => select.focus(), 0);
+
+                const cleanup = () => {
+                    modal.classList.add('hidden');
+                    cancel.removeEventListener('click', onCancel);
+                    confirm.removeEventListener('click', onConfirm);
+                };
+                const onCancel = () => { cleanup(); resolve(null); };
+                const onConfirm = () => {
+                    cleanup();
+                    resolve(select.value || null);
+                };
+                cancel.addEventListener('click', onCancel);
+                confirm.addEventListener('click', onConfirm);
+            });
+        }
+
+        function closeExemptionCodeModal() {
+            document.getElementById('exemptionCodeModal').classList.add('hidden');
         }
 
         function promptOverturnReason(item) {
@@ -1139,6 +1284,31 @@
                         class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg">
                     Confirm overturn
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="exemptionCodeModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-md p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-2">Select Exemption Code</h3>
+            <p class="text-sm text-gray-700 mb-1">
+                Span: <span id="exemptionCodeSpanText" class="font-mono">—</span>
+            </p>
+            <p id="exemptionCodeSpanMeta" class="text-xs text-gray-500 mb-4">—</p>
+            <div class="space-y-3">
+                <div>
+                    <label for="exemptionCodeSelect" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Exemption code</label>
+                    <select id="exemptionCodeSelect"
+                            class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </select>
+                </div>
+                <p id="exemptionCodeSuggestion" class="hidden text-xs text-blue-700 bg-blue-50 border border-blue-200 rounded px-2.5 py-1.5"></p>
+            </div>
+            <div class="flex items-center justify-end gap-2 mt-6">
+                <button type="button" id="exemptionCodeCancel"
+                        class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
+                <button type="button" id="exemptionCodeConfirm"
+                        class="px-5 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-200">Accept</button>
             </div>
         </div>
     </div>

@@ -29,14 +29,19 @@ import ai.philterd.arbiter.repository.UserRepository;
 import ai.philterd.arbiter.repository.UserSettingsRepository;
 import ai.philterd.arbiter.repository.WeightSetRepository;
 import ai.philterd.arbiter.service.RedactionService;
-import ai.philterd.arbiter.webapp.security.AdminController;
-import ai.philterd.arbiter.webapp.security.AdminGeneralController;
-import ai.philterd.arbiter.webapp.security.AdminGroupController;
-import ai.philterd.arbiter.webapp.security.AdminNotificationsController;
-import ai.philterd.arbiter.webapp.security.AdminOllamaController;
-import ai.philterd.arbiter.webapp.security.AdminPhilterController;
-import ai.philterd.arbiter.webapp.security.AdminWeightSetController;
-import ai.philterd.arbiter.webapp.security.AuditLogAdminController;
+import ai.philterd.arbiter.webapp.controllers.AdminComplianceProfileController;
+import ai.philterd.arbiter.webapp.controllers.AdminController;
+import ai.philterd.arbiter.webapp.controllers.AdminGeneralController;
+import ai.philterd.arbiter.webapp.controllers.AdminGroupController;
+import ai.philterd.arbiter.webapp.controllers.AdminNotificationsController;
+import ai.philterd.arbiter.webapp.controllers.AdminOllamaController;
+import ai.philterd.arbiter.webapp.controllers.AdminPhilterController;
+import ai.philterd.arbiter.webapp.controllers.AdminWeightSetController;
+import ai.philterd.arbiter.webapp.controllers.AuditLogAdminController;
+import ai.philterd.arbiter.webapp.controllers.BatchController;
+import ai.philterd.arbiter.webapp.controllers.PolicyController;
+import ai.philterd.arbiter.webapp.controllers.RedactionController;
+import ai.philterd.arbiter.webapp.controllers.ReportingController;
 import ai.philterd.arbiter.webapp.security.MongoUserDetailsService;
 import ai.philterd.arbiter.webapp.security.SecurityConfig;
 import org.junit.jupiter.api.Test;
@@ -61,6 +66,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * authenticated-by-default rule for everything else — are exercised end-to-end.
  */
 @WebMvcTest(controllers = {
+        AdminComplianceProfileController.class,
         AdminController.class,
         AdminGeneralController.class,
         AdminGroupController.class,
@@ -101,6 +107,7 @@ public class AuthorizationIntegrationTest {
     @MockBean private PendingUploadRepository pendingUploadRepository;
     @MockBean private RedactionCertificateRepository redactionCertificateRepository;
     @MockBean private ai.philterd.arbiter.repository.FinalizationPolicyRepository finalizationPolicyRepository;
+    @MockBean private ai.philterd.arbiter.repository.ComplianceProfileRepository complianceProfileRepository;
     @MockBean private MongoOperations mongoOperations;
 
     // ---------------------------------------------------------------------

@@ -16,6 +16,7 @@ import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import ai.philterd.arbiter.repository.PolicyRepository;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.GeneralSettingsService;
+import ai.philterd.arbiter.webapp.controllers.PolicyController;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

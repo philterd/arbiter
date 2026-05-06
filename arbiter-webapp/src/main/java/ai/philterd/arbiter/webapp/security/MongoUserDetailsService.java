@@ -52,4 +52,5 @@ public class MongoUserDetailsService implements UserDetailsService {
                         .map(r -> new SimpleGrantedAuthority("ROLE_" + r))
                         .collect(Collectors.toSet()));
     }
+
 }

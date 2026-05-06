@@ -100,6 +100,13 @@
                     </svg>
                     Approval Rules
                 </a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/compliance-profiles}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                    </svg>
+                    Compliance Profiles
+                </a>
                 <a sec:authorize="hasRole('ADMIN')" th:href="@{/policies}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
@@ -143,7 +150,7 @@
                     <div class="flex items-center gap-4">
                         <label sec:authorize="hasRole('ADMIN')" class="inline-flex items-center cursor-pointer text-sm text-gray-700">
                             <input id="myGroupsOnlyCb" type="checkbox" class="mr-2">
-                            Just documents for my group
+                            Just documents for my groups
                         </label>
                         <button id="refreshBtn" class="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-100 font-medium rounded-lg transition duration-200">
                             Refresh
@@ -237,6 +244,34 @@
                  class="hidden flex-1 overflow-auto bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs font-mono whitespace-pre-wrap break-all"></pre>
             <div class="flex justify-end mt-4">
                 <button type="button" id="certificateClose"
+                        class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="auditModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-3xl p-6 flex flex-col max-h-[80vh]">
+            <h3 class="text-lg font-semibold text-gray-900 mb-1">Audit Log</h3>
+            <p id="auditMeta" class="text-xs text-gray-500 mb-3">—</p>
+            <div id="auditSpinner" class="hidden text-sm text-gray-500 mb-3">Loading…</div>
+            <div id="auditError" class="hidden text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 mb-3"></div>
+            <div id="auditEmpty" class="hidden text-sm text-gray-500 italic mb-3">No audit events recorded for this document.</div>
+            <ul id="auditList" class="flex-1 overflow-y-auto divide-y divide-gray-100 min-h-0"></ul>
+            <div class="flex items-center justify-between mt-4">
+                <div class="flex items-center gap-2">
+                    <button type="button" id="auditPrev"
+                            class="px-3 py-1.5 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        Previous
+                    </button>
+                    <button type="button" id="auditNext"
+                            class="px-3 py-1.5 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                        Next
+                    </button>
+                    <span id="auditPageInfo" class="text-xs text-gray-500"></span>
+                </div>
+                <button type="button" id="auditClose"
                         class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
                     Close
                 </button>
@@ -382,6 +417,13 @@
                                         View Certificate
                                    </button>`
                                 : ''}
+                            <button type="button"
+                                    data-view-audit="${encodeURIComponent(doc.id)}"
+                                    data-doc-filename="${escapeHtml(doc.filename || '')}"
+                                    title="View audit log for this document"
+                                    class="ml-3 inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50">
+                                Audit Log
+                            </button>
                         </td>
                     </tr>
                 `;
@@ -454,6 +496,101 @@
             }
         }
 
+        const AUDIT_PAGE_SIZE = 10;
+        let auditEntries = [];
+        let auditPage = 0;
+
+        function renderAuditPage() {
+            const list = document.getElementById('auditList');
+            const prevBtn = document.getElementById('auditPrev');
+            const nextBtn = document.getElementById('auditNext');
+            const pageInfo = document.getElementById('auditPageInfo');
+            const emptyEl = document.getElementById('auditEmpty');
+
+            const totalPages = Math.ceil(auditEntries.length / AUDIT_PAGE_SIZE);
+            const slice = auditEntries.slice(auditPage * AUDIT_PAGE_SIZE, (auditPage + 1) * AUDIT_PAGE_SIZE);
+
+            if (auditEntries.length === 0) {
+                list.innerHTML = '';
+                emptyEl.classList.remove('hidden');
+                pageInfo.textContent = '';
+                prevBtn.disabled = true;
+                nextBtn.disabled = true;
+                return;
+            }
+            emptyEl.classList.add('hidden');
+            list.innerHTML = slice.map(e => {
+                const ts = e.timestamp ? new Date(e.timestamp).toLocaleString() : '—';
+                const actor = e.actor ? escapeHtml(e.actor) : '—';
+                const resourceBadge = e.resourceType === 'Span'
+                    ? `<span class="ml-1 px-1 py-0.5 text-[10px] font-semibold rounded bg-blue-100 text-blue-700 uppercase">Span</span>`
+                    : `<span class="ml-1 px-1 py-0.5 text-[10px] font-semibold rounded bg-gray-100 text-gray-600 uppercase">Doc</span>`;
+                let summary = escapeHtml(e.action || '');
+                if (e.status && e.previousStatus !== undefined) {
+                    summary = `Status: <span class="font-mono">${escapeHtml(String(e.previousStatus || '(unset)'))}</span> → <span class="font-mono">${escapeHtml(String(e.status))}</span>`;
+                } else if (e.current && e.previous !== undefined) {
+                    summary = `Status: <span class="font-mono">${escapeHtml(String(e.previous || '(unset)'))}</span> → <span class="font-mono">${escapeHtml(String(e.current))}</span>`;
+                }
+                const spanTooltip = (e.complianceProfileName && e.spanExemptionCode)
+                    ? `${escapeHtml(String(e.complianceProfileName))}: ${escapeHtml(String(e.spanExemptionCode))}`
+                    : escapeHtml(String(e.spanText));
+                const spanTextEl = (e.resourceType === 'Span' && e.spanText)
+                    ? `<span class="inline-block ml-2 px-1.5 py-0.5 text-[10px] font-mono bg-yellow-50 text-yellow-800 border border-yellow-200 rounded max-w-[160px] truncate align-bottom" title="${spanTooltip}">${escapeHtml(String(e.spanText))}</span>`
+                    : '';
+                return `<li class="py-2">
+                    <div class="flex items-baseline justify-between gap-3">
+                        <div class="text-sm text-gray-900">${summary}${resourceBadge}${spanTextEl}</div>
+                        <div class="text-xs text-gray-500 font-mono shrink-0">${escapeHtml(ts)}</div>
+                    </div>
+                    <div class="text-xs text-gray-600 mt-0.5">by ${actor}</div>
+                </li>`;
+            }).join('');
+            pageInfo.textContent = `Page ${auditPage + 1} of ${totalPages} (${auditEntries.length} event${auditEntries.length === 1 ? '' : 's'})`;
+            prevBtn.disabled = auditPage <= 0;
+            nextBtn.disabled = auditPage >= totalPages - 1;
+        }
+
+        async function openAuditLog(documentId, filename) {
+            const modal = document.getElementById('auditModal');
+            const meta = document.getElementById('auditMeta');
+            const spinner = document.getElementById('auditSpinner');
+            const errorBox = document.getElementById('auditError');
+            const emptyEl = document.getElementById('auditEmpty');
+            const list = document.getElementById('auditList');
+            const prevBtn = document.getElementById('auditPrev');
+            const nextBtn = document.getElementById('auditNext');
+            const pageInfo = document.getElementById('auditPageInfo');
+
+            auditEntries = [];
+            auditPage = 0;
+            meta.textContent = filename ? `${filename} (${documentId})` : documentId;
+            list.innerHTML = '';
+            emptyEl.classList.add('hidden');
+            errorBox.textContent = '';
+            errorBox.classList.add('hidden');
+            pageInfo.textContent = '';
+            prevBtn.disabled = true;
+            nextBtn.disabled = true;
+            spinner.classList.remove('hidden');
+            modal.classList.remove('hidden');
+
+            try {
+                const resp = await fetch(`/api/v1/documents/${encodeURIComponent(documentId)}/history`);
+                spinner.classList.add('hidden');
+                if (!resp.ok) {
+                    errorBox.textContent = `Failed to load audit log: HTTP ${resp.status}`;
+                    errorBox.classList.remove('hidden');
+                    return;
+                }
+                auditEntries = (await resp.json()) || [];
+                renderAuditPage();
+            } catch (err) {
+                spinner.classList.add('hidden');
+                errorBox.textContent = `Failed to load audit log: ${err.message}`;
+                errorBox.classList.remove('hidden');
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
             updateSortIndicators();
             document.querySelectorAll('th.sortable').forEach(th => {
@@ -475,12 +612,31 @@
             loadQueue(currentPage);
 
             document.getElementById('queueBody').addEventListener('click', (e) => {
-                const btn = e.target.closest('[data-view-certificate]');
-                if (!btn) return;
-                openCertificate(decodeURIComponent(btn.getAttribute('data-view-certificate')));
+                const certBtn = e.target.closest('[data-view-certificate]');
+                if (certBtn) {
+                    openCertificate(decodeURIComponent(certBtn.getAttribute('data-view-certificate')));
+                    return;
+                }
+                const auditBtn = e.target.closest('[data-view-audit]');
+                if (auditBtn) {
+                    openAuditLog(
+                        decodeURIComponent(auditBtn.getAttribute('data-view-audit')),
+                        auditBtn.getAttribute('data-doc-filename')
+                    );
+                }
             });
             document.getElementById('certificateClose').addEventListener('click', () => {
                 document.getElementById('certificateModal').classList.add('hidden');
+            });
+            document.getElementById('auditClose').addEventListener('click', () => {
+                document.getElementById('auditModal').classList.add('hidden');
+            });
+            document.getElementById('auditPrev').addEventListener('click', () => {
+                if (auditPage > 0) { auditPage--; renderAuditPage(); }
+            });
+            document.getElementById('auditNext').addEventListener('click', () => {
+                const totalPages = Math.ceil(auditEntries.length / AUDIT_PAGE_SIZE);
+                if (auditPage < totalPages - 1) { auditPage++; renderAuditPage(); }
             });
 
             document.getElementById('refreshBtn').addEventListener('click', () => loadQueue(currentPage));

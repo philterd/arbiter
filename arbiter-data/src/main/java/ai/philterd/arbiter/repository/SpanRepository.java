@@ -9,7 +9,7 @@ import java.util.List;
 @Repository
 public interface SpanRepository extends MongoRepository<Span, String> {
     List<Span> findByDocumentId(String documentId);
-    List<Span> findByStatus(String status);
+    List<Span> findByStatusOrderByStatusChangedAtDesc(String status);
     long countByDocumentIdInAndStatus(java.util.Collection<String> documentIds, String status);
     long countByDocumentIdAndStatus(String documentId, String status);
     long countByDocumentIdInAndManuallyCreated(java.util.Collection<String> documentIds, boolean manuallyCreated);

@@ -5,8 +5,11 @@ package ai.philterd.arbiter.dto;
  * a prior approval set by a different reviewer (status moving out of APPROVED); it is
  * recorded on the audit log entry for that change.
  */
-public record SpanUpdateRequest(String status, String type, String reason) {
+public record SpanUpdateRequest(String status, String type, String reason, String exemptionCode) {
     public SpanUpdateRequest(final String status, final String type) {
-        this(status, type, null);
+        this(status, type, null, null);
+    }
+    public SpanUpdateRequest(final String status, final String type, final String reason) {
+        this(status, type, reason, null);
     }
 }

@@ -31,6 +31,7 @@ public class OpenApiConfig {
 
     @Bean
     public OpenAPI arbiterOpenAPI() {
+
         return new OpenAPI()
                 .info(new Info()
                         .title("Arbiter API")
@@ -48,4 +49,5 @@ public class OpenApiConfig {
                                         + "Send as: Authorization: Bearer <api-key>")))
                 .addSecurityItem(new SecurityRequirement().addList(BEARER_SCHEME));
     }
+
 }

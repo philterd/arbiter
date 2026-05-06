@@ -33,6 +33,8 @@ public class Span {
      */
     private String statusChangedBy;
 
+    private String exemptionCode;
+
     public Span() {
     }
 
@@ -134,6 +136,9 @@ public class Span {
      * Set the status, change timestamp, and the email of the user making the change.
      * Use the no-actor overload only for system-generated transitions.
      */
+    public String getExemptionCode() { return exemptionCode; }
+    public void setExemptionCode(final String exemptionCode) { this.exemptionCode = exemptionCode; }
+
     public void changeStatus(final String newStatus, final String actorEmail) {
         this.status = newStatus;
         this.statusChangedAt = LocalDateTime.now();
