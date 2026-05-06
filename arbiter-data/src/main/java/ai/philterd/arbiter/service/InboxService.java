@@ -54,16 +54,18 @@ public class InboxService {
         return repository.save(m);
     }
 
-    public List<InboxMessage> listForEmail(final String email) {
+    public List<InboxMessage> listForEmail(final String email, final boolean showArchived) {
         final String userId = userIdForEmail(email);
         if (userId == null) return List.of();
-        return repository.findByUserIdOrderByCreatedAtDesc(userId);
+        return showArchived
+                ? repository.findByUserIdOrderByCreatedAtDesc(userId)
+                : repository.findNonArchivedByUserId(userId);
     }
 
     public long unreadCountForEmail(final String email) {
         final String userId = userIdForEmail(email);
         if (userId == null) return 0L;
-        return repository.countByUserIdAndReadFalse(userId);
+        return repository.countUnreadNonArchivedByUserId(userId);
     }
 
     /**
@@ -76,6 +78,24 @@ public class InboxService {
         final InboxMessage m = repository.findById(messageId).orElse(null);
         if (m == null || !userId.equals(m.getUserId())) return false;
         if (!m.isRead()) {
+            m.setRead(true);
+            repository.save(m);
+        }
+        return true;
+    }
+
+    /**
+     * Archive a message, marking it read at the same time. Returns true on success,
+     * false if the message doesn't exist or belongs to someone else.
+     */
+    public boolean archive(final String messageId, final String email) {
+        final String userId = userIdForEmail(email);
+        if (userId == null || messageId == null) return false;
+        final InboxMessage m = repository.findById(messageId).orElse(null);
+        if (m == null || !userId.equals(m.getUserId())) return false;
+        if (!m.isArchived()) {
+            m.setArchived(true);
+            m.setArchivedAt(LocalDateTime.now());
             m.setRead(true);
             repository.save(m);
         }

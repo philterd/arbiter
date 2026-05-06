@@ -28,7 +28,7 @@ public final class WelcomeMessage {
         sb.append("or via the <a ").append(LINK_CLASS).append(" href=\"")
                 .append(DOCS).append("reference/api/\">ingest API</a>.</li>");
         sb.append("<li><strong>Review</strong> — open the ");
-        sb.append("<a ").append(LINK_CLASS).append(" href=\"/queue\">Document Queue</a> ");
+        sb.append("<a ").append(LINK_CLASS).append(" href=\"/queue\">Documents</a> ");
         sb.append("to inspect proposed redactions, approve or reject spans, and add manual ones.</li>");
         sb.append("<li><strong>Export</strong> — once approved, redacted output is available from ");
         sb.append("the document view.</li>");

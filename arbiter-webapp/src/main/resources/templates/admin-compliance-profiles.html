@@ -50,11 +50,13 @@
                       class="ml-auto inline-flex items-center justify-center min-w-[1.25rem] h-5 text-[10px] font-semibold rounded-full bg-red-600 text-white px-1.5"
                       th:text="${inboxUnreadCount}">3</span>
             </a>
+            <div class="mt-2 pt-3 border-t border-gray-200 space-y-1">
+                <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Redaction</p>
             <a th:href="@{/queue}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                 <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path>
                 </svg>
-                Document Queue
+                Documents
             </a>
             <a th:href="@{/second-opinions}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                 <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -62,6 +64,9 @@
                 </svg>
                 Second Opinions
             </a>
+            </div>
+            <div class="mt-2 pt-2 border-t border-gray-200 space-y-1">
+                <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Tools</p>
             <a th:href="@{/search}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                 <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"></path>
@@ -75,6 +80,7 @@
                 </svg>
                 Settings
             </a>
+            </div>
             <div sec:authorize="hasRole('ADMIN')" class="mt-4 pt-3 border-t border-gray-200 space-y-1">
                 <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Administration</p>
             <a sec:authorize="hasRole('ADMIN')" th:href="@{/batches}"
@@ -155,22 +161,52 @@
             <div th:if="${error}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
                  th:text="${error}">Error</div>
 
-            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-6 max-w-2xl">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-1">Create compliance profile</h3>
-                <p class="text-xs text-gray-500 mb-3">Enter a name and one exemption code per line.</p>
-                <form th:action="@{/admin/compliance-profiles}" method="post" class="space-y-3">
-                    <div>
+                <p class="text-xs text-gray-500 mb-4">Enter a name and add exemption codes with optional descriptions.</p>
+                <form th:action="@{/admin/compliance-profiles}" method="post" class="space-y-4">
+                    <div class="max-w-xs">
                         <label for="newProfileName" class="block text-xs font-medium text-gray-600 mb-1">Name</label>
                         <input id="newProfileName" name="name" type="text" required
                                th:value="${retainName}"
                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
-                        <label for="newProfileExemptionCodes" class="block text-xs font-medium text-gray-600 mb-1">Exemption Codes <span class="font-normal text-gray-400">(one per line)</span></label>
-                        <textarea id="newProfileExemptionCodes" name="exemptionCodes" rows="5"
-                                  class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                  placeholder="code1&#10;code2&#10;code3"
-                                  th:text="${retainExemptionCodes}"></textarea>
+                        <div class="flex items-center gap-4 mb-2">
+                            <span class="text-xs font-medium text-gray-600">Exemption Codes</span>
+                        </div>
+                        <div class="border border-gray-200 rounded-lg overflow-hidden">
+                            <table class="w-full text-sm">
+                                <thead class="bg-gray-50 border-b border-gray-200">
+                                    <tr>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 w-48">Code</th>
+                                        <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Description <span class="font-normal text-gray-400">(optional — explains when to use this code)</span></th>
+                                        <th class="w-8"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="createCodeRows">
+                                    <tr class="exemption-row border-b border-gray-100">
+                                        <td class="px-2 py-1.5"><input name="codes" type="text" placeholder="e.g. NAME" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></td>
+                                        <td class="px-2 py-1.5"><input name="descriptions" type="text" placeholder="e.g. Individual's full or partial name" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></td>
+                                        <td class="px-1 py-1.5 text-center"><button type="button" class="remove-row text-gray-300 hover:text-red-500 text-lg leading-none" title="Remove">×</button></td>
+                                    </tr>
+                                    <tr class="exemption-row border-b border-gray-100">
+                                        <td class="px-2 py-1.5"><input name="codes" type="text" placeholder="e.g. NAME" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></td>
+                                        <td class="px-2 py-1.5"><input name="descriptions" type="text" placeholder="e.g. Individual's full or partial name" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></td>
+                                        <td class="px-1 py-1.5 text-center"><button type="button" class="remove-row text-gray-300 hover:text-red-500 text-lg leading-none" title="Remove">×</button></td>
+                                    </tr>
+                                    <tr class="exemption-row">
+                                        <td class="px-2 py-1.5"><input name="codes" type="text" placeholder="e.g. NAME" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></td>
+                                        <td class="px-2 py-1.5"><input name="descriptions" type="text" placeholder="e.g. Individual's full or partial name" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></td>
+                                        <td class="px-1 py-1.5 text-center"><button type="button" class="remove-row text-gray-300 hover:text-red-500 text-lg leading-none" title="Remove">×</button></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <button type="button" id="addCreateRow"
+                                class="mt-2 text-sm text-blue-600 hover:text-blue-800 font-medium">
+                            + Add exemption code
+                        </button>
                     </div>
                     <button type="submit"
                             class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
@@ -183,7 +219,7 @@
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-40">Name</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Exemption Codes</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1">Actions</th>
                         </tr>
@@ -203,9 +239,13 @@
                             </td>
                             <td class="px-6 py-4 text-sm text-gray-700">
                                 <span th:if="${#lists.isEmpty(p.exemptionCodes)}" class="text-gray-400">(none)</span>
-                                <span th:each="code : ${p.exemptionCodes}"
-                                      class="inline-block bg-gray-100 text-gray-800 text-xs font-medium rounded px-2 py-0.5 mr-1 mb-1"
-                                      th:text="${code}">code</span>
+                                <div th:each="ec : ${p.exemptionCodes}" class="flex items-baseline gap-2 mb-1">
+                                    <span class="inline-block bg-gray-100 text-gray-800 text-xs font-medium rounded px-2 py-0.5 whitespace-nowrap"
+                                          th:text="${ec.code}">code</span>
+                                    <span th:if="${ec.description != null and !ec.description.isEmpty()}"
+                                          class="text-xs text-gray-500"
+                                          th:text="${ec.description}">description</span>
+                                </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <span th:if="${p.preset}" class="text-xs text-gray-400 italic">Preset</span>
@@ -237,7 +277,7 @@
 
 <!-- Edit compliance profile modal -->
 <div id="editProfileModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-    <form id="editProfileForm" method="post" class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-md p-6">
+    <form id="editProfileForm" method="post" class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-2xl p-6">
         <h3 class="text-lg font-semibold text-gray-900 mb-1">Edit Compliance Profile</h3>
         <p class="text-sm text-gray-600 mb-4">
             Profile: <span id="editProfileName" class="font-medium"></span>
@@ -245,16 +285,35 @@
         <div class="space-y-4">
             <div>
                 <p class="block text-xs font-medium text-gray-600 mb-2 uppercase tracking-wide">Existing exemption codes</p>
-                <div id="editProfileExisting" class="flex flex-wrap gap-1.5 min-h-[2rem] p-2 rounded-lg bg-gray-50 border border-gray-200">
+                <div id="editProfileExisting" class="min-h-[2.5rem] p-2 rounded-lg bg-gray-50 border border-gray-200 text-sm">
                     <!-- populated by JS -->
                 </div>
                 <p class="text-xs text-gray-400 mt-1">Existing exemption codes cannot be removed.</p>
             </div>
             <div>
-                <label for="editProfileNewExemptionCodes" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Add new exemption codes <span class="font-normal normal-case text-gray-400">(one per line)</span></label>
-                <textarea id="editProfileNewExemptionCodes" name="exemptionCodes" rows="4"
-                          class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          placeholder="code-1&#10;code-2"></textarea>
+                <p class="block text-xs font-medium text-gray-600 mb-2 uppercase tracking-wide">Add new exemption codes</p>
+                <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 border-b border-gray-200">
+                            <tr>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 w-40">Code</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500">Description <span class="font-normal text-gray-400">(optional)</span></th>
+                                <th class="w-8"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="editCodeRows">
+                            <tr class="exemption-row">
+                                <td class="px-2 py-1.5"><input name="codes" type="text" placeholder="e.g. NAME" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></td>
+                                <td class="px-2 py-1.5"><input name="descriptions" type="text" placeholder="e.g. Individual's full or partial name" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></td>
+                                <td class="px-1 py-1.5 text-center"><button type="button" class="remove-row text-gray-300 hover:text-red-500 text-lg leading-none" title="Remove">×</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <button type="button" id="addEditRow"
+                        class="mt-2 text-sm text-blue-600 hover:text-blue-800 font-medium">
+                    + Add exemption code
+                </button>
             </div>
         </div>
         <div class="flex items-center justify-end gap-2 mt-6">
@@ -273,29 +332,86 @@
 <script th:inline="javascript">
 /*<![CDATA[*/
 (function () {
+    // profileExemptionCodesMap: { profileId: [{code, description}, ...] }
     const profileExemptionCodesMap = /*[[${profileExemptionCodesMap}]]*/ {};
+
+    // --- shared row logic ---
+    function newRow() {
+        const tr = document.createElement('tr');
+        tr.className = 'exemption-row';
+        tr.innerHTML = `
+            <td class="px-2 py-1.5"><input name="codes" type="text" placeholder="e.g. NAME" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></td>
+            <td class="px-2 py-1.5"><input name="descriptions" type="text" placeholder="e.g. Individual's full or partial name" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></td>
+            <td class="px-1 py-1.5 text-center"><button type="button" class="remove-row text-gray-300 hover:text-red-500 text-lg leading-none" title="Remove">×</button></td>`;
+        tr.querySelector('.remove-row').addEventListener('click', () => removeRow(tr));
+        return tr;
+    }
+
+    function removeRow(tr) {
+        const tbody = tr.parentElement;
+        if (tbody.querySelectorAll('.exemption-row').length > 1) {
+            tr.remove();
+        } else {
+            tr.querySelectorAll('input').forEach(i => i.value = '');
+        }
+    }
+
+    function wireRemoveButtons(tbody) {
+        tbody.querySelectorAll('.remove-row').forEach(btn => {
+            btn.addEventListener('click', () => removeRow(btn.closest('tr')));
+        });
+    }
+
+    // --- create form ---
+    const createTbody = document.getElementById('createCodeRows');
+    wireRemoveButtons(createTbody);
+    document.getElementById('addCreateRow').addEventListener('click', () => {
+        const row = newRow();
+        createTbody.appendChild(row);
+        row.querySelector('input').focus();
+    });
+
+    // --- edit modal ---
     const modal = document.getElementById('editProfileModal');
     const form = document.getElementById('editProfileForm');
     const nameSpan = document.getElementById('editProfileName');
     const existingDiv = document.getElementById('editProfileExisting');
-    const newCodesArea = document.getElementById('editProfileNewExemptionCodes');
+    const editTbody = document.getElementById('editCodeRows');
     const cancelBtn = document.getElementById('editProfileCancelBtn');
     const baseUrl = /*[[@{/admin/compliance-profiles}]]*/ '/admin/compliance-profiles';
+
+    wireRemoveButtons(editTbody);
+    document.getElementById('addEditRow').addEventListener('click', () => {
+        const row = newRow();
+        editTbody.appendChild(row);
+        row.querySelector('input').focus();
+    });
+
+    function escape(s) {
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
 
     function openModal(id, name) {
         form.action = baseUrl + '/' + encodeURIComponent(id) + '/edit';
         nameSpan.textContent = name;
         const codes = profileExemptionCodesMap[id] || [];
-        existingDiv.innerHTML = codes.length === 0
-            ? '<span class="text-xs text-gray-400 italic">No existing exemption codes.</span>'
-            : codes.map(c => {
-                const safe = c.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                return `<span class="inline-block bg-gray-100 text-gray-700 text-xs font-medium rounded px-2 py-0.5">${safe}</span>`;
-              }).join('');
-        newCodesArea.value = '';
+        if (codes.length === 0) {
+            existingDiv.innerHTML = '<span class="text-xs text-gray-400 italic">No existing exemption codes.</span>';
+        } else {
+            existingDiv.innerHTML = codes.map(ec => {
+                const codeHtml = `<span class="inline-block bg-gray-100 text-gray-800 text-xs font-medium rounded px-2 py-0.5 whitespace-nowrap">${escape(ec.code || '')}</span>`;
+                const descHtml = ec.description ? `<span class="text-xs text-gray-500 ml-2">${escape(ec.description)}</span>` : '';
+                return `<div class="flex items-baseline mb-1">${codeHtml}${descHtml}</div>`;
+            }).join('');
+        }
+        // reset edit rows to one blank row
+        editTbody.innerHTML = '';
+        const row = newRow();
+        editTbody.appendChild(row);
         modal.classList.remove('hidden');
-        newCodesArea.focus();
+        row.querySelector('input').focus();
     }
+
     function closeModal() { modal.classList.add('hidden'); }
 
     document.querySelectorAll('.edit-profile-btn').forEach(btn => {

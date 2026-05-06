@@ -16,6 +16,7 @@
 package ai.philterd.arbiter.webapp.services;
 
 import ai.philterd.arbiter.model.ComplianceProfile;
+import ai.philterd.arbiter.model.ExemptionCode;
 import ai.philterd.arbiter.repository.ComplianceProfileRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,16 +43,32 @@ public class DefaultComplianceProfileLoader implements ApplicationRunner {
 
     @Override
     public void run(final ApplicationArguments args) {
-        seedProfile("HIPAA",
-                List.of("NAME", "GEO", "DATE", "PHONE", "ID", "BIO", "PHOTO"));
-        seedProfile("FOIA",
-                List.of("(b)(1) National Security", "(b)(2) Internal Personnel Rules", "(b)(3) Statutory Prohibition", "(b)(4) Trade Secrets", "(b)(5) Privileged Communication", "(b)(6) Personal Privacy", "(b)(7) Law Enforcement", "(b)(9) Geological Information"));
-        seedProfile("General",
-                List.of("Third-Party Privacy", "Confidential Business Info", "Legal Privilege",
-                        "Security Risk", "Non-Responsive"));
+        seedProfile("HIPAA", List.of(
+                new ExemptionCode("NAME", "Individual's full or partial name (first, last, or initials)"),
+                new ExemptionCode("GEO", "Geographic data smaller than a state, such as addresses, ZIP codes, or counties"),
+                new ExemptionCode("DATE", "Dates directly related to an individual, including birth, death, admission, and discharge dates"),
+                new ExemptionCode("PHONE", "Telephone and fax numbers"),
+                new ExemptionCode("ID", "Social security, account, certificate, or license numbers"),
+                new ExemptionCode("BIO", "Biometric identifiers including fingerprints and voice prints"),
+                new ExemptionCode("PHOTO", "Full-face photographs and comparable identifying images")));
+        seedProfile("FOIA", List.of(
+                new ExemptionCode("(b)(1) National Security", "Classified national defense and foreign policy information"),
+                new ExemptionCode("(b)(2) Internal Personnel Rules", "Internal agency personnel rules and practices not of public interest"),
+                new ExemptionCode("(b)(3) Statutory Prohibition", "Information explicitly exempt under another federal statute"),
+                new ExemptionCode("(b)(4) Trade Secrets", "Confidential business information and trade secrets obtained from private parties"),
+                new ExemptionCode("(b)(5) Privileged Communication", "Inter- or intra-agency privileged communications, including deliberative process and attorney-client materials"),
+                new ExemptionCode("(b)(6) Personal Privacy", "Personnel, medical, and similar files whose disclosure would constitute a clearly unwarranted invasion of personal privacy"),
+                new ExemptionCode("(b)(7) Law Enforcement", "Records compiled for law enforcement purposes where disclosure could harm the investigation or individuals involved"),
+                new ExemptionCode("(b)(9) Geological Information", "Geological and geophysical information and data, including maps, concerning wells")));
+        seedProfile("General", List.of(
+                new ExemptionCode("Third-Party Privacy", "Information about individuals other than the requester whose privacy interests outweigh the public benefit of disclosure"),
+                new ExemptionCode("Confidential Business Info", "Proprietary or commercially sensitive business data provided in confidence"),
+                new ExemptionCode("Legal Privilege", "Material protected by attorney-client privilege or the attorney work-product doctrine"),
+                new ExemptionCode("Security Risk", "Information that could create a security vulnerability or endanger individuals if disclosed"),
+                new ExemptionCode("Non-Responsive", "Content outside the specific scope of the request and therefore not subject to release")));
     }
 
-    private void seedProfile(final String name, final List<String> exemptionCodes) {
+    private void seedProfile(final String name, final List<ExemptionCode> exemptionCodes) {
         if (complianceProfileRepository.findByName(name).isPresent()) {
             return;
         }

@@ -18,6 +18,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
@@ -32,10 +33,12 @@ public class InboxController {
     }
 
     @GetMapping
-    public String inbox(final Authentication authentication, final Model model) {
+    public String inbox(@RequestParam(value = "showArchived", defaultValue = "false") final boolean showArchived,
+                        final Authentication authentication, final Model model) {
         final String email = authentication == null ? null : authentication.getName();
-        final List<InboxMessage> messages = inboxService.listForEmail(email);
+        final List<InboxMessage> messages = inboxService.listForEmail(email, showArchived);
         model.addAttribute("messages", messages);
+        model.addAttribute("showArchived", showArchived);
         return "inbox";
     }
 
@@ -43,5 +46,13 @@ public class InboxController {
     public String markRead(@PathVariable("id") final String id, final Authentication authentication) {
         inboxService.markRead(id, authentication == null ? null : authentication.getName());
         return "redirect:/inbox";
+    }
+
+    @PostMapping("/{id}/archive")
+    public String archive(@PathVariable("id") final String id,
+                          @RequestParam(value = "showArchived", defaultValue = "false") final boolean showArchived,
+                          final Authentication authentication) {
+        inboxService.archive(id, authentication == null ? null : authentication.getName());
+        return showArchived ? "redirect:/inbox?showArchived=true" : "redirect:/inbox";
     }
 }

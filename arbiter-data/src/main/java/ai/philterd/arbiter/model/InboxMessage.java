@@ -30,6 +30,10 @@ public class InboxMessage {
 
     private boolean read;
 
+    private boolean archived;
+
+    private LocalDateTime archivedAt;
+
     /**
      * When true, the message body is rendered as HTML by the inbox view. Reserved for
      * system-generated messages where the content is fully controlled by the application
@@ -54,6 +58,12 @@ public class InboxMessage {
 
     public boolean isRead() { return read; }
     public void setRead(final boolean read) { this.read = read; }
+
+    public boolean isArchived() { return archived; }
+    public void setArchived(final boolean archived) { this.archived = archived; }
+
+    public LocalDateTime getArchivedAt() { return archivedAt; }
+    public void setArchivedAt(final LocalDateTime archivedAt) { this.archivedAt = archivedAt; }
 
     public boolean isHtml() { return html; }
     public void setHtml(final boolean html) { this.html = html; }

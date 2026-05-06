@@ -32,7 +32,7 @@ public class ComplianceProfile {
     @Indexed(unique = true)
     private String name;
 
-    private List<String> exemptionCodes = new ArrayList<>();
+    private List<ExemptionCode> exemptionCodes = new ArrayList<>();
 
     private boolean preset;
 
@@ -51,8 +51,8 @@ public class ComplianceProfile {
     public String getName() { return name; }
     public void setName(final String name) { this.name = name; }
 
-    public List<String> getExemptionCodes() { return exemptionCodes; }
-    public void setExemptionCodes(final List<String> exemptionCodes) { this.exemptionCodes = exemptionCodes; }
+    public List<ExemptionCode> getExemptionCodes() { return exemptionCodes; }
+    public void setExemptionCodes(final List<ExemptionCode> exemptionCodes) { this.exemptionCodes = exemptionCodes; }
 
     public boolean isPreset() { return preset; }
     public void setPreset(final boolean preset) { this.preset = preset; }

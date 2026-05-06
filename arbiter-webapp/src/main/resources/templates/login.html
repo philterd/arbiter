@@ -49,6 +49,15 @@
                 Sign In
             </button>
         </form>
+        <div class="mt-4 text-center">
+            <button onclick="document.getElementById('forgot-password-msg').classList.toggle('hidden')"
+                    class="text-sm text-blue-600 hover:underline bg-transparent border-none cursor-pointer">
+                Forgot password?
+            </button>
+            <div id="forgot-password-msg" class="hidden mt-2 p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-700">
+                Please contact your administrator to reset your password.
+            </div>
+        </div>
     </div>
     </div>
     <div th:replace="~{fragments/footer :: footer}"></div>

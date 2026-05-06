@@ -260,7 +260,10 @@ public class ReviewViewController {
                 (approvalBatch == null || approvalBatch.getComplianceProfileId() == null) ? null
                 : complianceProfileRepository.findById(approvalBatch.getComplianceProfileId()).orElse(null);
         final List<String> exemptionCodes = complianceProfile != null && complianceProfile.getExemptionCodes() != null
-                ? complianceProfile.getExemptionCodes() : List.of();
+                ? complianceProfile.getExemptionCodes().stream()
+                        .map(ai.philterd.arbiter.model.ExemptionCode::getCode)
+                        .collect(java.util.stream.Collectors.toList())
+                : List.of();
         final String complianceProfileName = complianceProfile != null ? complianceProfile.getName() : null;
         model.addAttribute("exemptionCodes", exemptionCodes);
         model.addAttribute("complianceProfileName", complianceProfileName);

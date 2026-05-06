@@ -44,11 +44,13 @@
                       class="ml-auto inline-flex items-center justify-center min-w-[1.25rem] h-5 text-[10px] font-semibold rounded-full bg-red-600 text-white px-1.5"
                       th:text="${inboxUnreadCount}">3</span>
             </a>
+            <div class="mt-2 pt-3 border-t border-gray-200 space-y-1">
+                <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Redaction</p>
             <a th:href="@{/queue}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                 <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path>
                 </svg>
-                Document Queue
+                Documents
             </a>
             <a th:href="@{/second-opinions}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                 <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -56,6 +58,9 @@
                 </svg>
                 Second Opinions
             </a>
+            </div>
+            <div class="mt-2 pt-2 border-t border-gray-200 space-y-1">
+                <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Tools</p>
             <a th:href="@{/search}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                 <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"></path>
@@ -69,6 +74,7 @@
                 </svg>
                 Settings
             </a>
+            </div>
             <div sec:authorize="hasRole('ADMIN')" class="mt-4 pt-3 border-t border-gray-200 space-y-1">
                 <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Administration</p>
             <a sec:authorize="hasRole('ADMIN')" th:href="@{/batches}"
@@ -134,11 +140,20 @@
 
     <div class="flex-1 flex flex-col min-w-0">
         <main class="flex-1 p-8">
-            <h2 class="text-3xl font-bold text-gray-900 mb-6">Inbox</h2>
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-3xl font-bold text-gray-900">Inbox</h2>
+                <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
+                    <input type="checkbox" id="showArchivedToggle" th:checked="${showArchived}"
+                           class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                           onchange="window.location.href = this.checked ? '?showArchived=true' : '?showArchived=false'">
+                    Show archived
+                </label>
+            </div>
 
             <div th:if="${#lists.isEmpty(messages)}"
                  class="bg-white rounded-xl shadow-sm border border-gray-100 p-8 text-center text-sm text-gray-500">
-                You have no messages.
+                <span th:if="${showArchived}">You have no messages.</span>
+                <span th:unless="${showArchived}">You have no messages. Archived messages are hidden — use the toggle above to show them.</span>
             </div>
 
             <div th:unless="${#lists.isEmpty(messages)}"
@@ -148,13 +163,13 @@
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Received</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Message</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-32">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-28">Status</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1"></th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
                         <tr th:each="m : ${messages}"
-                            th:classappend="${m.read} ? '' : 'bg-blue-50/40'">
+                            th:classappend="${m.archived} ? 'opacity-60' : (${m.read} ? '' : 'bg-blue-50/40')">
                             <td class="px-6 py-3 align-top whitespace-nowrap text-sm text-gray-600 font-mono"
                                 th:text="${m.createdAt != null ? #temporals.format(m.createdAt, 'yyyy-MM-dd HH:mm') : '—'}">
                                 2026-01-01 00:00
@@ -164,17 +179,26 @@
                                 <span th:unless="${m.html}" th:text="${m.message}">message</span>
                             </td>
                             <td class="px-6 py-3 align-top whitespace-nowrap text-xs">
-                                <span th:if="${m.read}"
-                                      class="inline-flex px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 uppercase tracking-wide">Read</span>
-                                <span th:unless="${m.read}"
-                                      class="inline-flex px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-semibold uppercase tracking-wide">Unread</span>
+                                <span th:if="${m.archived}"
+                                      class="inline-flex px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 uppercase tracking-wide">Archived</span>
+                                <span th:unless="${m.archived}">
+                                    <span th:if="${m.read}"
+                                          class="inline-flex px-2 py-0.5 rounded-full bg-gray-100 text-gray-600 uppercase tracking-wide">Read</span>
+                                    <span th:unless="${m.read}"
+                                          class="inline-flex px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 font-semibold uppercase tracking-wide">Unread</span>
+                                </span>
                             </td>
                             <td class="px-6 py-3 align-top whitespace-nowrap text-sm">
-                                <form th:if="${!m.read}"
-                                      th:action="@{/inbox/{id}/read(id=${m.id})}" method="post" class="inline">
-                                    <button type="submit"
-                                            class="text-blue-600 hover:text-blue-800 font-medium">Mark read</button>
-                                </form>
+                                <span th:unless="${m.archived}" class="flex items-center gap-3">
+                                    <form th:if="${!m.read}"
+                                          th:action="@{/inbox/{id}/read(id=${m.id})}" method="post" class="inline">
+                                        <button type="submit" class="text-blue-600 hover:text-blue-800 font-medium">Mark read</button>
+                                    </form>
+                                    <form th:action="@{/inbox/{id}/archive(id=${m.id})}" method="post" class="inline">
+                                        <input type="hidden" name="showArchived" th:value="${showArchived}">
+                                        <button type="submit" class="text-gray-500 hover:text-gray-700 font-medium">Archive</button>
+                                    </form>
+                                </span>
                             </td>
                         </tr>
                     </tbody>

@@ -17,6 +17,7 @@ package ai.philterd.arbiter.webapp.controllers;
 
 import ai.philterd.arbiter.model.Batch;
 import ai.philterd.arbiter.model.ComplianceProfile;
+import ai.philterd.arbiter.model.ExemptionCode;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.ComplianceProfileRepository;
 import ai.philterd.arbiter.service.AuditLogService;
@@ -34,7 +35,6 @@ import org.springframework.data.domain.Sort;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -65,7 +65,7 @@ public class AdminComplianceProfileController {
         model.addAttribute("profiles", profiles);
         model.addAttribute("showArchived", showArchived);
 
-        final Map<String, List<String>> profileExemptionCodesMap = new java.util.LinkedHashMap<>();
+        final Map<String, List<ExemptionCode>> profileExemptionCodesMap = new java.util.LinkedHashMap<>();
         for (final ComplianceProfile p : profiles) {
             if (!p.isPreset() && !p.isArchived()) {
                 profileExemptionCodesMap.put(p.getId(), p.getExemptionCodes() != null ? p.getExemptionCodes() : List.of());
@@ -78,29 +78,27 @@ public class AdminComplianceProfileController {
 
     @PostMapping
     public String create(@RequestParam("name") final String name,
-                         @RequestParam(value = "exemptionCodes", required = false) final String exemptionCodesText,
+                         @RequestParam(value = "codes", required = false) final List<String> codesParam,
+                         @RequestParam(value = "descriptions", required = false) final List<String> descriptionsParam,
                          final RedirectAttributes redirectAttributes) {
         final String trimmed = name == null ? "" : name.trim();
         if (trimmed.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Profile name is required.");
             redirectAttributes.addFlashAttribute("retainName", name);
-            redirectAttributes.addFlashAttribute("retainExemptionCodes", exemptionCodesText);
             return "redirect:/admin/compliance-profiles";
         }
         if (complianceProfileRepository.findByName(trimmed).isPresent()) {
             redirectAttributes.addFlashAttribute("error", "A compliance profile named \"" + trimmed + "\" already exists.");
             redirectAttributes.addFlashAttribute("retainName", name);
-            redirectAttributes.addFlashAttribute("retainExemptionCodes", exemptionCodesText);
             return "redirect:/admin/compliance-profiles";
         }
 
-        final List<String> exemptionCodes = parseLines(exemptionCodesText);
-        final List<String> dupes = duplicatesIn(exemptionCodes);
+        final List<ExemptionCode> exemptionCodes = buildExemptionCodes(codesParam, descriptionsParam);
+        final List<String> dupes = duplicateCodesIn(exemptionCodes);
         if (!dupes.isEmpty()) {
             redirectAttributes.addFlashAttribute("error",
                     "Duplicate exemption codes are not allowed: " + String.join(", ", dupes) + ".");
             redirectAttributes.addFlashAttribute("retainName", name);
-            redirectAttributes.addFlashAttribute("retainExemptionCodes", exemptionCodesText);
             return "redirect:/admin/compliance-profiles";
         }
 
@@ -118,7 +116,8 @@ public class AdminComplianceProfileController {
 
     @PostMapping("/{profileId}/edit")
     public String edit(@PathVariable final String profileId,
-                       @RequestParam(value = "exemptionCodes", required = false) final String exemptionCodesText,
+                       @RequestParam(value = "codes", required = false) final List<String> codesParam,
+                       @RequestParam(value = "descriptions", required = false) final List<String> descriptionsParam,
                        final RedirectAttributes redirectAttributes) {
         final ComplianceProfile profile = complianceProfileRepository.findById(profileId).orElse(null);
         if (profile == null) {
@@ -129,21 +128,22 @@ public class AdminComplianceProfileController {
             redirectAttributes.addFlashAttribute("error", "Preset compliance profiles cannot be edited.");
             return "redirect:/admin/compliance-profiles";
         }
-        final List<String> newCodes = parseLines(exemptionCodesText);
-        final List<String> dupesInNew = duplicatesIn(newCodes);
+        final List<ExemptionCode> newCodes = buildExemptionCodes(codesParam, descriptionsParam);
+        final List<String> dupesInNew = duplicateCodesIn(newCodes);
         if (!dupesInNew.isEmpty()) {
             redirectAttributes.addFlashAttribute("error",
                     "Duplicate exemption codes are not allowed: " + String.join(", ", dupesInNew) + ".");
             return "redirect:/admin/compliance-profiles";
         }
-        final List<String> existing = profile.getExemptionCodes() != null ? profile.getExemptionCodes() : List.of();
-        final List<String> conflicts = newCodes.stream().filter(existing::contains).toList();
+        final List<ExemptionCode> existing = profile.getExemptionCodes() != null ? profile.getExemptionCodes() : List.of();
+        final List<String> existingCodeValues = existing.stream().map(ExemptionCode::getCode).toList();
+        final List<String> conflicts = newCodes.stream().map(ExemptionCode::getCode).filter(existingCodeValues::contains).toList();
         if (!conflicts.isEmpty()) {
             redirectAttributes.addFlashAttribute("error",
                     "The following exemption codes already exist in this profile: " + String.join(", ", conflicts) + ".");
             return "redirect:/admin/compliance-profiles";
         }
-        final List<String> merged = new ArrayList<>(existing);
+        final List<ExemptionCode> merged = new ArrayList<>(existing);
         merged.addAll(newCodes);
         profile.setExemptionCodes(merged);
         complianceProfileRepository.save(profile);
@@ -203,22 +203,26 @@ public class AdminComplianceProfileController {
         return "redirect:/admin/compliance-profiles";
     }
 
-    private List<String> parseLines(final String text) {
-        final List<String> result = new ArrayList<>();
-        if (text == null || text.isBlank()) return result;
-        for (final String line : text.split("\\r?\\n")) {
-            final String v = line.trim();
-            if (!v.isEmpty()) result.add(v);
+    private List<ExemptionCode> buildExemptionCodes(final List<String> codes, final List<String> descriptions) {
+        final List<ExemptionCode> result = new ArrayList<>();
+        if (codes == null) return result;
+        for (int i = 0; i < codes.size(); i++) {
+            final String code = codes.get(i) == null ? "" : codes.get(i).trim();
+            if (code.isEmpty()) continue;
+            final String desc = (descriptions != null && i < descriptions.size() && descriptions.get(i) != null)
+                    ? descriptions.get(i).trim() : "";
+            result.add(new ExemptionCode(code, desc));
         }
         return result;
     }
 
-    private List<String> duplicatesIn(final List<String> values) {
+    private List<String> duplicateCodesIn(final List<ExemptionCode> exemptionCodes) {
         final java.util.Set<String> seen = new java.util.LinkedHashSet<>();
         final List<String> dupes = new ArrayList<>();
-        for (final String v : values) {
-            if (!seen.add(v) && !dupes.contains(v)) {
-                dupes.add(v);
+        for (final ExemptionCode ec : exemptionCodes) {
+            final String code = ec.getCode();
+            if (!seen.add(code) && !dupes.contains(code)) {
+                dupes.add(code);
             }
         }
         return dupes;

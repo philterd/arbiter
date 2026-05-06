@@ -235,7 +235,7 @@ public class RedactionController {
 
         redirectAttributes.addFlashAttribute("success",
                 "\"" + (originalFilename == null ? "Document" : originalFilename)
-                        + "\" was queued for redaction. It will appear in the Document Queue once processed.");
+                        + "\" was queued for redaction. It will appear in Documents once processed.");
         return "redirect:/upload";
     }
 

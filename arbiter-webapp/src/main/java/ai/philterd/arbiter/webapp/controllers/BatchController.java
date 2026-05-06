@@ -157,6 +157,7 @@ public class BatchController {
             final Map<String, Object> row = new LinkedHashMap<>();
             row.put("id", batch.getId());
             row.put("name", batch.getName());
+            row.put("description", batch.getDescription());
             row.put("createdAt", batch.getCreatedAt());
             row.put("confidenceThreshold", batch.getConfidenceThreshold());
             row.put("documentThreshold", batch.getDocumentThreshold());
@@ -243,6 +244,7 @@ public class BatchController {
 
     @PostMapping
     public String create(@RequestParam("name") String name,
+                         @RequestParam(value = "description", required = false) String description,
                          @RequestParam(value = "confidenceThreshold", required = false) Double confidenceThreshold,
                          @RequestParam(value = "documentThreshold", required = false) Double documentThreshold,
                          @RequestParam("groupId") String groupId,
@@ -325,6 +327,7 @@ public class BatchController {
         final String trimmedPolicy = policyName == null ? "" : policyName.trim();
         batch.setPolicyName(trimmedPolicy.isEmpty() ? null : trimmedPolicy);
         batch.setDomain(trimmedDomain);
+        batch.setDescription(description == null ? "" : description.trim());
         batch.setContext(context == null ? "" : context);
         batch.setFinalizationPolicyId(trimmedFinalization);
         batch.setComplianceProfileId(trimmedComplianceId);
@@ -579,6 +582,7 @@ public class BatchController {
                                  @RequestParam(value = "auditSamplingRate", required = false) final Double auditSamplingRate,
                                  @RequestParam(value = "context", required = false) final String context,
                                  @RequestParam(value = "domain", required = false) final String domain,
+                                 @RequestParam(value = "description", required = false) final String description,
                                  final Authentication authentication,
                                  final RedirectAttributes redirectAttributes) {
         if (!isAdmin(authentication)) {
@@ -622,12 +626,15 @@ public class BatchController {
         batch.setConfidenceThreshold(normalizedPii);
         batch.setDocumentThreshold(normalizedDoc);
         batch.setAuditSamplingRate(normalizedRate);
-        // context and domain are optional in the form — only update when explicitly sent.
+        // context, domain, and description are optional in the form — only update when explicitly sent.
         if (context != null) {
             batch.setContext(context);
         }
         if (domain != null) {
             batch.setDomain(domain.trim());
+        }
+        if (description != null) {
+            batch.setDescription(description.trim());
         }
         batchRepository.save(batch);
         final boolean contextChanged = context != null && !batch.getContext().equals(previousContext);

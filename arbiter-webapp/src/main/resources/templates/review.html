@@ -162,11 +162,13 @@
                           class="ml-auto inline-flex items-center justify-center min-w-[1.25rem] h-5 text-[10px] font-semibold rounded-full bg-red-600 text-white px-1.5"
                           th:text="${inboxUnreadCount}">3</span>
                 </a>
+                <div class="mt-2 pt-3 border-t border-gray-200 space-y-1">
+                    <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Redaction</p>
                 <a th:href="@{/queue}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path>
                     </svg>
-                    Document Queue
+                    Documents
                 </a>
                 <a th:href="@{/second-opinions}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -174,6 +176,9 @@
                     </svg>
                     Second Opinions
                 </a>
+                </div>
+                <div class="mt-2 pt-2 border-t border-gray-200 space-y-1">
+                    <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Tools</p>
                 <a th:href="@{/search}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"></path>
@@ -187,6 +192,7 @@
                     </svg>
                     Settings
                 </a>
+                </div>
                 <div sec:authorize="hasRole('ADMIN')" class="mt-4 pt-3 border-t border-gray-200 space-y-1">
                     <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Administration</p>
                 <a sec:authorize="hasRole('ADMIN')" th:href="@{/batches}"

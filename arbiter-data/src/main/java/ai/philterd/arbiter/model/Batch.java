@@ -14,6 +14,7 @@ public class Batch {
 
     @Indexed(unique = true)
     private String name;
+    private String description;
     private LocalDateTime createdAt;
     private String ownerId;
     private String groupId;
@@ -68,6 +69,14 @@ public class Batch {
 
     public void setName(final String name) {
         this.name = name;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(final String description) {
+        this.description = description;
     }
 
     public LocalDateTime getCreatedAt() {
