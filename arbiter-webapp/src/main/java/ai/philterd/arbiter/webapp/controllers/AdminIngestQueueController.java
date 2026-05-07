@@ -97,6 +97,35 @@ public class AdminIngestQueueController {
         model.addAttribute("pendingTotal", pending.size());
         model.addAttribute("processingTotal", processing.size());
         model.addAttribute("failedTotal", failed.size());
+        // Skipped is the cumulative count across all batches/time. SKIPPED rows are
+        // placeholder records written when an OpenSearch / Elasticsearch import detects
+        // a duplicate (same sourceIndex + sourceDocId).
+        model.addAttribute("skippedTotal", documentRepository.countByStatus("SKIPPED"));
+        // Re-read the clock for the 24-hour window so the upper bound is the count's
+        // own "now" — not the timestamp captured at the top of view() before the row
+        // queries ran. The window is [now-24h, now], inclusive on the upper end so a
+        // document created at the request instant is counted.
+        //
+        // Using MongoOperations directly because Spring Data's method-name derivation
+        // can't compose two predicates on the same property (Mongo's BSON Document
+        // can hold only one key per field) — the Criteria builder, in contrast, lets
+        // gt() and lte() coexist on a single property.
+        final LocalDateTime windowEnd = LocalDateTime.now();
+        final LocalDateTime windowStart = windowEnd.minusHours(24);
+        final long last24hTotal = mongoOperations.count(
+                Query.query(Criteria.where("createdAt").gt(windowStart).lte(windowEnd)),
+                Document.class);
+        model.addAttribute("last24hTotal", last24hTotal);
+
+        // Throughput: documents that have moved out of the PENDING/PROCESSING queue with
+        // a statusChangedAt inside the same 24-hour window, divided by 24 for an hourly
+        // average. This uses statusChangedAt rather than createdAt so a backlog being
+        // worked off lights up the meter even if intake has slowed.
+        final long processedLast24h = mongoOperations.count(
+                Query.query(Criteria.where("statusChangedAt").gt(windowStart).lte(windowEnd)
+                        .and("status").nin("PENDING", "PROCESSING")),
+                Document.class);
+        model.addAttribute("throughputPerHour", processedLast24h / 24.0);
         return "admin-ingest-queue";
     }
 

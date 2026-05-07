@@ -177,7 +177,7 @@
             <div th:if="${error}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
                  th:text="${error}">Error</div>
 
-            <div class="grid grid-cols-3 gap-3 mb-6 max-w-2xl">
+            <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-6 max-w-5xl">
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                     <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Pending</div>
                     <div class="mt-1 text-2xl font-semibold text-gray-900" th:text="${pendingTotal}">0</div>
@@ -190,6 +190,22 @@
                     <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Failed</div>
                     <div class="mt-1 text-2xl font-semibold" th:text="${failedTotal}"
                          th:classappend="${failedTotal > 0} ? 'text-red-700' : 'text-gray-900'">0</div>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Skipped</div>
+                    <div class="mt-1 text-2xl font-semibold text-gray-900" th:text="${skippedTotal}">0</div>
+                    <div class="text-[11px] text-gray-500 mt-0.5">already imported</div>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Last 24 hours</div>
+                    <div class="mt-1 text-2xl font-semibold text-gray-900" th:text="${last24hTotal}">0</div>
+                    <div class="text-[11px] text-gray-500 mt-0.5">documents ingested</div>
+                </div>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Throughput</div>
+                    <div class="mt-1 text-2xl font-semibold text-gray-900"
+                         th:text="${#numbers.formatDecimal(throughputPerHour, 1, 1)}">0.0</div>
+                    <div class="text-[11px] text-gray-500 mt-0.5">documents/hour, last 24h avg</div>
                 </div>
             </div>
 

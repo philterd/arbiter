@@ -10,6 +10,9 @@ services:
     environment:
       - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/arbiter
       - ARBITER_OPENSEARCH_ENDPOINT=http://opensearch:9200
+      - SPRING_DATA_REDIS_HOST=valkey
+      - SPRING_DATA_REDIS_PORT=6379
+      - SPRING_SESSION_STORE_TYPE=redis
     volumes:
       - ./sample-files:/app/sample-files:ro
     depends_on:
@@ -19,6 +22,22 @@ services:
         condition: service_healthy
       elasticsearch:
         condition: service_healthy
+      valkey:
+        condition: service_healthy
+    networks:
+      - arbiter
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    container_name: arbiter-valkey
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
     networks:
       - arbiter
 

@@ -193,14 +193,12 @@
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Started</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Finished</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Started by</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1">Details</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
                         <tr th:if="${#lists.isEmpty(section.jobs)}">
-                            <td colspan="8" class="px-6 py-8 text-center text-sm text-gray-500">
+                            <td colspan="6" class="px-6 py-8 text-center text-sm text-gray-500">
                                 No <span th:text="${#strings.toLowerCase(section.label)}">background jobs</span> have been started yet.
                             </td>
                         </tr>
@@ -256,12 +254,22 @@
                                     </ul>
                                 </details>
                             </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700"
-                                th:text="${j.startedAt == null ? '—' : @timestampFormatter.format(j.startedAt)}">—</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700"
-                                th:text="${j.finishedAt == null ? '—' : @timestampFormatter.format(j.finishedAt)}">—</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700"
-                                th:text="${#strings.isEmpty(j.createdBy) ? '—' : j.createdBy}">user</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <button type="button"
+                                        class="job-details-btn text-blue-600 hover:text-blue-800 font-medium"
+                                        th:attr="data-started=${j.startedAt == null ? '—' : @timestampFormatter.format(j.startedAt)},
+                                                 data-finished=${j.finishedAt == null ? '—' : @timestampFormatter.format(j.finishedAt)},
+                                                 data-started-by=${#strings.isEmpty(j.createdBy) ? '—' : j.createdBy},
+                                                 data-job-type=${j.type == 'OPENSEARCH_INGEST' ? 'OpenSearch Ingest'
+                                                                  : (j.type == 'ELASTICSEARCH_INGEST' ? 'Elasticsearch Ingest' : j.type)},
+                                                 data-source=${j.sourceName != null ? j.sourceName : '—'},
+                                                 data-batch=${j.batchName != null ? j.batchName : '—'},
+                                                 data-successful=${j.processedDocuments},
+                                                 data-failed=${j.failedDocuments},
+                                                 data-skipped=${j.skippedDocuments}">
+                                    Details
+                                </button>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -271,5 +279,109 @@
         <div th:replace="~{fragments/footer :: footer}"></div>
         </div>
     </div>
+
+    <!-- Job details modal — populated via the data-* attributes on each row's Details button. -->
+    <div id="jobDetailsModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-md p-6">
+            <div class="flex items-start justify-between mb-3">
+                <h3 class="text-lg font-semibold text-gray-900">Job details</h3>
+                <button type="button" id="jobDetailsClose"
+                        class="text-gray-400 hover:text-gray-700 -mt-1 -mr-1 p-1"
+                        aria-label="Close">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                         stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <dl class="text-sm text-gray-700 space-y-2">
+                <div class="flex justify-between gap-4">
+                    <dt class="text-gray-500">Type</dt>
+                    <dd id="jobDetailsType" class="text-right font-medium text-gray-900">—</dd>
+                </div>
+                <div class="flex justify-between gap-4">
+                    <dt class="text-gray-500">Source</dt>
+                    <dd id="jobDetailsSource" class="text-right text-gray-900">—</dd>
+                </div>
+                <div class="flex justify-between gap-4">
+                    <dt class="text-gray-500">Batch</dt>
+                    <dd id="jobDetailsBatch" class="text-right text-gray-900">—</dd>
+                </div>
+                <div class="flex justify-between gap-4">
+                    <dt class="text-gray-500">Started</dt>
+                    <dd id="jobDetailsStarted" class="text-right text-gray-900">—</dd>
+                </div>
+                <div class="flex justify-between gap-4">
+                    <dt class="text-gray-500">Finished</dt>
+                    <dd id="jobDetailsFinished" class="text-right text-gray-900">—</dd>
+                </div>
+                <div class="flex justify-between gap-4">
+                    <dt class="text-gray-500">Started by</dt>
+                    <dd id="jobDetailsStartedBy" class="text-right text-gray-900">—</dd>
+                </div>
+                <div class="border-t border-gray-100 pt-2 mt-2 flex justify-between gap-4">
+                    <dt class="text-gray-500">Successful</dt>
+                    <dd id="jobDetailsSuccessful" class="text-right font-medium text-green-700">0</dd>
+                </div>
+                <div class="flex justify-between gap-4">
+                    <dt class="text-gray-500">Failed</dt>
+                    <dd id="jobDetailsFailed" class="text-right font-medium text-red-700">0</dd>
+                </div>
+                <div class="flex justify-between gap-4">
+                    <dt class="text-gray-500">Skipped</dt>
+                    <dd id="jobDetailsSkipped" class="text-right font-medium text-amber-700">0</dd>
+                </div>
+            </dl>
+            <div class="flex justify-end mt-5">
+                <button type="button" id="jobDetailsCloseBtn"
+                        class="px-4 py-1.5 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            const modal = document.getElementById('jobDetailsModal');
+            if (!modal) return;
+            const fields = {
+                type: document.getElementById('jobDetailsType'),
+                source: document.getElementById('jobDetailsSource'),
+                batch: document.getElementById('jobDetailsBatch'),
+                started: document.getElementById('jobDetailsStarted'),
+                finished: document.getElementById('jobDetailsFinished'),
+                startedBy: document.getElementById('jobDetailsStartedBy'),
+                successful: document.getElementById('jobDetailsSuccessful'),
+                failed: document.getElementById('jobDetailsFailed'),
+                skipped: document.getElementById('jobDetailsSkipped'),
+            };
+
+            function open(btn) {
+                fields.type.textContent = btn.dataset.jobType || '—';
+                fields.source.textContent = btn.dataset.source || '—';
+                fields.batch.textContent = btn.dataset.batch || '—';
+                fields.started.textContent = btn.dataset.started || '—';
+                fields.finished.textContent = btn.dataset.finished || '—';
+                fields.startedBy.textContent = btn.dataset.startedBy || '—';
+                fields.successful.textContent = btn.dataset.successful || '0';
+                fields.failed.textContent = btn.dataset.failed || '0';
+                fields.skipped.textContent = btn.dataset.skipped || '0';
+                modal.classList.remove('hidden');
+            }
+            function close() { modal.classList.add('hidden'); }
+
+            document.querySelectorAll('.job-details-btn').forEach(btn => {
+                btn.addEventListener('click', () => open(btn));
+            });
+            document.getElementById('jobDetailsClose').addEventListener('click', close);
+            document.getElementById('jobDetailsCloseBtn').addEventListener('click', close);
+            // Click-outside dismisses (clicking the dimmed backdrop, not the panel itself).
+            modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
+            });
+        })();
+    </script>
 </body>
 </html>

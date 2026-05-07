@@ -16,6 +16,7 @@ import ai.philterd.arbiter.repository.BackgroundJobRepository;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.ElasticsearchDataSourceRepository;
+import ai.philterd.arbiter.service.InboxService;
 import ai.philterd.arbiter.service.SymmetricCipher;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -45,6 +46,7 @@ class ElasticsearchIngestJobServiceTest {
     private DocumentRepository documentRepository;
     private IngestQueueService ingestQueueService;
     private SymmetricCipher cipher;
+    private InboxService inboxService;
     private ElasticsearchIngestJobService service;
 
     @BeforeEach
@@ -55,10 +57,12 @@ class ElasticsearchIngestJobServiceTest {
         documentRepository = mock(DocumentRepository.class);
         ingestQueueService = mock(IngestQueueService.class);
         cipher = mock(SymmetricCipher.class);
+        inboxService = mock(InboxService.class);
         when(jobRepository.save(any(BackgroundJob.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
         service = new ElasticsearchIngestJobService(jobRepository, dataSourceRepository,
-                batchRepository, documentRepository, ingestQueueService, new ObjectMapper(), cipher);
+                batchRepository, documentRepository, ingestQueueService, new ObjectMapper(), cipher,
+                inboxService);
     }
 
     @Test

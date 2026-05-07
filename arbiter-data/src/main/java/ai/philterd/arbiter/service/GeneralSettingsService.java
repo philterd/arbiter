@@ -48,11 +48,23 @@ public class GeneralSettingsService {
         if (settings.getMaxUploadFileSizeBytes() <= 0) {
             settings.setMaxUploadFileSizeBytes(DEFAULT_MAX_UPLOAD_FILE_SIZE_BYTES);
         }
+        // Apply the default at read time when the persisted value is unset (legacy
+        // rows) or somehow out of range — we never want a 0 here because the
+        // dispatcher uses this to gate concurrency and 0 would freeze the queue.
+        if (settings.getMaxConcurrentDataImports() < MIN_CONCURRENT_DATA_IMPORTS
+                || settings.getMaxConcurrentDataImports() > MAX_CONCURRENT_DATA_IMPORTS) {
+            settings.setMaxConcurrentDataImports(DEFAULT_MAX_CONCURRENT_DATA_IMPORTS);
+        }
         return settings;
     }
 
     /** 10 MB default — applied at read time when the persisted value is unset. */
     public static final long DEFAULT_MAX_UPLOAD_FILE_SIZE_BYTES = 10L * 1024L * 1024L;
+    /** Concurrency bounds for data-import jobs. Exposed so the admin form and the
+     *  dispatcher agree on the same range. */
+    public static final int MIN_CONCURRENT_DATA_IMPORTS = 1;
+    public static final int MAX_CONCURRENT_DATA_IMPORTS = 10;
+    public static final int DEFAULT_MAX_CONCURRENT_DATA_IMPORTS = 1;
 
     public GeneralSettings save(GeneralSettings settings) {
         settings.setId(GeneralSettings.SINGLETON_ID);

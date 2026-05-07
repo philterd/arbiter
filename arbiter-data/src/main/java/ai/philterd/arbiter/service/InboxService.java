@@ -42,6 +42,16 @@ public class InboxService {
         return send(userId, message, true);
     }
 
+    /**
+     * Convenience for callers that hold an email address rather than a user id (background
+     * jobs persist {@code createdBy} as the actor's email). Returns {@code null} if no user
+     * with that email exists.
+     */
+    public InboxMessage sendByEmail(final String email, final String message) {
+        final String userId = userIdForEmail(email);
+        return userId == null ? null : send(userId, message, false);
+    }
+
     private InboxMessage send(final String userId, final String message, final boolean html) {
         if (userId == null || userId.isBlank() || message == null) return null;
         final InboxMessage m = new InboxMessage();

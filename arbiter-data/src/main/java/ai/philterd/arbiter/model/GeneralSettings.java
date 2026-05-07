@@ -21,6 +21,13 @@ public class GeneralSettings {
      */
     private long maxUploadFileSizeBytes;
     private boolean requireMfa;
+    /**
+     * Maximum number of data-import jobs allowed to run concurrently across the whole
+     * deployment. Bounded to 1–10 by the admin form; the {@link
+     * ai.philterd.arbiter.service.GeneralSettingsService} default of {@code 1} is
+     * applied at read time when the persisted value is unset or out of range.
+     */
+    private int maxConcurrentDataImports;
 
     public GeneralSettings() {
     }
@@ -44,4 +51,9 @@ public class GeneralSettings {
 
     public boolean isRequireMfa() { return requireMfa; }
     public void setRequireMfa(final boolean requireMfa) { this.requireMfa = requireMfa; }
+
+    public int getMaxConcurrentDataImports() { return maxConcurrentDataImports; }
+    public void setMaxConcurrentDataImports(final int maxConcurrentDataImports) {
+        this.maxConcurrentDataImports = maxConcurrentDataImports;
+    }
 }

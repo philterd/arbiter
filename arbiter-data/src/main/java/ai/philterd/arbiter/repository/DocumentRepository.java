@@ -35,5 +35,8 @@ public interface DocumentRepository extends MongoRepository<Document, String> {
     long countByBatchId(String batchId);
     long countByBatchIdAndStatus(String batchId, String status);
     long countByBatchIdAndStatusIn(String batchId, java.util.Collection<String> statuses);
+    long countByCreatedAtAfter(java.time.LocalDateTime cutoff);
+    long countByStatus(String status);
+    boolean existsBySourceIndexAndSourceDocId(String sourceIndex, String sourceDocId);
     List<Document> findByBatchId(String batchId);
 }

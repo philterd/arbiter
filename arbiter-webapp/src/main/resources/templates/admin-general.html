@@ -272,6 +272,37 @@
                 </form>
             </div>
 
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-3xl mb-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-1">Max concurrent data imports</h3>
+                <p class="text-sm text-gray-600 mb-4">
+                    Caps how many data-import jobs (OpenSearch, Elasticsearch, …) can run
+                    at the same time across the whole deployment. Additional jobs queue
+                    as <code>PENDING</code> and run when a slot frees up. Per-batch
+                    serialisation is independent and always enforced.
+                </p>
+
+                <form th:action="@{/admin/general/max-concurrent-data-imports}" method="post" class="space-y-4">
+                    <div>
+                        <label for="maxConcurrentDataImports" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
+                            Concurrent jobs
+                        </label>
+                        <select id="maxConcurrentDataImports" name="maxConcurrentDataImports" required
+                                class="block w-full max-w-xs rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option th:each="n : ${#numbers.sequence(1, 10)}"
+                                    th:value="${n}" th:text="${n}"
+                                    th:selected="${n == settings.maxConcurrentDataImports}">1</option>
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">Default is 1.</p>
+                    </div>
+                    <div class="flex justify-end">
+                        <button type="submit"
+                                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                            Save
+                        </button>
+                    </div>
+                </form>
+            </div>
+
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-3xl">
                 <h3 class="text-lg font-semibold text-gray-900 mb-1">Timezone</h3>
                 <p class="text-sm text-gray-600 mb-4">

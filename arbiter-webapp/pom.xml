@@ -57,6 +57,20 @@
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
+        <!--
+            Session state in Valkey (Redis-protocol compatible). The starter brings the
+            Lettuce client; spring-session-data-redis is auto-detected by Spring Boot and
+            replaces the in-memory HttpSession with a Redis-backed one so multiple replicas
+            share login/MFA/CSRF state.
+        -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-redis</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.session</groupId>
+            <artifactId>spring-session-data-redis</artifactId>
+        </dependency>
         <dependency>
             <groupId>org.thymeleaf.extras</groupId>
             <artifactId>thymeleaf-extras-springsecurity6</artifactId>

@@ -254,6 +254,7 @@ public class BatchController {
                          @RequestParam(value = "context", required = false, defaultValue = "") String context,
                          @RequestParam(value = "finalizationPolicyId", required = false) String finalizationPolicyId,
                          @RequestParam(value = "complianceProfileId", required = false) String complianceProfileId,
+                         @RequestParam(value = "exemptionCodeRequired", required = false) Boolean exemptionCodeRequired,
                          Authentication authentication,
                          RedirectAttributes redirectAttributes) {
         if (!isAdmin(authentication)) {
@@ -331,6 +332,9 @@ public class BatchController {
         batch.setContext(context == null ? "" : context);
         batch.setFinalizationPolicyId(trimmedFinalization);
         batch.setComplianceProfileId(trimmedComplianceId);
+        // Form checkboxes only submit a value when checked; an unchecked box arrives as null,
+        // which we interpret as "exemption code not required". Default for missing field is true.
+        batch.setExemptionCodeRequired(exemptionCodeRequired != null && exemptionCodeRequired);
         if (normalizedPii != null) {
             batch.setConfidenceThreshold(normalizedPii);
         }
@@ -353,7 +357,8 @@ public class BatchController {
                         "contextLength", batch.getContext().length(),
                         "confidenceThreshold", batch.getConfidenceThreshold(),
                         "documentThreshold", batch.getDocumentThreshold(),
-                        "complianceProfileId", trimmedComplianceId));
+                        "complianceProfileId", trimmedComplianceId,
+                        "exemptionCodeRequired", batch.isExemptionCodeRequired()));
         redirectAttributes.addFlashAttribute("success", "Batch \"" + trimmed + "\" created.");
         return "redirect:/batches";
     }

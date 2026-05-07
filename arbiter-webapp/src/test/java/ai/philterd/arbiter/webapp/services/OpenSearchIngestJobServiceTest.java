@@ -16,6 +16,7 @@ import ai.philterd.arbiter.repository.BackgroundJobRepository;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.OpenSearchDataSourceRepository;
+import ai.philterd.arbiter.service.InboxService;
 import ai.philterd.arbiter.service.SymmetricCipher;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -42,6 +44,7 @@ class OpenSearchIngestJobServiceTest {
     private DocumentRepository documentRepository;
     private IngestQueueService ingestQueueService;
     private SymmetricCipher cipher;
+    private InboxService inboxService;
     private OpenSearchIngestJobService service;
 
     @BeforeEach
@@ -52,11 +55,13 @@ class OpenSearchIngestJobServiceTest {
         documentRepository = mock(DocumentRepository.class);
         ingestQueueService = mock(IngestQueueService.class);
         cipher = mock(SymmetricCipher.class);
+        inboxService = mock(InboxService.class);
         // Make the repo's save() return its argument so the worker thread can chain saves.
         when(jobRepository.save(any(BackgroundJob.class)))
                 .thenAnswer(inv -> inv.getArgument(0));
         service = new OpenSearchIngestJobService(jobRepository, dataSourceRepository,
-                batchRepository, documentRepository, ingestQueueService, new ObjectMapper(), cipher);
+                batchRepository, documentRepository, ingestQueueService, new ObjectMapper(), cipher,
+                inboxService);
     }
 
     // ---------- start() ----------
@@ -73,6 +78,45 @@ class OpenSearchIngestJobServiceTest {
         assertNotNull(job.getStartedAt());
         assertNotNull(job.getFinishedAt());
         verify(jobRepository).save(any(BackgroundJob.class));
+
+        // Even synchronous failures notify the user — they may have moved on by the time
+        // the click finishes the round trip.
+        final ArgumentCaptor<String> messageCaptor = ArgumentCaptor.forClass(String.class);
+        verify(inboxService).sendByEmail(eq("actor@example.com"), messageCaptor.capture());
+        assertTrue(messageCaptor.getValue().contains("failed"),
+                "expected message to flag failure: " + messageCaptor.getValue());
+    }
+
+    @Test
+    void noActorEmailMeansNoInboxNotification() {
+        when(dataSourceRepository.findById("ghost")).thenReturn(Optional.empty());
+
+        service.start("ghost", "b1", 2, "");
+
+        verify(inboxService, org.mockito.Mockito.never()).sendByEmail(any(), any());
+    }
+
+    @Test
+    void startQueuesPendingEvenWhenAnotherJobIsAlreadyRunning() {
+        // Multiple imports can be queued for the same batch — start() persists a PENDING
+        // row regardless of whether another job is already running. The DataImportDispatcher
+        // promotes them to RUNNING one at a time.
+        final OpenSearchDataSource src = new OpenSearchDataSource();
+        src.setId("src-1");
+        src.setName("Demo");
+        final Batch batch = new Batch();
+        batch.setId("b1");
+        batch.setName("Sample");
+        when(dataSourceRepository.findById("src-1")).thenReturn(Optional.of(src));
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(batch));
+
+        final BackgroundJob job = service.start("src-1", "b1", 2, "alice@example.com");
+
+        assertEquals(BackgroundJob.STATUS_PENDING, job.getStatus());
+        assertEquals(BackgroundJob.TYPE_OPENSEARCH_INGEST, job.getType());
+        assertEquals("b1", job.getBatchId());
+        assertEquals("alice@example.com", job.getCreatedBy());
+        verify(jobRepository, atLeastOnce()).save(any(BackgroundJob.class));
     }
 
     @Test

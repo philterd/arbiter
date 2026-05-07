@@ -559,6 +559,7 @@
         const currentUserEmail = /*[[${currentUserEmail}]]*/ '';
         const documentId = /*[[${document.id}]]*/ '';
         const exemptionCodes = /*[[${exemptionCodes}]]*/ [];
+        const exemptionCodeRequired = /*[[${exemptionCodeRequired}]]*/ false;
         const complianceProfileName = /*[[${complianceProfileName}]]*/ null;
 
         function escapeHtml(unsafe) {
@@ -934,7 +935,7 @@
                         if (reason === null) return;
                     }
                     let exemptionCode = null;
-                    if (newStatus === 'APPROVED' && exemptionCodes.length > 0) {
+                    if (newStatus === 'APPROVED' && exemptionCodeRequired && exemptionCodes.length > 0) {
                         exemptionCode = await promptExemptionCode(item);
                         if (exemptionCode === null) return;
                     }

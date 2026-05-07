@@ -142,6 +142,31 @@ public class AdminGeneralController {
         return "redirect:/admin/general";
     }
 
+    @PostMapping("/max-concurrent-data-imports")
+    public String saveMaxConcurrentDataImports(
+            @RequestParam("maxConcurrentDataImports") final int maxConcurrentDataImports,
+            final RedirectAttributes redirectAttributes) {
+        if (maxConcurrentDataImports < GeneralSettingsService.MIN_CONCURRENT_DATA_IMPORTS
+                || maxConcurrentDataImports > GeneralSettingsService.MAX_CONCURRENT_DATA_IMPORTS) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Max concurrent data imports must be between "
+                            + GeneralSettingsService.MIN_CONCURRENT_DATA_IMPORTS + " and "
+                            + GeneralSettingsService.MAX_CONCURRENT_DATA_IMPORTS + ".");
+            return "redirect:/admin/general";
+        }
+
+        final GeneralSettings settings = generalSettingsService.load();
+        final int previous = settings.getMaxConcurrentDataImports();
+        settings.setMaxConcurrentDataImports(maxConcurrentDataImports);
+        generalSettingsService.save(settings);
+
+        auditLogService.log("GENERAL_SETTINGS_CHANGE", "Settings", GeneralSettings.SINGLETON_ID,
+                Map.of("previousMaxConcurrentDataImports", previous,
+                        "maxConcurrentDataImports", maxConcurrentDataImports));
+        redirectAttributes.addFlashAttribute("success", "Max concurrent data imports saved.");
+        return "redirect:/admin/general";
+    }
+
     @PostMapping("/timezone")
     public String saveTimezone(@RequestParam("timezone") final String timezone,
                                final RedirectAttributes redirectAttributes) {

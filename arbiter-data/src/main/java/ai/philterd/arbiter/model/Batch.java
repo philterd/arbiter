@@ -48,6 +48,13 @@ public class Batch {
      */
     private String finalizationPolicyId;
     private String complianceProfileId;
+    /**
+     * When {@code true}, accepting (APPROVING) a redaction in this batch requires the
+     * reviewer to pick a Compliance Profile exemption code. When {@code false}, the
+     * exemption-code prompt is suppressed even if the compliance profile defines codes.
+     * Defaults to {@code true} so existing behaviour is preserved.
+     */
+    private boolean exemptionCodeRequired = true;
     private boolean closed;
     private LocalDateTime closedAt;
     private String closedBy;
@@ -244,6 +251,11 @@ public class Batch {
 
     public String getComplianceProfileId() { return complianceProfileId; }
     public void setComplianceProfileId(final String complianceProfileId) { this.complianceProfileId = complianceProfileId; }
+
+    public boolean isExemptionCodeRequired() { return exemptionCodeRequired; }
+    public void setExemptionCodeRequired(final boolean exemptionCodeRequired) {
+        this.exemptionCodeRequired = exemptionCodeRequired;
+    }
 
     public boolean isClosed() {
         return closed;

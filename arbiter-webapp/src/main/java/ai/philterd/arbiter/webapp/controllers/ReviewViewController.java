@@ -304,7 +304,14 @@ public class ReviewViewController {
                         .collect(java.util.stream.Collectors.toList())
                 : List.of();
         final String complianceProfileName = complianceProfile != null ? complianceProfile.getName() : null;
+        // The exemption-code prompt fires only when the batch requires it AND the compliance
+        // profile actually defines codes. The batch flag defaults to true on existing rows
+        // (the field's Java default), so prior batches keep their original behaviour.
+        final boolean exemptionCodeRequired = approvalBatch != null
+                && approvalBatch.isExemptionCodeRequired()
+                && !exemptionCodes.isEmpty();
         model.addAttribute("exemptionCodes", exemptionCodes);
+        model.addAttribute("exemptionCodeRequired", exemptionCodeRequired);
         model.addAttribute("complianceProfileName", complianceProfileName);
         model.addAttribute("batchName", approvalBatch == null ? "" : (approvalBatch.getName() == null ? "" : approvalBatch.getName()));
         model.addAttribute("batchDescription", approvalBatch == null ? "" : (approvalBatch.getDescription() == null ? "" : approvalBatch.getDescription()));

@@ -10,6 +10,7 @@
 package ai.philterd.arbiter.model;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.Instant;
@@ -22,7 +23,20 @@ import java.time.Instant;
  * "Data Import Jobs", "Cleanup Jobs", …). Type-specific fields like {@link #totalDocuments}
  * or {@link #batchId} are nullable / zero for jobs that don't use them.
  */
+/**
+ * Partial unique index that enforces "at most one RUNNING data-import job per batch"
+ * atomically at the storage layer. PENDING jobs are intentionally not part of the
+ * filter — users can queue any number of imports per batch and the dispatcher
+ * promotes them to RUNNING one at a time. Completed/failed rows are excluded so
+ * historical jobs never collide. Supported by MongoDB 6.0+ (where {@code $in}
+ * became valid in {@code partialFilterExpression}).
+ */
 @Document(collection = "background_jobs")
+@CompoundIndex(name = "uniq_running_data_import_per_batch",
+        def = "{'batchId': 1}",
+        unique = true,
+        partialFilter = "{ 'status': 'RUNNING', "
+                + "'type': { $in: ['OPENSEARCH_INGEST', 'ELASTICSEARCH_INGEST'] } }")
 public class BackgroundJob {
 
     public static final String STATUS_PENDING = "PENDING";
@@ -99,6 +113,13 @@ public class BackgroundJob {
     /** Documents that could not be enqueued (e.g. missing text field). */
     private long failedDocuments;
 
+    /**
+     * Documents skipped because a row with the same source attribution already exists
+     * in MongoDB. Skipped hits are not enqueued; a SKIPPED-status placeholder Document
+     * row is written instead so the import attempt is auditable.
+     */
+    private long skippedDocuments;
+
     /** Free-text error if the job itself failed. */
     private String errorMessage;
 
@@ -156,6 +177,9 @@ public class BackgroundJob {
 
     public long getFailedDocuments() { return failedDocuments; }
     public void setFailedDocuments(final long failedDocuments) { this.failedDocuments = failedDocuments; }
+
+    public long getSkippedDocuments() { return skippedDocuments; }
+    public void setSkippedDocuments(final long skippedDocuments) { this.skippedDocuments = skippedDocuments; }
 
     public String getErrorMessage() { return errorMessage; }
     public void setErrorMessage(final String errorMessage) { this.errorMessage = errorMessage; }

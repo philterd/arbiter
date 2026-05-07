@@ -16,6 +16,7 @@ import ai.philterd.arbiter.repository.BackgroundJobRepository;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.ElasticsearchDataSourceRepository;
+import ai.philterd.arbiter.service.InboxService;
 import ai.philterd.arbiter.service.SymmetricCipher;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,8 +34,6 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.Iterator;
 import java.util.UUID;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 /**
  * Background ingest worker for Elasticsearch data sources. Behaves identically to
@@ -57,14 +56,10 @@ public class ElasticsearchIngestJobService {
     private final IngestQueueService ingestQueueService;
     private final ObjectMapper objectMapper;
     private final SymmetricCipher cipher;
+    private final InboxService inboxService;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
-    private final ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
-        final Thread t = new Thread(r, "elasticsearch-ingest");
-        t.setDaemon(true);
-        return t;
-    });
 
     public ElasticsearchIngestJobService(final BackgroundJobRepository jobRepository,
                                          final ElasticsearchDataSourceRepository dataSourceRepository,
@@ -72,7 +67,8 @@ public class ElasticsearchIngestJobService {
                                          final DocumentRepository documentRepository,
                                          final IngestQueueService ingestQueueService,
                                          final ObjectMapper objectMapper,
-                                         final SymmetricCipher cipher) {
+                                         final SymmetricCipher cipher,
+                                         final InboxService inboxService) {
         this.jobRepository = jobRepository;
         this.dataSourceRepository = dataSourceRepository;
         this.batchRepository = batchRepository;
@@ -80,6 +76,7 @@ public class ElasticsearchIngestJobService {
         this.ingestQueueService = ingestQueueService;
         this.objectMapper = objectMapper;
         this.cipher = cipher;
+        this.inboxService = inboxService;
     }
 
     public BackgroundJob start(final String sourceId, final String batchId, final int priority,
@@ -107,8 +104,6 @@ public class ElasticsearchIngestJobService {
         job.setCreatedAt(Instant.now());
         job.setCreatedBy(actorEmail == null ? "" : actorEmail);
         jobRepository.save(job);
-
-        executor.submit(() -> run(job.getId()));
         return job;
     }
 
@@ -127,10 +122,15 @@ public class ElasticsearchIngestJobService {
         job.setStartedAt(now);
         job.setFinishedAt(now);
         job.setCreatedBy(actorEmail == null ? "" : actorEmail);
-        return jobRepository.save(job);
+        final BackgroundJob saved = jobRepository.save(job);
+        notifyOwner(saved);
+        return saved;
     }
 
-    private void run(final String jobId) {
+    /**
+     * Execute a previously-persisted PENDING job. Mirrors {@link OpenSearchIngestJobService#run}.
+     */
+    public void run(final String jobId) {
         BackgroundJob job = jobRepository.findById(jobId).orElse(null);
         if (job == null) {
             log.warn("Background job {} disappeared before it could run.", jobId);
@@ -194,7 +194,8 @@ public class ElasticsearchIngestJobService {
             }
 
             if (job.getTotalDocuments() < 0) {
-                job.setTotalDocuments(job.getProcessedDocuments() + job.getFailedDocuments());
+                job.setTotalDocuments(job.getProcessedDocuments()
+                        + job.getFailedDocuments() + job.getSkippedDocuments());
                 jobRepository.save(job);
             }
             finish(job, BackgroundJob.STATUS_COMPLETED, null);
@@ -234,13 +235,24 @@ public class ElasticsearchIngestJobService {
             final String hitIndex = hit.path("_index").isMissingNode()
                     ? defaultIndex
                     : hit.path("_index").asText(defaultIndex);
+            final String sourceDocIdValue = hit.path("_id").asText("");
+
+            // Dedup: if a Document with the same (sourceIndex, sourceDocId) already exists,
+            // record a SKIPPED placeholder so the import attempt is auditable but don't
+            // re-enqueue the content.
+            if (!sourceDocIdValue.isEmpty()
+                    && documentRepository.existsBySourceIndexAndSourceDocId(hitIndex, sourceDocIdValue)) {
+                recordSkipped(job, batch, filename, hitIndex, sourceDocIdValue, sourceUrl, "ELASTICSEARCH");
+                continue;
+            }
+
             try {
                 final ai.philterd.arbiter.model.Document doc =
                         ingestQueueService.enqueueText(batch, filename, text, job.getPriority());
                 doc.setSourceSystem("ELASTICSEARCH");
                 doc.setSourceUrl(sourceUrl);
                 doc.setSourceIndex(hitIndex);
-                doc.setSourceDocId(hit.path("_id").asText(""));
+                doc.setSourceDocId(sourceDocIdValue);
                 doc.setImportedAt(java.time.LocalDateTime.now());
                 documentRepository.save(doc);
                 bumpProcessed(job);
@@ -250,6 +262,30 @@ public class ElasticsearchIngestJobService {
                 bumpFailed(job, reason);
             }
         }
+    }
+
+    /**
+     * Persist a SKIPPED placeholder Document row for a hit that's already been imported
+     * (matched by source index + source doc id). Mirrors {@link OpenSearchIngestJobService}.
+     */
+    private void recordSkipped(final BackgroundJob job, final Batch batch, final String filename,
+                               final String hitIndex, final String hitId, final String sourceUrl,
+                               final String sourceSystem) {
+        final ai.philterd.arbiter.model.Document doc = new ai.philterd.arbiter.model.Document();
+        doc.setId(UUID.randomUUID().toString());
+        doc.setBatchId(batch.getId());
+        doc.setFilename(filename);
+        doc.setOriginalText("");
+        doc.setSourceSystem(sourceSystem);
+        doc.setSourceUrl(sourceUrl);
+        doc.setSourceIndex(hitIndex);
+        doc.setSourceDocId(hitId);
+        doc.setImportedAt(java.time.LocalDateTime.now());
+        doc.setCreatedAt(java.time.LocalDateTime.now());
+        doc.setPriority(job.getPriority());
+        doc.changeStatus("SKIPPED");
+        documentRepository.save(doc);
+        bumpSkipped(job);
     }
 
     private JsonNode executeInitialQuery(final ElasticsearchDataSource source, final int pageSize,
@@ -350,11 +386,65 @@ public class ElasticsearchIngestJobService {
         jobRepository.save(job);
     }
 
+    private void bumpSkipped(final BackgroundJob job) {
+        job.setSkippedDocuments(job.getSkippedDocuments() + 1);
+        jobRepository.save(job);
+    }
+
     private void finish(final BackgroundJob job, final String status, final String error) {
         job.setStatus(status);
         if (error != null) job.setErrorMessage(error);
         job.setFinishedAt(Instant.now());
         jobRepository.save(job);
+        notifyOwner(job);
+    }
+
+    /**
+     * Drop a one-line summary into the starting user's inbox so they don't have to keep an
+     * eye on the Background Jobs page. Mirrors {@link OpenSearchIngestJobService#notifyOwner}.
+     */
+    private void notifyOwner(final BackgroundJob job) {
+        final String email = job.getCreatedBy();
+        if (email == null || email.isBlank()) return;
+        inboxService.sendByEmail(email, summarize(job));
+    }
+
+    private static String summarize(final BackgroundJob job) {
+        final String source = job.getSourceName() == null || job.getSourceName().isBlank()
+                ? "(unknown source)" : job.getSourceName();
+        final String batch = job.getBatchName() == null || job.getBatchName().isBlank()
+                ? "(unknown batch)" : job.getBatchName();
+        final boolean ok = BackgroundJob.STATUS_COMPLETED.equals(job.getStatus());
+        final StringBuilder sb = new StringBuilder();
+        sb.append("Elasticsearch import from \"").append(source).append("\" into batch \"").append(batch);
+        if (ok) {
+            sb.append("\" completed. Processed ").append(job.getProcessedDocuments());
+            if (job.getTotalDocuments() >= 0) {
+                sb.append(" of ").append(job.getTotalDocuments());
+            }
+            sb.append(" document(s)");
+            if (job.getFailedDocuments() > 0) {
+                sb.append(", ").append(job.getFailedDocuments()).append(" failed");
+            }
+            if (job.getSkippedDocuments() > 0) {
+                sb.append(", ").append(job.getSkippedDocuments()).append(" skipped (already imported)");
+            }
+            sb.append('.');
+        } else {
+            sb.append("\" failed.");
+            if (job.getErrorMessage() != null && !job.getErrorMessage().isBlank()) {
+                sb.append(' ').append(job.getErrorMessage());
+                if (!job.getErrorMessage().endsWith(".")) sb.append('.');
+            }
+            if (job.getProcessedDocuments() > 0 || job.getFailedDocuments() > 0) {
+                sb.append(" Processed ").append(job.getProcessedDocuments());
+                if (job.getFailedDocuments() > 0) {
+                    sb.append(", ").append(job.getFailedDocuments()).append(" failed");
+                }
+                sb.append(" before stopping.");
+            }
+        }
+        return sb.toString();
     }
 
     private static int firstWhitespace(final String s) {
