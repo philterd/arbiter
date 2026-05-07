@@ -15,19 +15,13 @@ WORKDIR /build
 # Cache Maven dependencies on the per-module poms first so source-only
 # changes don't re-trigger the dependency download.
 COPY pom.xml ./
-COPY arbiter-core/pom.xml arbiter-core/pom.xml
-COPY arbiter-philter-client/pom.xml arbiter-philter-client/pom.xml
-COPY arbiter-data/pom.xml arbiter-data/pom.xml
-COPY arbiter-service/pom.xml arbiter-service/pom.xml
-COPY arbiter-api/pom.xml arbiter-api/pom.xml
+COPY arbiter-domain/pom.xml arbiter-domain/pom.xml
+COPY arbiter-platform/pom.xml arbiter-platform/pom.xml
 COPY arbiter-webapp/pom.xml arbiter-webapp/pom.xml
 RUN mvn -B -ntp -q -e -DskipTests dependency:go-offline || true
 
-COPY arbiter-core arbiter-core
-COPY arbiter-philter-client arbiter-philter-client
-COPY arbiter-data arbiter-data
-COPY arbiter-service arbiter-service
-COPY arbiter-api arbiter-api
+COPY arbiter-domain arbiter-domain
+COPY arbiter-platform arbiter-platform
 COPY arbiter-webapp arbiter-webapp
 
 # Bake the rendered mkdocs site into the webapp's classpath as static/docs.

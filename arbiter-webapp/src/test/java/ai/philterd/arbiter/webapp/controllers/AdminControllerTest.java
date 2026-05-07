@@ -15,7 +15,7 @@ import ai.philterd.arbiter.repository.UserRepository;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.InboxService;
 import ai.philterd.arbiter.service.NotificationSettingsService;
-import ai.philterd.arbiter.webapp.services.UserNotificationService;
+import ai.philterd.arbiter.service.UserNotificationService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.crypto.password.PasswordEncoder;

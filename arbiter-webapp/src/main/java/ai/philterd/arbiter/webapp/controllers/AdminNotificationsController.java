@@ -19,7 +19,7 @@ import ai.philterd.arbiter.model.NotificationSettings;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.NotificationSettingsService;
 import org.springframework.http.ResponseEntity;
-import ai.philterd.arbiter.webapp.services.UserNotificationService;
+import ai.philterd.arbiter.service.UserNotificationService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;

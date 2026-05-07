@@ -31,12 +31,9 @@
         <relativePath/>
     </parent>
     <modules>
-        <module>arbiter-core</module>
-        <module>arbiter-philter-client</module>
-        <module>arbiter-service</module>
-        <module>arbiter-data</module>
+        <module>arbiter-domain</module>
+        <module>arbiter-platform</module>
         <module>arbiter-webapp</module>
-        <module>arbiter-api</module>
     </modules>
     <properties>
         <java.version>21</java.version>
@@ -58,27 +55,12 @@
             </dependency>
             <dependency>
                 <groupId>ai.philterd.arbiter</groupId>
-                <artifactId>arbiter-core</artifactId>
+                <artifactId>arbiter-domain</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
                 <groupId>ai.philterd.arbiter</groupId>
-                <artifactId>arbiter-philter-client</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>ai.philterd.arbiter</groupId>
-                <artifactId>arbiter-service</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>ai.philterd.arbiter</groupId>
-                <artifactId>arbiter-data</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>ai.philterd.arbiter</groupId>
-                <artifactId>arbiter-api</artifactId>
+                <artifactId>arbiter-platform</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

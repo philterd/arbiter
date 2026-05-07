@@ -36,7 +36,7 @@ import ai.philterd.arbiter.service.LlmJudgeDefaultsService;
 import ai.philterd.arbiter.service.OpenSearchIndexService;
 import ai.philterd.arbiter.service.UserGroupsService;
 import ai.philterd.arbiter.service.UserSettingsService;
-import ai.philterd.arbiter.webapp.services.RedactionCertificateService;
+import ai.philterd.arbiter.service.RedactionCertificateService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Controller;

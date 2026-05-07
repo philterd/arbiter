@@ -42,7 +42,7 @@ import ai.philterd.arbiter.service.GeneralSettingsService;
 import ai.philterd.arbiter.service.OpenSearchIndexService;
 import ai.philterd.arbiter.service.RedactionService;
 import ai.philterd.arbiter.service.UserGroupsService;
-import ai.philterd.arbiter.webapp.services.IngestQueueService;
+import ai.philterd.arbiter.service.IngestQueueService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.slf4j.Logger;
@@ -92,8 +92,8 @@ public class RedactionController {
     private final S3DataSourceRepository s3DataSourceRepository;
     private final RelationalDbDataSourceRepository rdbDataSourceRepository;
     private final LocalDirectoryDataSourceRepository localDataSourceRepository;
-    private final ai.philterd.arbiter.webapp.services.OpenSearchIngestJobService openSearchIngestJobService;
-    private final ai.philterd.arbiter.webapp.services.ElasticsearchIngestJobService elasticsearchIngestJobService;
+    private final ai.philterd.arbiter.service.OpenSearchIngestJobService openSearchIngestJobService;
+    private final ai.philterd.arbiter.service.ElasticsearchIngestJobService elasticsearchIngestJobService;
 
     public RedactionController(final RedactionService redactionService,
                                final BatchRepository batchRepository,
@@ -109,8 +109,8 @@ public class RedactionController {
                                final S3DataSourceRepository s3DataSourceRepository,
                                final RelationalDbDataSourceRepository rdbDataSourceRepository,
                                final LocalDirectoryDataSourceRepository localDataSourceRepository,
-                               final ai.philterd.arbiter.webapp.services.OpenSearchIngestJobService openSearchIngestJobService,
-                               final ai.philterd.arbiter.webapp.services.ElasticsearchIngestJobService elasticsearchIngestJobService) {
+                               final ai.philterd.arbiter.service.OpenSearchIngestJobService openSearchIngestJobService,
+                               final ai.philterd.arbiter.service.ElasticsearchIngestJobService elasticsearchIngestJobService) {
         this.redactionService = redactionService;
         this.batchRepository = batchRepository;
         this.documentRepository = documentRepository;
