@@ -54,7 +54,7 @@ public class SecurityConfig {
                                                    final MfaAuthenticationSuccessHandler mfaSuccessHandler) throws Exception {
         http
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login", "/mfa", "/css/**", "/js/**", "/images/**", "/webjars/**", "/error").permitAll()
+                        .requestMatchers("/login", "/mfa", "/css/**", "/js/**", "/images/**", "/webjars/**", "/docs/**", "/error").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
                         .requestMatchers("/admin/**", "/reporting",
                                 "/batches", "/batches/**",

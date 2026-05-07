@@ -34,7 +34,7 @@ Other formats are not supported through the web UI.
    Priority is a hint for reviewers, not a queueing weight: redaction itself
    still drains the ingest queue oldest-first. The chosen priority is recorded
    on the document and shown as a chevron icon next to the filename in the
-   [Document Queue](queue.md#priority-icon) so high-priority items stand out.
+   [Document Queue](queue.md#priority-column) so high-priority items stand out.
 3. Choose the file with **Document**.
 4. Click **Redact Document**.
 

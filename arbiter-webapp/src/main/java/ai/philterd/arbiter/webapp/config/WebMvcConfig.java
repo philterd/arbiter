@@ -31,7 +31,7 @@ public class WebMvcConfig implements WebMvcConfigurer {
     @Override
     public void addInterceptors(final InterceptorRegistry registry) {
         registry.addInterceptor(new MfaEnrollmentInterceptor(generalSettingsService, userRepository))
-                .excludePathPatterns("/css/**", "/js/**", "/images/**", "/webjars/**",
+                .excludePathPatterns("/css/**", "/js/**", "/images/**", "/webjars/**", "/docs/**",
                         "/login", "/login/**", "/logout", "/mfa", "/error",
                         "/api/**", "/v3/api-docs/**", "/swagger-ui/**");
     }

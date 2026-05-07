@@ -45,7 +45,7 @@ Request body:
 `priority` is optional. It accepts an integer in `1..3` (`1` Low, `2` Normal,
 `3` High); omitting it or sending `null` defaults to Normal. The value is
 stored on the document and surfaced as a chevron icon on the
-[Document Queue](../user-guide/queue.md#priority-icon). It does not affect
+[Document Queue](../user-guide/queue.md#priority-column). It does not affect
 ingest ordering — redaction still runs oldest-first.
 
 | Status | Meaning                                                                |

@@ -27,13 +27,14 @@ nav:
   - Workflow: workflow.md
   - User guide:
       - Queue: user-guide/queue.md
-      - Uploading: user-guide/uploading.md
+      - Adding documents: user-guide/uploading.md
       - Reviewing: user-guide/reviewing.md
       - Personal settings: user-guide/settings.md
   - Admin guide:
       - Users and groups: admin/users-and-groups.md
       - Batches: admin/batches.md
       - Approval rule sets: admin/rules.md
+      - Data sources: admin/data-sources.md
       - Audit log: admin/audit-log.md
       - Notifications: admin/notifications.md
       - Security: admin/security.md
