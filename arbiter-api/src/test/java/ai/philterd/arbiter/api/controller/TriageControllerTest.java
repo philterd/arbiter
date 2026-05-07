@@ -79,7 +79,7 @@ class TriageControllerTest {
     @Test
     void adminWithMyGroupsOnlyFalseSeesEverything() {
         final Document d = doc("d1", "b1", "REVIEW_REQUIRED", 0.5);
-        when(documentRepository.findAll(any(PageRequest.class)))
+        when(documentRepository.findByStatusNotIn(any(), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of(d), PageRequest.of(0, 10), 1));
         when(batchRepository.findAllById(any()))
                 .thenReturn(List.of(batch("b1", "g1", "Batch One", 0.25)));
@@ -92,14 +92,14 @@ class TriageControllerTest {
 
     @Test
     void invalidSortFallsBackToRiskScore() {
-        when(documentRepository.findAll(any(PageRequest.class)))
+        when(documentRepository.findByStatusNotIn(any(), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
 
         controller.getQueue(0, 10, null, null, null, false, "evil-injection", "asc",
                 TestAuth.admin("admin@example.com"));
 
         final ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
-        verify(documentRepository).findAll(captor.capture());
+        verify(documentRepository).findByStatusNotIn(any(), captor.capture());
         final Sort sort = captor.getValue().getSort();
         final Sort.Order order = sort.getOrderFor("riskScore");
         assertEquals(Sort.Direction.ASC, order.getDirection());
@@ -107,14 +107,14 @@ class TriageControllerTest {
 
     @Test
     void ascDirectionRespected() {
-        when(documentRepository.findAll(any(PageRequest.class)))
+        when(documentRepository.findByStatusNotIn(any(), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
 
         controller.getQueue(0, 10, null, null, null, false, "filename", "asc",
                 TestAuth.admin("admin@example.com"));
 
         final ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
-        verify(documentRepository).findAll(captor.capture());
+        verify(documentRepository).findByStatusNotIn(any(), captor.capture());
         final Sort.Order order = captor.getValue().getSort().getOrderFor("filename");
         assertEquals(Sort.Direction.ASC, order.getDirection());
     }
@@ -124,8 +124,8 @@ class TriageControllerTest {
         userGroupsService.withMembership("alice@example.com", Set.of("g1"));
         when(batchRepository.findAll())
                 .thenReturn(List.of(batch("b1", "g1", "Yours", 0.25), batch("b2", "g2", "NotYours", 0.25)));
-        when(documentRepository.findByBatchIdIn(eq(Set.of("b1")), any(PageRequest.class)))
-                .thenReturn(new PageImpl<>(List.of(doc("d1", "b1", "PENDING", 0.1)),
+        when(documentRepository.findByBatchIdInAndStatusNotIn(eq(Set.of("b1")), any(), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(doc("d1", "b1", "REVIEW_REQUIRED", 0.1)),
                         PageRequest.of(0, 10), 1));
         when(batchRepository.findAllById(any()))
                 .thenReturn(List.of(batch("b1", "g1", "Yours", 0.25)));
@@ -133,7 +133,7 @@ class TriageControllerTest {
         final Page<Map<String, Object>> page = controller.getQueue(0, 10, null, null, null, false, "riskScore", "desc", TestAuth.user("alice@example.com"));
 
         assertEquals(1, page.getContent().size());
-        verify(documentRepository).findByBatchIdIn(eq(Set.of("b1")), any(PageRequest.class));
+        verify(documentRepository).findByBatchIdInAndStatusNotIn(eq(Set.of("b1")), any(), any(PageRequest.class));
     }
 
     @Test
@@ -153,7 +153,7 @@ class TriageControllerTest {
         final Document below = doc("d1", "b1", "REVIEW_REQUIRED", 0.10);
         final Document above = doc("d2", "b1", "REVIEW_REQUIRED", 0.50);
         final Document approved = doc("d3", "b1", "APPROVED", 0.05); // user-decided wins
-        when(documentRepository.findAll(any(PageRequest.class)))
+        when(documentRepository.findByStatusNotIn(any(), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of(below, above, approved), PageRequest.of(0, 10), 3));
         when(batchRepository.findAllById(any()))
                 .thenReturn(List.of(batch("b1", "g1", "B", 0.25)));
@@ -173,7 +173,7 @@ class TriageControllerTest {
         sourceCleared.setOriginalText(null);
         final Document emptySource = doc("d3", "b1", "FINALIZED", 0.10);
         emptySource.setOriginalText("");
-        when(documentRepository.findAll(any(PageRequest.class)))
+        when(documentRepository.findByStatusNotIn(any(), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of(withSource, sourceCleared, emptySource), PageRequest.of(0, 10), 3));
         when(batchRepository.findAllById(any()))
                 .thenReturn(List.of(batch("b1", "g1", "B", 0.25)));

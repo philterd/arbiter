@@ -9,4 +9,5 @@ import java.util.Optional;
 @Repository
 public interface S3DataSourceRepository extends MongoRepository<S3DataSource, String> {
     Optional<S3DataSource> findByName(String name);
+    Optional<S3DataSource> findFirstByNameIgnoreCase(String name);
 }

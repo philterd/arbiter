@@ -28,6 +28,7 @@ nav:
   - User guide:
       - Queue: user-guide/queue.md
       - Adding documents: user-guide/uploading.md
+      - Background jobs: user-guide/background-jobs.md
       - Reviewing: user-guide/reviewing.md
       - Personal settings: user-guide/settings.md
   - Admin guide:

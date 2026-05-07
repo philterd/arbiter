@@ -35,19 +35,22 @@ Each navigator entry shows:
 ## Document-level actions
 
 The header has **Previous** / **Next** buttons that step through the
-documents in this batch. The order is **highest risk score first** (with a
-stable tie-break on document id), so working straight through Next pulls
-the riskiest document of the batch up first and the lowest-risk last.
-Whether the buttons skip documents that have already been accepted or
-rejected (`APPROVED`, `AUTO_APPROVED`, `REJECTED`) is controlled by your
-[personal review-page preferences](settings.md).
+documents in this batch. By default the order is **highest risk score
+first** (with a stable tie-break on document id), so working straight
+through Next pulls the riskiest document of the batch up first and the
+lowest-risk last. You can change the sort to **Document Priority** or
+**Document Filename** under your [personal review-page
+preferences](settings.md); whether the buttons skip documents that have
+already been accepted or rejected (`APPROVED`, `AUTO_APPROVED`, `REJECTED`)
+is controlled by the same preferences page.
 
 Next to the buttons is a **Document X of Y** counter. `Y` is the number of
 *pending* documents in the batch (everything except `APPROVED`,
 `AUTO_APPROVED`, and `REJECTED`); `X` is the position of the document you
-are currently viewing within that risk-ordered list. The counter only
-appears while the current document is itself pending — once you accept or
-reject it, it leaves the pending list and the counter is hidden.
+are currently viewing within that list, ordered by your chosen review
+sort. The counter only appears while the current document is itself
+pending — once you accept or reject it, it leaves the pending list and the
+counter is hidden.
 
 It also has Approve / Reject / Unapprove buttons. These set the *document's*
 status:

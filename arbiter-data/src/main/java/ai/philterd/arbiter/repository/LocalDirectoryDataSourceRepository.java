@@ -9,4 +9,5 @@ import java.util.Optional;
 @Repository
 public interface LocalDirectoryDataSourceRepository extends MongoRepository<LocalDirectoryDataSource, String> {
     Optional<LocalDirectoryDataSource> findByName(String name);
+    Optional<LocalDirectoryDataSource> findFirstByNameIgnoreCase(String name);
 }

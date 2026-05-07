@@ -9,4 +9,5 @@ import java.util.Optional;
 @Repository
 public interface RelationalDbDataSourceRepository extends MongoRepository<RelationalDbDataSource, String> {
     Optional<RelationalDbDataSource> findByName(String name);
+    Optional<RelationalDbDataSource> findFirstByNameIgnoreCase(String name);
 }

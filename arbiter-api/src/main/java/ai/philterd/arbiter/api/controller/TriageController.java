@@ -94,29 +94,32 @@ public class TriageController {
         } else if (hasBatch && hasStatus) {
             documents = documentRepository.findByBatchIdAndStatus(batchId, status, pageRequest);
         } else if (hasBatch && hasFilename) {
-            documents = documentRepository.findByBatchIdAndFilenameContainingIgnoreCase(
-                    batchId, trimmedFilename, pageRequest);
+            documents = documentRepository.findByBatchIdAndStatusNotInAndFilenameContainingIgnoreCase(
+                    batchId, INGEST_QUEUE_STATUSES, trimmedFilename, pageRequest);
         } else if (hasBatch) {
-            documents = documentRepository.findByBatchId(batchId, pageRequest);
+            documents = documentRepository.findByBatchIdAndStatusNotIn(
+                    batchId, INGEST_QUEUE_STATUSES, pageRequest);
         } else if (restrict && hasStatus && hasFilename) {
             documents = documentRepository.findByBatchIdInAndStatusAndFilenameContainingIgnoreCase(
                     allowedBatchIds, status, trimmedFilename, pageRequest);
         } else if (restrict && hasStatus) {
             documents = documentRepository.findByBatchIdInAndStatus(allowedBatchIds, status, pageRequest);
         } else if (restrict && hasFilename) {
-            documents = documentRepository.findByBatchIdInAndFilenameContainingIgnoreCase(
-                    allowedBatchIds, trimmedFilename, pageRequest);
+            documents = documentRepository.findByBatchIdInAndStatusNotInAndFilenameContainingIgnoreCase(
+                    allowedBatchIds, INGEST_QUEUE_STATUSES, trimmedFilename, pageRequest);
         } else if (restrict) {
-            documents = documentRepository.findByBatchIdIn(allowedBatchIds, pageRequest);
+            documents = documentRepository.findByBatchIdInAndStatusNotIn(
+                    allowedBatchIds, INGEST_QUEUE_STATUSES, pageRequest);
         } else if (hasStatus && hasFilename) {
             documents = documentRepository.findByStatusAndFilenameContainingIgnoreCase(
                     status, trimmedFilename, pageRequest);
         } else if (hasStatus) {
             documents = documentRepository.findByStatus(status, pageRequest);
         } else if (hasFilename) {
-            documents = documentRepository.findByFilenameContainingIgnoreCase(trimmedFilename, pageRequest);
+            documents = documentRepository.findByStatusNotInAndFilenameContainingIgnoreCase(
+                    INGEST_QUEUE_STATUSES, trimmedFilename, pageRequest);
         } else {
-            documents = documentRepository.findAll(pageRequest);
+            documents = documentRepository.findByStatusNotIn(INGEST_QUEUE_STATUSES, pageRequest);
         }
 
         final Set<String> batchIds = documents.stream()
@@ -160,6 +163,13 @@ public class TriageController {
     }
 
     private static final Set<String> USER_DECIDED_STATUSES = Set.of("APPROVED", "REJECTED", "FAILED", "FINALIZED");
+
+    /**
+     * Document statuses that mean "still in the ingest queue, not yet redacted." The Document
+     * Queue page hides these whenever the user hasn't explicitly filtered by status — they
+     * belong on the admin Ingest Queue page, not the reviewer-facing Documents view.
+     */
+    private static final Set<String> INGEST_QUEUE_STATUSES = Set.of("PENDING", "PROCESSING");
 
     private Function<Document, Map<String, Object>> toRow(final Map<String, String> batchNames,
                                                           final Map<String, Double> batchDocumentThresholds,

@@ -18,6 +18,7 @@ package ai.philterd.arbiter.webapp;
 import ai.philterd.arbiter.service.GeneralSettingsService;
 import org.springframework.stereotype.Component;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -43,6 +44,12 @@ public class TimestampFormatter {
         final ZoneId target = displayZone();
         final ZonedDateTime zoned = value.atZone(ZoneId.systemDefault()).withZoneSameInstant(target);
         return zoned.format(DateTimeFormatter.ofPattern(pattern));
+    }
+
+    /** Format an {@link Instant} for display, using a sensible default pattern. */
+    public String format(final Instant value) {
+        if (value == null) return "";
+        return value.atZone(displayZone()).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
     }
 
     public String getZoneId() {

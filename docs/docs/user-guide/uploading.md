@@ -6,13 +6,13 @@ documents into Arbiter; pick the matching tab at the top of the page:
 
 - **Upload files** — submit a single document from your machine (the
   long-standing default).
-- **OpenSearch**, **Amazon S3**, **Relational Database**, **Local Directory**
-  — pick a pre-registered [data source](../admin/data-sources.md) and queue
-  documents from there.
-
-> The data-source ingest paths are not implemented yet. Submitting an
-> OpenSearch / S3 / RDB / Local Directory form returns a *"…is not yet
-> implemented"* notice. The Upload files tab works exactly as before.
+- **OpenSearch**, **Elasticsearch** — pick a registered
+  [data source](../admin/data-sources.md) and queue every document its query
+  returns. Both ingest paths are fully implemented; see
+  [Adding from OpenSearch or Elasticsearch](#adding-from-opensearch-or-elasticsearch).
+- **Amazon S3**, **Relational Database**, **Local Directory** — visible
+  for completeness but not yet implemented; submitting one of these forms
+  returns a *"…is not yet implemented"* notice.
 
 ## What you can upload (Upload files tab)
 
@@ -36,7 +36,7 @@ Other formats are not supported through the web UI.
    on the document and shown as a chevron icon next to the filename in the
    [Document Queue](queue.md#priority-column) so high-priority items stand out.
 3. Choose the file with **Document**.
-4. Click **Redact Document**.
+4. Click **Upload Document**.
 
 The document is **queued** for redaction and Arbiter immediately returns to
 the upload page with a confirmation message. You'll see the document in the
@@ -44,7 +44,7 @@ the upload page with a confirmation message. You'll see the document in the
 
 ## What happens behind the scenes
 
-When you click Redact Document, Arbiter:
+When you click Upload Document, Arbiter:
 
 1. Persists a `Document` row in the chosen batch with status `PENDING` and
    stores the original bytes (text inline; PDFs in a sidecar collection).
@@ -78,8 +78,7 @@ still-pending documents from there.
 
 ## Adding from a data source
 
-The other tabs (**OpenSearch**, **Amazon S3**, **Relational Database**,
-**Local Directory**) all share the same shape:
+All data-source tabs share the same shape:
 
 1. Pick a **Batch** and a **Priority** as above.
 2. Pick a registered **source** from the dropdown. Each option is labeled with
@@ -91,6 +90,56 @@ The other tabs (**OpenSearch**, **Amazon S3**, **Relational Database**,
 If no source of that type is registered, the panel shows a yellow notice with
 a link to the Data Sources admin page (admins) or instructions to ask an admin
 (reviewers).
+
+### Adding from OpenSearch or Elasticsearch
+
+Both ingest paths run as a **background job**, so the page returns
+immediately and you can watch progress while the worker pulls documents in.
+
+1. Pick a **Batch**, a **Priority**, and the **OpenSearch source** (or
+   Elasticsearch source) the admin registered.
+2. Click **Ingest from OpenSearch** (or **Ingest from Elasticsearch**).
+3. Arbiter redirects you to the **Background Jobs** page (Redaction sidebar
+   group → *Background Jobs*) with a confirmation banner. The new job
+   starts in `PENDING`, transitions to `RUNNING`, and ends in `COMPLETED`
+   or `FAILED`.
+
+The worker uses the cluster's scroll API and pulls **at most 100 hits per
+page**, paging until no more results remain — so even very large queries
+can be ingested. For each hit it:
+
+- Reads the configured **Text field** from the hit's `_source` and queues
+  that text as a new document on the chosen batch. If the field is missing
+  or null, the hit counts as failed and the reason is recorded for the job.
+- Uses the configured **Filename field** (when set) for the imported
+  document's filename, falling back to the hit's `_id`.
+- Records traceability — the source system, cluster URL, index, the
+  `_id` of the source document, and the **import timestamp** — onto the
+  Document, where it appears on the **Document Information** popup of the
+  Review page.
+
+#### Background Jobs page
+
+The Background Jobs page (`/jobs`) auto-refreshes every 10 seconds and
+shows one row per job:
+
+| Column        | What it shows                                                                                                             |
+| ------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Type          | `OpenSearch Ingest` or `Elasticsearch Ingest`                                                                              |
+| Source        | Name of the data source the job is pulling from                                                                            |
+| Batch         | Batch the imported documents are landing in                                                                                |
+| Status        | `PENDING` / `RUNNING` / `COMPLETED` / `FAILED` (hover the FAILED badge for the top-level error)                            |
+| Progress      | `processed of total` (when the cluster reports a total) or `N processed`. Failed counts include a *Show failure details* disclosure listing per-hit reasons. |
+| Started       | When the worker started running                                                                                            |
+| Finished      | When the worker exited                                                                                                     |
+| Started by    | The user who triggered the job                                                                                             |
+
+Reviewers see only their own visibility scope: a non-admin sees a job only
+when its batch is in one of their groups; admins see every job.
+
+If a hit is dropped (missing text field, server error, etc.) the job
+continues with the rest of the page; **partial success is preserved** —
+the documents that did import are already on the redaction queue.
 
 ## Errors you might see
 

@@ -9,4 +9,5 @@ import java.util.Optional;
 @Repository
 public interface OpenSearchDataSourceRepository extends MongoRepository<OpenSearchDataSource, String> {
     Optional<OpenSearchDataSource> findByName(String name);
+    Optional<OpenSearchDataSource> findFirstByNameIgnoreCase(String name);
 }

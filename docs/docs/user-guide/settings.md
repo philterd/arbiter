@@ -5,10 +5,8 @@ configure how the Review page navigates, and manage your API key.
 
 ## Review page preferences
 
-Two checkboxes tune how Previous/Next behave on the Review page and what
-happens when you approve or reject a document. Previous/Next themselves
-walk the documents in the batch ordered by **risk score, highest first**,
-with a stable tie-break on document id.
+These options tune how Previous/Next behave on the Review page and what
+happens when you approve or reject a document.
 
 - **Skip accepted and rejected documents when navigating with Previous and
   Next** — when on, Prev/Next jump past documents that already have a
@@ -18,6 +16,20 @@ with a stable tie-break on document id.
   rejected** — when on, hitting Approve *or* Reject takes you straight to
   the next document (respecting the skip-accepted-and-rejected setting).
   Falls back to the queue if there is no next document.
+- **Sort documents when reviewing by** — controls the order Previous/Next walk through
+  documents in the batch. All three options use a stable tie-break on
+  document id so the order is the same every time you open the page.
+    - *Document Risk Score* (default) — highest risk score first, so the
+      most likely to need attention bubbles to the top.
+    - *Document Priority* — highest priority first (High → Medium → Low),
+      useful when uploads are tagged with a priority and you want to work
+      that queue strictly by priority.
+    - *Document Filename* — alphabetical by filename, for cases where you
+      want to walk the batch in a predictable name order.
+
+  This setting also controls the order used by the **Document X of Y**
+  counter on the Review page so the counter stays consistent with what
+  Previous/Next will do.
 
 Settings are persisted per user in MongoDB (`user_settings` collection).
 

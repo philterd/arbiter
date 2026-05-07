@@ -6,8 +6,8 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-@Document(collection = "opensearch_data_sources")
-public class OpenSearchDataSource {
+@Document(collection = "elasticsearch_data_sources")
+public class ElasticsearchDataSource {
 
     @Id
     private String id;
@@ -18,7 +18,7 @@ public class OpenSearchDataSource {
     private String endpoint;
 
     /**
-     * OpenSearch query (typically JSON DSL, e.g. {@code GET /index/_search} body) that returns
+     * Elasticsearch query (typically JSON DSL, e.g. {@code GET /index/_search} body) that returns
      * the documents to import.
      */
     private String query;
@@ -31,22 +31,22 @@ public class OpenSearchDataSource {
 
     /**
      * Optional field name within each hit's {@code _source} whose value is used as the imported
-     * document's filename. When {@code null} or empty, the OpenSearch {@code _id} is used as the
-     * filename instead.
+     * document's filename. When {@code null} or empty, the Elasticsearch {@code _id} is used as
+     * the filename instead.
      */
     private String filenameField;
 
     private String username;
 
     /**
-     * AES-GCM ciphertext of the OpenSearch password (see {@code SymmetricCipher}). Null/empty
+     * AES-GCM ciphertext of the Elasticsearch password (see {@code SymmetricCipher}). Null/empty
      * means no credentials are configured for the instance.
      */
     private String encryptedPassword;
 
     private LocalDateTime createdAt;
 
-    public OpenSearchDataSource() {
+    public ElasticsearchDataSource() {
     }
 
     public String getId() { return id; }

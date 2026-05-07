@@ -114,6 +114,12 @@ public class RedactionControllerTest {
     private OpenSearchDataSourceRepository openSearchDataSourceRepository;
 
     @MockBean
+    private ai.philterd.arbiter.repository.BackgroundJobRepository backgroundJobRepository;
+
+    @MockBean
+    private ai.philterd.arbiter.repository.ElasticsearchDataSourceRepository elasticsearchDataSourceRepository;
+
+    @MockBean
     private S3DataSourceRepository s3DataSourceRepository;
 
     @MockBean

@@ -62,12 +62,24 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 @Controller
 public class ReviewViewController {
 
-    // Highest risk score first; stable tie-break on ID.
-    private static final Comparator<Document> BATCH_ORDER = (a, b) -> {
-        final int c = Double.compare(b.getRiskScore(), a.getRiskScore());
-        return c != 0 ? c : (a.getId() == null ? "" : a.getId())
-                .compareTo(b.getId() == null ? "" : b.getId());
-    };
+    /**
+     * Pick the comparator that orders Previous/Next sibling navigation on the Review page.
+     * Driven by the reviewer's UserSettings.reviewSortBy. Highest priority/risk first to
+     * surface the most-actionable docs; alphabetical for filename. All comparators tie-break
+     * on document id so order is stable across page loads.
+     */
+    private static Comparator<Document> batchOrder(final UserSettings settings) {
+        final String sortBy = settings == null ? null : settings.getReviewSortBy();
+        final Comparator<Document> primary;
+        if (UserSettings.SORT_PRIORITY.equals(sortBy)) {
+            primary = (a, b) -> Integer.compare(b.getPriority(), a.getPriority());
+        } else if (UserSettings.SORT_FILENAME.equals(sortBy)) {
+            primary = Comparator.comparing(d -> d.getFilename() == null ? "" : d.getFilename().toLowerCase());
+        } else {
+            primary = (a, b) -> Double.compare(b.getRiskScore(), a.getRiskScore());
+        }
+        return primary.thenComparing(d -> d.getId() == null ? "" : d.getId());
+    }
 
     private final DocumentRepository documentRepository;
     private final SpanRepository spanRepository;
@@ -235,16 +247,14 @@ public class ReviewViewController {
 
         final UserSettings settings = userSettingsService.loadForEmail(
                 authentication == null ? null : authentication.getName());
-        final boolean skipCompleted = settings.isSkipCompletedInReview();
-
-        final String prevDocumentId = findSiblingId(document, skipCompleted, -1);
-        final String nextDocumentId = findSiblingId(document, skipCompleted, 1);
+        final String prevDocumentId = findSiblingId(document, settings, -1);
+        final String nextDocumentId = findSiblingId(document, settings, 1);
 
         // "Document X of Y" counter: Y = pending (not approved/rejected) docs in the batch,
         // X = 1-based position of the current doc within that sorted pending set.
         final List<Document> batchDocs = document.getBatchId() == null
                 ? List.of() : documentRepository.findByBatchId(document.getBatchId());
-        batchDocs.sort(BATCH_ORDER);
+        batchDocs.sort(batchOrder(settings));
         final List<Document> pendingDocs = batchDocs.stream()
                 .filter(d -> !isAcceptedOrRejected(d.getStatus()))
                 .collect(java.util.stream.Collectors.toList());
@@ -672,7 +682,7 @@ public class ReviewViewController {
 
         final UserSettings settings = userSettingsService.loadForEmail(email);
         if (settings.isAdvanceToNextOnApprove()) {
-            final String nextId = findSiblingId(document, settings.isSkipCompletedInReview(), 1);
+            final String nextId = findSiblingId(document, settings, 1);
             if (nextId != null) return "redirect:/review/" + nextId;
         }
         return "redirect:/";
@@ -690,7 +700,7 @@ public class ReviewViewController {
         if (settings.isAdvanceToNextOnApprove()) {
             final Document document = documentRepository.findById(documentId).orElse(null);
             if (document != null) {
-                final String nextId = findSiblingId(document, settings.isSkipCompletedInReview(), 1);
+                final String nextId = findSiblingId(document, settings, 1);
                 if (nextId != null) return "redirect:/review/" + nextId;
             }
         }
@@ -757,10 +767,11 @@ public class ReviewViewController {
         documentRepository.save(document);
     }
 
-    private String findSiblingId(final Document document, final boolean skipCompleted, final int direction) {
+    private String findSiblingId(final Document document, final UserSettings settings, final int direction) {
         if (document.getBatchId() == null) return null;
+        final boolean skipCompleted = settings != null && settings.isSkipCompletedInReview();
         final List<Document> siblings = documentRepository.findByBatchId(document.getBatchId());
-        siblings.sort(BATCH_ORDER);
+        siblings.sort(batchOrder(settings));
         int index = -1;
         for (int i = 0; i < siblings.size(); i++) {
             if (document.getId().equals(siblings.get(i).getId())) {

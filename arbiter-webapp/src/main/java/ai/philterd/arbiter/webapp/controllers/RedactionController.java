@@ -23,6 +23,7 @@ import ai.philterd.arbiter.model.Document;
 import ai.philterd.arbiter.model.IngestStatus;
 import ai.philterd.arbiter.model.Location;
 import ai.philterd.arbiter.model.RiskScore;
+import ai.philterd.arbiter.model.ElasticsearchDataSource;
 import ai.philterd.arbiter.model.LocalDirectoryDataSource;
 import ai.philterd.arbiter.model.OpenSearchDataSource;
 import ai.philterd.arbiter.model.RelationalDbDataSource;
@@ -31,6 +32,7 @@ import ai.philterd.arbiter.model.Span;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.LocalDirectoryDataSourceRepository;
+import ai.philterd.arbiter.repository.ElasticsearchDataSourceRepository;
 import ai.philterd.arbiter.repository.OpenSearchDataSourceRepository;
 import ai.philterd.arbiter.repository.RelationalDbDataSourceRepository;
 import ai.philterd.arbiter.repository.S3DataSourceRepository;
@@ -86,9 +88,12 @@ public class RedactionController {
     private final IngestQueueService ingestQueueService;
     private final GeneralSettingsService generalSettingsService;
     private final OpenSearchDataSourceRepository dataSourceRepository;
+    private final ElasticsearchDataSourceRepository esDataSourceRepository;
     private final S3DataSourceRepository s3DataSourceRepository;
     private final RelationalDbDataSourceRepository rdbDataSourceRepository;
     private final LocalDirectoryDataSourceRepository localDataSourceRepository;
+    private final ai.philterd.arbiter.webapp.services.OpenSearchIngestJobService openSearchIngestJobService;
+    private final ai.philterd.arbiter.webapp.services.ElasticsearchIngestJobService elasticsearchIngestJobService;
 
     public RedactionController(final RedactionService redactionService,
                                final BatchRepository batchRepository,
@@ -100,9 +105,12 @@ public class RedactionController {
                                final IngestQueueService ingestQueueService,
                                final GeneralSettingsService generalSettingsService,
                                final OpenSearchDataSourceRepository dataSourceRepository,
+                               final ElasticsearchDataSourceRepository esDataSourceRepository,
                                final S3DataSourceRepository s3DataSourceRepository,
                                final RelationalDbDataSourceRepository rdbDataSourceRepository,
-                               final LocalDirectoryDataSourceRepository localDataSourceRepository) {
+                               final LocalDirectoryDataSourceRepository localDataSourceRepository,
+                               final ai.philterd.arbiter.webapp.services.OpenSearchIngestJobService openSearchIngestJobService,
+                               final ai.philterd.arbiter.webapp.services.ElasticsearchIngestJobService elasticsearchIngestJobService) {
         this.redactionService = redactionService;
         this.batchRepository = batchRepository;
         this.documentRepository = documentRepository;
@@ -113,9 +121,12 @@ public class RedactionController {
         this.ingestQueueService = ingestQueueService;
         this.generalSettingsService = generalSettingsService;
         this.dataSourceRepository = dataSourceRepository;
+        this.esDataSourceRepository = esDataSourceRepository;
         this.s3DataSourceRepository = s3DataSourceRepository;
         this.rdbDataSourceRepository = rdbDataSourceRepository;
         this.localDataSourceRepository = localDataSourceRepository;
+        this.openSearchIngestJobService = openSearchIngestJobService;
+        this.elasticsearchIngestJobService = elasticsearchIngestJobService;
     }
 
     private static boolean isAdmin(final Authentication auth) {
@@ -211,6 +222,11 @@ public class RedactionController {
         model.addAttribute("dataSources",
                 dataSourcePage != null ? dataSourcePage.getContent() : List.of());
 
+        final org.springframework.data.domain.Page<ElasticsearchDataSource> esPage =
+                esDataSourceRepository.findAll(PageRequest.of(0, 500, Sort.by("name")));
+        model.addAttribute("esDataSources",
+                esPage != null ? esPage.getContent() : List.of());
+
         final org.springframework.data.domain.Page<S3DataSource> s3Page =
                 s3DataSourceRepository.findAll(PageRequest.of(0, 500, Sort.by("name")));
         model.addAttribute("s3DataSources",
@@ -238,9 +254,36 @@ public class RedactionController {
     public String ingestFromSource(@RequestParam("sourceType") final String sourceType,
                                    @RequestParam("batchId") final String batchId,
                                    @RequestParam("dataSourceId") final String dataSourceId,
+                                   @RequestParam(value = "priority", defaultValue = "2") final int priority,
+                                   final Authentication authentication,
                                    final RedirectAttributes redirectAttributes) {
+        if ("opensearch".equals(sourceType)) {
+            final String email = authentication == null ? null : authentication.getName();
+            final ai.philterd.arbiter.model.BackgroundJob job =
+                    openSearchIngestJobService.start(dataSourceId, batchId, priority, email);
+            if (ai.philterd.arbiter.model.BackgroundJob.STATUS_FAILED.equals(job.getStatus())) {
+                redirectAttributes.addFlashAttribute("error",
+                        "Could not start OpenSearch ingest: " + job.getErrorMessage());
+            } else {
+                redirectAttributes.addFlashAttribute("success",
+                        "OpenSearch ingest started. Watch its progress on the Background Jobs page.");
+            }
+            return "redirect:/jobs";
+        }
+        if ("elasticsearch".equals(sourceType)) {
+            final String email = authentication == null ? null : authentication.getName();
+            final ai.philterd.arbiter.model.BackgroundJob job =
+                    elasticsearchIngestJobService.start(dataSourceId, batchId, priority, email);
+            if (ai.philterd.arbiter.model.BackgroundJob.STATUS_FAILED.equals(job.getStatus())) {
+                redirectAttributes.addFlashAttribute("error",
+                        "Could not start Elasticsearch ingest: " + job.getErrorMessage());
+            } else {
+                redirectAttributes.addFlashAttribute("success",
+                        "Elasticsearch ingest started. Watch its progress on the Background Jobs page.");
+            }
+            return "redirect:/jobs";
+        }
         final String label = switch (sourceType == null ? "" : sourceType) {
-            case "opensearch" -> "OpenSearch";
             case "s3" -> "Amazon S3";
             case "rdb" -> "relational database";
             case "local" -> "local directory";

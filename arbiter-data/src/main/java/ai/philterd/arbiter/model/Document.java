@@ -27,6 +27,19 @@ public class Document {
      * to detect duplicates and to attest the original content.
      */
     private String contentSha512;
+    /**
+     * Traceability for documents pulled from an external data source. {@code sourceSystem} is
+     * the type of system the document came from (e.g. {@code OPENSEARCH}); {@code sourceUrl} is
+     * the cluster/server URL; {@code sourceIndex} is the index/table/path the document lived
+     * in; and {@code sourceDocId} is the system-specific document id. All four are {@code null}
+     * for hand-uploaded documents.
+     */
+    private String sourceSystem;
+    private String sourceUrl;
+    private String sourceIndex;
+    private String sourceDocId;
+    /** When the document was imported from its external source. Null for direct uploads. */
+    private LocalDateTime importedAt;
     private String status;
     private double riskScore;
     private String philterContextId;
@@ -144,6 +157,21 @@ public class Document {
     public void setContentSha512(final String contentSha512) {
         this.contentSha512 = contentSha512;
     }
+
+    public String getSourceSystem() { return sourceSystem; }
+    public void setSourceSystem(final String sourceSystem) { this.sourceSystem = sourceSystem; }
+
+    public String getSourceUrl() { return sourceUrl; }
+    public void setSourceUrl(final String sourceUrl) { this.sourceUrl = sourceUrl; }
+
+    public String getSourceIndex() { return sourceIndex; }
+    public void setSourceIndex(final String sourceIndex) { this.sourceIndex = sourceIndex; }
+
+    public String getSourceDocId() { return sourceDocId; }
+    public void setSourceDocId(final String sourceDocId) { this.sourceDocId = sourceDocId; }
+
+    public LocalDateTime getImportedAt() { return importedAt; }
+    public void setImportedAt(final LocalDateTime importedAt) { this.importedAt = importedAt; }
 
     public String getStatus() {
         return status;

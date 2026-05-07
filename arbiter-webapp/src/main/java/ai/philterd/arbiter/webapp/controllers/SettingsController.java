@@ -151,6 +151,7 @@ public class SettingsController {
     @PostMapping("/preferences")
     public String savePreferences(@RequestParam(value = "skipCompletedInReview", defaultValue = "false") final boolean skipCompletedInReview,
                                   @RequestParam(value = "advanceToNextOnApprove", defaultValue = "false") final boolean advanceToNextOnApprove,
+                                  @RequestParam(value = "reviewSortBy", required = false) final String reviewSortBy,
                                   final Authentication authentication,
                                   final RedirectAttributes redirectAttributes) {
         final User user = authentication == null ? null
@@ -159,15 +160,19 @@ public class SettingsController {
             redirectAttributes.addFlashAttribute("error", "Account not found.");
             return "redirect:/settings";
         }
+        final String resolvedSortBy = UserSettings.isValidReviewSortBy(reviewSortBy)
+                ? reviewSortBy : UserSettings.SORT_RISK_SCORE;
         final UserSettings settings = userSettingsService.loadForUserId(user.getId());
         settings.setUserId(user.getId());
         settings.setSkipCompletedInReview(skipCompletedInReview);
         settings.setAdvanceToNextOnApprove(advanceToNextOnApprove);
+        settings.setReviewSortBy(resolvedSortBy);
         userSettingsService.save(settings);
         auditLogService.log("USER_SETTINGS_CHANGE", "User", user.getId(),
                 java.util.Map.of(
                         "skipCompletedInReview", skipCompletedInReview,
-                        "advanceToNextOnApprove", advanceToNextOnApprove));
+                        "advanceToNextOnApprove", advanceToNextOnApprove,
+                        "reviewSortBy", resolvedSortBy));
         redirectAttributes.addFlashAttribute("success", "Preferences updated.");
         return "redirect:/settings";
     }
