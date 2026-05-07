@@ -105,6 +105,7 @@ class ElasticsearchIngestJobServiceTest {
 
         final BackgroundJob job = service.start("src-1", "b1", 1, "alice@example.com");
 
+        assertEquals(BackgroundJob.STATUS_PENDING, job.getStatus());
         assertEquals(BackgroundJob.TYPE_ELASTICSEARCH_INGEST, job.getType());
         assertEquals(BackgroundJob.CATEGORY_DATA_IMPORT, job.getCategory());
         assertEquals("src-1", job.getSourceId());
@@ -113,6 +114,26 @@ class ElasticsearchIngestJobServiceTest {
         assertEquals("Sample", job.getBatchName());
         assertEquals(1, job.getPriority());
         assertNotNull(job.getCreatedAt());
+    }
+
+    @Test
+    void startQueuesPendingEvenWhenAnotherJobIsAlreadyRunning() {
+        // Multiple imports can be queued for the same batch — the dispatcher promotes
+        // them to RUNNING one at a time. start() never refuses based on existing jobs.
+        final ElasticsearchDataSource src = new ElasticsearchDataSource();
+        src.setId("src-1");
+        src.setName("Demo ES");
+        final Batch batch = new Batch();
+        batch.setId("b1");
+        batch.setName("Sample");
+        when(dataSourceRepository.findById("src-1")).thenReturn(Optional.of(src));
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(batch));
+
+        final BackgroundJob first = service.start("src-1", "b1", 2, "alice@example.com");
+        final BackgroundJob second = service.start("src-1", "b1", 2, "alice@example.com");
+
+        assertEquals(BackgroundJob.STATUS_PENDING, first.getStatus());
+        assertEquals(BackgroundJob.STATUS_PENDING, second.getStatus());
     }
 
     @Test

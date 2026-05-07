@@ -11,9 +11,9 @@ package ai.philterd.arbiter.webapp.services;
 
 import ai.philterd.arbiter.model.BackgroundJob;
 import ai.philterd.arbiter.repository.BackgroundJobRepository;
+import ai.philterd.arbiter.service.GeneralSettingsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoOperations;
@@ -57,9 +57,11 @@ public class DataImportDispatcher {
     private final MongoOperations mongoOperations;
     private final OpenSearchIngestJobService osService;
     private final ElasticsearchIngestJobService esService;
+    private final GeneralSettingsService generalSettingsService;
     /**
-     * Pool that runs claimed jobs. Sized to the maximum concurrent batches the user
-     * wants to import in parallel — different batches are unrelated and run independently.
+     * Pool that runs claimed jobs. Sized to the upper bound of the admin-configurable
+     * concurrency limit — the actual ceiling each tick is read from
+     * {@link GeneralSettingsService#load()}.
      */
     private final ExecutorService workerPool;
 
@@ -67,16 +69,18 @@ public class DataImportDispatcher {
                                 final MongoOperations mongoOperations,
                                 final OpenSearchIngestJobService osService,
                                 final ElasticsearchIngestJobService esService,
-                                @Value("${arbiter.data-import.worker-pool-size:8}") final int workerPoolSize) {
+                                final GeneralSettingsService generalSettingsService) {
         this.jobRepository = jobRepository;
         this.mongoOperations = mongoOperations;
         this.osService = osService;
         this.esService = esService;
-        this.workerPool = Executors.newFixedThreadPool(Math.max(1, workerPoolSize), r -> {
-            final Thread t = new Thread(r, "data-import-worker");
-            t.setDaemon(true);
-            return t;
-        });
+        this.generalSettingsService = generalSettingsService;
+        this.workerPool = Executors.newFixedThreadPool(
+                GeneralSettingsService.MAX_CONCURRENT_DATA_IMPORTS, r -> {
+                    final Thread t = new Thread(r, "data-import-worker");
+                    t.setDaemon(true);
+                    return t;
+                });
     }
 
     @Scheduled(fixedDelayString = "${arbiter.data-import.poll-millis:2000}",
@@ -87,6 +91,17 @@ public class DataImportDispatcher {
                         BackgroundJob.STATUS_PENDING, DATA_IMPORT_TYPES);
         if (pending.isEmpty()) return;
 
+        // The admin-controlled global ceiling on concurrent data-import jobs. Any
+        // RUNNING jobs already in flight count against the budget. Counting via Mongo
+        // (rather than an in-memory tally) keeps this multi-replica safe.
+        final int limit = generalSettingsService.load().getMaxConcurrentDataImports();
+        final long currentRunning = mongoOperations.count(
+                Query.query(Criteria.where("status").is(BackgroundJob.STATUS_RUNNING)
+                        .and("type").in(DATA_IMPORT_TYPES)),
+                BackgroundJob.class);
+        int slotsRemaining = (int) Math.max(0L, limit - currentRunning);
+        if (slotsRemaining == 0) return;
+
         // Track which batches we've claimed in this tick. Without this we'd retry
         // every PENDING for the same batch (each retry losing on the unique index).
         // Walking oldest-first means the first PENDING per batch wins this tick;
@@ -94,6 +109,7 @@ public class DataImportDispatcher {
         // current run finishes.
         final Set<String> batchesClaimedThisTick = new HashSet<>();
         for (BackgroundJob candidate : pending) {
+            if (slotsRemaining == 0) break;
             if (candidate.getBatchId() == null
                     || batchesClaimedThisTick.contains(candidate.getBatchId())) {
                 continue;
@@ -101,6 +117,7 @@ public class DataImportDispatcher {
             final BackgroundJob claimed = tryClaim(candidate.getId());
             if (claimed != null) {
                 batchesClaimedThisTick.add(claimed.getBatchId());
+                slotsRemaining--;
                 workerPool.submit(() -> runClaimed(claimed));
             }
         }

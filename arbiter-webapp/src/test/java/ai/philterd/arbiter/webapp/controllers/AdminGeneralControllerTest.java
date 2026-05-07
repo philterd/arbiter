@@ -116,4 +116,37 @@ class AdminGeneralControllerTest {
         assertEquals("Timezone saved.", success(ra));
         verify(settingsService).save(any(GeneralSettings.class));
     }
+
+    // ---------- saveMaxConcurrentDataImports ----------
+
+    @Test
+    void maxConcurrentDataImportsBelowMinRejected() {
+        final RedirectAttributes ra = flash();
+        controller.saveMaxConcurrentDataImports(0, ra);
+        assertNotNull(error(ra));
+        assertTrue(error(ra).contains("between 1 and 10"));
+        verify(settingsService, never()).save(any());
+    }
+
+    @Test
+    void maxConcurrentDataImportsAboveMaxRejected() {
+        final RedirectAttributes ra = flash();
+        controller.saveMaxConcurrentDataImports(11, ra);
+        assertNotNull(error(ra));
+        assertTrue(error(ra).contains("between 1 and 10"));
+        verify(settingsService, never()).save(any());
+    }
+
+    @Test
+    void maxConcurrentDataImportsValidPersisted() {
+        final RedirectAttributes ra = flash();
+        final String view = controller.saveMaxConcurrentDataImports(5, ra);
+        assertEquals("redirect:/admin/general", view);
+        assertEquals("Max concurrent data imports saved.", success(ra));
+
+        final org.mockito.ArgumentCaptor<GeneralSettings> captor =
+                org.mockito.ArgumentCaptor.forClass(GeneralSettings.class);
+        verify(settingsService).save(captor.capture());
+        assertEquals(5, captor.getValue().getMaxConcurrentDataImports());
+    }
 }

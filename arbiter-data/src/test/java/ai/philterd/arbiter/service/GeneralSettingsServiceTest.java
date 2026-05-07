@@ -61,4 +61,36 @@ class GeneralSettingsServiceTest {
         assertEquals("https://arbiter.example.com", out.getArbiterUrl());
         assertEquals("America/New_York", out.getTimezone());
     }
+
+    @Test
+    void loadAppliesDefaultMaxConcurrentDataImportsForLegacyRows() {
+        // Pre-existing rows persist the field as 0. load() must clamp to the default
+        // so the dispatcher never sees a zero — that would freeze the queue.
+        final GeneralSettings stored = new GeneralSettings();
+        stored.setMaxConcurrentDataImports(0);
+        when(repository.findById(GeneralSettings.SINGLETON_ID)).thenReturn(Optional.of(stored));
+
+        assertEquals(GeneralSettingsService.DEFAULT_MAX_CONCURRENT_DATA_IMPORTS,
+                service.load().getMaxConcurrentDataImports());
+    }
+
+    @Test
+    void loadClampsOutOfRangeMaxConcurrentDataImports() {
+        // Negative or above-max persisted values fall back to the default.
+        final GeneralSettings stored = new GeneralSettings();
+        stored.setMaxConcurrentDataImports(99);
+        when(repository.findById(GeneralSettings.SINGLETON_ID)).thenReturn(Optional.of(stored));
+
+        assertEquals(GeneralSettingsService.DEFAULT_MAX_CONCURRENT_DATA_IMPORTS,
+                service.load().getMaxConcurrentDataImports());
+    }
+
+    @Test
+    void loadKeepsInRangeMaxConcurrentDataImports() {
+        final GeneralSettings stored = new GeneralSettings();
+        stored.setMaxConcurrentDataImports(5);
+        when(repository.findById(GeneralSettings.SINGLETON_ID)).thenReturn(Optional.of(stored));
+
+        assertEquals(5, service.load().getMaxConcurrentDataImports());
+    }
 }
