@@ -52,7 +52,7 @@ public class TriageController {
         this.approvalRuleEvaluator = approvalRuleEvaluator;
     }
 
-    private static final Set<String> SORTABLE_FIELDS = Set.of("riskScore", "status", "batchId", "filename");
+    private static final Set<String> SORTABLE_FIELDS = Set.of("riskScore", "status", "batchId", "filename", "priority");
 
     @GetMapping("/queue")
     public Page<Map<String, Object>> getQueue(

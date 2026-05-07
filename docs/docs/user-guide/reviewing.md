@@ -35,22 +35,51 @@ Each navigator entry shows:
 ## Document-level actions
 
 The header has **Previous** / **Next** buttons that step through the
-documents in this batch (sorted by filename). Whether they skip
-`AUTO_APPROVED` documents is controlled by your
+documents in this batch. The order is **highest risk score first** (with a
+stable tie-break on document id), so working straight through Next pulls
+the riskiest document of the batch up first and the lowest-risk last.
+Whether the buttons skip documents that have already been accepted or
+rejected (`APPROVED`, `AUTO_APPROVED`, `REJECTED`) is controlled by your
 [personal review-page preferences](settings.md).
+
+Next to the buttons is a **Document X of Y** counter. `Y` is the number of
+*pending* documents in the batch (everything except `APPROVED`,
+`AUTO_APPROVED`, and `REJECTED`); `X` is the position of the document you
+are currently viewing within that risk-ordered list. The counter only
+appears while the current document is itself pending — once you accept or
+reject it, it leaves the pending list and the counter is hidden.
 
 It also has Approve / Reject / Unapprove buttons. These set the *document's*
 status:
 
 - **Approve** — records your approval and returns you to the queue (or
-  jumps to the next document if your "advance to next on approve"
-  preference is on). Whether the document moves to `APPROVED` immediately
-  depends on the batch's [approval rule sets](../admin/rules.md): if dual
-  approval is required and you're the first approver, the document stays
-  in `REVIEW_REQUIRED` until a second different reviewer approves.
-- **Reject** — moves the document to `REJECTED` and returns you to the queue.
-- **Unapprove** — only shown for already-approved documents; flips the document
-  back to `REVIEW_REQUIRED` so it can be re-reviewed.
+  jumps to the next document if your "advance to next on approve or
+  reject" preference is on). Whether the document moves to `APPROVED`
+  immediately depends on the batch's [approval rule sets](../admin/rules.md):
+  if dual approval is required and you're the first approver, the document
+  stays in `REVIEW_REQUIRED` until a second different reviewer approves.
+- **Reject** — moves the document to `REJECTED`. Like Approve, it returns
+  to the queue by default and jumps to the next document if your
+  advance-to-next preference is on.
+- **Unapprove** / **Unreject** — only shown for already-decided documents;
+  flips the document back to `REVIEW_REQUIRED` so it can be re-reviewed.
+
+## Focus mode
+
+The header's **Focus** button toggles a distraction-free view of the review
+page. When focus mode is on:
+
+- The left navigation sidebar, page footer, and Back-to-queue link are hidden.
+- The dual-approval progress banner, lock-conflict banner, and the status /
+  risk-score / batch metadata strip below the filename are hidden.
+- The terminal-status banners (`APPROVED`, `REJECTED`, `FINALIZED`) and the
+  Unapprove / Unreject controls are hidden.
+- The filename, the Original / Redacted / PII Navigator panes, the Previous /
+  Next buttons with the Document X of Y counter, and the Approve / Reject
+  buttons remain visible.
+
+Click **Exit focus** to return to the full layout. The toggle is per-tab and
+not persisted.
 
 The same reviewer can never approve a document twice — a duplicate click
 shows an inline error. The Document Queue's **Approvals** column tracks

@@ -9,10 +9,16 @@ reviewer. It lists every document you have access to, ordered by risk score
 | Column     | Notes                                                                       |
 | ---------- | --------------------------------------------------------------------------- |
 | Filename   | Original filename of the uploaded document                                  |
+| Priority   | `Low` / `Normal` / `High` — see [Priority column](#priority-column)          |
 | Batch      | The batch the document belongs to                                           |
 | Status     | Document status (see below)                                                 |
 | Risk Score | A number between 0.00 and 1.00 — see [Risk score](../reference/risk-score.md) |
 | Actions    | A **Review** link that opens the side-by-side review pane, plus an **Audit Log** button (see below) |
+
+The Filename, Priority, Batch, Status, and Risk Score headers are sortable —
+click a header to sort by that column, and click again to flip the direction.
+Risk Score and Priority sort highest-first by default; the others sort
+ascending.
 
 The status pill colors are:
 
@@ -26,6 +32,22 @@ The status pill colors are:
 `AUTO_APPROVED` is shown in place of the underlying status for any document
 whose risk score is at or below its batch's Document Threshold and that hasn't
 been explicitly approved or rejected.
+
+## Priority column
+
+The Priority column shows the document's priority as a label and a small
+chevron icon:
+
+- **Red double-up chevron · High** — priority `3`.
+- **(no icon) · Normal** — priority `2`, the default.
+- **Blue double-down chevron · Low** — priority `1`.
+
+Priority is set at ingest (the upload form's **Priority** dropdown, or the
+`priority` field on the [REST `POST /api/v1/ingest`](../reference/api.md#post-apiv1ingest)
+request). It is a hint for reviewers — the queue's default sort is still
+**Risk Score, highest first**, so priority does not change the order until
+you click the **Priority** header to sort by it (defaults to highest-first
+on the first click).
 
 ## Filters
 

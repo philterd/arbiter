@@ -23,9 +23,17 @@ import ai.philterd.arbiter.model.Document;
 import ai.philterd.arbiter.model.IngestStatus;
 import ai.philterd.arbiter.model.Location;
 import ai.philterd.arbiter.model.RiskScore;
+import ai.philterd.arbiter.model.LocalDirectoryDataSource;
+import ai.philterd.arbiter.model.OpenSearchDataSource;
+import ai.philterd.arbiter.model.RelationalDbDataSource;
+import ai.philterd.arbiter.model.S3DataSource;
 import ai.philterd.arbiter.model.Span;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
+import ai.philterd.arbiter.repository.LocalDirectoryDataSourceRepository;
+import ai.philterd.arbiter.repository.OpenSearchDataSourceRepository;
+import ai.philterd.arbiter.repository.RelationalDbDataSourceRepository;
+import ai.philterd.arbiter.repository.S3DataSourceRepository;
 import ai.philterd.arbiter.repository.SpanRepository;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.GeneralSettingsService;
@@ -77,6 +85,10 @@ public class RedactionController {
     private final OpenSearchIndexService openSearchIndexService;
     private final IngestQueueService ingestQueueService;
     private final GeneralSettingsService generalSettingsService;
+    private final OpenSearchDataSourceRepository dataSourceRepository;
+    private final S3DataSourceRepository s3DataSourceRepository;
+    private final RelationalDbDataSourceRepository rdbDataSourceRepository;
+    private final LocalDirectoryDataSourceRepository localDataSourceRepository;
 
     public RedactionController(final RedactionService redactionService,
                                final BatchRepository batchRepository,
@@ -86,7 +98,11 @@ public class RedactionController {
                                final AuditLogService auditLogService,
                                final OpenSearchIndexService openSearchIndexService,
                                final IngestQueueService ingestQueueService,
-                               final GeneralSettingsService generalSettingsService) {
+                               final GeneralSettingsService generalSettingsService,
+                               final OpenSearchDataSourceRepository dataSourceRepository,
+                               final S3DataSourceRepository s3DataSourceRepository,
+                               final RelationalDbDataSourceRepository rdbDataSourceRepository,
+                               final LocalDirectoryDataSourceRepository localDataSourceRepository) {
         this.redactionService = redactionService;
         this.batchRepository = batchRepository;
         this.documentRepository = documentRepository;
@@ -96,6 +112,10 @@ public class RedactionController {
         this.openSearchIndexService = openSearchIndexService;
         this.ingestQueueService = ingestQueueService;
         this.generalSettingsService = generalSettingsService;
+        this.dataSourceRepository = dataSourceRepository;
+        this.s3DataSourceRepository = s3DataSourceRepository;
+        this.rdbDataSourceRepository = rdbDataSourceRepository;
+        this.localDataSourceRepository = localDataSourceRepository;
     }
 
     private static boolean isAdmin(final Authentication auth) {
@@ -185,7 +205,50 @@ public class RedactionController {
         }
         batches.sort(Comparator.comparing(Batch::getName, Comparator.nullsLast(String::compareToIgnoreCase)));
         model.addAttribute("batches", batches);
+
+        final org.springframework.data.domain.Page<OpenSearchDataSource> dataSourcePage =
+                dataSourceRepository.findAll(PageRequest.of(0, 500, Sort.by("name")));
+        model.addAttribute("dataSources",
+                dataSourcePage != null ? dataSourcePage.getContent() : List.of());
+
+        final org.springframework.data.domain.Page<S3DataSource> s3Page =
+                s3DataSourceRepository.findAll(PageRequest.of(0, 500, Sort.by("name")));
+        model.addAttribute("s3DataSources",
+                s3Page != null ? s3Page.getContent() : List.of());
+
+        final org.springframework.data.domain.Page<RelationalDbDataSource> rdbPage =
+                rdbDataSourceRepository.findAll(PageRequest.of(0, 500, Sort.by("name")));
+        model.addAttribute("rdbDataSources",
+                rdbPage != null ? rdbPage.getContent() : List.of());
+
+        final org.springframework.data.domain.Page<LocalDirectoryDataSource> localPage =
+                localDataSourceRepository.findAll(PageRequest.of(0, 500, Sort.by("name")));
+        model.addAttribute("localDataSources",
+                localPage != null ? localPage.getContent() : List.of());
+
         return "index";
+    }
+
+    /**
+     * Placeholder for "ingest from data source". The actual reads (OpenSearch, S3, RDB) are not
+     * wired up yet; this hands the form a working post target and shows reviewers a clear
+     * "not yet implemented" message rather than a 404.
+     */
+    @PostMapping("/ingest-from-source")
+    public String ingestFromSource(@RequestParam("sourceType") final String sourceType,
+                                   @RequestParam("batchId") final String batchId,
+                                   @RequestParam("dataSourceId") final String dataSourceId,
+                                   final RedirectAttributes redirectAttributes) {
+        final String label = switch (sourceType == null ? "" : sourceType) {
+            case "opensearch" -> "OpenSearch";
+            case "s3" -> "Amazon S3";
+            case "rdb" -> "relational database";
+            case "local" -> "local directory";
+            default -> "data source";
+        };
+        redirectAttributes.addFlashAttribute("info",
+                "Ingesting from " + label + " is not yet implemented.");
+        return "redirect:/upload";
     }
 
     @PostMapping("/redact")

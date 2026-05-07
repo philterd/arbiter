@@ -133,6 +133,19 @@ deterministic dev key with a logged warning — set the property in any
 non-development deployment. The plaintext key is never displayed back; the
 admin UI only shows whether a key is configured.
 
+## Data source credentials
+
+Credentials configured under **Admin → Data Sources** — OpenSearch passwords,
+S3 access and secret keys, and relational-database usernames and passwords —
+are stored using the same AES-GCM encryption scheme described above for
+Philter API keys. The plaintext is never returned by the UI or logged in the
+audit trail; the listing tables show only a status (`Configured`, `Ambient`,
+`From URL`, `••••••`). The OpenSearch **username** field is the one
+exception: it is stored as plaintext on the document row and visible in raw
+Mongo documents. Local-directory sources have no credentials at all — files
+are read with the application's process identity. See
+[Data sources](admin/data-sources.md) for the per-type field list.
+
 ## Document content integrity
 
 Every document Arbiter ingests — whether through the web upload form or

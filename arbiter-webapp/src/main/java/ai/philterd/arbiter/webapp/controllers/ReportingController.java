@@ -54,6 +54,16 @@ public class ReportingController {
             "PENDING", "REVIEW_REQUIRED", "AUDIT_REQUIRED", "AUTO_APPROVED",
             "APPROVED", "REJECTED", "FAILED", "FINALIZED");
     private static final Set<String> USER_DECIDED = Set.of("APPROVED", "REJECTED", "FAILED", "FINALIZED");
+    // Statuses that mean the document still needs reviewer attention. Used to compute
+    // the "not yet approved" total in the per-batch / per-priority breakdown.
+    private static final Set<String> NOT_YET_APPROVED = Set.of(
+            "PENDING", "REVIEW_REQUIRED", "AUDIT_REQUIRED");
+
+    private static String priorityLabel(final int priority) {
+        if (priority == 3) return "High";
+        if (priority == 1) return "Low";
+        return "Normal";
+    }
 
     private final BatchRepository batchRepository;
     private final DocumentRepository documentRepository;
@@ -149,6 +159,10 @@ public class ReportingController {
         // Aggregations keyed by domain name (or "(none)" for batches without a domain).
         final Map<String, Map<String, Object>> domainAggregates = new LinkedHashMap<>();
 
+        // One row per (batch, priority) combination that has at least one document
+        // in the current scope. Built incrementally as we walk each batch's documents.
+        final List<Map<String, Object>> priorityBatchRows = new ArrayList<>();
+
         final List<Map<String, Object>> batchRows = new ArrayList<>();
         for (Batch batch : batches) {
             if (batch.isClosed()) closedBatches++;
@@ -169,6 +183,10 @@ public class ReportingController {
 
             long batchAutoApproved = 0;
             double batchRiskSum = 0.0;
+            // Per-priority status buckets for this batch. Key is the priority int (1/2/3);
+            // value is a status -> count map seeded with every KNOWN_STATUS so the template
+            // can render a stable column order.
+            final Map<Integer, Map<String, Long>> priorityStatusCounts = new LinkedHashMap<>();
             for (Document d : docs) {
                 final String status = d.getStatus() == null ? "" : d.getStatus();
                 statusCounts.merge(status, 1L, Long::sum);
@@ -181,8 +199,38 @@ public class ReportingController {
                     batchAutoApproved++;
                     autoApprovedTotal++;
                 }
+                priorityStatusCounts
+                        .computeIfAbsent(d.getPriority(), k -> {
+                            final Map<String, Long> m = new LinkedHashMap<>();
+                            for (String s : KNOWN_STATUSES) m.put(s, 0L);
+                            return m;
+                        })
+                        .merge(status, 1L, Long::sum);
             }
             totalDocuments += docs.size();
+
+            // Emit one (batch, priority) row per priority level that actually had a document.
+            // Highest priority first so reviewers eyeballing the table see High urgency at the top.
+            final List<Integer> orderedPriorities = new ArrayList<>(priorityStatusCounts.keySet());
+            orderedPriorities.sort(Comparator.<Integer>naturalOrder().reversed());
+            for (Integer p : orderedPriorities) {
+                final Map<String, Long> sc = priorityStatusCounts.get(p);
+                long total = 0;
+                long notApproved = 0;
+                for (Map.Entry<String, Long> en : sc.entrySet()) {
+                    total += en.getValue();
+                    if (NOT_YET_APPROVED.contains(en.getKey())) notApproved += en.getValue();
+                }
+                final Map<String, Object> r = new LinkedHashMap<>();
+                r.put("batchId", batch.getId());
+                r.put("batchName", batch.getName() == null ? "" : batch.getName());
+                r.put("priority", p);
+                r.put("priorityLabel", priorityLabel(p));
+                r.put("statusCounts", sc);
+                r.put("total", total);
+                r.put("notApproved", notApproved);
+                priorityBatchRows.add(r);
+            }
 
             // Span counts for this batch
             final List<String> docIds = docs.stream().map(Document::getId).filter(java.util.Objects::nonNull).toList();
@@ -308,6 +356,7 @@ public class ReportingController {
         model.addAttribute("globalEditRate", globalEditRate);
         model.addAttribute("policyRows", policyRows);
         model.addAttribute("domainRows", domainRows);
+        model.addAttribute("priorityBatchRows", priorityBatchRows);
         model.addAttribute("batchRows", batchRows);
         model.addAttribute("knownStatuses", KNOWN_STATUSES);
         model.addAttribute("isAdmin", admin);

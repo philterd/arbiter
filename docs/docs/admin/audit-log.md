@@ -33,6 +33,10 @@ collection in MongoDB. There are two ways to view and export it:
 | `API_KEY_GENERATE` / `_REVOKE`      | User        | Per-user API key lifecycle                          |
 | `PASSWORD_CHANGE`                   | User        | Self-service password change                        |
 | `NOTIFICATION_SETTINGS_CHANGE`      | Settings    | SMTP settings save (excluding the password value)   |
+| `OPENSEARCH_DATASOURCE_CREATE` / `_DELETE` | OpenSearchDataSource | Data source registered or removed (see [Data sources](data-sources.md)) |
+| `S3_DATASOURCE_CREATE` / `_DELETE`  | S3DataSource | S3 data source registered or removed                |
+| `RDB_DATASOURCE_CREATE` / `_DELETE` | RelationalDbDataSource | Relational database data source registered or removed |
+| `LOCAL_DATASOURCE_CREATE` / `_DELETE` | LocalDirectoryDataSource | Local directory data source registered or removed |
 
 Each entry stores:
 

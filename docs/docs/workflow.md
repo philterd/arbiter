@@ -214,7 +214,7 @@ exception is captured both in the Arbiter logs and in a `failureMessage`
 field on the document — admins can view the failure detail from the
 **View log** link in the Recent failures table on Ingest Queue.
 
-For more detail see [Uploading documents](user-guide/uploading.md).
+For more detail see [Adding documents](user-guide/uploading.md).
 
 ## 5. Work the queue
 
@@ -309,7 +309,7 @@ Putting all the pieces together:
 ## Where to go next
 
 - [Concepts](concepts.md) — the underlying vocabulary.
-- [Uploading documents](user-guide/uploading.md), [Queue](user-guide/queue.md),
+- [Adding documents](user-guide/uploading.md), [Queue](user-guide/queue.md),
   [Reviewing a document](user-guide/reviewing.md) — page-by-page reference
   for reviewers.
 - [Batches](admin/batches.md), [Users and groups](admin/users-and-groups.md),

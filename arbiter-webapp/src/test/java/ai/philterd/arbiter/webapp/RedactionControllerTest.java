@@ -28,7 +28,11 @@ import ai.philterd.arbiter.repository.GeneralSettingsRepository;
 import ai.philterd.arbiter.repository.InboxMessageRepository;
 import ai.philterd.arbiter.repository.NotificationSettingsRepository;
 import ai.philterd.arbiter.repository.OllamaInstanceRepository;
+import ai.philterd.arbiter.repository.LocalDirectoryDataSourceRepository;
+import ai.philterd.arbiter.repository.OpenSearchDataSourceRepository;
 import ai.philterd.arbiter.repository.PendingUploadRepository;
+import ai.philterd.arbiter.repository.RelationalDbDataSourceRepository;
+import ai.philterd.arbiter.repository.S3DataSourceRepository;
 import ai.philterd.arbiter.repository.RedactionCertificateRepository;
 import ai.philterd.arbiter.repository.PhilterDefaultsRepository;
 import ai.philterd.arbiter.repository.PhilterInstanceRepository;
@@ -105,6 +109,18 @@ public class RedactionControllerTest {
 
     @MockBean
     private OllamaInstanceRepository ollamaInstanceRepository;
+
+    @MockBean
+    private OpenSearchDataSourceRepository openSearchDataSourceRepository;
+
+    @MockBean
+    private S3DataSourceRepository s3DataSourceRepository;
+
+    @MockBean
+    private RelationalDbDataSourceRepository relationalDbDataSourceRepository;
+
+    @MockBean
+    private LocalDirectoryDataSourceRepository localDirectoryDataSourceRepository;
 
     @MockBean
     private PhilterInstanceRepository philterInstanceRepository;

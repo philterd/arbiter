@@ -6,15 +6,18 @@ configure how the Review page navigates, and manage your API key.
 ## Review page preferences
 
 Two checkboxes tune how Previous/Next behave on the Review page and what
-happens when you approve a document:
+happens when you approve or reject a document. Previous/Next themselves
+walk the documents in the batch ordered by **risk score, highest first**,
+with a stable tie-break on document id.
 
-- **Skip completed documents when navigating with Previous and Next** —
-  when on, Prev/Next jump past `AUTO_APPROVED` documents so you only stop
-  on documents that need attention.
-- **Automatically go to the next document when a document is approved** —
-  when on, hitting Approve takes you straight to the next document
-  (respecting the skip-completed setting). Falls back to the queue if there
-  is no next document.
+- **Skip accepted and rejected documents when navigating with Previous and
+  Next** — when on, Prev/Next jump past documents that already have a
+  decision (`APPROVED`, `AUTO_APPROVED`, and `REJECTED`) so you only stop
+  on documents that still need attention.
+- **Automatically go to the next document when a document is approved or
+  rejected** — when on, hitting Approve *or* Reject takes you straight to
+  the next document (respecting the skip-accepted-and-rejected setting).
+  Falls back to the queue if there is no next document.
 
 Settings are persisted per user in MongoDB (`user_settings` collection).
 

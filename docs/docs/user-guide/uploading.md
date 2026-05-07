@@ -1,22 +1,42 @@
-# Uploading documents
+# Adding documents
 
-The **Upload** page (`/upload`) accepts a single document at a time and posts
-it to the redaction service.
+The **Add Documents** page (`/upload`) is reachable from the **Add Documents**
+link in the sidebar's Redaction section. It supports several ways to feed
+documents into Arbiter; pick the matching tab at the top of the page:
 
-## What you can upload
+- **Upload files** — submit a single document from your machine (the
+  long-standing default).
+- **OpenSearch**, **Amazon S3**, **Relational Database**, **Local Directory**
+  — pick a pre-registered [data source](../admin/data-sources.md) and queue
+  documents from there.
+
+> The data-source ingest paths are not implemented yet. Submitting an
+> OpenSearch / S3 / RDB / Local Directory form returns a *"…is not yet
+> implemented"* notice. The Upload files tab works exactly as before.
+
+## What you can upload (Upload files tab)
 
 - Plain text (`.txt`)
 - PDF (`.pdf`, searchable text — scanned-image PDFs are not OCR'd)
 
 Other formats are not supported through the web UI.
 
-## Steps
+## Steps (Upload files tab)
 
 1. Pick a **Batch** from the dropdown. Only batches you have access to and
    that are **open** are shown — closed batches do not accept new documents
    and will not appear here.
-2. Choose the file with **Document**.
-3. Click **Redact Document**.
+2. Pick a **Priority**:
+    - **1 — Low**
+    - **2 — Normal** (default)
+    - **3 — High**
+
+   Priority is a hint for reviewers, not a queueing weight: redaction itself
+   still drains the ingest queue oldest-first. The chosen priority is recorded
+   on the document and shown as a chevron icon next to the filename in the
+   [Document Queue](queue.md#priority-icon) so high-priority items stand out.
+3. Choose the file with **Document**.
+4. Click **Redact Document**.
 
 The document is **queued** for redaction and Arbiter immediately returns to
 the upload page with a confirmation message. You'll see the document in the
@@ -55,6 +75,22 @@ the document isn't in `AUDIT_REQUIRED`, the queue will show it as
 
 Admins can monitor the queue at **Admin → Ingest Queue** and remove
 still-pending documents from there.
+
+## Adding from a data source
+
+The other tabs (**OpenSearch**, **Amazon S3**, **Relational Database**,
+**Local Directory**) all share the same shape:
+
+1. Pick a **Batch** and a **Priority** as above.
+2. Pick a registered **source** from the dropdown. Each option is labeled with
+   the connection details an admin set on the
+   [Data Sources page](../admin/data-sources.md), so you can tell sources
+   apart.
+3. Click the **Ingest from …** button.
+
+If no source of that type is registered, the panel shows a yellow notice with
+a link to the Data Sources admin page (admins) or instructions to ask an admin
+(reviewers).
 
 ## Errors you might see
 

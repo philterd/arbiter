@@ -1,0 +1,64 @@
+package ai.philterd.arbiter.model;
+
+import java.time.LocalDateTime;
+
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
+import org.springframework.data.mongodb.core.mapping.Document;
+
+@Document(collection = "s3_data_sources")
+public class S3DataSource {
+
+    @Id
+    private String id;
+
+    @Indexed(unique = true)
+    private String name;
+
+    private String bucketName;
+
+    private String bucketKey;
+
+    private String filenameGlob;
+
+    /**
+     * AES-GCM ciphertext of the AWS access key id (see {@code SymmetricCipher}). Null/empty
+     * means the bucket is read with the application's ambient AWS credentials.
+     */
+    private String encryptedAccessKey;
+
+    /**
+     * AES-GCM ciphertext of the AWS secret access key. Null/empty means no explicit credential
+     * was configured for this data source.
+     */
+    private String encryptedSecretKey;
+
+    private LocalDateTime createdAt;
+
+    public S3DataSource() {
+    }
+
+    public String getId() { return id; }
+    public void setId(final String id) { this.id = id; }
+
+    public String getName() { return name; }
+    public void setName(final String name) { this.name = name; }
+
+    public String getBucketName() { return bucketName; }
+    public void setBucketName(final String bucketName) { this.bucketName = bucketName; }
+
+    public String getBucketKey() { return bucketKey; }
+    public void setBucketKey(final String bucketKey) { this.bucketKey = bucketKey; }
+
+    public String getFilenameGlob() { return filenameGlob; }
+    public void setFilenameGlob(final String filenameGlob) { this.filenameGlob = filenameGlob; }
+
+    public String getEncryptedAccessKey() { return encryptedAccessKey; }
+    public void setEncryptedAccessKey(final String encryptedAccessKey) { this.encryptedAccessKey = encryptedAccessKey; }
+
+    public String getEncryptedSecretKey() { return encryptedSecretKey; }
+    public void setEncryptedSecretKey(final String encryptedSecretKey) { this.encryptedSecretKey = encryptedSecretKey; }
+
+    public LocalDateTime getCreatedAt() { return createdAt; }
+    public void setCreatedAt(final LocalDateTime createdAt) { this.createdAt = createdAt; }
+}

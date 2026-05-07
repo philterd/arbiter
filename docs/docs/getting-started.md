@@ -51,10 +51,11 @@ immediately** under [Personal settings](user-guide/settings.md).
 | Batches            | `/batches`                | All authenticated users         |
 | Document Queue       | `/queue`                  | All authenticated users         |
 | Search             | `/search`                 | All authenticated users         |
-| Upload             | `/upload`                 | All authenticated users         |
+| Add Documents      | `/upload`                 | All authenticated users         |
 | Personal settings  | `/settings`               | All authenticated users         |
 | Ingest Queue       | `/admin/ingest-queue`     | Admin role only                 |
 | Approval Rules     | `/admin/rules`            | Admin role only                 |
+| Data Sources       | `/admin/data-sources`     | Admin role only                 |
 | Reports            | `/reporting`              | Admin role only                 |
 | Policies           | `/policies`               | Admin role only                 |
 | Admin settings     | `/admin/users` …          | Admin role only                 |

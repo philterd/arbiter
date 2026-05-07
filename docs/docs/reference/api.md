@@ -35,16 +35,23 @@ Request body:
 
 ```json
 {
-  "batchId": "string",
-  "name":    "string",
-  "text":    "string"
+  "batchId":  "string",
+  "name":     "string",
+  "text":     "string",
+  "priority": 2
 }
 ```
+
+`priority` is optional. It accepts an integer in `1..3` (`1` Low, `2` Normal,
+`3` High); omitting it or sending `null` defaults to Normal. The value is
+stored on the document and surfaced as a chevron icon on the
+[Document Queue](../user-guide/queue.md#priority-icon). It does not affect
+ingest ordering — redaction still runs oldest-first.
 
 | Status | Meaning                                                                |
 | ------ | ---------------------------------------------------------------------- |
 | `202`  | Accepted; body `{"taskId": "..."}`. Redaction runs asynchronously.     |
-| `400`  | `batchId` does not exist (or required fields missing/invalid).         |
+| `400`  | `batchId` does not exist (or required fields missing/invalid, including `priority` outside `1..3`). |
 | `403`  | Caller does not have access to that batch.                             |
 | `409`  | Batch is closed; body includes `"closed": true`.                       |
 
@@ -70,7 +77,7 @@ List documents the caller can see, paged by sort field.
 | `status`         | —             | Filter to one status                                   |
 | `filename`       | —             | Substring match on filename, case-insensitive          |
 | `myGroupsOnly`   | `false`       | Admin opt-in: restrict admins to their own groups      |
-| `sort`           | `riskScore`   | One of `riskScore`, `status`, `batchId`, `filename`    |
+| `sort`           | `riskScore`   | One of `riskScore`, `status`, `batchId`, `filename`, `priority` |
 | `dir`            | `desc`        | `asc` or `desc`                                        |
 
 Non-admins are always restricted to their groups; the `myGroupsOnly` parameter
@@ -89,7 +96,8 @@ Response is a Spring `Page<Map>` shape:
       "batchId": "string",
       "batchName": "string",
       "autoApproved": false,
-      "documentThreshold": 0.25
+      "documentThreshold": 0.25,
+      "priority": 2
     }
   ],
   "totalElements": 0,

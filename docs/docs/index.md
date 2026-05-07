@@ -10,7 +10,10 @@ considered redacted.
 - **Ingests** plain-text and PDF documents through a web upload form or a REST
   API. Uploads are queued and a background worker drains the queue oldest-first
   (with a Mongo-level claim so multiple replicas are safe). Admins watch the
-  queue at **Admin → Ingest Queue**.
+  queue at **Admin → Ingest Queue**. Admins can also register external
+  **[data sources](admin/data-sources.md)** — OpenSearch, Amazon S3, a
+  relational database, or a local directory — that surface as ingest options
+  on the Add Documents page.
 - **Detects PII** in each document and stores every detection as a *span* with a
   type (SSN, phone-number, etc.), confidence, and character offsets.
 - **Scores risk** for each document using a configurable, weighted formula that
@@ -49,12 +52,14 @@ considered redacted.
 - **[Concepts](concepts.md)** — the model behind users, groups, batches,
   documents, spans, and risk scores.
 - **User guide** — the day-to-day reviewer workflow:
-  [Queue](user-guide/queue.md), [Uploading](user-guide/uploading.md),
+  [Queue](user-guide/queue.md),
+  [Adding documents](user-guide/uploading.md),
   [Reviewing](user-guide/reviewing.md),
   [Personal settings](user-guide/settings.md).
 - **Admin guide** —
   [Users and Groups](admin/users-and-groups.md),
   [Batches](admin/batches.md),
+  [Data sources](admin/data-sources.md),
   [Audit log](admin/audit-log.md),
   [Notifications](admin/notifications.md).
 - **Reference** —

@@ -51,8 +51,10 @@ can be changed at any time by anyone with access to the batch.
 ## Documents
 
 A **document** belongs to a single batch. It carries the original text, a
-filename, a status (see below), and a numeric **risk score** between 0 and 1
-that reflects how much PII is in the document weighted by sensitivity.
+filename, a status (see below), a numeric **risk score** between 0 and 1
+that reflects how much PII is in the document weighted by sensitivity, and a
+**priority** flag (`1` Low, `2` Normal, `3` High; defaults to Normal) that the
+queue surfaces as a small chevron icon next to the filename.
 
 Document statuses:
 
