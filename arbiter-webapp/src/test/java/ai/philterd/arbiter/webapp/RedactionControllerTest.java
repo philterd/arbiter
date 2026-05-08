@@ -181,6 +181,9 @@ public class RedactionControllerTest {
     private ai.philterd.arbiter.repository.ComplianceProfileRepository complianceProfileRepository;
 
     @MockBean
+    private ai.philterd.arbiter.repository.InvitationRepository invitationRepository;
+
+    @MockBean
     private MongoOperations mongoOperations;
 
     @MockBean
@@ -198,6 +201,173 @@ public class RedactionControllerTest {
         mockMvc.perform(get("/upload"))
                 .andExpect(status().isOk())
                 .andExpect(view().name("index"));
+    }
+
+    @MockBean
+    private ai.philterd.arbiter.service.UserGroupsService userGroupsService;
+
+    @MockBean
+    private ai.philterd.arbiter.service.OpenSearchIngestJobService openSearchIngestJobService;
+
+    @MockBean
+    private ai.philterd.arbiter.service.ElasticsearchIngestJobService elasticsearchIngestJobService;
+
+    /**
+     * A non-admin reviewer with no group membership submits an OpenSearch ingest pointed at a
+     * batch they do not have access to. The controller must reject the request before the
+     * job service is ever called — without this check, any authenticated user could ingest
+     * documents into anyone's batch.
+     */
+    @Test
+    public void ingestFromSourceRejectedWhenUserCannotAccessBatch() throws Exception {
+        final Batch batch = new Batch();
+        batch.setId("b1");
+        batch.setName("Foreign batch");
+        batch.setGroupId("g-foreign");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(batch));
+        when(userGroupsService.groupIdsForEmail(any())).thenReturn(java.util.Set.of());
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/ingest-from-source")
+                        .param("sourceType", "opensearch")
+                        .param("batchId", "b1")
+                        .param("dataSourceId", "src-1")
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/upload"))
+                .andExpect(flash().attributeExists("error"));
+
+        org.mockito.Mockito.verify(openSearchIngestJobService, org.mockito.Mockito.never())
+                .start(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any());
+        org.mockito.Mockito.verify(elasticsearchIngestJobService, org.mockito.Mockito.never())
+                .start(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any());
+    }
+
+    /** Mirror for the Elasticsearch source type. */
+    @Test
+    public void ingestFromElasticsearchRejectedWhenUserCannotAccessBatch() throws Exception {
+        final Batch batch = new Batch();
+        batch.setId("b1");
+        batch.setName("Foreign batch");
+        batch.setGroupId("g-foreign");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(batch));
+        when(userGroupsService.groupIdsForEmail(any())).thenReturn(java.util.Set.of());
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/ingest-from-source")
+                        .param("sourceType", "elasticsearch")
+                        .param("batchId", "b1")
+                        .param("dataSourceId", "src-1")
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/upload"))
+                .andExpect(flash().attributeExists("error"));
+
+        org.mockito.Mockito.verify(openSearchIngestJobService, org.mockito.Mockito.never())
+                .start(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any());
+        org.mockito.Mockito.verify(elasticsearchIngestJobService, org.mockito.Mockito.never())
+                .start(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any());
+    }
+
+    /** A reviewer in the batch's group is allowed through to the job service. */
+    @Test
+    public void ingestFromSourceAllowedForGroupMember() throws Exception {
+        final Batch batch = new Batch();
+        batch.setId("b1");
+        batch.setName("Mine");
+        batch.setGroupId("g-mine");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(batch));
+        when(userGroupsService.groupIdsForEmail(any())).thenReturn(java.util.Set.of("g-mine"));
+
+        final ai.philterd.arbiter.model.BackgroundJob job = new ai.philterd.arbiter.model.BackgroundJob();
+        job.setStatus(ai.philterd.arbiter.model.BackgroundJob.STATUS_PENDING);
+        when(openSearchIngestJobService.start(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any()))
+                .thenReturn(job);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/ingest-from-source")
+                        .param("sourceType", "opensearch")
+                        .param("batchId", "b1")
+                        .param("dataSourceId", "src-1")
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/jobs"))
+                .andExpect(flash().attributeExists("success"));
+
+        org.mockito.Mockito.verify(openSearchIngestJobService)
+                .start(org.mockito.ArgumentMatchers.eq("src-1"),
+                        org.mockito.ArgumentMatchers.eq("b1"),
+                        org.mockito.ArgumentMatchers.anyInt(),
+                        any());
+    }
+
+    /** An admin can start an ingest into any batch. */
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    public void ingestFromSourceAllowedForAdmin() throws Exception {
+        final Batch batch = new Batch();
+        batch.setId("b1");
+        batch.setName("Anyone's batch");
+        batch.setGroupId("g-someone");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(batch));
+
+        final ai.philterd.arbiter.model.BackgroundJob job = new ai.philterd.arbiter.model.BackgroundJob();
+        job.setStatus(ai.philterd.arbiter.model.BackgroundJob.STATUS_PENDING);
+        when(openSearchIngestJobService.start(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any()))
+                .thenReturn(job);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/ingest-from-source")
+                        .param("sourceType", "opensearch")
+                        .param("batchId", "b1")
+                        .param("dataSourceId", "src-1")
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/jobs"));
+    }
+
+    /** A request for a batch that doesn't exist is rejected. */
+    @Test
+    public void ingestFromSourceRejectedWhenBatchMissing() throws Exception {
+        when(batchRepository.findById("ghost")).thenReturn(Optional.empty());
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/ingest-from-source")
+                        .param("sourceType", "opensearch")
+                        .param("batchId", "ghost")
+                        .param("dataSourceId", "src-1")
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/upload"))
+                .andExpect(flash().attributeExists("error"));
+
+        org.mockito.Mockito.verify(openSearchIngestJobService, org.mockito.Mockito.never())
+                .start(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any());
+    }
+
+    /** A closed batch cannot accept new ingest jobs. */
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    public void ingestFromSourceRejectedWhenBatchClosed() throws Exception {
+        final Batch closed = new Batch();
+        closed.setId("b1");
+        closed.setName("Closed");
+        closed.setGroupId("g1");
+        closed.setClosed(true);
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(closed));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/ingest-from-source")
+                        .param("sourceType", "opensearch")
+                        .param("batchId", "b1")
+                        .param("dataSourceId", "src-1")
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/upload"))
+                .andExpect(flash().attributeExists("error"));
+
+        org.mockito.Mockito.verify(openSearchIngestJobService, org.mockito.Mockito.never())
+                .start(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any());
     }
 
     @Test
@@ -223,5 +393,82 @@ public class RedactionControllerTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/upload"))
                 .andExpect(flash().attributeExists("success"));
+    }
+
+    // ---------------------------------------------------------------------
+    // /download — content-type allow-list & filename sanitization.
+    // ---------------------------------------------------------------------
+
+    /**
+     * The user-supplied {@code contentType} request parameter is restricted to a small
+     * allow-list ({@code text/plain}, {@code application/pdf}). Anything else — including
+     * the classic stored-XSS shapes like {@code text/html} — is rejected with HTTP 400
+     * before the response body is even built.
+     */
+    @Test
+    public void download_rejectsForbiddenContentType_html() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/download")
+                        .param("redactedText", "<script>alert(1)</script>")
+                        .param("fileName", "evil.html")
+                        .param("contentType", "text/html")
+                        .with(csrf()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    public void download_rejectsForbiddenContentType_javascript() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/download")
+                        .param("redactedText", "alert(1)")
+                        .param("fileName", "evil.js")
+                        .param("contentType", "application/javascript")
+                        .with(csrf()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    public void download_rejectsBlankContentType() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/download")
+                        .param("redactedText", "data")
+                        .param("fileName", "x.txt")
+                        .param("contentType", "")
+                        .with(csrf()))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    public void download_acceptsPlainTextAndSanitizesFilename() throws Exception {
+        // The fileName is built with CR/LF and double-quote injection attempts; the
+        // safeFilename helper must scrub them before they reach Content-Disposition.
+        final org.springframework.test.web.servlet.MvcResult result = mockMvc.perform(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                                .post("/download")
+                                .param("redactedText", "Hello.")
+                                .param("fileName", "report\r\nX-Injected: yes\";attack=\".txt")
+                                .param("contentType", "text/plain")
+                                .with(csrf()))
+                .andExpect(status().isOk())
+                .andReturn();
+
+        final String disposition = result.getResponse().getHeader("Content-Disposition");
+        org.junit.jupiter.api.Assertions.assertNotNull(disposition,
+                "Content-Disposition must be set on a successful download");
+        org.junit.jupiter.api.Assertions.assertFalse(disposition.contains("\r"),
+                "CR must not appear in the response header");
+        org.junit.jupiter.api.Assertions.assertFalse(disposition.contains("\n"),
+                "LF must not appear in the response header");
+        // Quotes inside the filename portion must have been stripped — only the wrapping
+        // quotes around the value should remain.
+        final String prefix = "attachment; filename=\"";
+        org.junit.jupiter.api.Assertions.assertTrue(disposition.startsWith(prefix),
+                "Content-Disposition must keep the standard attachment wrapper");
+        // After the prefix, the next quote should be the closing one (the value contains no
+        // unescaped double quotes).
+        final String tail = disposition.substring(prefix.length());
+        final int firstQuote = tail.indexOf('"');
+        org.junit.jupiter.api.Assertions.assertEquals(tail.length() - 1, firstQuote,
+                "filename portion must not contain bare double quotes; got: " + disposition);
     }
 }

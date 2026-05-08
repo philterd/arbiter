@@ -411,6 +411,111 @@ class ReviewViewControllerTest {
         assertFalse(body.contains("<<NAME>>"));
     }
 
+    // ---------- unapprove() / unreject() access checks ----------
+
+    private static Authentication userIn(final String email) {
+        return new UsernamePasswordAuthenticationToken(email, null,
+                Set.of(new SimpleGrantedAuthority("ROLE_USER")));
+    }
+
+    @Test
+    void unapproveRejectsNonAdminOutsideGroupAndDoesNotMutate() {
+        // Document lives in batch b1 / group g1; caller alice is only in g2 — must be denied.
+        final Document d = approvedDoc("d1", "b1", "hello");
+        d.getApprovedBy().add("bob@x.com");
+        d.getApprovedBy().add("carol@x.com");
+        when(documentRepository.findById("d1")).thenReturn(Optional.of(d));
+        final Batch b = new Batch();
+        b.setId("b1");
+        b.setGroupId("g1");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
+        when(userGroupsService.groupIdsForEmail("alice@x.com")).thenReturn(Set.of("g2"));
+
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.unapprove("d1", userIn("alice@x.com"), flash()));
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        // The fix: clearApprovals must not run before the access check.
+        assertEquals(2, d.getApprovedBy().size(),
+                "approvedBy was wiped despite no access — IDOR write regression");
+        verify(documentRepository, never()).save(any());
+        verify(auditLogService, never()).log(eq("DOCUMENT_UNAPPROVE"), any(), any(), any());
+    }
+
+    @Test
+    void unrejectRejectsNonAdminOutsideGroupAndDoesNotMutate() {
+        final Document d = approvedDoc("d1", "b1", "hello");
+        d.setStatus("REJECTED");
+        d.getApprovedBy().add("bob@x.com");
+        when(documentRepository.findById("d1")).thenReturn(Optional.of(d));
+        final Batch b = new Batch();
+        b.setId("b1");
+        b.setGroupId("g1");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
+        when(userGroupsService.groupIdsForEmail("alice@x.com")).thenReturn(Set.of("g2"));
+
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.unreject("d1", userIn("alice@x.com"), flash()));
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertEquals(1, d.getApprovedBy().size());
+        verify(documentRepository, never()).save(any());
+        verify(auditLogService, never()).log(eq("DOCUMENT_UNREJECT"), any(), any(), any());
+    }
+
+    @Test
+    void unapproveAllowsNonAdminInGroupAndClearsApprovers() {
+        final Document d = approvedDoc("d1", "b1", "hello");
+        d.getApprovedBy().add("bob@x.com");
+        d.getApprovedBy().add("carol@x.com");
+        when(documentRepository.findById("d1")).thenReturn(Optional.of(d));
+        final Batch b = new Batch();
+        b.setId("b1");
+        b.setGroupId("g1");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
+        when(userGroupsService.groupIdsForEmail("alice@x.com")).thenReturn(Set.of("g1"));
+
+        final String view = controller.unapprove("d1", userIn("alice@x.com"), flash());
+
+        assertEquals("redirect:/review/d1", view);
+        assertTrue(d.getApprovedBy().isEmpty());
+        verify(auditLogService).log(eq("DOCUMENT_UNAPPROVE"), eq("Document"), eq("d1"), any());
+    }
+
+    @Test
+    void unapproveOnFinalizedDocumentRefusesEvenForOwner() {
+        final Document d = approvedDoc("d1", "b1", "hello");
+        d.setStatus("FINALIZED");
+        d.getApprovedBy().add("bob@x.com");
+        when(documentRepository.findById("d1")).thenReturn(Optional.of(d));
+        final Batch b = new Batch();
+        b.setId("b1");
+        b.setGroupId("g1");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
+        when(userGroupsService.groupIdsForEmail("alice@x.com")).thenReturn(Set.of("g1"));
+
+        final RedirectAttributes ra = flash();
+        final String view = controller.unapprove("d1", userIn("alice@x.com"), ra);
+
+        assertEquals("redirect:/review/d1", view);
+        assertEquals("Document is FINALIZED. Finalized documents cannot be reopened.", error(ra));
+        // Approvers are preserved on FINALIZED — the document is locked entirely.
+        assertEquals(1, d.getApprovedBy().size());
+        verify(documentRepository, never()).save(any());
+        verify(auditLogService, never()).log(eq("DOCUMENT_UNAPPROVE"), any(), any(), any());
+    }
+
+    @Test
+    void unapproveMissingDocumentReturnsGenericNotFound() {
+        when(documentRepository.findById("ghost")).thenReturn(Optional.empty());
+
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.unapprove("ghost", admin(), flash()));
+
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertEquals("Document not found.", ex.getReason());
+    }
+
     @SuppressWarnings("unchecked")
     private ArgumentCaptor<Map<String, Object>> capturingDetails(final String action, final String entityId) {
         final ArgumentCaptor<Map<String, Object>> captor = ArgumentCaptor.forClass(Map.class);

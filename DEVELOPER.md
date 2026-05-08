@@ -34,9 +34,9 @@ docker compose up -d mongodb valkey
 Defaults in `arbiter-webapp/src/main/resources/application.properties`
 point at `localhost`; the only env vars worth knowing about are
 `SPRING_DATA_MONGODB_URI`, `SPRING_DATA_REDIS_HOST`/`_PORT`,
-`ARBITER_OPENSEARCH_ENDPOINT`, and **`arbiter.crypto.secret`** (set a
-real value in any non-dev deployment — the dev fallback is logged as
-insecure).
+`ARBITER_OPENSEARCH_ENDPOINT`, and **`arbiter.crypto.secret`** (now
+required: base64 of 32 random bytes, e.g. `openssl rand -base64 32`;
+Arbiter refuses to start if it isn't set or has the wrong shape).
 
 ## Tests
 

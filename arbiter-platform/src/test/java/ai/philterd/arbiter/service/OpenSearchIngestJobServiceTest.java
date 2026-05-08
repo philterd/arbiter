@@ -61,7 +61,7 @@ class OpenSearchIngestJobServiceTest {
                 .thenAnswer(inv -> inv.getArgument(0));
         service = new OpenSearchIngestJobService(jobRepository, dataSourceRepository,
                 batchRepository, documentRepository, ingestQueueService, new ObjectMapper(), cipher,
-                inboxService);
+                inboxService, new DataSourceHostAllowList(""));
     }
 
     // ---------- start() ----------
@@ -168,6 +168,32 @@ class OpenSearchIngestJobServiceTest {
         assertTrue(captor.getAllValues().stream()
                         .anyMatch(j -> BackgroundJob.STATUS_PENDING.equals(j.getStatus())),
                 "expected at least one PENDING save");
+    }
+
+    @Test
+    void startRejectsEndpointNotOnAllowList() {
+        // Build a service with an allow-list that excludes the source's endpoint host.
+        final OpenSearchIngestJobService restrictedService = new OpenSearchIngestJobService(
+                jobRepository, dataSourceRepository, batchRepository, documentRepository,
+                ingestQueueService, new ObjectMapper(), cipher, inboxService,
+                new DataSourceHostAllowList("opensearch.internal"));
+
+        final OpenSearchDataSource src = new OpenSearchDataSource();
+        src.setId("src-1");
+        src.setName("Demo");
+        src.setEndpoint("http://attacker.example.com:9200");
+        final Batch batch = new Batch();
+        batch.setId("b1");
+        batch.setName("Sample");
+        when(dataSourceRepository.findById("src-1")).thenReturn(Optional.of(src));
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(batch));
+
+        final BackgroundJob job = restrictedService.start("src-1", "b1", 2, "actor@example.com");
+
+        assertEquals(BackgroundJob.STATUS_FAILED, job.getStatus());
+        assertTrue(job.getErrorMessage() != null
+                        && job.getErrorMessage().contains("allow-list"),
+                "expected allow-list error, got: " + job.getErrorMessage());
     }
 
     @Test

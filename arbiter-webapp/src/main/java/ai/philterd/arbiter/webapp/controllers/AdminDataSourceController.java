@@ -68,6 +68,8 @@ public class AdminDataSourceController {
     private final AuditLogService auditLogService;
     private final SymmetricCipher cipher;
     private final ObjectMapper objectMapper;
+    private final ai.philterd.arbiter.service.DataSourceHostAllowList hostAllowList;
+    private final ai.philterd.arbiter.service.JdbcUrlValidator jdbcUrlValidator;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
@@ -79,7 +81,9 @@ public class AdminDataSourceController {
                                      final LocalDirectoryDataSourceRepository localRepository,
                                      final AuditLogService auditLogService,
                                      final SymmetricCipher cipher,
-                                     final ObjectMapper objectMapper) {
+                                     final ObjectMapper objectMapper,
+                                     final ai.philterd.arbiter.service.DataSourceHostAllowList hostAllowList,
+                                     final ai.philterd.arbiter.service.JdbcUrlValidator jdbcUrlValidator) {
         this.repository = repository;
         this.esRepository = esRepository;
         this.s3Repository = s3Repository;
@@ -88,6 +92,8 @@ public class AdminDataSourceController {
         this.auditLogService = auditLogService;
         this.cipher = cipher;
         this.objectMapper = objectMapper;
+        this.hostAllowList = hostAllowList;
+        this.jdbcUrlValidator = jdbcUrlValidator;
     }
 
     @GetMapping
@@ -328,6 +334,16 @@ public class AdminDataSourceController {
         if (trimmedQuery.isEmpty()) {
             result.put("ok", false);
             result.put("error", "Query is required.");
+            return result;
+        }
+        // Optional defense-in-depth: when arbiter.data-sources.allowed-hosts is configured,
+        // the endpoint host must be on the allow-list. Disabled by default; opt-in for
+        // deployments where Arbiter has access to internal services that admins should not
+        // be able to reach.
+        if (!hostAllowList.isAllowed(trimmedEndpoint)) {
+            result.put("ok", false);
+            result.put("error", "Endpoint host is not on the data-source allow-list "
+                    + "(arbiter.data-sources.allowed-hosts).");
             return result;
         }
 
@@ -713,6 +729,21 @@ public class AdminDataSourceController {
         }
         if (trimmedUrl.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "JDBC URL is required.");
+            return "redirect:/admin/data-sources";
+        }
+        // SSRF / RCE defense: refuse JDBC URLs whose driver can run code at connect
+        // time (H2 INIT, Derby restoreFrom), or that smuggle a known-dangerous param
+        // (PostgreSQL socketFactory, MySQL autoDeserialize, etc.). When the deployer
+        // has configured arbiter.data-sources.allowed-hosts, the host portion is also
+        // gated against that list. See JdbcUrlValidator for the full rule set.
+        final ai.philterd.arbiter.service.JdbcUrlValidator.Result urlCheck =
+                jdbcUrlValidator.validate(trimmedUrl);
+        if (!urlCheck.ok()) {
+            auditLogService.log("RDB_DANGEROUS_JDBC_URL_BLOCKED", "RelationalDbDataSource", null,
+                    Map.of("name", trimmedName,
+                            "jdbcUrl", trimmedUrl,
+                            "reason", urlCheck.error() == null ? "" : urlCheck.error()));
+            redirectAttributes.addFlashAttribute("error", urlCheck.error());
             return "redirect:/admin/data-sources";
         }
         if (trimmedSql.isEmpty()) {

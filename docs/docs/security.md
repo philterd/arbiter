@@ -136,16 +136,20 @@ optional API key that Arbiter sends as `Authorization: Bearer …` on every
 outbound call (and on the per-row Test). The plaintext key is **encrypted
 with AES-GCM** before being written to MongoDB:
 
-- 32-byte AES key derived from the `arbiter.crypto.secret` property
-  (accepts a base64-encoded 32-byte key directly, or any passphrase, in
-  which case Arbiter SHA-256-derives 32 bytes from it).
+- 32-byte AES key loaded from the `arbiter.crypto.secret` property. The
+  property must be a **base64-encoded value of exactly 32 random bytes**
+  — generate one with `openssl rand -base64 32` (or
+  `head -c 32 /dev/urandom | base64`).
 - 12-byte random IV per encryption; ciphertext + GCM auth tag stored as
   base64.
 
-If `arbiter.crypto.secret` is unset, Arbiter falls back to an insecure
-deterministic dev key with a logged warning — set the property in any
-non-development deployment. The plaintext key is never displayed back; the
-admin UI only shows whether a key is configured.
+Anything else — an unset property, a passphrase, base64 of the wrong
+length — fails fast at startup with a descriptive error. There is no
+silent fallback to a public dev key, and no SHA-256-of-passphrase
+derivation: a leaked database paired with a low-entropy passphrase used
+to be brute-forceable in seconds, so passphrase-style secrets are no
+longer accepted. The plaintext key is never displayed back; the admin UI
+only shows whether a key is configured.
 
 ## Data source credentials
 

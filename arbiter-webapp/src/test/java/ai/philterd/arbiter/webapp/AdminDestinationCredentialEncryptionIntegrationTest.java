@@ -76,7 +76,10 @@ class AdminDestinationCredentialEncryptionIntegrationTest {
     @BeforeEach
     void setUp() {
         // Real cipher with a deterministic test key — produces real AES-GCM ciphertext.
-        cipher = new SymmetricCipher("integration-test-fixed-secret");
+        // The cipher requires base64 of exactly 32 bytes; build one inline.
+        final byte[] keyBytes = new byte[32];
+        java.util.Arrays.fill(keyBytes, (byte) 0x42);
+        cipher = new SymmetricCipher(java.util.Base64.getEncoder().encodeToString(keyBytes));
 
         localRepository = mock(LocalDirectoryDestinationRepository.class);
         s3Repository = mock(S3DestinationRepository.class);

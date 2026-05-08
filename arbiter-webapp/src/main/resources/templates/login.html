@@ -29,6 +29,12 @@
         <div th:if="${param.error}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
             Invalid email or password.
         </div>
+        <div th:if="${param.locked}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            Account is temporarily locked due to repeated failed sign-in attempts. Please try again in 15 minutes or contact your administrator.
+        </div>
+        <div th:if="${param.invited}" class="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
+            Your password is set. Sign in below.
+        </div>
         <div th:if="${param.logout}" class="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
             You have been signed out.
         </div>

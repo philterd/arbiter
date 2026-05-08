@@ -169,6 +169,42 @@ The match is whole-word-only, so legitimate column names like
 No credentials — the directory is read with the application's process
 identity, so make sure the path is reachable and readable by that user.
 
+## Trust model and host allow-list
+
+Data sources are administered by users with `ROLE_ADMIN`. The product
+intentionally **trusts admins** to point Arbiter at internal services —
+that's what the feature is for — and the Test buttons issue HTTP / JDBC
+calls to whatever URL the admin types. In a typical deployment this is
+fine: admins run Arbiter and have at least as much network access as the
+application process.
+
+In a multi-tenant or zero-trust deployment where the application server
+has access to internal hosts that the admin role should *not* be able to
+reach (the [SSRF](https://owasp.org/www-community/attacks/Server_Side_Request_Forgery)
+risk), there is a defense-in-depth setting that pins acceptable hosts:
+
+```properties
+# application.properties / arbiter-webapp
+arbiter.data-sources.allowed-hosts=opensearch.internal,*.search.example.com
+```
+
+The format is a comma-separated list. Each entry is either an exact
+hostname or a leading-wildcard pattern (`*.foo.com`) that matches one-or-
+more left-side labels (so `a.foo.com` and `a.b.foo.com` both match) and
+also the bare apex (`foo.com`).
+
+When configured, every URL on every OpenSearch / Elasticsearch admin
+**Test** click and every saved-source ingest job is checked against the
+list. A non-matching host is rejected with the error *"Endpoint host is
+not on the data-source allow-list (arbiter.data-sources.allowed-hosts)."*
+The check applies even to **already-saved** data sources: if a host is
+removed from the allow-list later, an in-flight or newly-queued ingest job
+fails fast with the same message.
+
+When the property is **unset or blank** (the default), the allow-list is
+disabled and any host is accepted — the long-standing behavior. The
+feature is opt-in for security-sensitive deployments.
+
 ## Credential encryption
 
 Every credential that admins type into the Data Sources page is encrypted with

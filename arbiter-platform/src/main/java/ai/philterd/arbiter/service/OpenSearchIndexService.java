@@ -90,10 +90,29 @@ public class OpenSearchIndexService {
      * Run a full-text match query over the indexed documents. Returns an empty result set if
      * OpenSearch is unreachable or returns an error — callers should not crash the request on
      * search failures.
+     *
+     * <p>Equivalent to calling {@link #search(String, int, int, java.util.Collection)} with
+     * {@code allowedBatchIds = null}, which means "do not restrict by batch" — admin callers
+     * use this form. Group-scoped callers must use the four-arg overload so the {@code total}
+     * and the hit list reflect only documents the caller is permitted to see.
      */
     public SearchResults search(final String query, final int from, final int size) {
+        return search(query, from, size, null);
+    }
+
+    /**
+     * Same as {@link #search(String, int, int)} but with an allow-list of {@code batchId}s.
+     * When {@code allowedBatchIds} is non-null, the OpenSearch query is wrapped in a
+     * {@code bool} that adds a {@code terms} filter so neither the {@code total} nor the hit
+     * list can disclose foreign documents to the caller. An empty allow-list short-circuits
+     * to an empty result without contacting OpenSearch (a {@code terms} clause with no values
+     * is rejected by some servers and would otherwise be a useless round-trip).
+     */
+    public SearchResults search(final String query, final int from, final int size,
+                                final java.util.Collection<String> allowedBatchIds) {
         final SearchResults empty = new SearchResults(0, Math.max(0, from), Math.max(1, size), List.of());
         if (query == null || query.isBlank()) return empty;
+        if (allowedBatchIds != null && allowedBatchIds.isEmpty()) return empty;
         final String endpoint = endpoint();
         if (endpoint == null) return empty;
 
@@ -106,10 +125,45 @@ public class OpenSearchIndexService {
             body.put("size", safeSize);
             final ObjectNode match = objectMapper.createObjectNode();
             match.put("originalText", query);
-            body.set("query", objectMapper.createObjectNode().set("match", match));
+            final ObjectNode matchClause = objectMapper.createObjectNode();
+            matchClause.set("match", match);
+            if (allowedBatchIds == null) {
+                // Admin scope — query the index directly.
+                body.set("query", matchClause);
+            } else {
+                // Restricted scope — wrap the match in a bool with a terms filter on batchId.
+                // The total reported by OpenSearch will reflect only matching documents that
+                // also fall within the caller's allow-list, so neither the count nor the hit
+                // list can leak the existence of inaccessible documents.
+                final ArrayNode batchIdsArr = objectMapper.createArrayNode();
+                for (String id : allowedBatchIds) {
+                    if (id != null && !id.isBlank()) batchIdsArr.add(id);
+                }
+                final ObjectNode termsBatch = objectMapper.createObjectNode();
+                termsBatch.set("batchId", batchIdsArr);
+                final ObjectNode termsFilter = objectMapper.createObjectNode();
+                termsFilter.set("terms", termsBatch);
+                final ObjectNode bool = objectMapper.createObjectNode();
+                bool.set("must", matchClause);
+                bool.set("filter", termsFilter);
+                final ObjectNode boolQuery = objectMapper.createObjectNode();
+                boolQuery.set("bool", bool);
+                body.set("query", boolQuery);
+            }
+            // Per-request unguessable sentinels around the matched terms. After OpenSearch returns
+            // the highlight, we HTML-escape the entire snippet (so any user-typed HTML in the
+            // surrounding document text becomes inert text) and only then swap our sentinels
+            // for <mark>...</mark>. User content cannot forge the sentinel because it embeds a
+            // fresh UUID per request.
+            final String openTag = "[[arbHL_" + java.util.UUID.randomUUID().toString().replace("-", "") + "_OPEN]]";
+            final String closeTag = "[[arbHL_" + java.util.UUID.randomUUID().toString().replace("-", "") + "_CLOSE]]";
             final ObjectNode highlightFields = objectMapper.createObjectNode();
             highlightFields.set("originalText", objectMapper.createObjectNode());
-            body.set("highlight", objectMapper.createObjectNode().set("fields", highlightFields));
+            final ObjectNode highlight = objectMapper.createObjectNode();
+            highlight.set("fields", highlightFields);
+            highlight.set("pre_tags", objectMapper.createArrayNode().add(openTag));
+            highlight.set("post_tags", objectMapper.createArrayNode().add(closeTag));
+            body.set("highlight", highlight);
 
             final HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(url))
@@ -138,7 +192,7 @@ public class OpenSearchIndexService {
                 final List<String> highlights = new ArrayList<>();
                 final JsonNode hl = hit.path("highlight").path("originalText");
                 if (hl.isArray()) {
-                    for (JsonNode h : hl) highlights.add(h.asText());
+                    for (JsonNode h : hl) highlights.add(sanitizeHighlight(h.asText(), openTag, closeTag));
                 }
                 hits.add(new SearchHit(
                         hit.path("_id").asText(""),
@@ -242,5 +296,24 @@ public class OpenSearchIndexService {
     private static String truncate(final String s) {
         if (s == null) return "";
         return s.length() <= 200 ? s : s.substring(0, 200) + "…";
+    }
+
+    /**
+     * Render a highlight snippet as safe HTML. The raw snippet contains the surrounding
+     * document text (which may include user-typed {@code <script>} payloads) bracketed by
+     * the per-request {@code openTag}/{@code closeTag} sentinels around matched terms. We
+     * HTML-escape the whole thing first — neutralizing any inline HTML in the document text
+     * — and only then swap our private sentinels for {@code <mark>...</mark>}. The sentinels
+     * embed a fresh UUID per request, so user content cannot forge them.
+     */
+    static String sanitizeHighlight(final String raw, final String openTag, final String closeTag) {
+        if (raw == null) return "";
+        final String escaped = raw
+                .replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;");
+        return escaped
+                .replace(openTag, "<mark>")
+                .replace(closeTag, "</mark>");
     }
 }

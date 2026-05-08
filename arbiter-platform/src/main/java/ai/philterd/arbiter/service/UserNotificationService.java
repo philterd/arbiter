@@ -64,20 +64,24 @@ public class UserNotificationService {
         mailSender.send(message);
     }
 
-    /** Send a new user their login credentials. Returns true if the email was sent. */
-    public boolean sendNewUserCredentials(final String toEmail, final String password) {
-        final String loginUrl = buildLoginUrl();
+    /**
+     * Send a new user a one-shot invitation link. The link points at
+     * {@code /invitations/{token}}; the recipient sets their own password there. The
+     * plaintext password is never typed by the admin and never traverses SMTP — only
+     * the token does, and even a leaked token is single-shot and time-limited.
+     */
+    public boolean sendInvitation(final String toEmail, final String invitationLink) {
         final NotificationSettings settings = settingsService.load();
         if (!settings.isEnabled()) {
-            log.warn("Outbound email is disabled; skipping new-user welcome to {}", toEmail);
+            log.warn("Outbound email is disabled; skipping invitation to {}", toEmail);
             return false;
         }
         if (settings.getHost() == null || settings.getHost().isBlank()) {
-            log.warn("Outbound email is enabled but no SMTP host is configured; skipping welcome to {}", toEmail);
+            log.warn("Outbound email is enabled but no SMTP host is configured; skipping invitation to {}", toEmail);
             return false;
         }
         if (settings.getFromAddress() == null || settings.getFromAddress().isBlank()) {
-            log.warn("Outbound email is enabled but no from-address is configured; skipping welcome to {}", toEmail);
+            log.warn("Outbound email is enabled but no from-address is configured; skipping invitation to {}", toEmail);
             return false;
         }
 
@@ -91,13 +95,13 @@ public class UserNotificationService {
                 helper.setFrom(settings.getFromAddress());
             }
             helper.setTo(toEmail);
-            helper.setSubject("Your Arbiter account");
-            helper.setText(buildBody(toEmail, password, loginUrl));
+            helper.setSubject("Your Arbiter invitation");
+            helper.setText(buildInvitationBody(toEmail, invitationLink));
             mailSender.send(message);
-            log.info("Sent new-user welcome email to {}", toEmail);
+            log.info("Sent invitation email to {}", toEmail);
             return true;
         } catch (Exception e) {
-            log.warn("Failed to send new-user welcome email to {}: {}", toEmail, e.getMessage());
+            log.warn("Failed to send invitation email to {}: {}", toEmail, e.getMessage());
             return false;
         }
     }
@@ -130,22 +134,25 @@ public class UserNotificationService {
         return sender;
     }
 
-    private String buildLoginUrl() {
+    /** Build a {@code /invitations/{token}} link rooted at the configured Arbiter URL. */
+    public String buildInvitationLink(final String token) {
         String url = generalSettingsService.load().getArbiterUrl();
         if (url == null || url.isBlank()) return null;
         if (url.endsWith("/")) url = url.substring(0, url.length() - 1);
-        return url + "/login";
+        return url + "/invitations/" + token;
     }
 
-    private static String buildBody(final String email, final String password, final String loginUrl) {
+    private static String buildInvitationBody(final String email, final String invitationLink) {
         final StringBuilder sb = new StringBuilder(512);
-        sb.append("An Arbiter account has been created for you.\n\n");
-        sb.append("Email:    ").append(email).append('\n');
-        sb.append("Password: ").append(password).append('\n');
-        if (loginUrl != null && !loginUrl.isBlank()) {
-            sb.append("Sign in:  ").append(loginUrl).append('\n');
+        sb.append("An Arbiter account has been created for ").append(email).append(".\n\n");
+        sb.append("To finish setting up your account, follow this link and choose a password:\n\n");
+        if (invitationLink != null && !invitationLink.isBlank()) {
+            sb.append("    ").append(invitationLink).append('\n');
+        } else {
+            sb.append("    (the link to your invitation could not be built — ");
+            sb.append("ask your administrator to configure the Arbiter URL under General settings)\n");
         }
-        sb.append("\nPlease change your password after signing in.\n");
+        sb.append("\nThe link is single-use and expires in 7 days.\n");
         return sb.toString();
     }
 }

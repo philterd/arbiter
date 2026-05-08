@@ -62,7 +62,7 @@ class ElasticsearchIngestJobServiceTest {
                 .thenAnswer(inv -> inv.getArgument(0));
         service = new ElasticsearchIngestJobService(jobRepository, dataSourceRepository,
                 batchRepository, documentRepository, ingestQueueService, new ObjectMapper(), cipher,
-                inboxService);
+                inboxService, new DataSourceHostAllowList(""));
     }
 
     @Test
@@ -90,6 +90,31 @@ class ElasticsearchIngestJobServiceTest {
 
         assertEquals(BackgroundJob.STATUS_FAILED, job.getStatus());
         assertEquals("Batch not found.", job.getErrorMessage());
+    }
+
+    @Test
+    void startRejectsEndpointNotOnAllowList() {
+        final ElasticsearchIngestJobService restrictedService = new ElasticsearchIngestJobService(
+                jobRepository, dataSourceRepository, batchRepository, documentRepository,
+                ingestQueueService, new ObjectMapper(), cipher, inboxService,
+                new DataSourceHostAllowList("elastic.internal"));
+
+        final ElasticsearchDataSource src = new ElasticsearchDataSource();
+        src.setId("src-1");
+        src.setName("Demo ES");
+        src.setEndpoint("http://attacker.example.com:9200");
+        final Batch batch = new Batch();
+        batch.setId("b1");
+        batch.setName("Sample");
+        when(dataSourceRepository.findById("src-1")).thenReturn(Optional.of(src));
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(batch));
+
+        final BackgroundJob job = restrictedService.start("src-1", "b1", 2, "actor@example.com");
+
+        assertEquals(BackgroundJob.STATUS_FAILED, job.getStatus());
+        assertTrue(job.getErrorMessage() != null
+                        && job.getErrorMessage().contains("allow-list"),
+                "expected allow-list error, got: " + job.getErrorMessage());
     }
 
     @Test

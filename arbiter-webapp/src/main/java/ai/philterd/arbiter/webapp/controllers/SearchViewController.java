@@ -71,15 +71,17 @@ public class SearchViewController {
         final List<Map<String, Object>> rows = new ArrayList<>();
         long total = 0;
         if (!query.isEmpty()) {
-            final SearchResults results = openSearchIndexService.search(query, safeOffset, PAGE_SIZE);
+            // Restrict at the OpenSearch layer for non-admins so the reported total and the
+            // hit list both exclude documents the caller can't see — see SearchController for
+            // the matching API change.
+            final boolean admin = isAdmin(authentication);
+            final Set<String> allowedBatchIds = admin ? null : allowedBatchIds(authentication);
+            final SearchResults results = openSearchIndexService.search(query, safeOffset, PAGE_SIZE, allowedBatchIds);
             total = results.total();
             if (safeOffset == 0) {
                 auditLogService.log("DOCUMENT_SEARCH", "Document", null,
                         Map.of("query", query, "total", total));
             }
-
-            final boolean admin = isAdmin(authentication);
-            final Set<String> allowedBatchIds = admin ? null : allowedBatchIds(authentication);
 
             // Collect all document and batch IDs so we can do two batch lookups.
             final Set<String> docIds = new HashSet<>();
@@ -108,35 +110,24 @@ public class SearchViewController {
             }
 
             for (SearchHit h : results.hits()) {
-                final boolean restricted = !admin
-                        && (h.batchId() == null || !allowedBatchIds.contains(h.batchId()));
-                final Map<String, Object> row = new LinkedHashMap<>();
-                row.put("restricted", restricted);
-                if (restricted) {
-                    // Acknowledge the hit exists but reveal nothing about the document itself.
-                    row.put("id", null);
-                    row.put("filename", null);
-                    row.put("status", null);
-                    row.put("batchId", null);
-                    row.put("batchName", null);
-                    row.put("createdAt", null);
-                    row.put("statusChangedAt", null);
-                    row.put("riskScore", null);
-                    row.put("approvedBy", null);
-                    row.put("highlights", List.of());
-                } else {
-                    final Map<String, Object> doc = liveDocs.getOrDefault(h.id(), Map.of());
-                    row.put("id", h.id());
-                    row.put("filename", h.filename());
-                    row.put("status", doc.getOrDefault("status", h.status()));
-                    row.put("batchId", h.batchId());
-                    row.put("batchName", batchNames.getOrDefault(h.batchId(), h.batchId()));
-                    row.put("createdAt", doc.getOrDefault("createdAt", ""));
-                    row.put("statusChangedAt", doc.getOrDefault("statusChangedAt", ""));
-                    row.put("riskScore", doc.getOrDefault("riskScore", ""));
-                    row.put("approvedBy", doc.getOrDefault("approvedBy", ""));
-                    row.put("highlights", h.highlights());
+                // Defense in depth: silently skip any hit whose batchId is outside the allow-list.
+                // The OpenSearch terms filter should already guarantee this, so reaching this
+                // branch means an indexing bug or schema drift.
+                if (!admin && (h.batchId() == null || !allowedBatchIds.contains(h.batchId()))) {
+                    continue;
                 }
+                final Map<String, Object> doc = liveDocs.getOrDefault(h.id(), Map.of());
+                final Map<String, Object> row = new LinkedHashMap<>();
+                row.put("id", h.id());
+                row.put("filename", h.filename());
+                row.put("status", doc.getOrDefault("status", h.status()));
+                row.put("batchId", h.batchId());
+                row.put("batchName", batchNames.getOrDefault(h.batchId(), h.batchId()));
+                row.put("createdAt", doc.getOrDefault("createdAt", ""));
+                row.put("statusChangedAt", doc.getOrDefault("statusChangedAt", ""));
+                row.put("riskScore", doc.getOrDefault("riskScore", ""));
+                row.put("approvedBy", doc.getOrDefault("approvedBy", ""));
+                row.put("highlights", h.highlights());
                 rows.add(row);
             }
         }

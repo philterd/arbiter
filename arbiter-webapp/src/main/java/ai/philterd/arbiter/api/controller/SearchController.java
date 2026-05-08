@@ -61,7 +61,12 @@ public class SearchController {
                                       @RequestParam(name = "offset", defaultValue = "0") final int offset,
                                       @RequestParam(name = "size", defaultValue = "10") final int size,
                                       final Authentication authentication) {
-        final SearchResults results = openSearchIndexService.search(query, offset, size);
+        // Restrict at the OpenSearch query layer for non-admins so the reported `total` and
+        // the hit list both exclude foreign documents — an attacker can no longer probe
+        // queries to detect the existence of content in batches they can't see.
+        final boolean admin = isAdmin(authentication);
+        final Set<String> allowedBatchIds = admin ? null : allowedBatchIds(authentication);
+        final SearchResults results = openSearchIndexService.search(query, offset, size, allowedBatchIds);
         if (offset == 0) {
             auditLogService.log("DOCUMENT_SEARCH", "Document", null,
                     java.util.Map.of("query", query == null ? "" : query, "total", results.total()));
@@ -78,28 +83,20 @@ public class SearchController {
             liveStatuses.put(d.getId(), d.getStatus() == null ? "" : d.getStatus());
         }
 
-        // Filter to batches the caller can see. Admins see everything; others only batches in their groups.
-        final boolean admin = isAdmin(authentication);
-        final Set<String> allowedBatchIds = admin ? null : allowedBatchIds(authentication);
         final List<Map<String, Object>> hits = new ArrayList<>();
         for (SearchHit h : results.hits()) {
-            final boolean restricted = !admin
-                    && (h.batchId() == null || !allowedBatchIds.contains(h.batchId()));
-            final Map<String, Object> hit = new LinkedHashMap<>();
-            hit.put("restricted", restricted);
-            if (restricted) {
-                hit.put("id", null);
-                hit.put("batchId", null);
-                hit.put("filename", null);
-                hit.put("status", null);
-                hit.put("highlights", List.of());
-            } else {
-                hit.put("id", h.id());
-                hit.put("batchId", h.batchId());
-                hit.put("filename", h.filename());
-                hit.put("status", liveStatuses.getOrDefault(h.id(), h.status()));
-                hit.put("highlights", h.highlights());
+            // Defense in depth: verify the hit's batchId is in the allowed set even though
+            // the OpenSearch terms filter should already guarantee it. Skip silently on a
+            // mismatch (could only happen via an indexing bug or schema drift).
+            if (!admin && (h.batchId() == null || !allowedBatchIds.contains(h.batchId()))) {
+                continue;
             }
+            final Map<String, Object> hit = new LinkedHashMap<>();
+            hit.put("id", h.id());
+            hit.put("batchId", h.batchId());
+            hit.put("filename", h.filename());
+            hit.put("status", liveStatuses.getOrDefault(h.id(), h.status()));
+            hit.put("highlights", h.highlights());
             hits.add(hit);
         }
 

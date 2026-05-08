@@ -75,13 +75,36 @@ public class ReviewController {
         final Batch batch = document.getBatchId() == null ? null
                 : batchRepository.findById(document.getBatchId()).orElse(null);
         if (batch == null || batch.getGroupId() == null) {
-            throw new ResponseStatusException(NOT_FOUND, "Document not found: " + document.getId());
+            throw new ResponseStatusException(NOT_FOUND, "Document not found.");
         }
         final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(
                 auth == null ? null : auth.getName());
         if (!myGroupIds.contains(batch.getGroupId())) {
-            throw new ResponseStatusException(NOT_FOUND, "Document not found: " + document.getId());
+            throw new ResponseStatusException(NOT_FOUND, "Document not found.");
         }
+    }
+
+    /**
+     * Resolve the document a span belongs to and verify the caller can see it. All three
+     * failure modes — span's parent doc missing, batch missing, caller not in the batch's
+     * group — surface as the same {@code "Span not found."} 404 so an attacker can't tell
+     * a real-but-inaccessible span id from a never-existed id.
+     */
+    private Document loadAccessibleParentForSpan(final Span span, final Authentication auth) {
+        final Document document = documentRepository.findById(span.getDocumentId())
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found."));
+        if (isAdmin(auth)) return document;
+        final Batch batch = document.getBatchId() == null ? null
+                : batchRepository.findById(document.getBatchId()).orElse(null);
+        if (batch == null || batch.getGroupId() == null) {
+            throw new ResponseStatusException(NOT_FOUND, "Span not found.");
+        }
+        final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(
+                auth == null ? null : auth.getName());
+        if (!myGroupIds.contains(batch.getGroupId())) {
+            throw new ResponseStatusException(NOT_FOUND, "Span not found.");
+        }
+        return document;
     }
 
     /**
@@ -115,7 +138,7 @@ public class ReviewController {
     @GetMapping("/documents/{id}/spans")
     public List<Span> getSpans(@PathVariable final String id, final Authentication authentication) {
         final Document document = documentRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + id));
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
         requireDocumentAccess(authentication, document);
         if (document.getOriginalText() == null || document.getOriginalText().isEmpty()) {
             throw new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
@@ -148,7 +171,7 @@ public class ReviewController {
         }
         final Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND,
-                        "Document not found: " + documentId));
+                        "Document not found."));
         requireDocumentAccess(authentication, document);
         requireEditable(document);
         final String original = document.getOriginalText() == null ? "" : document.getOriginalText();
@@ -190,11 +213,8 @@ public class ReviewController {
             throw new ResponseStatusException(BAD_REQUEST, "At least one of 'status' or 'type' must be provided.");
         }
         final Span span = spanRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found: " + id));
-        final Document document = documentRepository.findById(span.getDocumentId())
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND,
-                        "Document not found: " + span.getDocumentId()));
-        requireDocumentAccess(authentication, document);
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found."));
+        final Document document = loadAccessibleParentForSpan(span, authentication);
         requireEditable(document);
 
         final String actor = authentication == null ? null : authentication.getName();
@@ -257,11 +277,8 @@ public class ReviewController {
     @DeleteMapping("/spans/{id}")
     public Map<String, Object> deleteSpan(@PathVariable final String id, final Authentication authentication) {
         final Span span = spanRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found: " + id));
-        final Document document = documentRepository.findById(span.getDocumentId())
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND,
-                        "Document not found: " + span.getDocumentId()));
-        requireDocumentAccess(authentication, document);
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found."));
+        final Document document = loadAccessibleParentForSpan(span, authentication);
         requireEditable(document);
 
         if (!span.isManuallyCreated()) {
@@ -281,16 +298,14 @@ public class ReviewController {
     @PostMapping("/spans/{id}/redact-like")
     public Map<String, Object> redactAllLike(@PathVariable final String id, final Authentication authentication) {
         final Span source = spanRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found: " + id));
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found."));
 
         final String needle = source.getText();
         if (needle == null || needle.isEmpty()) {
             throw new ResponseStatusException(BAD_REQUEST, "Source span has no text to match.");
         }
 
-        final Document document = documentRepository.findById(source.getDocumentId())
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + source.getDocumentId()));
-        requireDocumentAccess(authentication, document);
+        final Document document = loadAccessibleParentForSpan(source, authentication);
         requireEditable(document);
         // Redact All Like This is only meaningful while the source span is still a redaction
         // candidate. If the reviewer refused it or flagged it for a second opinion, the action
@@ -388,11 +403,8 @@ public class ReviewController {
                           @RequestBody(required = false) final ResetSpanRequest request,
                           final Authentication authentication) {
         final Span span = spanRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found: " + id));
-        final Document document = documentRepository.findById(span.getDocumentId())
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND,
-                        "Document not found: " + span.getDocumentId()));
-        requireDocumentAccess(authentication, document);
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found."));
+        final Document document = loadAccessibleParentForSpan(span, authentication);
         requireEditable(document);
 
         final String actor = authentication == null ? null : authentication.getName();

@@ -83,19 +83,20 @@ class IngestionControllerTest {
     }
 
     @Test
-    void unknownBatchReturns400() {
+    void unknownBatchReturns404WithGenericBody() {
         when(batchRepository.findById("missing")).thenReturn(Optional.empty());
         final IngestRequest req = new IngestRequest("doc.txt", "missing", "hello", null);
 
         final ResponseEntity<?> response = controller.ingest(req, TestAuth.user("alice@example.com"));
 
-        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
-        assertTrue(((String) body(response).get("error")).contains("missing"));
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        // Body must NOT echo the supplied id — that would leak existence on every probe.
+        assertEquals("Batch not found.", body(response).get("error"));
         verify(documentRepository, never()).save(any());
     }
 
     @Test
-    void nonAdminWithoutGroupAccessReturns403() {
+    void nonAdminWithoutGroupAccessReturns404WithGenericBody() {
         final Batch batch = openBatch("b1", "g1", "Batch 1");
         when(batchRepository.findById("b1")).thenReturn(Optional.of(batch));
         userGroupsService.withMembership("alice@example.com", Set.of("g2"));
@@ -104,8 +105,32 @@ class IngestionControllerTest {
                 new IngestRequest("doc.txt", "b1", "hello", null),
                 TestAuth.user("alice@example.com"));
 
-        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+        // Same status + body as a genuine miss — caller can't distinguish "exists but
+        // I can't see it" from "no such batch".
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertEquals("Batch not found.", body(response).get("error"));
         verify(documentRepository, never()).save(any());
+    }
+
+    @Test
+    void missAndAccessDeniedHaveByteIdenticalResponse() {
+        // The whole point of the harmonization: two different probes produce the same
+        // status code, body shape, and message — so an attacker can't enumerate batch
+        // ids by reading the response.
+        when(batchRepository.findById("ghost")).thenReturn(Optional.empty());
+        final Batch batch = openBatch("b1", "g1", "Batch 1");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(batch));
+        userGroupsService.withMembership("alice@example.com", Set.of("g2"));
+
+        final ResponseEntity<?> miss = controller.ingest(
+                new IngestRequest("doc.txt", "ghost", "hi", null),
+                TestAuth.user("alice@example.com"));
+        final ResponseEntity<?> denied = controller.ingest(
+                new IngestRequest("doc.txt", "b1", "hi", null),
+                TestAuth.user("alice@example.com"));
+
+        assertEquals(miss.getStatusCode(), denied.getStatusCode());
+        assertEquals(miss.getBody(), denied.getBody());
     }
 
     @Test
@@ -185,7 +210,9 @@ class IngestionControllerTest {
     }
 
     @Test
-    void unauthenticatedRequestIsForbiddenWhenBatchHasGroup() {
+    void unauthenticatedRequestGetsTheSame404() {
+        // Anonymous Bearer-less request: indistinguishable from a missing-batch lookup,
+        // so an attacker can't differentiate "no auth" from "auth doesn't grant access".
         final Batch batch = openBatch("b1", "g1", "Open");
         when(batchRepository.findById("b1")).thenReturn(Optional.of(batch));
 
@@ -193,7 +220,8 @@ class IngestionControllerTest {
                 new IngestRequest("doc.txt", "b1", "hi", null),
                 (Authentication) null);
 
-        assertEquals(HttpStatus.FORBIDDEN, response.getStatusCode());
+        assertEquals(HttpStatus.NOT_FOUND, response.getStatusCode());
+        assertEquals("Batch not found.", body(response).get("error"));
         verify(documentRepository, never()).save(any());
     }
 }

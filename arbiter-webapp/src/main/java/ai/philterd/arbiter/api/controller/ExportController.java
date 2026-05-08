@@ -59,7 +59,7 @@ public class ExportController {
     @PostMapping("/documents/{id}/finalize")
     public Map<String, String> finalize(@PathVariable final String id, final Authentication authentication) throws IOException {
         final Document document = documentRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + id));
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
         requireDocumentAccess(authentication, document);
         final String finalizedText = redactionApiService.finalizeRedaction(id);
         return Map.of("finalizedText", finalizedText);
@@ -68,7 +68,7 @@ public class ExportController {
     @GetMapping("/documents/{id}/audit")
     public List<Map<String, Object>> audit(@PathVariable final String id, final Authentication authentication) {
         final Document document = documentRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + id));
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
         requireDocumentAccess(authentication, document);
         final List<Span> spans = spanRepository.findByDocumentId(id);
         return spans.stream().map(s -> Map.<String, Object>of(
@@ -84,12 +84,12 @@ public class ExportController {
         final Batch batch = document.getBatchId() == null ? null
                 : batchRepository.findById(document.getBatchId()).orElse(null);
         if (batch == null || batch.getGroupId() == null) {
-            throw new ResponseStatusException(NOT_FOUND, "Document not found: " + document.getId());
+            throw new ResponseStatusException(NOT_FOUND, "Document not found.");
         }
         final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(
                 auth == null ? null : auth.getName());
         if (!myGroupIds.contains(batch.getGroupId())) {
-            throw new ResponseStatusException(NOT_FOUND, "Document not found: " + document.getId());
+            throw new ResponseStatusException(NOT_FOUND, "Document not found.");
         }
     }
 

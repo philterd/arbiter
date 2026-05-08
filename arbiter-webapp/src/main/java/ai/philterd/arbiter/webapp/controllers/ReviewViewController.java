@@ -142,18 +142,18 @@ public class ReviewViewController {
         final Batch batch = document.getBatchId() == null ? null
                 : batchRepository.findById(document.getBatchId()).orElse(null);
         if (batch == null || batch.getGroupId() == null) {
-            throw new ResponseStatusException(NOT_FOUND, "Document not found: " + document.getId());
+            throw new ResponseStatusException(NOT_FOUND, "Document not found.");
         }
         final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(auth == null ? null : auth.getName());
         if (!myGroupIds.contains(batch.getGroupId())) {
-            throw new ResponseStatusException(NOT_FOUND, "Document not found: " + document.getId());
+            throw new ResponseStatusException(NOT_FOUND, "Document not found.");
         }
     }
 
     @GetMapping("/review/{documentId}")
     public String review(@PathVariable final String documentId, final Authentication authentication, final Model model) {
         Document document = documentRepository.findById(documentId)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + documentId));
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
         requireAccess(authentication, document);
         if (document.getOriginalText() == null || document.getOriginalText().isEmpty()) {
             throw new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
@@ -343,7 +343,7 @@ public class ReviewViewController {
     public List<Map<String, Object>> findSimilar(@PathVariable final String documentId,
                                                   final Authentication authentication) {
         final Document document = documentRepository.findById(documentId)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + documentId));
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
         // Verify the caller can access the source document's batch.
         requireAccess(authentication, document);
 
@@ -491,7 +491,7 @@ public class ReviewViewController {
             @PathVariable final String documentId,
             final Authentication authentication) {
         final Document document = documentRepository.findById(documentId)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + documentId));
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
         requireAccess(authentication, document);
         if (!"FINALIZED".equals(document.getStatus())) {
             throw new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
@@ -603,7 +603,7 @@ public class ReviewViewController {
                           final Authentication authentication,
                           final org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
         final Document document = documentRepository.findById(documentId)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + documentId));
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
         requireAccess(authentication, document);
 
         final String email = authentication == null ? null : authentication.getName();
@@ -728,12 +728,15 @@ public class ReviewViewController {
     @PostMapping("/review/{documentId}/unapprove")
     public String unapprove(@PathVariable final String documentId, final Authentication authentication,
                             final org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
-        if (isFinalized(documentId)) {
+        final Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
+        requireAccess(authentication, document);
+        if ("FINALIZED".equals(document.getStatus())) {
             redirectAttributes.addFlashAttribute("error",
                     "Document is FINALIZED. Finalized documents cannot be reopened.");
             return "redirect:/review/" + documentId;
         }
-        clearApprovals(documentId);
+        clearApprovals(document);
         updateStatus(documentId, "REVIEW_REQUIRED", authentication);
         auditLogService.log("DOCUMENT_UNAPPROVE", "Document", documentId,
                 Map.of("actor", authentication == null ? "" : authentication.getName()));
@@ -743,32 +746,27 @@ public class ReviewViewController {
     @PostMapping("/review/{documentId}/unreject")
     public String unreject(@PathVariable final String documentId, final Authentication authentication,
                            final org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
-        if (isFinalized(documentId)) {
+        final Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
+        requireAccess(authentication, document);
+        if ("FINALIZED".equals(document.getStatus())) {
             redirectAttributes.addFlashAttribute("error",
                     "Document is FINALIZED. Finalized documents cannot be reopened.");
             return "redirect:/review/" + documentId;
         }
-        clearApprovals(documentId);
+        clearApprovals(document);
         updateStatus(documentId, "REVIEW_REQUIRED", authentication);
         auditLogService.log("DOCUMENT_UNREJECT", "Document", documentId,
                 Map.of("actor", authentication == null ? "" : authentication.getName()));
         return "redirect:/review/" + documentId;
     }
 
-    private boolean isFinalized(final String documentId) {
-        final Document doc = documentRepository.findById(documentId).orElse(null);
-        return doc != null && "FINALIZED".equals(doc.getStatus());
-    }
-
     /**
      * Drop any recorded approvals so the badge resets to {@code 0 of N} when the document
-     * is sent back to {@code REVIEW_REQUIRED}. Called from both {@code unapprove} and
-     * {@code unreject} — in either case the prior decision is being reopened, so prior
-     * approver records no longer apply.
+     * is sent back to {@code REVIEW_REQUIRED}. Caller must have already loaded the document
+     * and verified access — this method writes unconditionally.
      */
-    private void clearApprovals(final String documentId) {
-        final Document document = documentRepository.findById(documentId).orElse(null);
-        if (document == null) return;
+    private void clearApprovals(final Document document) {
         if (document.getApprovedBy().isEmpty()) return;
         document.getApprovedBy().clear();
         documentRepository.save(document);
@@ -801,7 +799,7 @@ public class ReviewViewController {
 
     private void updateStatus(final String documentId, final String status, final Authentication authentication) {
         final Document document = documentRepository.findById(documentId)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + documentId));
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
         requireAccess(authentication, document);
         final String previous = document.getStatus();
         document.changeStatus(status);

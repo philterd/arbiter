@@ -64,11 +64,11 @@ public class IngestionController {
     public ResponseEntity<?> ingest(@Valid @RequestBody final IngestRequest request, final Authentication authentication) {
 
         final Batch batch = batchRepository.findById(request.batchId()).orElse(null);
-        if (batch == null) {
-            return ResponseEntity.badRequest().body(Map.of("error", "Batch not found: " + request.batchId()));
-        }
-        if (!canAccessBatch(authentication, batch)) {
-            return ResponseEntity.status(403).body(Map.of("error", "You do not have access to that batch."));
+        // Lookup-miss and access-denied must be indistinguishable: either reveals to a
+        // caller probing batch ids whether the id exists. Same status (404), same body
+        // shape, same message — no echo of the supplied id.
+        if (batch == null || !canAccessBatch(authentication, batch)) {
+            return ResponseEntity.status(404).body(Map.of("error", "Batch not found."));
         }
         if (batch.isClosed()) {
             return ResponseEntity.status(409).body(Map.of(

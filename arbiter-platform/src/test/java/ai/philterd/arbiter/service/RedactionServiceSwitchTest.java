@@ -53,8 +53,12 @@ public class RedactionServiceSwitchTest {
     @BeforeEach
     public void setup() {
         MockitoAnnotations.openMocks(this);
+        // SymmetricCipher requires base64 of exactly 32 bytes — build one inline.
+        final byte[] keyBytes = new byte[32];
+        java.util.Arrays.fill(keyBytes, (byte) 0x55);
+        final String key = java.util.Base64.getEncoder().encodeToString(keyBytes);
         redactionService = new RedactionServiceImpl(phileasClient, philterClientFactory,
-                philterInstanceRepository, new ai.philterd.arbiter.service.SymmetricCipher(""));
+                philterInstanceRepository, new ai.philterd.arbiter.service.SymmetricCipher(key));
     }
 
     @Test

@@ -136,11 +136,19 @@ screen, and with an audit trail that holds up to compliance review.
 
 ## Quick start
 
-The fastest way to try Arbiter is the bundled Docker Compose stack:
+The fastest way to try Arbiter is the bundled Docker Compose stack.
+Generate an at-rest encryption key once (32 random bytes, base64-encoded
+— Arbiter refuses to start without one), then bring the stack up:
 
 ```sh
+echo "ARBITER_CRYPTO_SECRET=$(openssl rand -base64 32)" > .env
 docker compose up --build
 ```
+
+`.env` is gitignored. The key encrypts Philter API keys and data-source
+credentials in MongoDB; rotate it by re-running the command and
+re-entering credentials through the admin UI. See
+[`.env.example`](.env.example) for the format.
 
 That brings up Arbiter, MongoDB, OpenSearch, Elasticsearch, Valkey (for
 session state), and the redaction policy editor. Once everything is

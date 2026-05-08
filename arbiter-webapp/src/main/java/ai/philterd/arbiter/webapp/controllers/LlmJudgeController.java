@@ -100,9 +100,11 @@ public class LlmJudgeController {
     }
 
     @GetMapping("/ollama/{instanceId}/models")
-    public Map<String, Object> listModels(@PathVariable final String instanceId) {
+    public Map<String, Object> listModels(@PathVariable final String instanceId,
+                                          final Authentication authentication) {
         final OllamaInstance instance = ollamaInstanceRepository.findById(instanceId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Ollama instance not found."));
+        requireListModelsAccess(authentication, instance);
         try {
             final HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl(instance) + "/api/tags"))
@@ -154,7 +156,7 @@ public class LlmJudgeController {
         }
 
         final Document document = documentRepository.findById(documentId)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + documentId));
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
         requireDocumentAccess(authentication, document);
 
         final OllamaInstance instance = ollamaInstanceRepository.findById(request.instanceId())
@@ -208,11 +210,8 @@ public class LlmJudgeController {
     public Map<String, Object> secondOpinion(@PathVariable final String spanId,
                                              final Authentication authentication) {
         final Span span = spanRepository.findById(spanId)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found: " + spanId));
-        final Document document = documentRepository.findById(span.getDocumentId())
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND,
-                        "Document not found: " + span.getDocumentId()));
-        requireDocumentAccess(authentication, document);
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found."));
+        final Document document = loadAccessibleParentForSpan(span, authentication);
 
         final LlmJudgeDefaults defaults = llmJudgeDefaultsService.load();
         if (defaults.getSecondOpinionInstanceId() == null) {
@@ -370,12 +369,79 @@ public class LlmJudgeController {
         final Batch batch = document.getBatchId() == null ? null
                 : batchRepository.findById(document.getBatchId()).orElse(null);
         if (batch == null || batch.getGroupId() == null) {
-            throw new ResponseStatusException(NOT_FOUND, "Document not found: " + document.getId());
+            throw new ResponseStatusException(NOT_FOUND, "Document not found.");
         }
         final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(
                 auth == null ? null : auth.getName());
         if (!myGroupIds.contains(batch.getGroupId())) {
-            throw new ResponseStatusException(NOT_FOUND, "Document not found: " + document.getId());
+            throw new ResponseStatusException(NOT_FOUND, "Document not found.");
+        }
+    }
+
+    /**
+     * Span-endpoint variant of {@link #requireDocumentAccess(Authentication, Document)} —
+     * fetches the span's parent document and verifies caller access. All three failure
+     * modes (missing parent doc, missing batch, caller not in batch's group) surface as a
+     * uniform {@code "Span not found."} 404 so the response body can't distinguish a
+     * never-existed span id from one the caller can't see.
+     */
+    private Document loadAccessibleParentForSpan(final Span span, final Authentication auth) {
+        final Document document = documentRepository.findById(span.getDocumentId())
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found."));
+        if (isAdmin(auth)) return document;
+        final Batch batch = document.getBatchId() == null ? null
+                : batchRepository.findById(document.getBatchId()).orElse(null);
+        if (batch == null || batch.getGroupId() == null) {
+            throw new ResponseStatusException(NOT_FOUND, "Span not found.");
+        }
+        final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(
+                auth == null ? null : auth.getName());
+        if (!myGroupIds.contains(batch.getGroupId())) {
+            throw new ResponseStatusException(NOT_FOUND, "Span not found.");
+        }
+        return document;
+    }
+
+    /**
+     * Gate {@code GET /api/v1/ollama/{instanceId}/models} so only the callers who actually need
+     * it can probe outbound HTTP. Without this gate, any authenticated user (or API-key holder)
+     * could supply any registered Ollama instance id and force Arbiter to make an outbound
+     * {@code GET /api/tags} call to the configured URL — an SSRF-adjacent surface for
+     * internal-only Ollama URLs.
+     *
+     * <p>Allowed callers:
+     * <ul>
+     *   <li>Admins — for the Admin → LLM-as-a-Judge configuration page where they pick a
+     *       model from a freshly-registered instance.
+     *   <li>Group-scoped reviewers, but <em>only</em> when the requested instance is one of
+     *       the configured Explain or Second-Opinion defaults — i.e. an instance the review
+     *       page legitimately needs the model list for. Reviewers with no group membership
+     *       (no batches they can see) are rejected outright.
+     * </ul>
+     */
+    private void requireListModelsAccess(final Authentication auth, final OllamaInstance instance) {
+        if (isAdmin(auth)) return;
+
+        // Reviewer must have at least one accessible batch — that proves they're an active
+        // user, not a stranded account or API key with no real role in the system.
+        final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(
+                auth == null ? null : auth.getName());
+        if (myGroupIds.isEmpty()) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN,
+                    "Not authorized.");
+        }
+
+        // The instance must be a configured LLM-as-a-Judge default. Reviewers cannot probe
+        // arbitrary Ollama URLs the admin happened to register but isn't actively using.
+        final ai.philterd.arbiter.model.LlmJudgeDefaults defaults = llmJudgeDefaultsService.load();
+        final String requested = instance.getId();
+        final boolean isExplainDefault = requested != null
+                && requested.equals(defaults.getExplainInstanceId());
+        final boolean isSecondOpinionDefault = requested != null
+                && requested.equals(defaults.getSecondOpinionInstanceId());
+        if (!isExplainDefault && !isSecondOpinionDefault) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN,
+                    "Not authorized.");
         }
     }
 

@@ -344,6 +344,36 @@ class ReviewControllerTest {
     }
 
     @Test
+    void accessDeniedReturnsSameGenericBodyAsLookupMiss() {
+        // The reason field on a 404 must not leak whether the id exists. An attacker
+        // probing for valid ids should see an identical message whether they pass an
+        // id that doesn't exist or one that exists but they can't see.
+        seedGroupedDocument();
+        userGroupsService.withMembership("alice@example.com", java.util.Set.of("g2"));
+
+        // Path A: id exists, but caller has no access.
+        final ResponseStatusException accessDenied = assertThrows(ResponseStatusException.class,
+                () -> controller.getSpans("d1", TestAuth.user("alice@example.com")));
+
+        // Path B: id genuinely doesn't exist.
+        when(documentRepository.findById("ghost")).thenReturn(Optional.empty());
+        final ResponseStatusException missing = assertThrows(ResponseStatusException.class,
+                () -> controller.getSpans("ghost", TestAuth.user("alice@example.com")));
+
+        assertEquals(HttpStatus.NOT_FOUND, accessDenied.getStatusCode());
+        assertEquals(HttpStatus.NOT_FOUND, missing.getStatusCode());
+        // Bodies must be byte-identical — that's the whole point of the standardization.
+        assertEquals(missing.getReason(), accessDenied.getReason());
+        // And neither must contain a real id.
+        assertTrue(accessDenied.getReason() == null
+                || !accessDenied.getReason().contains("d1"),
+                "access-denied body leaked the id: " + accessDenied.getReason());
+        assertTrue(missing.getReason() == null
+                || !missing.getReason().contains("ghost"),
+                "lookup-miss body leaked the id: " + missing.getReason());
+    }
+
+    @Test
     void getSpansAllowsNonAdminInGroup() {
         seedGroupedDocument();
         userGroupsService.withMembership("alice@example.com", java.util.Set.of("g1"));
@@ -365,6 +395,63 @@ class ReviewControllerTest {
                 () -> controller.updateSpan("s1", new SpanUpdateRequest("APPROVED", null),
                         TestAuth.user("alice@example.com")));
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+    }
+
+    @Test
+    void updateSpanAccessDeniedReturnsSameGenericBodyAsLookupMiss() {
+        // F4 mirror of the F9 indistinguishability test: the body for "no such span" must
+        // be identical to "span exists but you can't see it" so an attacker can't enumerate
+        // span ids by reading the response message.
+        seedGroupedDocument();
+        userGroupsService.withMembership("alice@example.com", java.util.Set.of("g2"));
+        final Span existing = span("s1", "d1", "ssn", "PENDING", 0, 5, "hello");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(existing));
+
+        // Path A: span id exists, but the caller can't see its document.
+        final ResponseStatusException accessDenied = assertThrows(ResponseStatusException.class,
+                () -> controller.updateSpan("s1", new SpanUpdateRequest("APPROVED", null),
+                        TestAuth.user("alice@example.com")));
+
+        // Path B: span id genuinely doesn't exist.
+        when(spanRepository.findById("ghost-span")).thenReturn(Optional.empty());
+        final ResponseStatusException missing = assertThrows(ResponseStatusException.class,
+                () -> controller.updateSpan("ghost-span", new SpanUpdateRequest("APPROVED", null),
+                        TestAuth.user("alice@example.com")));
+
+        assertEquals(HttpStatus.NOT_FOUND, accessDenied.getStatusCode());
+        assertEquals(HttpStatus.NOT_FOUND, missing.getStatusCode());
+        // Bodies must be byte-identical.
+        assertEquals(missing.getReason(), accessDenied.getReason());
+        // No id of either span surfaces in the body.
+        assertTrue(accessDenied.getReason() == null
+                || !accessDenied.getReason().contains("s1"),
+                "access-denied body leaked the span id: " + accessDenied.getReason());
+        assertTrue(missing.getReason() == null
+                || !missing.getReason().contains("ghost"),
+                "lookup-miss body leaked the span id: " + missing.getReason());
+        // Specifically the body must not say "Document not found." — that would distinguish
+        // "span exists, doc inaccessible" from "no such span".
+        assertTrue(accessDenied.getReason() != null
+                && !accessDenied.getReason().contains("Document"),
+                "access-denied body must not mention 'Document': " + accessDenied.getReason());
+    }
+
+    @Test
+    void updateSpanWhenParentDocumentMissingAlsoReturnsSameBody() {
+        // The third failure mode handled by loadAccessibleParentForSpan: the span exists,
+        // but its referenced parent document has been deleted. Must surface as the same
+        // "Span not found." body — not the previous "Document not found." which would
+        // leak the existence of the span row.
+        userGroupsService.withMembership("alice@example.com", java.util.Set.of("g1"));
+        final Span existing = span("s1", "ghost-doc", "ssn", "PENDING", 0, 5, "hello");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(existing));
+        when(documentRepository.findById("ghost-doc")).thenReturn(Optional.empty());
+
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.updateSpan("s1", new SpanUpdateRequest("APPROVED", null),
+                        TestAuth.user("alice@example.com")));
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertEquals("Span not found.", ex.getReason());
     }
 
     @Test

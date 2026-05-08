@@ -257,6 +257,21 @@ public class RedactionController {
                                    @RequestParam(value = "priority", defaultValue = "2") final int priority,
                                    final Authentication authentication,
                                    final RedirectAttributes redirectAttributes) {
+        // Authorization: the caller must be able to access the chosen batch. Without this
+        // check, any authenticated user could ingest documents into any batch in the
+        // system. Match the redirect target to the source type so users land on a useful
+        // page after the error (the data-source ingest tabs all live on /upload).
+        final Batch batch = batchRepository.findById(batchId).orElse(null);
+        if (batch == null || !canAccessBatch(authentication, batch)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Selected batch is not available.");
+            return "redirect:/upload";
+        }
+        if (batch.isClosed()) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Batch \"" + batch.getName() + "\" is closed and cannot accept new documents.");
+            return "redirect:/upload";
+        }
         if ("opensearch".equals(sourceType)) {
             final String email = authentication == null ? null : authentication.getName();
             final ai.philterd.arbiter.model.BackgroundJob job =
@@ -401,6 +416,54 @@ public class RedactionController {
     }
 
 
+    /**
+     * Content types this controller is willing to stream back to the browser. Anything
+     * outside this set is rejected (400) — the user-supplied {@code contentType} request
+     * parameter cannot be used to coerce Arbiter into serving e.g. {@code text/html} that
+     * would otherwise be a stored-XSS vector if the {@code Content-Disposition: attachment}
+     * header is ever stripped.
+     */
+    private static final java.util.Set<String> ALLOWED_DOWNLOAD_CONTENT_TYPES = java.util.Set.of(
+            MediaType.TEXT_PLAIN_VALUE,
+            MediaType.APPLICATION_PDF_VALUE);
+
+    /** Maximum length of a sanitized filename before truncation. */
+    private static final int MAX_FILENAME_LENGTH = 200;
+
+    /**
+     * Sanitize a user-supplied filename so it's safe to put into a {@code Content-Disposition}
+     * header. Strips:
+     *
+     * <ul>
+     *   <li>Control characters (incl. CR/LF — defends against header injection / response
+     *       splitting even if the framework already strips these).
+     *   <li>Path separators ({@code /} and {@code \}) so the value can never look like a
+     *       directory traversal or an absolute path.
+     *   <li>Double quotes so the quoted-string in the header can never be broken out of.
+     *   <li>Leading dots (so the value can't be coerced into hidden-file or
+     *       parent-directory shapes).
+     * </ul>
+     *
+     * Truncates to {@link #MAX_FILENAME_LENGTH} characters. Returns {@code fallback} when the
+     * sanitized result is empty.
+     */
+    static String safeFilename(final String input, final String fallback) {
+        if (input == null) return fallback;
+        final StringBuilder sb = new StringBuilder(Math.min(input.length(), MAX_FILENAME_LENGTH));
+        for (int i = 0; i < input.length() && sb.length() < MAX_FILENAME_LENGTH; i++) {
+            final char c = input.charAt(i);
+            if (c < 0x20 || c == 0x7F) continue; // control chars
+            if (c == '/' || c == '\\') continue; // path separators
+            if (c == '"') continue;              // header-quote breakout
+            sb.append(c);
+        }
+        // Trim leading dots so the result can't look like a hidden file or "..".
+        int start = 0;
+        while (start < sb.length() && sb.charAt(start) == '.') start++;
+        final String cleaned = sb.substring(start).trim();
+        return cleaned.isEmpty() ? fallback : cleaned;
+    }
+
     @PostMapping("/preview")
     public ResponseEntity<Resource> preview(
             @RequestParam("redactedText") String redactedText,
@@ -409,6 +472,8 @@ public class RedactionController {
             @RequestBody RedactionResponse redactionResponse,
             HttpSession session) throws IOException {
 
+        // Only PDF previews are supported. Any other content type — including a malicious
+        // text/html or application/javascript — is rejected outright.
         if (MediaType.APPLICATION_PDF_VALUE.equals(contentType)) {
             final byte[] originalFile = (byte[]) session.getAttribute("originalFile");
             final String philterInstanceId = (String) session.getAttribute("philterInstanceId");
@@ -433,7 +498,17 @@ public class RedactionController {
             @ModelAttribute RedactionResponse redactionResponse,
             HttpSession session) throws IOException {
 
+        // Allow-list the requested content type. Unknown/forbidden types get 400 — there's
+        // no legitimate reason for the form to ask for anything outside this small set, and
+        // the allow-list prevents the endpoint from being weaponized as a stored-XSS vector
+        // if Content-Disposition is ever stripped or ignored.
+        if (contentType == null || !ALLOWED_DOWNLOAD_CONTENT_TYPES.contains(contentType)) {
+            return ResponseEntity.badRequest().build();
+        }
+
         byte[] content;
+        String resolvedContentType = contentType;
+        String workingFileName = fileName;
         if (MediaType.APPLICATION_PDF_VALUE.equals(contentType)) {
             final byte[] originalFile = (byte[]) session.getAttribute("originalFile");
             final String philterInstanceId = (String) session.getAttribute("philterInstanceId");
@@ -442,19 +517,24 @@ public class RedactionController {
                         new ByteArrayInputStream(originalFile), redactionResponse, philterInstanceId);
             } else {
                 content = redactedText.getBytes(StandardCharsets.UTF_8);
-                fileName = fileName.replace(".pdf", "_redacted.txt");
-                contentType = MediaType.TEXT_PLAIN_VALUE;
+                workingFileName = (workingFileName == null ? "" : workingFileName)
+                        .replace(".pdf", "_redacted.txt");
+                resolvedContentType = MediaType.TEXT_PLAIN_VALUE;
             }
         } else {
             content = redactedText.getBytes(StandardCharsets.UTF_8);
-            fileName = fileName.replace(".", "_redacted.");
+            workingFileName = (workingFileName == null ? "" : workingFileName)
+                    .replace(".", "_redacted.");
         }
 
+        final String safeName = safeFilename(workingFileName,
+                MediaType.APPLICATION_PDF_VALUE.equals(resolvedContentType)
+                        ? "redacted.pdf" : "redacted.txt");
         final ByteArrayResource resource = new ByteArrayResource(content);
 
         return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + fileName + "\"")
-                .contentType(MediaType.parseMediaType(contentType))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + safeName + "\"")
+                .contentType(MediaType.parseMediaType(resolvedContentType))
                 .body(resource);
     }
 

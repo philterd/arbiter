@@ -214,8 +214,8 @@ public class SettingsController {
                                  @RequestParam("confirmPassword") final String confirmPassword,
                                  final Authentication authentication,
                                  final RedirectAttributes redirectAttributes) {
-        if (newPassword == null || newPassword.length() < 4) {
-            redirectAttributes.addFlashAttribute("error", "New password must be at least 4 characters.");
+        if (newPassword == null || newPassword.length() < 12) {
+            redirectAttributes.addFlashAttribute("error", "New password must be at least 12 characters.");
             return "redirect:/settings";
         }
         if (!newPassword.equals(confirmPassword)) {

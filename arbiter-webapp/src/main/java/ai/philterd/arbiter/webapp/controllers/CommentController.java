@@ -77,7 +77,7 @@ public class CommentController {
     @GetMapping("/documents/{id}/comments")
     public List<Map<String, Object>> list(@PathVariable final String id, final Authentication authentication) {
         final Document document = documentRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + id));
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
         requireDocumentAccess(authentication, document);
 
         return commentRepository.findByDocumentIdOrderByTimestampDesc(id).stream()
@@ -102,7 +102,7 @@ public class CommentController {
         }
 
         final Document document = documentRepository.findById(id)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found: " + id));
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
         requireDocumentAccess(authentication, document);
 
         final String userEmail = authentication.getName();
@@ -140,12 +140,12 @@ public class CommentController {
         final Batch batch = document.getBatchId() == null ? null
                 : batchRepository.findById(document.getBatchId()).orElse(null);
         if (batch == null || batch.getGroupId() == null) {
-            throw new ResponseStatusException(NOT_FOUND, "Document not found: " + document.getId());
+            throw new ResponseStatusException(NOT_FOUND, "Document not found.");
         }
         final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(
                 auth == null ? null : auth.getName());
         if (!myGroupIds.contains(batch.getGroupId())) {
-            throw new ResponseStatusException(NOT_FOUND, "Document not found: " + document.getId());
+            throw new ResponseStatusException(NOT_FOUND, "Document not found.");
         }
     }
 

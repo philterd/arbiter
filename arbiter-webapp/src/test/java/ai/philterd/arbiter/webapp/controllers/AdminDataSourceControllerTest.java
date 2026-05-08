@@ -69,9 +69,13 @@ class AdminDataSourceControllerTest {
         cipher = mock(SymmetricCipher.class);
         // Identity-ish encrypt so assertions can recover the supplied value.
         when(cipher.encrypt(anyString())).thenAnswer(inv -> "enc:" + inv.getArgument(0));
+        final ai.philterd.arbiter.service.DataSourceHostAllowList allowList =
+                new ai.philterd.arbiter.service.DataSourceHostAllowList("");
         controller = new AdminDataSourceController(
                 repository, esRepository, s3Repository, rdbRepository, localRepository,
-                auditLogService, cipher, new ObjectMapper());
+                auditLogService, cipher, new ObjectMapper(),
+                allowList,
+                new ai.philterd.arbiter.service.JdbcUrlValidator(allowList));
     }
 
     private RedirectAttributes flash() { return new RedirectAttributesModelMap(); }
@@ -403,5 +407,76 @@ class AdminDataSourceControllerTest {
         final RedirectAttributes ra = flash();
         controller.deleteLocal("ghost", ra);
         assertEquals("Local directory data source not found.", error(ra));
+    }
+
+    // ====================================================================
+    // SSRF allow-list — admin "Test connection" endpoints
+    // ====================================================================
+
+    @Test
+    void testOpenSearchRejectsHostNotOnAllowList() {
+        // Build a controller wired with a restrictive allow-list. Hitting Test connection
+        // against a non-listed host must short-circuit with the allow-list error before
+        // any HTTP request is made.
+        final ai.philterd.arbiter.service.DataSourceHostAllowList opensearchOnly =
+                new ai.philterd.arbiter.service.DataSourceHostAllowList("opensearch.internal");
+        final AdminDataSourceController restricted = new AdminDataSourceController(
+                repository, esRepository, s3Repository, rdbRepository, localRepository,
+                auditLogService, cipher, new ObjectMapper(),
+                opensearchOnly,
+                new ai.philterd.arbiter.service.JdbcUrlValidator(opensearchOnly));
+
+        final java.util.Map<String, Object> result = restricted.testOpenSearch(
+                "http://attacker.example.com:9200", "contracts/_search { }", null, null);
+
+        assertEquals(Boolean.FALSE, result.get("ok"));
+        assertNotNull(result.get("error"));
+        assertTrue(result.get("error").toString().contains("allow-list"),
+                "expected allow-list error, got: " + result.get("error"));
+    }
+
+    @Test
+    void testElasticsearchRejectsHostNotOnAllowList() {
+        final ai.philterd.arbiter.service.DataSourceHostAllowList elasticOnly =
+                new ai.philterd.arbiter.service.DataSourceHostAllowList("elastic.internal");
+        final AdminDataSourceController restricted = new AdminDataSourceController(
+                repository, esRepository, s3Repository, rdbRepository, localRepository,
+                auditLogService, cipher, new ObjectMapper(),
+                elasticOnly,
+                new ai.philterd.arbiter.service.JdbcUrlValidator(elasticOnly));
+
+        final java.util.Map<String, Object> result = restricted.testElasticsearch(
+                "http://attacker.example.com:9200", "orders/_search { }", null, null);
+
+        assertEquals(Boolean.FALSE, result.get("ok"));
+        assertTrue(result.get("error").toString().contains("allow-list"),
+                "expected allow-list error, got: " + result.get("error"));
+    }
+
+    @Test
+    void testOpenSearchAllowsHostOnAllowList() {
+        // When the host matches, the allow-list lets the request through to the actual
+        // HTTP call. The request will fail (no real server), but we should NOT see the
+        // allow-list error message. That's the difference between rejection-by-policy
+        // and rejection-by-network.
+        final ai.philterd.arbiter.service.DataSourceHostAllowList loopbackOnly =
+                new ai.philterd.arbiter.service.DataSourceHostAllowList("127.0.0.1");
+        final AdminDataSourceController restricted = new AdminDataSourceController(
+                repository, esRepository, s3Repository, rdbRepository, localRepository,
+                auditLogService, cipher, new ObjectMapper(),
+                loopbackOnly,
+                new ai.philterd.arbiter.service.JdbcUrlValidator(loopbackOnly));
+
+        // Use port 1 — guaranteed to refuse so the test doesn't hang on a real connect.
+        final java.util.Map<String, Object> result = restricted.testOpenSearch(
+                "http://127.0.0.1:1", "contracts/_search { }", null, null);
+
+        assertEquals(Boolean.FALSE, result.get("ok"));
+        // ok=false because the connection failed, but the *reason* is not the allow-list.
+        final Object error = result.get("error");
+        if (error != null) {
+            assertTrue(!error.toString().contains("allow-list"),
+                    "did not expect allow-list error, got: " + error);
+        }
     }
 }

@@ -18,7 +18,7 @@ The settings most users need to set are:
 | `spring.data.mongodb.uri`                 | Connection URI for MongoDB                             |
 | `spring.data.mongodb.database`            | Database name (default: `arbiter`)                     |
 | `arbiter.opensearch.endpoint`             | OpenSearch base URL (default `http://localhost:9200`)  |
-| `arbiter.crypto.secret`                   | 32-byte base64 (or any passphrase) used as the AES key for encrypting Philter API keys at rest. **Set this in any non-development deployment.** |
+| `arbiter.crypto.secret`                   | **Required.** Base64-encoded 32 random bytes used as the AES-256 key for encrypting Philter API keys and data-source credentials at rest. Generate with `openssl rand -base64 32`. Arbiter refuses to start if this is unset, not valid base64, or doesn't decode to exactly 32 bytes. |
 | `arbiter.ingest-queue.poll-millis`        | Worker poll interval (default `5000`)                  |
 | `arbiter.demo-data.enabled`               | Load sample files at startup if collections are empty  |
 | `arbiter.demo-data.directory`             | Directory of files to seed (default: `sample-files`)   |

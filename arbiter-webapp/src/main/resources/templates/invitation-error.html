@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd, LLC.
+  ~ Licensed under the Apache License, Version 2.0
+  -->
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Arbiter - Invitation</title>
+    <script th:src="@{/js/tailwind.js}"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+<div class="flex-1 flex items-center justify-center p-4">
+    <div class="w-full max-w-sm bg-white p-8 rounded-xl shadow-md border border-gray-100">
+        <a href="https://www.philterd.ai" target="_blank" rel="noopener">
+            <img th:src="@{/images/philterd.png}" alt="Philterd" class="h-8 mx-auto mb-3"></a>
+        <h1 class="text-2xl font-bold text-gray-900 text-center mb-4">Invitation</h1>
+
+        <div class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
+             th:text="${error}">Error.</div>
+
+        <a th:href="@{/login}"
+           class="block text-center px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition duration-200">
+            Go to sign-in page
+        </a>
+    </div>
+</div>
+<div th:replace="~{fragments/footer :: footer}"></div>
+</body>
+</html>

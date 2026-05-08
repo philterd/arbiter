@@ -66,7 +66,10 @@ class AdminDestinationCredentialEncryptionTest {
         sqsRepository = mock(SqsDestinationRepository.class);
         auditLogService = mock(AuditLogService.class);
         // A real cipher with a fixed test key — produces real AES-GCM ciphertext.
-        cipher = new SymmetricCipher("test-secret-for-credential-encryption-spec");
+        // The cipher requires base64 of exactly 32 bytes; build one inline.
+        final byte[] keyBytes = new byte[32];
+        java.util.Arrays.fill(keyBytes, (byte) 0x37);
+        cipher = new SymmetricCipher(java.util.Base64.getEncoder().encodeToString(keyBytes));
 
         controller = new AdminDestinationController(
                 localRepository, s3Repository, sqsRepository,

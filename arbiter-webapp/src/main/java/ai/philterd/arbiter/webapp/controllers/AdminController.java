@@ -20,10 +20,10 @@ import ai.philterd.arbiter.model.Roles;
 import ai.philterd.arbiter.model.User;
 import ai.philterd.arbiter.repository.UserRepository;
 import ai.philterd.arbiter.service.AuditLogService;
-import ai.philterd.arbiter.service.InboxService;
 import ai.philterd.arbiter.service.NotificationSettingsService;
 import ai.philterd.arbiter.service.UserNotificationService;
-import ai.philterd.arbiter.service.WelcomeMessage;
+import ai.philterd.arbiter.webapp.security.InvitationService;
+import ai.philterd.arbiter.webapp.security.LoginAttemptService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
@@ -39,11 +39,10 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
 import java.util.Comparator;
-import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 
 @Controller
 @RequestMapping("/admin")
@@ -54,20 +53,23 @@ public class AdminController {
     private final AuditLogService auditLogService;
     private final NotificationSettingsService notificationSettingsService;
     private final UserNotificationService userNotificationService;
-    private final InboxService inboxService;
+    private final LoginAttemptService loginAttemptService;
+    private final InvitationService invitationService;
 
     public AdminController(final UserRepository userRepository,
                            final PasswordEncoder passwordEncoder,
                            final AuditLogService auditLogService,
                            final NotificationSettingsService notificationSettingsService,
                            final UserNotificationService userNotificationService,
-                           final InboxService inboxService) {
+                           final LoginAttemptService loginAttemptService,
+                           final InvitationService invitationService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.auditLogService = auditLogService;
         this.notificationSettingsService = notificationSettingsService;
         this.userNotificationService = userNotificationService;
-        this.inboxService = inboxService;
+        this.loginAttemptService = loginAttemptService;
+        this.invitationService = invitationService;
     }
 
     @GetMapping("/users")
@@ -76,17 +78,28 @@ public class AdminController {
                 userRepository.findAll(PageRequest.of(0, 500, Sort.by("email")));
         final List<User> users = usersPage != null ? usersPage.getContent() : List.of();
         final NotificationSettings notifications = notificationSettingsService.load();
+        // Per-row "is locked out" flag, keyed by user id, so the template can show a
+        // badge + Unlock button for any account currently in the 15-minute lockout.
+        final Map<String, Boolean> lockedByUserId = new HashMap<>();
+        for (User u : users) {
+            lockedByUserId.put(u.getId(), loginAttemptService.isEmailLocked(u.getEmail()));
+        }
         model.addAttribute("users", users);
+        model.addAttribute("lockedByUserId", lockedByUserId);
         model.addAttribute("currentEmail", authentication == null ? null : authentication.getName());
         model.addAttribute("notificationsEnabled", notifications.isEnabled());
         return "admin-users";
     }
 
+    /**
+     * Issue an invitation for a new user. The recipient sets their own password via the
+     * link in the email — no plaintext password is ever typed by the admin, written to a
+     * log, or transported over SMTP. Outbound email must be configured: with no SMTP path
+     * the recipient could not receive the link, so the create is refused up front.
+     */
     @PostMapping("/users")
     public String create(@RequestParam("email") final String email,
-                         @RequestParam("password") final String password,
                          @RequestParam(value = "admin", defaultValue = "false") final boolean admin,
-                         @RequestParam(value = "sendEmail", defaultValue = "false") final boolean sendEmail,
                          final RedirectAttributes redirectAttributes) {
         final String trimmed = email == null ? "" : email.trim().toLowerCase();
         if (trimmed.isEmpty()) {
@@ -97,46 +110,31 @@ public class AdminController {
             redirectAttributes.addFlashAttribute("error", "\"" + trimmed + "\" is not a valid email address.");
             return "redirect:/admin/users";
         }
-        if (password == null || password.length() < 4) {
-            redirectAttributes.addFlashAttribute("error", "Password must be at least 4 characters.");
-            return "redirect:/admin/users";
-        }
         if (userRepository.findByEmail(trimmed).isPresent()) {
             redirectAttributes.addFlashAttribute("error", "Email \"" + trimmed + "\" is already taken.");
             return "redirect:/admin/users";
         }
-
-        final User user = new User();
-        user.setCreatedAt(LocalDateTime.now());
-        user.setId(UUID.randomUUID().toString());
-        user.setEmail(trimmed);
-        user.setPasswordHash(passwordEncoder.encode(password));
-        user.setRoles(rolesFor(admin));
-        userRepository.save(user);
-        inboxService.sendHtml(user.getId(), WelcomeMessage.html(admin));
-        auditLogService.log("USER_CREATE", "User", user.getId(),
-                Map.of("email", trimmed, "admin", admin, "sendEmail", sendEmail));
-
-        String success = "User \"" + trimmed + "\" created.";
-        if (sendEmail) {
-            final NotificationSettings settings = notificationSettingsService.load();
-            if (!settings.isEnabled()) {
-                redirectAttributes.addFlashAttribute("error",
-                        "User created, but outbound email is not enabled, so no welcome email was sent.");
-                return "redirect:/admin/users";
-            }
-            final boolean sent = userNotificationService.sendNewUserCredentials(trimmed, password);
-            if (sent) {
-                auditLogService.log("USER_CREATE_EMAIL_SENT", "User", user.getId(),
-                        Map.of("email", trimmed));
-                success += " Welcome email sent.";
-            } else {
-                redirectAttributes.addFlashAttribute("error",
-                        "User created, but the welcome email could not be sent. Check the SMTP settings under Admin → Notifications.");
-                return "redirect:/admin/users";
-            }
+        final NotificationSettings settings = notificationSettingsService.load();
+        if (!settings.isEnabled()) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Outbound email is not enabled, so an invitation cannot be sent. "
+                            + "Configure SMTP under Admin → Notifications first.");
+            return "redirect:/admin/users";
         }
-        redirectAttributes.addFlashAttribute("success", success);
+
+        final InvitationService.IssuedInvitation issued =
+                invitationService.issue(trimmed, admin, java.util.Set.of());
+        final String link = userNotificationService.buildInvitationLink(issued.token());
+        final boolean sent = userNotificationService.sendInvitation(trimmed, link);
+        if (!sent) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Invitation could not be sent. Check the SMTP settings under Admin → Notifications.");
+            return "redirect:/admin/users";
+        }
+        auditLogService.log("USER_INVITATION_ISSUED", "Invitation", issued.invitation().getId(),
+                Map.of("email", trimmed, "admin", admin));
+        redirectAttributes.addFlashAttribute("success",
+                "Invitation sent to \"" + trimmed + "\".");
         return "redirect:/admin/users";
     }
 
@@ -154,8 +152,8 @@ public class AdminController {
         user.setRoles(rolesFor(admin));
         boolean passwordReset = false;
         if (newPassword != null && !newPassword.isEmpty()) {
-            if (newPassword.length() < 4) {
-                redirectAttributes.addFlashAttribute("error", "Password must be at least 4 characters.");
+            if (newPassword.length() < 12) {
+                redirectAttributes.addFlashAttribute("error", "Password must be at least 12 characters.");
                 return "redirect:/admin/users";
             }
             user.setPasswordHash(passwordEncoder.encode(newPassword));
@@ -189,6 +187,24 @@ public class AdminController {
         auditLogService.log("USER_DELETE", "User", userId,
                 Map.of("email", user.getEmail() == null ? "" : user.getEmail()));
         redirectAttributes.addFlashAttribute("success", "User \"" + user.getEmail() + "\" deleted.");
+        return "redirect:/admin/users";
+    }
+
+    @PostMapping("/users/{userId}/unlock")
+    public String unlock(@PathVariable final String userId,
+                         final Authentication authentication,
+                         final RedirectAttributes redirectAttributes) {
+        final User user = userRepository.findById(userId).orElse(null);
+        if (user == null) {
+            redirectAttributes.addFlashAttribute("error", "User not found.");
+            return "redirect:/admin/users";
+        }
+        loginAttemptService.unlock(user.getEmail());
+        auditLogService.log("USER_UNLOCK", "User", user.getId(),
+                Map.of("email", user.getEmail() == null ? "" : user.getEmail(),
+                        "actor", authentication == null ? "" : authentication.getName()));
+        redirectAttributes.addFlashAttribute("success",
+                "User \"" + user.getEmail() + "\" unlocked.");
         return "redirect:/admin/users";
     }
 

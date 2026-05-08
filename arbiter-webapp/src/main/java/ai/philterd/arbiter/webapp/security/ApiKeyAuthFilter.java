@@ -36,6 +36,14 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
 
+    /**
+     * Request attribute set on requests whose SecurityContext was populated by this filter
+     * (i.e. the caller presented a valid Bearer API key). The companion
+     * {@link ApiSessionRejectingFilter} reads this attribute to decide whether to clear the
+     * context on {@code /api/**} requests that authenticated via session cookie instead.
+     */
+    public static final String BEARER_AUTH_ATTR = "ai.philterd.arbiter.bearerAuth";
+
     private final UserRepository userRepository;
 
     public ApiKeyAuthFilter(final UserRepository userRepository) {
@@ -59,6 +67,7 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
                     final UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
                             user.getEmail(), null, authorities);
                     SecurityContextHolder.getContext().setAuthentication(auth);
+                    request.setAttribute(BEARER_AUTH_ATTR, Boolean.TRUE);
                 });
             }
         }

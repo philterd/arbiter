@@ -60,6 +60,7 @@ public class OpenSearchIngestJobService {
     private final ObjectMapper objectMapper;
     private final SymmetricCipher cipher;
     private final InboxService inboxService;
+    private final DataSourceHostAllowList hostAllowList;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
@@ -71,7 +72,8 @@ public class OpenSearchIngestJobService {
                                       final IngestQueueService ingestQueueService,
                                       final ObjectMapper objectMapper,
                                       final SymmetricCipher cipher,
-                                      final InboxService inboxService) {
+                                      final InboxService inboxService,
+                                      final DataSourceHostAllowList hostAllowList) {
         this.jobRepository = jobRepository;
         this.dataSourceRepository = dataSourceRepository;
         this.batchRepository = batchRepository;
@@ -80,6 +82,7 @@ public class OpenSearchIngestJobService {
         this.objectMapper = objectMapper;
         this.cipher = cipher;
         this.inboxService = inboxService;
+        this.hostAllowList = hostAllowList;
     }
 
     /**
@@ -102,6 +105,11 @@ public class OpenSearchIngestJobService {
         if (batch == null) {
             return failImmediate(sourceId, batchId, priority, actorEmail,
                     "Batch not found.");
+        }
+        if (!hostAllowList.isAllowed(source.getEndpoint())) {
+            return failImmediate(sourceId, batchId, priority, actorEmail,
+                    "Endpoint host is not on the data-source allow-list "
+                            + "(arbiter.data-sources.allowed-hosts).");
         }
 
         final BackgroundJob job = new BackgroundJob();
