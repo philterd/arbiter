@@ -2,7 +2,7 @@ site_name: Arbiter
 repo_url: https://github.com/philterd/arbiter
 site_url: https://philterd.github.io/arbiter/
 edit_uri: '?query=docs/docs/'
-copyright: Copyright 2026 Philterd, LLC
+copyright: Copyright 2026 Philterd, LLC.
 site_author: philterd
 site_description: User guide for Arbiter, the human-in-the-loop deidentification tool.
 theme:
@@ -36,6 +36,7 @@ nav:
       - Batches: admin/batches.md
       - Approval rule sets: admin/rules.md
       - Data sources: admin/data-sources.md
+      - Destinations: admin/destinations.md
       - Audit log: admin/audit-log.md
       - Notifications: admin/notifications.md
       - Security: admin/security.md

@@ -56,3 +56,19 @@ document with `_id = "notifications"`. The document layout is:
 A `NOTIFICATION_SETTINGS_CHANGE` audit entry is written on every save with
 non-secret fields and a `passwordChanged` boolean — the password value
 itself is never written to the audit log.
+
+## Inbox notifications (system-driven)
+
+Separate from email, Arbiter also drops messages into a per-user **Inbox**
+that surfaces with an unread-count badge in the sidebar. Today the
+inbox-driver list is small but worth knowing about:
+
+- **Data-import job completion** — when an OpenSearch or Elasticsearch
+  import job ends (`COMPLETED` or `FAILED`), the user who started it gets
+  a one-line summary: source name, batch, Successful / Failed / Skipped
+  counts, plus any error message. See
+  [Background Jobs](../user-guide/background-jobs.md#status-flow).
+
+These messages are written to the `inbox_messages` collection and never
+go out by email — even when SMTP is enabled — because they're meant for
+the user's in-app inbox.

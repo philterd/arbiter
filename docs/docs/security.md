@@ -21,6 +21,20 @@ Both login success and login failure are recorded in the audit log
 (`LOGIN`, with `outcome` either `SUCCESS` or `FAILURE`). Logout produces a
 `LOGOUT` entry.
 
+#### Session storage
+
+Form-login sessions live in **Valkey** (Redis-protocol compatible) via
+Spring Session, so multiple Arbiter replicas behind a load balancer all
+read and write the same `HttpSession`. Two consequences:
+
+- The load balancer doesn't need sticky sessions — any replica can serve
+  any request.
+- A signed-in user keeps their session if a replica restarts.
+
+The connection is configured by `spring.data.redis.host` /
+`spring.data.redis.port`; docker-compose ships a `valkey` service on
+`6379`. Session timeout is `spring.session.timeout`, default 30 minutes.
+
 ### Multi-factor authentication (TOTP)
 
 Arbiter supports TOTP-based MFA as a second factor for form-login sessions. API key

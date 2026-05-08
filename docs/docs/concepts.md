@@ -68,6 +68,7 @@ Document statuses:
 | `APPROVED`        | A reviewer explicitly approved the document                        |
 | `REJECTED`        | A reviewer explicitly rejected the document                        |
 | `FAILED`          | Redaction failed and the document was stored without spans         |
+| `SKIPPED`         | Placeholder row written when an OpenSearch / Elasticsearch import detected a duplicate `(sourceIndex, sourceDocId)` and chose not to re-enqueue. Carries source attribution but no content. |
 
 The queue also surfaces an `AUTO_APPROVED` *display label* for any non-terminal
 document whose risk score is at or below the batch's Document Threshold,
@@ -86,7 +87,38 @@ the spans, computes the risk score, and transitions the document to its final
 post-ingest status (`REVIEW_REQUIRED`, `AUDIT_REQUIRED`, or `AUTO_APPROVED`).
 
 Admins monitor the queue at **Admin → Ingest Queue**, where they can also
-remove a still-pending document.
+remove a still-pending document. The page also surfaces six summary widgets:
+
+- **Pending** — documents currently awaiting redaction.
+- **Processing** — documents claimed by a worker.
+- **Failed** — documents whose redaction failed (clearable via Clear failures).
+- **Skipped** — placeholder rows from re-runs of OpenSearch / Elasticsearch
+  imports that detected duplicates by `(sourceIndex, sourceDocId)`.
+- **Last 24 hours** — documents created in the last 24 hours, regardless
+  of current status.
+- **Throughput** — documents/hour averaged over the last 24 hours,
+  computed from `statusChangedAt` for documents that have left
+  `PENDING` / `PROCESSING`.
+
+## Background jobs
+
+Long-running ingests (today: pulling from OpenSearch or Elasticsearch
+[data sources](admin/data-sources.md)) run as **background jobs** rather
+than blocking the request thread. Each job is a row in the `background_jobs`
+collection with status `PENDING` → `RUNNING` → `COMPLETED` / `FAILED`. A
+dispatcher polls every couple of seconds and atomically promotes one
+`PENDING` job per batch to `RUNNING`, so admins can queue many imports
+against a batch without worrying about race conditions:
+
+- **Per-batch serialisation.** A partial unique index on `background_jobs`
+  guarantees at most one `RUNNING` data-import job per batch, even across
+  replicas. Subsequent jobs sit at `PENDING` until the running one finishes.
+- **Global ceiling.** **Admin → General → Max concurrent data imports**
+  caps how many jobs run system-wide (`1`–`10`, default `1`).
+
+Reviewers watch progress on the [Background Jobs](user-guide/background-jobs.md)
+page; the user who started a job receives an inbox notification when it
+ends.
 
 ## Spans
 

@@ -1,6 +1,4 @@
-#!/usr/bin/env bash
-#
-# Copyright 2026 Philterd
+#!/bin/bash -e
 #
 # Example curl commands for interacting with Arbiter's REST API.
 #

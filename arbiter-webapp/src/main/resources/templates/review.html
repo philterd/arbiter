@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!--
-  ~ Copyright 2026 Philterd
+  ~ Copyright 2026 Philterd, LLC.
   ~
   ~ Licensed under the Apache License, Version 2.0 (the "License");
   ~ you may not use this file except in compliance with the License.
@@ -207,6 +207,14 @@
                     </svg>
                     Data Sources
                 </a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/destinations}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
+                    </svg>
+                    Destinations
+                </a>
+
                 <a sec:authorize="hasRole('ADMIN')" th:href="@{/batches}"
                    class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

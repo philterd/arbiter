@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd, LLC.
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Arbiter - Destinations</title>
+    <script th:src="@{/js/tailwind.js}"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="flex min-h-screen">
+        <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
+            <div class="px-6 py-5 border-b border-gray-200">
+                <h1 class="text-2xl font-bold text-gray-900">Arbiter</h1>
+            </div>
+            <nav class="flex-1 px-3 py-4 space-y-1">
+                <a th:href="@{/}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                    </svg>
+                    Dashboard
+                </a>
+                <a th:href="@{/inbox}" class="relative flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                    </svg>
+                    Inbox
+                    <span th:if="${inboxUnreadCount != null and inboxUnreadCount > 0}"
+                          class="ml-auto inline-flex items-center justify-center min-w-[1.25rem] h-5 text-[10px] font-semibold rounded-full bg-red-600 text-white px-1.5"
+                          th:text="${inboxUnreadCount}">3</span>
+                </a>
+                <div class="mt-2 pt-3 border-t border-gray-200 space-y-1">
+                    <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Redaction</p>
+                <a th:href="@{/upload}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12"></path>
+                    </svg>
+                    Add Documents
+                </a>
+                <a th:href="@{/queue}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path>
+                    </svg>
+                    Documents
+                </a>
+                <a th:href="@{/jobs}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+                Background Jobs
+                </a>
+                <a th:href="@{/second-opinions}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                    </svg>
+                    Second Opinions
+                </a>
+                </div>
+                <div class="mt-2 pt-2 border-t border-gray-200 space-y-1">
+                    <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Tools</p>
+                <a th:href="@{/search}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"></path>
+                    </svg>
+                    Search
+                </a>
+                <a th:href="@{/settings}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    Settings
+                </a>
+                </div>
+                <div sec:authorize="hasRole('ADMIN')" class="mt-4 pt-3 border-t border-gray-200 space-y-1">
+                    <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Administration</p>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/data-sources}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path>
+                    </svg>
+                    Data Sources
+                </a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/destinations}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
+                    </svg>
+                    Destinations
+                </a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/batches}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                    </svg>
+                    Batches
+                </a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/ingest-queue}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Ingest Queue
+                </a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/policies}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Policies
+                </a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/compliance-profiles}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                    </svg>
+                    Compliance Profiles
+                </a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/rules}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                    </svg>
+                    Approval Rules
+                </a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/weights}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path>
+                    </svg>
+                    Weight Sets
+                </a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/reporting}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v18h18M9 17v-7m4 7v-12m4 12v-4"></path>
+                    </svg>
+                    Reports
+                </a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/audit}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 11h6M9 14h6M9 17h6"></path>
+                    </svg>
+                    Audit Log
+                </a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/general}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+                    </svg>
+                    Admin
+                </a>
+                </div>
+            </nav>
+            <div class="px-3 py-4 border-t border-gray-200 text-sm text-gray-600">
+                <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd.png}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
+                <div class="px-3 mb-2">
+                    Signed in as <span class="font-medium" sec:authentication="name">user</span>
+                    <span sec:authorize="hasRole('ADMIN')" class="ml-1 text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Admin</span>
+                </div>
+                <form th:action="@{/logout}" method="post">
+                    <button type="submit" class="w-full text-left px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100">
+                        Sign out
+                    </button>
+                </form>
+            </div>
+        </aside>
+
+        <div class="flex-1 flex flex-col min-w-0">
+        <main class="flex-1 p-8">
+            <div class="flex items-center justify-between mb-2">
+                <h2 class="text-3xl font-bold text-gray-900">Destinations</h2>
+            </div>
+            <p class="text-sm text-gray-600 mb-6 max-w-3xl">
+                Destinations are locations where finalized redacted documents can be written to.
+                Configure one or more destinations below; they become available when finalizing
+                a batch.
+            </p>
+            <div th:if="${error}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
+                 th:text="${error}">Error</div>
+            <div th:if="${success}" class="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700"
+                 th:text="${success}">Success</div>
+
+            <h3 class="text-xl font-semibold text-gray-900 mb-3">Local Directory</h3>
+
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-6 max-w-4xl">
+                <h3 class="text-lg font-semibold text-gray-900 mb-1">Add local directory destination</h3>
+                <p class="text-xs text-gray-500 mb-3">
+                    Write finalized documents to a directory on the application server's
+                    filesystem. The path must be writable by the Arbiter process. Names
+                    must be unique.
+                </p>
+                <form th:action="@{/admin/destinations/local}" method="post" class="space-y-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_auto] gap-2 items-end">
+                        <div>
+                            <label for="localName" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Name</label>
+                            <input id="localName" name="name" type="text" required placeholder="archive-output"
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="localPath" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Directory path</label>
+                            <input id="localPath" name="directoryPath" type="text" required
+                                   placeholder="/var/lib/arbiter/redacted"
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" id="localTestBtn"
+                                    class="px-5 py-2 border border-gray-300 text-gray-700 hover:bg-gray-100 font-medium rounded-lg transition duration-200">
+                                Test
+                            </button>
+                            <button type="submit"
+                                    class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                                Add
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden max-w-4xl">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Directory path</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        <tr th:if="${#lists.isEmpty(localDestinations)}">
+                            <td colspan="3" class="px-6 py-8 text-center text-sm text-gray-500">
+                                No local directory destinations configured yet.
+                            </td>
+                        </tr>
+                        <tr th:each="l : ${localDestinations}" class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                                th:text="${l.name}">name</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono"
+                                th:text="${l.directoryPath}">/var/lib/arbiter/redacted</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <button type="button"
+                                        class="edit-local-btn text-blue-600 hover:text-blue-800 font-medium mr-3"
+                                        th:attr="data-dest-id=${l.id},
+                                                 data-dest-name=${l.name},
+                                                 data-dest-path=${l.directoryPath}">
+                                    Edit
+                                </button>
+                                <form th:action="@{/admin/destinations/local/{id}/delete(id=${l.id})}" method="post" class="inline"
+                                      onsubmit="return confirm('Remove this local directory destination?');">
+                                    <button type="submit" class="text-red-600 hover:text-red-800 font-medium">Remove</button>
+                                </form>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="text-xl font-semibold text-gray-900 mt-10 mb-3">Amazon S3</h3>
+
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-6 max-w-4xl">
+                <h3 class="text-lg font-semibold text-gray-900 mb-1">Add S3 destination</h3>
+                <p class="text-xs text-gray-500 mb-3">
+                    Write finalized documents to an Amazon S3 bucket. Documents are placed
+                    under the configured key prefix. Leave the credentials blank to use the
+                    application's ambient AWS credentials (e.g. instance profile, environment
+                    variables, or shared credentials file). Names must be unique.
+                </p>
+                <form th:action="@{/admin/destinations/s3}" method="post" class="space-y-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                        <div>
+                            <label for="s3Name" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Name</label>
+                            <input id="s3Name" name="name" type="text" required placeholder="s3-archive"
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="s3Bucket" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Bucket name</label>
+                            <input id="s3Bucket" name="bucketName" type="text" required placeholder="my-redacted-bucket"
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="s3Key" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Bucket key</label>
+                            <input id="s3Key" name="bucketKey" type="text" required placeholder="finalized/"
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 items-end">
+                        <div>
+                            <label for="s3AccessKey" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
+                                Access key <span class="text-gray-400 normal-case font-normal">(optional)</span>
+                            </label>
+                            <input id="s3AccessKey" name="accessKey" type="text" autocomplete="off"
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="s3SecretKey" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
+                                Secret key <span class="text-gray-400 normal-case font-normal">(optional)</span>
+                            </label>
+                            <input id="s3SecretKey" name="secretKey" type="password" autocomplete="new-password"
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" id="s3TestBtn"
+                                    class="px-5 py-2 border border-gray-300 text-gray-700 hover:bg-gray-100 font-medium rounded-lg transition duration-200">
+                                Test
+                            </button>
+                            <button type="submit"
+                                    class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                                Add
+                            </button>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-500">
+                        Leave Access key and Secret key blank to use the application's ambient AWS credentials.
+                        Credentials are encrypted at rest with the application's symmetric key.
+                    </p>
+                </form>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden max-w-4xl">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bucket</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Key</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Credentials</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        <tr th:if="${#lists.isEmpty(s3Destinations)}">
+                            <td colspan="5" class="px-6 py-8 text-center text-sm text-gray-500">
+                                No S3 destinations configured yet.
+                            </td>
+                        </tr>
+                        <tr th:each="s : ${s3Destinations}" class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                                th:text="${s.name}">name</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono"
+                                th:text="${s.bucketName}">bucket</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono"
+                                th:text="${s.bucketKey}">key/</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <span th:if="${s.encryptedAccessKey != null and !#strings.isEmpty(s.encryptedAccessKey)}"
+                                      class="inline-flex items-center px-2 py-0.5 rounded bg-green-100 text-green-800 text-xs font-medium">
+                                    Configured
+                                </span>
+                                <span th:if="${s.encryptedAccessKey == null or #strings.isEmpty(s.encryptedAccessKey)}"
+                                      class="inline-flex items-center px-2 py-0.5 rounded bg-gray-100 text-gray-700 text-xs font-medium">
+                                    Ambient
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <button type="button"
+                                        class="edit-s3-btn text-blue-600 hover:text-blue-800 font-medium mr-3"
+                                        th:attr="data-dest-id=${s.id},
+                                                 data-dest-name=${s.name},
+                                                 data-dest-bucket=${s.bucketName},
+                                                 data-dest-key=${s.bucketKey},
+                                                 data-dest-has-credentials=${s.encryptedAccessKey != null and !#strings.isEmpty(s.encryptedAccessKey)}">
+                                    Edit
+                                </button>
+                                <form th:action="@{/admin/destinations/s3/{id}/delete(id=${s.id})}" method="post" class="inline"
+                                      onsubmit="return confirm('Remove this S3 destination?');">
+                                    <button type="submit" class="text-red-600 hover:text-red-800 font-medium">Remove</button>
+                                </form>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3 class="text-xl font-semibold text-gray-900 mt-10 mb-3">Amazon SQS</h3>
+
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-6 max-w-4xl">
+                <h3 class="text-lg font-semibold text-gray-900 mb-1">Add SQS destination</h3>
+                <p class="text-xs text-gray-500 mb-3">
+                    Enqueue finalized documents to an Amazon SQS queue. The queue URL
+                    encodes the AWS region. Leave the credentials blank to use the
+                    application's ambient AWS credentials. Names must be unique.
+                </p>
+                <form th:action="@{/admin/destinations/sqs}" method="post" class="space-y-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2">
+                        <div>
+                            <label for="sqsName" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Name</label>
+                            <input id="sqsName" name="name" type="text" required placeholder="redaction-events"
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="sqsQueueUrl" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Queue URL</label>
+                            <input id="sqsQueueUrl" name="queueUrl" type="text" required
+                                   placeholder="https://sqs.us-east-1.amazonaws.com/123456789012/MyQueue"
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 items-end">
+                        <div>
+                            <label for="sqsAccessKey" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
+                                Access key <span class="text-gray-400 normal-case font-normal">(optional)</span>
+                            </label>
+                            <input id="sqsAccessKey" name="accessKey" type="text" autocomplete="off"
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="sqsSecretKey" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
+                                Secret key <span class="text-gray-400 normal-case font-normal">(optional)</span>
+                            </label>
+                            <input id="sqsSecretKey" name="secretKey" type="password" autocomplete="new-password"
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button type="button" id="sqsTestBtn"
+                                    class="px-5 py-2 border border-gray-300 text-gray-700 hover:bg-gray-100 font-medium rounded-lg transition duration-200">
+                                Test
+                            </button>
+                            <button type="submit"
+                                    class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                                Add
+                            </button>
+                        </div>
+                    </div>
+                    <p class="text-xs text-gray-500">
+                        Leave Access key and Secret key blank to use the application's ambient AWS credentials.
+                        Credentials are encrypted at rest with the application's symmetric key.
+                    </p>
+                </form>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden max-w-4xl">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Queue URL</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Credentials</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        <tr th:if="${#lists.isEmpty(sqsDestinations)}">
+                            <td colspan="4" class="px-6 py-8 text-center text-sm text-gray-500">
+                                No SQS destinations configured yet.
+                            </td>
+                        </tr>
+                        <tr th:each="q : ${sqsDestinations}" class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                                th:text="${q.name}">name</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono"
+                                th:text="${q.queueUrl}">https://sqs.us-east-1.amazonaws.com/.../MyQueue</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <span th:if="${q.encryptedAccessKey != null and !#strings.isEmpty(q.encryptedAccessKey)}"
+                                      class="inline-flex items-center px-2 py-0.5 rounded bg-green-100 text-green-800 text-xs font-medium">
+                                    Configured
+                                </span>
+                                <span th:if="${q.encryptedAccessKey == null or #strings.isEmpty(q.encryptedAccessKey)}"
+                                      class="inline-flex items-center px-2 py-0.5 rounded bg-gray-100 text-gray-700 text-xs font-medium">
+                                    Ambient
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <button type="button"
+                                        class="edit-sqs-btn text-blue-600 hover:text-blue-800 font-medium mr-3"
+                                        th:attr="data-dest-id=${q.id},
+                                                 data-dest-name=${q.name},
+                                                 data-dest-queue-url=${q.queueUrl},
+                                                 data-dest-has-credentials=${q.encryptedAccessKey != null and !#strings.isEmpty(q.encryptedAccessKey)}">
+                                    Edit
+                                </button>
+                                <form th:action="@{/admin/destinations/sqs/{id}/delete(id=${q.id})}" method="post" class="inline"
+                                      onsubmit="return confirm('Remove this SQS destination?');">
+                                    <button type="submit" class="text-red-600 hover:text-red-800 font-medium">Remove</button>
+                                </form>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+        <div th:replace="~{fragments/footer :: footer}"></div>
+        </div>
+    </div>
+
+    <div id="localEditModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <form id="localEditForm" method="post" class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-xl max-h-[90vh] flex flex-col">
+            <input type="hidden" name="_csrf" th:if="${_csrf != null}" th:value="${_csrf.token}">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    Edit local directory destination: <span id="localEditName" class="font-mono">name</span>
+                </h3>
+                <button type="button" id="localEditClose"
+                        class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+            </div>
+            <div class="px-5 py-4 overflow-auto space-y-3">
+                <p class="text-xs text-gray-500">
+                    The destination name cannot be changed. Remove and re-create the destination
+                    if a different name is needed.
+                </p>
+                <div>
+                    <label for="localEditPath" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Directory path</label>
+                    <input id="localEditPath" name="directoryPath" type="text" required
+                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+            <div class="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-200">
+                <button type="button" id="localEditCancel"
+                        class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
+                <button type="submit"
+                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Save</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="destTestModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+                <h3 id="destTestTitle" class="text-lg font-semibold text-gray-900">Destination test</h3>
+                <button type="button" id="destTestClose"
+                        class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+            </div>
+            <div class="px-5 py-4 overflow-auto">
+                <p id="destTestStatus" class="text-sm text-gray-500 mb-3">Running test…</p>
+                <p id="destTestSuccess" class="hidden text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg p-3 mb-3"></p>
+                <p id="destTestError" class="hidden text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 mb-3 whitespace-pre-wrap break-words"></p>
+            </div>
+            <div class="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-200">
+                <button type="button" id="destTestDismiss"
+                        class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="sqsEditModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <form id="sqsEditForm" method="post" class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <input type="hidden" name="_csrf" th:if="${_csrf != null}" th:value="${_csrf.token}">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    Edit SQS destination: <span id="sqsEditName" class="font-mono">name</span>
+                </h3>
+                <button type="button" id="sqsEditClose"
+                        class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+            </div>
+            <div class="px-5 py-4 overflow-auto space-y-3">
+                <p class="text-xs text-gray-500">
+                    The destination name cannot be changed. Remove and re-create the destination
+                    if a different name is needed.
+                </p>
+                <div>
+                    <label for="sqsEditQueueUrl" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Queue URL</label>
+                    <input id="sqsEditQueueUrl" name="queueUrl" type="text" required
+                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                        <label for="sqsEditAccessKey" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
+                            Access key <span class="text-gray-400 normal-case font-normal">(optional)</span>
+                        </label>
+                        <input id="sqsEditAccessKey" name="accessKey" type="text" autocomplete="off"
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="sqsEditSecretKey" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
+                            Secret key <span class="text-gray-400 normal-case font-normal">(optional)</span>
+                        </label>
+                        <input id="sqsEditSecretKey" name="secretKey" type="password" autocomplete="new-password"
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                <label class="flex items-center text-xs text-gray-700">
+                    <input id="sqsEditClearCredentials" name="clearCredentials" type="checkbox" value="true" class="mr-2">
+                    Clear stored credentials (use ambient AWS credentials instead)
+                </label>
+                <p id="sqsEditCredentialsHint" class="text-xs text-gray-500"></p>
+            </div>
+            <div class="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-200">
+                <button type="button" id="sqsEditCancel"
+                        class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
+                <button type="submit"
+                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Save</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="s3EditModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <form id="s3EditForm" method="post" class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <input type="hidden" name="_csrf" th:if="${_csrf != null}" th:value="${_csrf.token}">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    Edit S3 destination: <span id="s3EditName" class="font-mono">name</span>
+                </h3>
+                <button type="button" id="s3EditClose"
+                        class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+            </div>
+            <div class="px-5 py-4 overflow-auto space-y-3">
+                <p class="text-xs text-gray-500">
+                    The destination name cannot be changed. Remove and re-create the destination
+                    if a different name is needed.
+                </p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                        <label for="s3EditBucket" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Bucket name</label>
+                        <input id="s3EditBucket" name="bucketName" type="text" required
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="s3EditKey" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Bucket key</label>
+                        <input id="s3EditKey" name="bucketKey" type="text" required
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                        <label for="s3EditAccessKey" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
+                            Access key <span class="text-gray-400 normal-case font-normal">(optional)</span>
+                        </label>
+                        <input id="s3EditAccessKey" name="accessKey" type="text" autocomplete="off"
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="s3EditSecretKey" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
+                            Secret key <span class="text-gray-400 normal-case font-normal">(optional)</span>
+                        </label>
+                        <input id="s3EditSecretKey" name="secretKey" type="password" autocomplete="new-password"
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                <label class="flex items-center text-xs text-gray-700">
+                    <input id="s3EditClearCredentials" name="clearCredentials" type="checkbox" value="true" class="mr-2">
+                    Clear stored credentials (use ambient AWS credentials instead)
+                </label>
+                <p id="s3EditCredentialsHint" class="text-xs text-gray-500"></p>
+            </div>
+            <div class="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-200">
+                <button type="button" id="s3EditCancel"
+                        class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
+                <button type="submit"
+                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Save</button>
+            </div>
+        </form>
+    </div>
+
+    <script>
+        (function () {
+            const modal = document.getElementById('destTestModal');
+            if (!modal) return;
+            const titleEl = document.getElementById('destTestTitle');
+            const statusEl = document.getElementById('destTestStatus');
+            const successEl = document.getElementById('destTestSuccess');
+            const errorEl = document.getElementById('destTestError');
+            const closeBtn = document.getElementById('destTestClose');
+            const dismissBtn = document.getElementById('destTestDismiss');
+
+            function close() { modal.classList.add('hidden'); }
+            closeBtn.addEventListener('click', close);
+            dismissBtn.addEventListener('click', close);
+            modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
+            });
+
+            function show(label) {
+                titleEl.textContent = label + ' test';
+                statusEl.textContent = 'Running test…';
+                statusEl.classList.remove('hidden');
+                successEl.classList.add('hidden');
+                errorEl.classList.add('hidden');
+                modal.classList.remove('hidden');
+            }
+            function showError(msg) {
+                statusEl.classList.add('hidden');
+                successEl.classList.add('hidden');
+                errorEl.classList.remove('hidden');
+                errorEl.textContent = msg || 'Unknown error.';
+            }
+            function showSuccess(msg) {
+                statusEl.classList.add('hidden');
+                errorEl.classList.add('hidden');
+                successEl.classList.remove('hidden');
+                successEl.textContent = msg || 'Success.';
+            }
+
+            function csrfBody() {
+                const csrfInput = document.querySelector('form input[name="_csrf"]');
+                const body = new URLSearchParams();
+                if (csrfInput) body.set('_csrf', csrfInput.value);
+                return body;
+            }
+
+            function val(id) {
+                const el = document.getElementById(id);
+                return el ? el.value : '';
+            }
+
+            async function runTest(url, body, label) {
+                show(label);
+                try {
+                    const resp = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: body.toString(),
+                    });
+                    let data = {};
+                    try { data = await resp.json(); } catch (_) {}
+                    if (!resp.ok) {
+                        showError(data.error || ('Test failed (HTTP ' + resp.status + ').'));
+                        return;
+                    }
+                    if (data.ok) {
+                        showSuccess(data.message || 'Success.');
+                    } else {
+                        showError(data.error || 'Test failed.');
+                    }
+                } catch (e) {
+                    showError('Network error: ' + e.message);
+                }
+            }
+
+            const localBtn = document.getElementById('localTestBtn');
+            if (localBtn) {
+                localBtn.addEventListener('click', () => {
+                    const path = val('localPath').trim();
+                    if (!path) {
+                        show('Local directory');
+                        showError('Directory path is required.');
+                        return;
+                    }
+                    const body = csrfBody();
+                    body.set('directoryPath', path);
+                    runTest('/admin/destinations/local/test', body, 'Local directory');
+                });
+            }
+
+            const s3Btn = document.getElementById('s3TestBtn');
+            if (s3Btn) {
+                s3Btn.addEventListener('click', () => {
+                    const bucket = val('s3Bucket').trim();
+                    const key = val('s3Key').trim();
+                    if (!bucket) { show('S3 destination'); showError('Bucket name is required.'); return; }
+                    if (!key) { show('S3 destination'); showError('Bucket key is required.'); return; }
+                    const body = csrfBody();
+                    body.set('bucketName', bucket);
+                    body.set('bucketKey', key);
+                    body.set('accessKey', val('s3AccessKey'));
+                    body.set('secretKey', val('s3SecretKey'));
+                    runTest('/admin/destinations/s3/test', body, 'S3 destination');
+                });
+            }
+
+            const sqsBtn = document.getElementById('sqsTestBtn');
+            if (sqsBtn) {
+                sqsBtn.addEventListener('click', () => {
+                    const queueUrl = val('sqsQueueUrl').trim();
+                    if (!queueUrl) { show('SQS destination'); showError('Queue URL is required.'); return; }
+                    const body = csrfBody();
+                    body.set('queueUrl', queueUrl);
+                    body.set('accessKey', val('sqsAccessKey'));
+                    body.set('secretKey', val('sqsSecretKey'));
+                    runTest('/admin/destinations/sqs/test', body, 'SQS destination');
+                });
+            }
+        })();
+
+        (function () {
+            const modal = document.getElementById('sqsEditModal');
+            if (!modal) return;
+            const form = document.getElementById('sqsEditForm');
+            const nameSpan = document.getElementById('sqsEditName');
+            const queueUrlEl = document.getElementById('sqsEditQueueUrl');
+            const accessKeyEl = document.getElementById('sqsEditAccessKey');
+            const secretKeyEl = document.getElementById('sqsEditSecretKey');
+            const clearEl = document.getElementById('sqsEditClearCredentials');
+            const hintEl = document.getElementById('sqsEditCredentialsHint');
+            const closeBtn = document.getElementById('sqsEditClose');
+            const cancelBtn = document.getElementById('sqsEditCancel');
+
+            function close() { modal.classList.add('hidden'); }
+
+            function applyClearState() {
+                if (clearEl.checked) {
+                    accessKeyEl.value = '';
+                    secretKeyEl.value = '';
+                    accessKeyEl.disabled = true;
+                    secretKeyEl.disabled = true;
+                } else {
+                    accessKeyEl.disabled = false;
+                    secretKeyEl.disabled = false;
+                }
+            }
+            clearEl.addEventListener('change', applyClearState);
+
+            document.querySelectorAll('.edit-sqs-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-dest-id');
+                    form.action = '/admin/destinations/sqs/' + encodeURIComponent(id) + '/edit';
+                    nameSpan.textContent = btn.getAttribute('data-dest-name') || '';
+                    queueUrlEl.value = btn.getAttribute('data-dest-queue-url') || '';
+                    accessKeyEl.value = '';
+                    secretKeyEl.value = '';
+                    clearEl.checked = false;
+                    applyClearState();
+                    const hasCredentials = btn.getAttribute('data-dest-has-credentials') === 'true';
+                    accessKeyEl.placeholder = hasCredentials
+                            ? 'Leave blank to keep existing access key'
+                            : 'No credentials currently set';
+                    secretKeyEl.placeholder = hasCredentials
+                            ? 'Leave blank to keep existing secret key'
+                            : 'No credentials currently set';
+                    hintEl.textContent = hasCredentials
+                            ? 'Credentials are currently configured. Leave both fields blank to keep them, fill both to replace, or check the box above to clear them.'
+                            : 'No credentials are currently configured (using ambient AWS credentials). Fill both fields to set explicit credentials.';
+                    modal.classList.remove('hidden');
+                });
+            });
+
+            closeBtn.addEventListener('click', close);
+            cancelBtn.addEventListener('click', close);
+            modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
+            });
+        })();
+
+        (function () {
+            const modal = document.getElementById('localEditModal');
+            if (!modal) return;
+            const form = document.getElementById('localEditForm');
+            const nameSpan = document.getElementById('localEditName');
+            const pathEl = document.getElementById('localEditPath');
+            const closeBtn = document.getElementById('localEditClose');
+            const cancelBtn = document.getElementById('localEditCancel');
+
+            function close() { modal.classList.add('hidden'); }
+
+            document.querySelectorAll('.edit-local-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-dest-id');
+                    form.action = '/admin/destinations/local/' + encodeURIComponent(id) + '/edit';
+                    nameSpan.textContent = btn.getAttribute('data-dest-name') || '';
+                    pathEl.value = btn.getAttribute('data-dest-path') || '';
+                    modal.classList.remove('hidden');
+                });
+            });
+
+            closeBtn.addEventListener('click', close);
+            cancelBtn.addEventListener('click', close);
+            modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
+            });
+        })();
+
+        (function () {
+            const modal = document.getElementById('s3EditModal');
+            if (!modal) return;
+            const form = document.getElementById('s3EditForm');
+            const nameSpan = document.getElementById('s3EditName');
+            const bucketEl = document.getElementById('s3EditBucket');
+            const keyEl = document.getElementById('s3EditKey');
+            const accessKeyEl = document.getElementById('s3EditAccessKey');
+            const secretKeyEl = document.getElementById('s3EditSecretKey');
+            const clearEl = document.getElementById('s3EditClearCredentials');
+            const hintEl = document.getElementById('s3EditCredentialsHint');
+            const closeBtn = document.getElementById('s3EditClose');
+            const cancelBtn = document.getElementById('s3EditCancel');
+
+            function close() { modal.classList.add('hidden'); }
+
+            function applyClearState() {
+                if (clearEl.checked) {
+                    accessKeyEl.value = '';
+                    secretKeyEl.value = '';
+                    accessKeyEl.disabled = true;
+                    secretKeyEl.disabled = true;
+                } else {
+                    accessKeyEl.disabled = false;
+                    secretKeyEl.disabled = false;
+                }
+            }
+            clearEl.addEventListener('change', applyClearState);
+
+            document.querySelectorAll('.edit-s3-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-dest-id');
+                    form.action = '/admin/destinations/s3/' + encodeURIComponent(id) + '/edit';
+                    nameSpan.textContent = btn.getAttribute('data-dest-name') || '';
+                    bucketEl.value = btn.getAttribute('data-dest-bucket') || '';
+                    keyEl.value = btn.getAttribute('data-dest-key') || '';
+                    accessKeyEl.value = '';
+                    secretKeyEl.value = '';
+                    clearEl.checked = false;
+                    applyClearState();
+                    const hasCredentials = btn.getAttribute('data-dest-has-credentials') === 'true';
+                    accessKeyEl.placeholder = hasCredentials
+                            ? 'Leave blank to keep existing access key'
+                            : 'No credentials currently set';
+                    secretKeyEl.placeholder = hasCredentials
+                            ? 'Leave blank to keep existing secret key'
+                            : 'No credentials currently set';
+                    hintEl.textContent = hasCredentials
+                            ? 'Credentials are currently configured. Leave both fields blank to keep them, fill both to replace, or check the box above to clear them.'
+                            : 'No credentials are currently configured (using ambient AWS credentials). Fill both fields to set explicit credentials.';
+                    modal.classList.remove('hidden');
+                });
+            });
+
+            closeBtn.addEventListener('click', close);
+            cancelBtn.addEventListener('click', close);
+            modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
+            });
+        })();
+    </script>
+</body>
+</html>

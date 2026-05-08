@@ -1,0 +1,490 @@
+/*
+ * Copyright 2026 Philterd, LLC.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ */
+package ai.philterd.arbiter.webapp.controllers;
+
+import ai.philterd.arbiter.model.LocalDirectoryDestination;
+import ai.philterd.arbiter.model.S3Destination;
+import ai.philterd.arbiter.model.SqsDestination;
+import ai.philterd.arbiter.repository.LocalDirectoryDestinationRepository;
+import ai.philterd.arbiter.repository.S3DestinationRepository;
+import ai.philterd.arbiter.repository.SqsDestinationRepository;
+import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.service.DestinationTester;
+import ai.philterd.arbiter.service.SymmetricCipher;
+import org.springframework.dao.DuplicateKeyException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+
+import java.time.LocalDateTime;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+
+/**
+ * CRUD for redaction destinations — places finalized documents are written to.
+ * Today the page supports three destination types: local filesystem directories,
+ * Amazon S3 buckets, and Amazon SQS queues. Mirrors the layout of
+ * {@link AdminDataSourceController}.
+ */
+@Controller
+@RequestMapping("/admin/destinations")
+public class AdminDestinationController {
+
+    private final LocalDirectoryDestinationRepository localRepository;
+    private final S3DestinationRepository s3Repository;
+    private final SqsDestinationRepository sqsRepository;
+    private final AuditLogService auditLogService;
+    private final SymmetricCipher cipher;
+    private final DestinationTester destinationTester;
+
+    public AdminDestinationController(final LocalDirectoryDestinationRepository localRepository,
+                                      final S3DestinationRepository s3Repository,
+                                      final SqsDestinationRepository sqsRepository,
+                                      final AuditLogService auditLogService,
+                                      final SymmetricCipher cipher,
+                                      final DestinationTester destinationTester) {
+        this.localRepository = localRepository;
+        this.s3Repository = s3Repository;
+        this.sqsRepository = sqsRepository;
+        this.auditLogService = auditLogService;
+        this.cipher = cipher;
+        this.destinationTester = destinationTester;
+    }
+
+    @GetMapping
+    public String list(final Model model) {
+        final List<LocalDirectoryDestination> localDestinations = localRepository
+                .findAll(PageRequest.of(0, 500, Sort.by("name"))).getContent();
+        model.addAttribute("localDestinations", localDestinations);
+
+        final List<S3Destination> s3Destinations = s3Repository
+                .findAll(PageRequest.of(0, 500, Sort.by("name"))).getContent();
+        model.addAttribute("s3Destinations", s3Destinations);
+
+        final List<SqsDestination> sqsDestinations = sqsRepository
+                .findAll(PageRequest.of(0, 500, Sort.by("name"))).getContent();
+        model.addAttribute("sqsDestinations", sqsDestinations);
+
+        return "admin-destinations";
+    }
+
+    // ------------------------------------------------------------------
+    // Local Directory
+    // ------------------------------------------------------------------
+
+    @PostMapping("/local")
+    public String createLocal(@RequestParam("name") final String name,
+                              @RequestParam("directoryPath") final String directoryPath,
+                              final RedirectAttributes redirectAttributes) {
+        final String trimmedName = name == null ? "" : name.trim();
+        final String trimmedPath = directoryPath == null ? "" : directoryPath.trim();
+
+        if (trimmedName.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Name is required.");
+            return "redirect:/admin/destinations";
+        }
+        if (trimmedPath.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Directory path is required.");
+            return "redirect:/admin/destinations";
+        }
+        if (localRepository.findFirstByNameIgnoreCase(trimmedName).isPresent()) {
+            redirectAttributes.addFlashAttribute("error",
+                    "A local directory destination named \"" + trimmedName + "\" already exists.");
+            return "redirect:/admin/destinations";
+        }
+
+        final LocalDirectoryDestination dest = new LocalDirectoryDestination();
+        dest.setId(UUID.randomUUID().toString());
+        dest.setName(trimmedName);
+        dest.setDirectoryPath(trimmedPath);
+        dest.setCreatedAt(LocalDateTime.now());
+
+        try {
+            localRepository.save(dest);
+        } catch (DuplicateKeyException e) {
+            redirectAttributes.addFlashAttribute("error",
+                    "A local directory destination named \"" + trimmedName + "\" already exists.");
+            return "redirect:/admin/destinations";
+        }
+
+        auditLogService.log("LOCAL_DESTINATION_CREATE", "LocalDirectoryDestination", dest.getId(),
+                Map.of("name", trimmedName, "directoryPath", trimmedPath));
+        redirectAttributes.addFlashAttribute("success",
+                "Local directory destination \"" + trimmedName + "\" added.");
+        return "redirect:/admin/destinations";
+    }
+
+    @PostMapping("/local/{id}/edit")
+    public String editLocal(@PathVariable final String id,
+                            @RequestParam("directoryPath") final String directoryPath,
+                            final RedirectAttributes redirectAttributes) {
+        final LocalDirectoryDestination dest = localRepository.findById(id).orElse(null);
+        if (dest == null) {
+            redirectAttributes.addFlashAttribute("error", "Local directory destination not found.");
+            return "redirect:/admin/destinations";
+        }
+        final String trimmedPath = directoryPath == null ? "" : directoryPath.trim();
+        if (trimmedPath.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Directory path is required.");
+            return "redirect:/admin/destinations";
+        }
+
+        dest.setDirectoryPath(trimmedPath);
+        localRepository.save(dest);
+
+        auditLogService.log("LOCAL_DESTINATION_UPDATE", "LocalDirectoryDestination", id,
+                Map.of("name", dest.getName() == null ? "" : dest.getName(),
+                        "directoryPath", trimmedPath));
+        redirectAttributes.addFlashAttribute("success",
+                "Local directory destination \"" + dest.getName() + "\" updated.");
+        return "redirect:/admin/destinations";
+    }
+
+    @PostMapping("/local/{id}/delete")
+    public String deleteLocal(@PathVariable final String id, final RedirectAttributes redirectAttributes) {
+        final LocalDirectoryDestination dest = localRepository.findById(id).orElse(null);
+        if (dest == null) {
+            redirectAttributes.addFlashAttribute("error", "Local directory destination not found.");
+            return "redirect:/admin/destinations";
+        }
+        localRepository.deleteById(id);
+        auditLogService.log("LOCAL_DESTINATION_DELETE", "LocalDirectoryDestination", id,
+                Map.of("name", dest.getName() == null ? "" : dest.getName()));
+        redirectAttributes.addFlashAttribute("success",
+                "Local directory destination \"" + dest.getName() + "\" removed.");
+        return "redirect:/admin/destinations";
+    }
+
+    // ------------------------------------------------------------------
+    // Amazon S3
+    // ------------------------------------------------------------------
+
+    @PostMapping("/s3")
+    public String createS3(@RequestParam("name") final String name,
+                           @RequestParam("bucketName") final String bucketName,
+                           @RequestParam("bucketKey") final String bucketKey,
+                           @RequestParam(value = "accessKey", required = false) final String accessKey,
+                           @RequestParam(value = "secretKey", required = false) final String secretKey,
+                           final RedirectAttributes redirectAttributes) {
+        final String trimmedName = name == null ? "" : name.trim();
+        final String trimmedBucket = bucketName == null ? "" : bucketName.trim();
+        final String trimmedKey = bucketKey == null ? "" : bucketKey.trim();
+        // Credentials are not trimmed — AWS keys can theoretically contain whitespace.
+        final String rawAccessKey = accessKey == null ? "" : accessKey;
+        final String rawSecretKey = secretKey == null ? "" : secretKey;
+
+        if (trimmedName.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Name is required.");
+            return "redirect:/admin/destinations";
+        }
+        if (trimmedBucket.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Bucket name is required.");
+            return "redirect:/admin/destinations";
+        }
+        if (trimmedKey.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Bucket key is required.");
+            return "redirect:/admin/destinations";
+        }
+        // An access key without a secret key (or vice versa) is almost certainly a mistake.
+        if (rawAccessKey.isEmpty() != rawSecretKey.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Provide both Access key and Secret key, or leave both blank.");
+            return "redirect:/admin/destinations";
+        }
+        if (s3Repository.findFirstByNameIgnoreCase(trimmedName).isPresent()) {
+            redirectAttributes.addFlashAttribute("error",
+                    "An S3 destination named \"" + trimmedName + "\" already exists.");
+            return "redirect:/admin/destinations";
+        }
+
+        final S3Destination dest = new S3Destination();
+        dest.setId(UUID.randomUUID().toString());
+        dest.setName(trimmedName);
+        dest.setBucketName(trimmedBucket);
+        dest.setBucketKey(trimmedKey);
+        dest.setEncryptedAccessKey(rawAccessKey.isEmpty() ? null : cipher.encrypt(rawAccessKey));
+        dest.setEncryptedSecretKey(rawSecretKey.isEmpty() ? null : cipher.encrypt(rawSecretKey));
+        dest.setCreatedAt(LocalDateTime.now());
+
+        try {
+            s3Repository.save(dest);
+        } catch (DuplicateKeyException e) {
+            redirectAttributes.addFlashAttribute("error",
+                    "An S3 destination named \"" + trimmedName + "\" already exists.");
+            return "redirect:/admin/destinations";
+        }
+
+        auditLogService.log("S3_DESTINATION_CREATE", "S3Destination", dest.getId(),
+                Map.of("name", trimmedName,
+                        "bucketName", trimmedBucket,
+                        "bucketKey", trimmedKey,
+                        "credentialsSet", dest.getEncryptedAccessKey() != null));
+        redirectAttributes.addFlashAttribute("success",
+                "S3 destination \"" + trimmedName + "\" added.");
+        return "redirect:/admin/destinations";
+    }
+
+    @PostMapping("/s3/{id}/edit")
+    public String editS3(@PathVariable final String id,
+                         @RequestParam("bucketName") final String bucketName,
+                         @RequestParam("bucketKey") final String bucketKey,
+                         @RequestParam(value = "accessKey", required = false) final String accessKey,
+                         @RequestParam(value = "secretKey", required = false) final String secretKey,
+                         @RequestParam(value = "clearCredentials", required = false) final String clearCredentials,
+                         final RedirectAttributes redirectAttributes) {
+        final S3Destination dest = s3Repository.findById(id).orElse(null);
+        if (dest == null) {
+            redirectAttributes.addFlashAttribute("error", "S3 destination not found.");
+            return "redirect:/admin/destinations";
+        }
+
+        final String trimmedBucket = bucketName == null ? "" : bucketName.trim();
+        final String trimmedKey = bucketKey == null ? "" : bucketKey.trim();
+        final String rawAccessKey = accessKey == null ? "" : accessKey;
+        final String rawSecretKey = secretKey == null ? "" : secretKey;
+        final boolean clear = "true".equalsIgnoreCase(clearCredentials);
+
+        if (trimmedBucket.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Bucket name is required.");
+            return "redirect:/admin/destinations";
+        }
+        if (trimmedKey.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Bucket key is required.");
+            return "redirect:/admin/destinations";
+        }
+        // Without "clear", supplying just one half of the pair is almost certainly a mistake.
+        if (!clear && rawAccessKey.isEmpty() != rawSecretKey.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Provide both Access key and Secret key, leave both blank to keep existing, or check Clear credentials.");
+            return "redirect:/admin/destinations";
+        }
+
+        dest.setBucketName(trimmedBucket);
+        dest.setBucketKey(trimmedKey);
+
+        final boolean credentialsChanged;
+        if (clear) {
+            dest.setEncryptedAccessKey(null);
+            dest.setEncryptedSecretKey(null);
+            credentialsChanged = true;
+        } else if (!rawAccessKey.isEmpty()) {
+            dest.setEncryptedAccessKey(cipher.encrypt(rawAccessKey));
+            dest.setEncryptedSecretKey(cipher.encrypt(rawSecretKey));
+            credentialsChanged = true;
+        } else {
+            // Both blank, no clear: keep existing encrypted credentials untouched.
+            credentialsChanged = false;
+        }
+
+        s3Repository.save(dest);
+
+        auditLogService.log("S3_DESTINATION_UPDATE", "S3Destination", id,
+                Map.of("name", dest.getName() == null ? "" : dest.getName(),
+                        "bucketName", trimmedBucket,
+                        "bucketKey", trimmedKey,
+                        "credentialsChanged", credentialsChanged,
+                        "credentialsCleared", clear));
+        redirectAttributes.addFlashAttribute("success",
+                "S3 destination \"" + dest.getName() + "\" updated.");
+        return "redirect:/admin/destinations";
+    }
+
+    @PostMapping("/s3/{id}/delete")
+    public String deleteS3(@PathVariable final String id, final RedirectAttributes redirectAttributes) {
+        final S3Destination dest = s3Repository.findById(id).orElse(null);
+        if (dest == null) {
+            redirectAttributes.addFlashAttribute("error", "S3 destination not found.");
+            return "redirect:/admin/destinations";
+        }
+        s3Repository.deleteById(id);
+        auditLogService.log("S3_DESTINATION_DELETE", "S3Destination", id,
+                Map.of("name", dest.getName() == null ? "" : dest.getName()));
+        redirectAttributes.addFlashAttribute("success",
+                "S3 destination \"" + dest.getName() + "\" removed.");
+        return "redirect:/admin/destinations";
+    }
+
+    // ------------------------------------------------------------------
+    // Amazon SQS
+    // ------------------------------------------------------------------
+
+    @PostMapping("/sqs")
+    public String createSqs(@RequestParam("name") final String name,
+                            @RequestParam("queueUrl") final String queueUrl,
+                            @RequestParam(value = "accessKey", required = false) final String accessKey,
+                            @RequestParam(value = "secretKey", required = false) final String secretKey,
+                            final RedirectAttributes redirectAttributes) {
+        final String trimmedName = name == null ? "" : name.trim();
+        final String trimmedUrl = queueUrl == null ? "" : queueUrl.trim();
+        final String rawAccessKey = accessKey == null ? "" : accessKey;
+        final String rawSecretKey = secretKey == null ? "" : secretKey;
+
+        if (trimmedName.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Name is required.");
+            return "redirect:/admin/destinations";
+        }
+        if (trimmedUrl.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Queue URL is required.");
+            return "redirect:/admin/destinations";
+        }
+        if (rawAccessKey.isEmpty() != rawSecretKey.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Provide both Access key and Secret key, or leave both blank.");
+            return "redirect:/admin/destinations";
+        }
+        if (sqsRepository.findFirstByNameIgnoreCase(trimmedName).isPresent()) {
+            redirectAttributes.addFlashAttribute("error",
+                    "An SQS destination named \"" + trimmedName + "\" already exists.");
+            return "redirect:/admin/destinations";
+        }
+
+        final SqsDestination dest = new SqsDestination();
+        dest.setId(UUID.randomUUID().toString());
+        dest.setName(trimmedName);
+        dest.setQueueUrl(trimmedUrl);
+        dest.setEncryptedAccessKey(rawAccessKey.isEmpty() ? null : cipher.encrypt(rawAccessKey));
+        dest.setEncryptedSecretKey(rawSecretKey.isEmpty() ? null : cipher.encrypt(rawSecretKey));
+        dest.setCreatedAt(LocalDateTime.now());
+
+        try {
+            sqsRepository.save(dest);
+        } catch (DuplicateKeyException e) {
+            redirectAttributes.addFlashAttribute("error",
+                    "An SQS destination named \"" + trimmedName + "\" already exists.");
+            return "redirect:/admin/destinations";
+        }
+
+        auditLogService.log("SQS_DESTINATION_CREATE", "SqsDestination", dest.getId(),
+                Map.of("name", trimmedName,
+                        "queueUrl", trimmedUrl,
+                        "credentialsSet", dest.getEncryptedAccessKey() != null));
+        redirectAttributes.addFlashAttribute("success",
+                "SQS destination \"" + trimmedName + "\" added.");
+        return "redirect:/admin/destinations";
+    }
+
+    @PostMapping("/sqs/{id}/edit")
+    public String editSqs(@PathVariable final String id,
+                          @RequestParam("queueUrl") final String queueUrl,
+                          @RequestParam(value = "accessKey", required = false) final String accessKey,
+                          @RequestParam(value = "secretKey", required = false) final String secretKey,
+                          @RequestParam(value = "clearCredentials", required = false) final String clearCredentials,
+                          final RedirectAttributes redirectAttributes) {
+        final SqsDestination dest = sqsRepository.findById(id).orElse(null);
+        if (dest == null) {
+            redirectAttributes.addFlashAttribute("error", "SQS destination not found.");
+            return "redirect:/admin/destinations";
+        }
+
+        final String trimmedUrl = queueUrl == null ? "" : queueUrl.trim();
+        final String rawAccessKey = accessKey == null ? "" : accessKey;
+        final String rawSecretKey = secretKey == null ? "" : secretKey;
+        final boolean clear = "true".equalsIgnoreCase(clearCredentials);
+
+        if (trimmedUrl.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Queue URL is required.");
+            return "redirect:/admin/destinations";
+        }
+        if (!clear && rawAccessKey.isEmpty() != rawSecretKey.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Provide both Access key and Secret key, leave both blank to keep existing, or check Clear credentials.");
+            return "redirect:/admin/destinations";
+        }
+
+        dest.setQueueUrl(trimmedUrl);
+
+        final boolean credentialsChanged;
+        if (clear) {
+            dest.setEncryptedAccessKey(null);
+            dest.setEncryptedSecretKey(null);
+            credentialsChanged = true;
+        } else if (!rawAccessKey.isEmpty()) {
+            dest.setEncryptedAccessKey(cipher.encrypt(rawAccessKey));
+            dest.setEncryptedSecretKey(cipher.encrypt(rawSecretKey));
+            credentialsChanged = true;
+        } else {
+            credentialsChanged = false;
+        }
+
+        sqsRepository.save(dest);
+
+        auditLogService.log("SQS_DESTINATION_UPDATE", "SqsDestination", id,
+                Map.of("name", dest.getName() == null ? "" : dest.getName(),
+                        "queueUrl", trimmedUrl,
+                        "credentialsChanged", credentialsChanged,
+                        "credentialsCleared", clear));
+        redirectAttributes.addFlashAttribute("success",
+                "SQS destination \"" + dest.getName() + "\" updated.");
+        return "redirect:/admin/destinations";
+    }
+
+    @PostMapping("/sqs/{id}/delete")
+    public String deleteSqs(@PathVariable final String id, final RedirectAttributes redirectAttributes) {
+        final SqsDestination dest = sqsRepository.findById(id).orElse(null);
+        if (dest == null) {
+            redirectAttributes.addFlashAttribute("error", "SQS destination not found.");
+            return "redirect:/admin/destinations";
+        }
+        sqsRepository.deleteById(id);
+        auditLogService.log("SQS_DESTINATION_DELETE", "SqsDestination", id,
+                Map.of("name", dest.getName() == null ? "" : dest.getName()));
+        redirectAttributes.addFlashAttribute("success",
+                "SQS destination \"" + dest.getName() + "\" removed.");
+        return "redirect:/admin/destinations";
+    }
+
+    // ------------------------------------------------------------------
+    // Test endpoints — exercised by the Test buttons on the Add forms.
+    // Each returns JSON: { ok: boolean, message?: string, error?: string }.
+    // No persistence; no audit log entry — these are read-only probes from
+    // the operator's perspective (though they do write a small object/file
+    // to the destination, which the operator explicitly asked to happen).
+    // ------------------------------------------------------------------
+
+    @PostMapping(value = "/local/test", produces = "application/json")
+    public ResponseEntity<Map<String, Object>> testLocal(
+            @RequestParam("directoryPath") final String directoryPath) {
+        return toJson(destinationTester.testLocalDirectory(directoryPath));
+    }
+
+    @PostMapping(value = "/s3/test", produces = "application/json")
+    public ResponseEntity<Map<String, Object>> testS3(
+            @RequestParam("bucketName") final String bucketName,
+            @RequestParam("bucketKey") final String bucketKey,
+            @RequestParam(value = "accessKey", required = false) final String accessKey,
+            @RequestParam(value = "secretKey", required = false) final String secretKey) {
+        return toJson(destinationTester.testS3(bucketName, bucketKey, accessKey, secretKey));
+    }
+
+    @PostMapping(value = "/sqs/test", produces = "application/json")
+    public ResponseEntity<Map<String, Object>> testSqs(
+            @RequestParam("queueUrl") final String queueUrl,
+            @RequestParam(value = "accessKey", required = false) final String accessKey,
+            @RequestParam(value = "secretKey", required = false) final String secretKey) {
+        return toJson(destinationTester.testSqs(queueUrl, accessKey, secretKey));
+    }
+
+    private static ResponseEntity<Map<String, Object>> toJson(final DestinationTester.TestResult result) {
+        final Map<String, Object> body = new java.util.LinkedHashMap<>();
+        body.put("ok", result.isOk());
+        if (result.getMessage() != null) body.put("message", result.getMessage());
+        if (result.getError() != null) body.put("error", result.getError());
+        return ResponseEntity.ok(body);
+    }
+}

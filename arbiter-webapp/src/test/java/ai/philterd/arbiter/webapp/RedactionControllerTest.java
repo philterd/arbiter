@@ -1,5 +1,5 @@
 /*
- * Copyright 2026 Philterd
+ * Copyright 2026 Philterd, LLC.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -29,10 +29,13 @@ import ai.philterd.arbiter.repository.InboxMessageRepository;
 import ai.philterd.arbiter.repository.NotificationSettingsRepository;
 import ai.philterd.arbiter.repository.OllamaInstanceRepository;
 import ai.philterd.arbiter.repository.LocalDirectoryDataSourceRepository;
+import ai.philterd.arbiter.repository.LocalDirectoryDestinationRepository;
 import ai.philterd.arbiter.repository.OpenSearchDataSourceRepository;
 import ai.philterd.arbiter.repository.PendingUploadRepository;
 import ai.philterd.arbiter.repository.RelationalDbDataSourceRepository;
 import ai.philterd.arbiter.repository.S3DataSourceRepository;
+import ai.philterd.arbiter.repository.S3DestinationRepository;
+import ai.philterd.arbiter.repository.SqsDestinationRepository;
 import ai.philterd.arbiter.repository.RedactionCertificateRepository;
 import ai.philterd.arbiter.repository.PhilterDefaultsRepository;
 import ai.philterd.arbiter.repository.PhilterInstanceRepository;
@@ -43,6 +46,7 @@ import ai.philterd.arbiter.repository.SpanRepository;
 import ai.philterd.arbiter.repository.UserRepository;
 import ai.philterd.arbiter.model.GeneralSettings;
 import ai.philterd.arbiter.service.GeneralSettingsService;
+import ai.philterd.arbiter.service.DestinationTester;
 import ai.philterd.arbiter.service.RedactionService;
 import ai.philterd.arbiter.webapp.controllers.RedactionController;
 import org.springframework.data.mongodb.core.MongoOperations;
@@ -127,6 +131,18 @@ public class RedactionControllerTest {
 
     @MockBean
     private LocalDirectoryDataSourceRepository localDirectoryDataSourceRepository;
+
+    @MockBean
+    private LocalDirectoryDestinationRepository localDirectoryDestinationRepository;
+
+    @MockBean
+    private S3DestinationRepository s3DestinationRepository;
+
+    @MockBean
+    private SqsDestinationRepository sqsDestinationRepository;
+
+    @MockBean
+    private DestinationTester destinationTester;
 
     @MockBean
     private PhilterInstanceRepository philterInstanceRepository;

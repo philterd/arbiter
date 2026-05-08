@@ -52,7 +52,9 @@ immediately** under [Personal settings](user-guide/settings.md).
 | Document Queue       | `/queue`                  | All authenticated users         |
 | Search             | `/search`                 | All authenticated users         |
 | Add Documents      | `/upload`                 | All authenticated users         |
+| Background Jobs    | `/jobs`                   | All authenticated users         |
 | Personal settings  | `/settings`               | All authenticated users         |
+| Documentation      | `/docs/`                  | Public (no login required)      |
 | Ingest Queue       | `/admin/ingest-queue`     | Admin role only                 |
 | Approval Rules     | `/admin/rules`            | Admin role only                 |
 | Data Sources       | `/admin/data-sources`     | Admin role only                 |

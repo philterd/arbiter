@@ -9,6 +9,9 @@ becomes selectable on the **Add Documents** page.
 The page is at `/admin/data-sources`, also reachable from the **Data Sources**
 link in the sidebar's Administration section. ROLE_ADMIN only.
 
+Data sources are the *input* half of Arbiter's I/O. For where finalized
+redacted documents go *out*, see [Destinations](destinations.md).
+
 > **Status:** **OpenSearch** and **Elasticsearch** ingest are fully wired up —
 > clicking *Ingest from OpenSearch* or *Ingest from Elasticsearch* on the
 > Add Documents page kicks off a background job that pulls documents into

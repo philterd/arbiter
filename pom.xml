@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  ~ Copyright 2026 Philterd
+  ~ Copyright 2026 Philterd, LLC.
   ~
   ~ Licensed under the Apache License, Version 2.0 (the "License");
   ~ you may not use this file except in compliance with the License.
@@ -40,9 +40,17 @@
         <philter.sdk.version>1.5.0</philter.sdk.version>
         <phileas.version>3.3.0</phileas.version>
         <commons-lang3.version>3.18.0</commons-lang3.version>
+        <awssdk.version>2.25.50</awssdk.version>
     </properties>
     <dependencyManagement>
         <dependencies>
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${awssdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
             <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-lang3</artifactId>

@@ -1,5 +1,5 @@
 /*
- * Copyright 2026 Philterd
+ * Copyright 2026 Philterd, LLC.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,10 +20,13 @@ import ai.philterd.arbiter.repository.LlmJudgeDefaultsRepository;
 import ai.philterd.arbiter.repository.NotificationSettingsRepository;
 import ai.philterd.arbiter.repository.OllamaInstanceRepository;
 import ai.philterd.arbiter.repository.LocalDirectoryDataSourceRepository;
+import ai.philterd.arbiter.repository.LocalDirectoryDestinationRepository;
 import ai.philterd.arbiter.repository.OpenSearchDataSourceRepository;
 import ai.philterd.arbiter.repository.PendingUploadRepository;
 import ai.philterd.arbiter.repository.RelationalDbDataSourceRepository;
 import ai.philterd.arbiter.repository.S3DataSourceRepository;
+import ai.philterd.arbiter.repository.S3DestinationRepository;
+import ai.philterd.arbiter.repository.SqsDestinationRepository;
 import ai.philterd.arbiter.repository.RedactionCertificateRepository;
 import ai.philterd.arbiter.repository.PhilterDefaultsRepository;
 import ai.philterd.arbiter.repository.PhilterInstanceRepository;
@@ -32,6 +35,7 @@ import ai.philterd.arbiter.repository.SpanRepository;
 import ai.philterd.arbiter.repository.UserRepository;
 import ai.philterd.arbiter.repository.UserSettingsRepository;
 import ai.philterd.arbiter.repository.WeightSetRepository;
+import ai.philterd.arbiter.service.DestinationTester;
 import ai.philterd.arbiter.service.RedactionService;
 import ai.philterd.arbiter.webapp.controllers.AdminComplianceProfileController;
 import ai.philterd.arbiter.webapp.controllers.AdminController;
@@ -106,6 +110,10 @@ public class AuthorizationIntegrationTest {
     @MockBean private S3DataSourceRepository s3DataSourceRepository;
     @MockBean private RelationalDbDataSourceRepository relationalDbDataSourceRepository;
     @MockBean private LocalDirectoryDataSourceRepository localDirectoryDataSourceRepository;
+    @MockBean private LocalDirectoryDestinationRepository localDirectoryDestinationRepository;
+    @MockBean private S3DestinationRepository s3DestinationRepository;
+    @MockBean private SqsDestinationRepository sqsDestinationRepository;
+    @MockBean private DestinationTester destinationTester;
     @MockBean private PhilterInstanceRepository philterInstanceRepository;
     @MockBean private PhilterDefaultsRepository philterDefaultsRepository;
     @MockBean private PolicyRepository policyRepository;

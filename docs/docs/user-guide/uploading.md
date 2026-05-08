@@ -130,9 +130,7 @@ shows one row per job:
 | Batch         | Batch the imported documents are landing in                                                                                |
 | Status        | `PENDING` / `RUNNING` / `COMPLETED` / `FAILED` (hover the FAILED badge for the top-level error)                            |
 | Progress      | `processed of total` (when the cluster reports a total) or `N processed`. Failed counts include a *Show failure details* disclosure listing per-hit reasons. |
-| Started       | When the worker started running                                                                                            |
-| Finished      | When the worker exited                                                                                                     |
-| Started by    | The user who triggered the job                                                                                             |
+| Details       | Blue **Details** link that opens a popup with Started/Finished timestamps, Started by, and the per-outcome counts (Successful, Failed, Skipped). |
 
 Reviewers see only their own visibility scope: a non-admin sees a job only
 when its batch is in one of their groups; admins see every job.
@@ -140,6 +138,12 @@ when its batch is in one of their groups; admins see every job.
 If a hit is dropped (missing text field, server error, etc.) the job
 continues with the rest of the page; **partial success is preserved** —
 the documents that did import are already on the redaction queue.
+
+Re-running an import never duplicates content. When the worker encounters
+an `(_index, _id)` pair already present in MongoDB, the hit is recorded
+as **Skipped** — a placeholder Document row with status `SKIPPED` is
+written for the audit trail but no new content is enqueued. See
+[Background Jobs · Skipped (already-imported) documents](background-jobs.md#skipped-already-imported-documents).
 
 ## Errors you might see
 

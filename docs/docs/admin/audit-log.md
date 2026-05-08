@@ -33,9 +33,11 @@ collection in MongoDB. There are two ways to view and export it:
 | `API_KEY_GENERATE` / `_REVOKE`      | User        | Per-user API key lifecycle                          |
 | `PASSWORD_CHANGE`                   | User        | Self-service password change                        |
 | `NOTIFICATION_SETTINGS_CHANGE`      | Settings    | SMTP settings save (excluding the password value)   |
-| `OPENSEARCH_DATASOURCE_CREATE` / `_DELETE` | OpenSearchDataSource | Data source registered or removed (see [Data sources](data-sources.md)) |
+| `OPENSEARCH_DATASOURCE_CREATE` / `_UPDATE` / `_DELETE` | OpenSearchDataSource | Data source registered, edited (with `passwordChanged` boolean), or removed (see [Data sources](data-sources.md)) |
+| `ELASTICSEARCH_DATASOURCE_CREATE` / `_UPDATE` / `_DELETE` | ElasticsearchDataSource | Same shape as OpenSearch — separate collection, separate audit lineage |
 | `S3_DATASOURCE_CREATE` / `_DELETE`  | S3DataSource | S3 data source registered or removed                |
 | `RDB_DATASOURCE_CREATE` / `_DELETE` | RelationalDbDataSource | Relational database data source registered or removed |
+| `RDB_DANGEROUS_SQL_BLOCKED`         | RelationalDbDataSource | An RDB save was rejected because the SQL contains a disallowed keyword (`DELETE`, `TRUNCATE`, `DROP`). Payload includes the matched keywords and offending SQL; entityId is `null` because nothing was saved. |
 | `LOCAL_DATASOURCE_CREATE` / `_DELETE` | LocalDirectoryDataSource | Local directory data source registered or removed |
 
 Each entry stores:

@@ -19,6 +19,7 @@ A card at the top of the page lets administrators create a batch. Fill in:
 | Policy               | —       | A policy name that exists on the chosen Philter instance                                   |
 | Batch Finalization Policy | —  | Required; governs document retention when the batch is finalized                           |
 | Compliance Profile   | —       | Required; **cannot be changed after the batch is created**                                 |
+| Exemption Code       | checked | When checked (the default), accepting a redaction in this batch prompts the reviewer to pick an exemption code from the chosen compliance profile. Uncheck to suppress the prompt even when the profile defines codes — useful for batches where exemption-code tracking isn't required. |
 | Domain               | —       | Optional grouping tag used in the Reports page aggregates                                  |
 | PII Threshold        | `0.80`  | Per-span confidence floor for auto-accepting detections                                    |
 | Document Threshold   | `0.25`  | Risk-score ceiling for auto-approving whole documents                                      |

@@ -25,16 +25,15 @@ loaders) don't go through this page — they enqueue documents directly.
 | Batch         | The batch the imported documents are landing in                                                                 |
 | Status        | One of `PENDING` / `RUNNING` / `COMPLETED` / `FAILED`. Failed jobs surface the top-level error on hover.        |
 | Progress      | `processed of total` when the search backend reported a total, or `N processed` when it did not                 |
-| Started       | When the worker thread started running the job                                                                  |
-| Finished      | When the worker thread exited                                                                                   |
-| Started by    | The user (or API key owner) who triggered the job                                                               |
+| Details       | A blue **Details** link that opens a popup with the job's Type, Source, Batch, Started/Finished timestamps, Started by, and the per-outcome counts (Successful, Failed, Skipped). |
 
 ## Status flow
 
 A job moves through these states:
 
-1. **`PENDING`** — Created, waiting for the worker thread to pick it up.
-   Usually only visible for a fraction of a second.
+1. **`PENDING`** — Created and waiting in the queue. A background dispatcher
+   polls every couple of seconds and atomically promotes one PENDING job per
+   batch to `RUNNING` (see [Per-batch queueing](#per-batch-queueing) below).
 2. **`RUNNING`** — The worker is paging through the source's results,
    pulling at most **100 hits per page** via the cluster's scroll API,
    pushing each hit's text-field value into the redaction queue. The
@@ -43,6 +42,45 @@ A job moves through these states:
    final counts.
 4. **`FAILED`** — Something stopped the job. The top-level error is shown
    on hover of the FAILED badge and as a red line under the Progress cell.
+
+When a job moves to `COMPLETED` or `FAILED`, the user who started it
+receives a one-line **inbox notification** summarising the outcome (source,
+batch, Successful / Failed / Skipped counts, and any error message). The
+notification appears on the **Inbox** page and is reflected in the
+unread-count badge on the sidebar.
+
+## Per-batch queueing
+
+Two rules govern when a `PENDING` job advances to `RUNNING`:
+
+1. **One running job per batch.** Multiple imports can be queued for the
+   same batch — they execute in oldest-first order, each waiting for the
+   prior to finish. This rule is enforced atomically by a partial unique
+   index on the `background_jobs` collection so it holds even when several
+   replicas of Arbiter run in parallel.
+2. **A global concurrency ceiling.** Across the whole deployment, the
+   admin caps how many data-import jobs may be `RUNNING` at any one time
+   under **Admin → General → Max concurrent data imports**. Default is `1`;
+   the dropdown allows `1`–`10`. Jobs over the cap stay `PENDING` until a
+   slot frees up.
+
+Together these rules let admins safely click *Ingest from OpenSearch*
+several times against the same batch without worrying about race
+conditions; the second click adds another row in `PENDING` that runs after
+the first finishes.
+
+## Skipped (already-imported) documents
+
+When an OpenSearch / Elasticsearch ingest is run a second time over the
+same source, hits whose `(_index, _id)` pair already exists in MongoDB are
+**skipped**. A placeholder Document row with status `SKIPPED` is written
+so the import attempt is auditable, but no new content is enqueued and the
+existing document keeps its current review state. Skipped hits show up in:
+
+- The **Skipped** counter on the Details popup of the relevant job.
+- The **Skipped** widget on the Ingest Queue page (cumulative across all
+  data-import jobs).
+- The completion notification dropped into the user's inbox.
 
 ## Failure details
 
@@ -67,9 +105,9 @@ beyond the cap is in the application log instead.
 There is no Cancel button — once a job is `RUNNING`, it runs to completion.
 A FAILED or partial COMPLETED job can be re-run by clicking the *Ingest
 from …* button again on the Add Documents page; this creates a new row.
-Documents that already imported on the previous attempt remain in the
-redaction queue and are not duplicated unless the source query returns the
-same hits again.
+Documents that already imported on the previous attempt are detected by
+their source `(index, id)` pair and recorded as **Skipped** (see above) —
+not duplicated.
 
 ## Where the imported documents go
 
