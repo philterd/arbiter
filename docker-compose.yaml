@@ -17,7 +17,7 @@ services:
       # random bytes. The application refuses to start without it. Generate one
       # and place it in .env (next to this file):
       #
-      #   echo "ARBITER_CRYPTO_SECRET=$(openssl rand -base64 32)" >> .env
+      # echo "ARBITER_CRYPTO_SECRET=$(openssl rand -base64 32)" >> .env
       - ARBITER_CRYPTO_SECRET=${ARBITER_CRYPTO_SECRET:?Set ARBITER_CRYPTO_SECRET in .env (see .env.example)}
     volumes:
       - ./sample-files:/app/sample-files:ro

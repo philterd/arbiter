@@ -122,6 +122,9 @@ class ElasticsearchIngestJobServiceTest {
         final ElasticsearchDataSource src = new ElasticsearchDataSource();
         src.setId("src-1");
         src.setName("Demo ES");
+        // Public host so the empty default allow-list passes it through; the negative-path
+        // case is exercised by startRejectsEndpointNotOnAllowList above.
+        src.setEndpoint("http://example.com:9200");
         final Batch batch = new Batch();
         batch.setId("b1");
         batch.setName("Sample");
@@ -148,6 +151,7 @@ class ElasticsearchIngestJobServiceTest {
         final ElasticsearchDataSource src = new ElasticsearchDataSource();
         src.setId("src-1");
         src.setName("Demo ES");
+        src.setEndpoint("http://example.com:9200");
         final Batch batch = new Batch();
         batch.setId("b1");
         batch.setName("Sample");

@@ -172,10 +172,11 @@ because the full document text is always included in the prompt.
 
 ## Storage and retention
 
-Entries are written via Spring Data MongoDB. Indexes are declared on
-`timestamp`, `userEmail`, `action`, `resourceType`, and `resourceId`.
-Arbiter does not automatically expire entries — set up a TTL index on
-`timestamp` or a periodic deletion job if you need bounded retention.
+Audit entries are stored in MongoDB and are indexed by timestamp, the actor's
+email, action, resource type, and resource ID so the Audit Log search remains
+fast as the collection grows. Arbiter does not automatically expire entries —
+set up a database-level TTL on the timestamp field or a periodic deletion job
+if you need bounded retention.
 
 ## Failure modes
 

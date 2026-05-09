@@ -44,4 +44,5 @@ nav:
       - Risk score: reference/risk-score.md
       - PII types: reference/pii-types.md
       - REST API: reference/api.md
+      - Configuration: reference/configuration.md
   - Security: security.md

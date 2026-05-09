@@ -14,6 +14,7 @@ import ai.philterd.arbiter.model.RedactionCertificate;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.RedactionCertificateRepository;
 import ai.philterd.arbiter.service.DocumentAccessService;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -50,13 +51,17 @@ public class RedactionCertificateController {
         final Document document = documentRepository.findById(id).orElse(null);
         // Uniform 404: missing-document and no-access both return notFound().build() so an
         // attacker probing ids can't tell them apart. requireDocumentAccess throws 404 in
-        // the no-access case; we catch it here to keep the response shape consistent with
-        // the missing-document branch above.
+        // the no-access case; we translate just that status to keep the response shape
+        // consistent with the missing-document branch above. Any other status (a future
+        // 409 for soft-deleted documents, etc.) is rethrown so it isn't silently masked.
         if (document == null) return ResponseEntity.notFound().build();
         try {
             documentAccessService.requireDocumentAccess(authentication, document);
         } catch (ResponseStatusException e) {
-            return ResponseEntity.notFound().build();
+            if (e.getStatusCode() == HttpStatus.NOT_FOUND) {
+                return ResponseEntity.notFound().build();
+            }
+            throw e;
         }
 
         final List<RedactionCertificate> certs =

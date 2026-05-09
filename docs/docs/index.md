@@ -8,8 +8,9 @@ considered redacted.
 ## What Arbiter does
 
 - **Ingests** plain-text and PDF documents through a web upload form or a REST
-  API. Uploads are queued and a background worker drains the queue oldest-first
-  (with a Mongo-level claim so multiple replicas are safe). Admins watch the
+  API. Uploads are queued and a background worker drains the queue oldest-first;
+  multiple Arbiter replicas can run side by side and won't pick up the same
+  document twice. Admins watch the
   queue at **Admin → Ingest Queue**. Admins can also register external
   **[data sources](admin/data-sources.md)** — OpenSearch, Amazon S3, a
   relational database, or a local directory — that surface as ingest options

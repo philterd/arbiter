@@ -104,6 +104,9 @@ class OpenSearchIngestJobServiceTest {
         final OpenSearchDataSource src = new OpenSearchDataSource();
         src.setId("src-1");
         src.setName("Demo");
+        // Public host so the empty default allow-list passes it through; the negative-path
+        // case is exercised by startRejectsEndpointNotOnAllowList below.
+        src.setEndpoint("http://example.com:9200");
         final Batch batch = new Batch();
         batch.setId("b1");
         batch.setName("Sample");
@@ -139,6 +142,7 @@ class OpenSearchIngestJobServiceTest {
         final OpenSearchDataSource src = new OpenSearchDataSource();
         src.setId("src-1");
         src.setName("Demo OpenSearch");
+        src.setEndpoint("http://example.com:9200");
         final Batch batch = new Batch();
         batch.setId("b1");
         batch.setName("Sample");

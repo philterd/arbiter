@@ -185,4 +185,23 @@ class DocumentAccessServiceTest {
         assertEquals(404, e.getStatusCode().value());
         assertTrue(e.getReason().contains("Span not found"));
     }
+
+    @Test
+    void loadAccessibleParentForSpanThrowsSpanNotFoundWhenDocumentIdIsNull() {
+        // Spring Data's findById(null) would throw IllegalArgumentException → 500. The
+        // defensive null-check keeps the 404 oracle uniform if a malformed span row ever
+        // appears (DB-direct edits, partial migration, etc.).
+        final ResponseStatusException e = assertThrows(ResponseStatusException.class,
+                () -> service.loadAccessibleParentForSpan(span("s1", null), user("alice@x.com")));
+        assertEquals(404, e.getStatusCode().value());
+        assertTrue(e.getReason().contains("Span not found"));
+    }
+
+    @Test
+    void loadAccessibleParentForSpanThrowsSpanNotFoundWhenDocumentIdIsBlank() {
+        final ResponseStatusException e = assertThrows(ResponseStatusException.class,
+                () -> service.loadAccessibleParentForSpan(span("s1", "   "), user("alice@x.com")));
+        assertEquals(404, e.getStatusCode().value());
+        assertTrue(e.getReason().contains("Span not found"));
+    }
 }

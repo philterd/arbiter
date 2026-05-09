@@ -62,12 +62,19 @@ public class DocumentAccessService {
 
     /**
      * Resolves the document a span belongs to and verifies the caller can see it. All
-     * failure modes — span's parent doc missing, batch missing, caller not in the batch's
-     * group — surface as {@code "Span not found."} 404 so an attacker cannot tell a real
-     * inaccessible span id from a never-existed id.
+     * failure modes — span has no document id, span's parent doc missing, batch missing,
+     * caller not in the batch's group — surface as {@code "Span not found."} 404 so an
+     * attacker cannot tell a real inaccessible span id from a never-existed id.
      */
     public Document loadAccessibleParentForSpan(final Span span, final Authentication auth) {
-        final Document document = documentRepository.findById(span.getDocumentId())
+        // A null documentId would make Spring Data's findById throw IllegalArgumentException
+        // (and surface as 500). Spans always carry a documentId in practice, but checking
+        // here keeps the 404 oracle uniform if a malformed row ever slips through.
+        final String documentId = span.getDocumentId();
+        if (documentId == null || documentId.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Span not found.");
+        }
+        final Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Span not found."));
         if (AuthUtils.isAdmin(auth)) return document;
         final Batch batch = document.getBatchId() == null ? null

@@ -34,11 +34,11 @@ Each batch is associated with exactly one Philter instance.
 
 There are two kinds:
 
-- **Embedded Philter** — Arbiter ships with the Phileas library bundled inside
-  the same JVM. There is nothing to install or configure: it is always
-  available, always reachable, and runs as part of the Arbiter process. It
-  uses the built-in policies stored in Arbiter's MongoDB. It is the right
-  choice for development, demos, and small single-node deployments.
+- **Embedded Philter** — Arbiter ships with a built-in redaction engine
+  (Phileas) that runs as part of the Arbiter process itself. There is nothing
+  to install or configure: it is always available, always reachable, and uses
+  the policies stored in Arbiter's database. It is the right choice for
+  development, demos, and small single-node deployments.
 - **External Philter** — a separately running [Philter](https://philterd.ai)
   service that Arbiter reaches over HTTP. Use this for production
   deployments, for shared instances across multiple Arbiters, when policies
@@ -184,8 +184,8 @@ batch is closed.
 
 Ingestion is **asynchronous**. The upload (or `POST /api/v1/ingest`) persists
 the document in `PENDING` and returns immediately; a background worker drains
-the redaction queue oldest-first. Multiple Arbiter replicas claim documents
-atomically (`PENDING → PROCESSING`) via Mongo `findAndModify` so a document is
+the redaction queue oldest-first. Multiple Arbiter replicas can run side by
+side: each document is claimed atomically (`PENDING → PROCESSING`) so it is
 never processed twice. Admins watch the queue at **Admin → Ingest Queue**.
 
 When the worker picks up a document, for each one:

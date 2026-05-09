@@ -133,6 +133,49 @@ class TriageControllerTest {
     }
 
     @Test
+    void queueClampsCallerSuppliedSizeToMaxPageSize() {
+        // ?size=99999 must be clamped — without the cap, an authenticated caller can force
+        // Mongo to load a huge page into memory.
+        when(documentRepository.findByStatusNotIn(any(), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 10), 0));
+
+        controller.getQueue(0, 99_999, null, null, null, false, "riskScore", "desc",
+                TestAuth.admin("admin@example.com"));
+
+        final ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
+        verify(documentRepository).findByStatusNotIn(any(), captor.capture());
+        assertEquals(TriageController.MAX_QUEUE_PAGE_SIZE, captor.getValue().getPageSize());
+    }
+
+    @Test
+    void queueClampsNonPositiveSizeToOne() {
+        // ?size=0 (or negative) would otherwise trip PageRequest.of's IAE → 500.
+        when(documentRepository.findByStatusNotIn(any(), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 1), 0));
+
+        controller.getQueue(0, 0, null, null, null, false, "riskScore", "desc",
+                TestAuth.admin("admin@example.com"));
+
+        final ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
+        verify(documentRepository).findByStatusNotIn(any(), captor.capture());
+        assertEquals(1, captor.getValue().getPageSize());
+    }
+
+    @Test
+    void queueAcceptsSizeInRange() {
+        // Sanity: a normal size passes through unchanged so the clamp doesn't over-fire.
+        when(documentRepository.findByStatusNotIn(any(), any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 50), 0));
+
+        controller.getQueue(0, 50, null, null, null, false, "riskScore", "desc",
+                TestAuth.admin("admin@example.com"));
+
+        final ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
+        verify(documentRepository).findByStatusNotIn(any(), captor.capture());
+        assertEquals(50, captor.getValue().getPageSize());
+    }
+
+    @Test
     void nonAdminFiltersToAllowedBatches() {
         when(batchAccessService.allowedBatchIds(any())).thenReturn(Set.of("b1"));
         when(documentRepository.findByBatchIdInAndStatusNotIn(eq(Set.of("b1")), any(), any(PageRequest.class)))

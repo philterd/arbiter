@@ -73,6 +73,14 @@ public class TriageController {
      */
     private static final int ADMIN_BATCH_LIST_LIMIT = 500;
 
+    /**
+     * Hard upper bound for the caller-supplied {@code size} parameter on {@code /queue}.
+     * Without a cap, an authenticated user could request {@code ?size=Integer.MAX_VALUE}
+     * and force Mongo to load a massive page into memory — a cheap DoS. Matches the
+     * 100-row cap that {@code OpenSearchIndexService.search} enforces for the same reason.
+     */
+    static final int MAX_QUEUE_PAGE_SIZE = 100;
+
     @GetMapping("/queue")
     public Page<Map<String, Object>> getQueue(
             @RequestParam(defaultValue = "0") final int page,
@@ -87,7 +95,9 @@ public class TriageController {
 
         final String activeSort = SORTABLE_FIELDS.contains(sort) ? sort : "riskScore";
         final Sort.Direction direction = "asc".equalsIgnoreCase(dir) ? Sort.Direction.ASC : Sort.Direction.DESC;
-        final PageRequest pageRequest = PageRequest.of(page, size, Sort.by(direction, activeSort));
+        final int safePage = Math.max(0, page);
+        final int safeSize = Math.max(1, Math.min(MAX_QUEUE_PAGE_SIZE, size));
+        final PageRequest pageRequest = PageRequest.of(safePage, safeSize, Sort.by(direction, activeSort));
         final boolean hasBatch = batchId != null && !batchId.isBlank();
         final boolean hasStatus = status != null && !status.isBlank();
         final String trimmedFilename = filename == null ? "" : filename.trim();

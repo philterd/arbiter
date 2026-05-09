@@ -2,16 +2,16 @@
 
 ## Prerequisites
 
-- Java 21+
 - A running MongoDB instance Arbiter can reach
 - A running OpenSearch instance Arbiter can reach (for full-text search)
-- A running Philter / Phileas redaction service Arbiter can call (Embedded
-  Phileas works out of the box for development)
+- A running Philter / Phileas redaction service Arbiter can call (the
+  built-in redaction engine works out of the box for development)
 
 ## Configuration
 
-Arbiter is a Spring Boot application. The standard application properties apply.
-The settings most users need to set are:
+Arbiter reads its settings from `application.properties` (or matching
+environment variables); see [Configuration](reference/configuration.md) for the
+full reference. The settings most operators need to set are:
 
 | Property                                  | Purpose                                                |
 | ----------------------------------------- | ------------------------------------------------------ |
