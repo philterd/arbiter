@@ -21,13 +21,13 @@ covers `ai.philterd.arbiter` regardless of where a class compiles from.
 ```sh
 mvn package                 # full reactor build
 mvn test                    # all modules
-docker compose up --build   # full stack: Mongo + OpenSearch + ES + Valkey + app on :8080
+docker compose -f docker-compose.yaml up --build   # full stack: Mongo + OpenSearch + ES + Valkey + app on :8080
 ```
 
 Running the webapp from the IDE needs at least Mongo and Valkey reachable:
 
 ```sh
-docker compose up -d mongodb valkey
+docker compose -f docker-compose.yaml up -d mongodb valkey
 # then run ai.philterd.arbiter.webapp.ArbiterApplication
 ```
 

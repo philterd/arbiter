@@ -179,9 +179,10 @@
         </aside>
 
         <div class="flex-1 flex flex-col min-w-0">
+        <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8">
             <div class="flex items-center justify-between mb-2">
-                <h2 class="text-3xl font-bold text-gray-900">Destinations</h2>
+                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Destinations</h2><a href="/docs/admin/destinations/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
             </div>
             <p class="text-sm text-gray-600 mb-6 max-w-3xl">
                 Destinations are locations where finalized redacted documents can be written to.

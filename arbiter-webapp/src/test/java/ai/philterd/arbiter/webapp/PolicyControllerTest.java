@@ -79,6 +79,15 @@ class PolicyControllerTest {
         return s == null ? null : s.toString();
     }
 
+    /** Admin authentication used by every policy-API test below — the controller
+     *  defends against non-admin callers, so a content-validation test still has
+     *  to reach the validation code via an admin caller. */
+    private static org.springframework.security.core.Authentication adminAuth() {
+        return new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                "admin@x.com", null,
+                java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN")));
+    }
+
     // ---------- create ----------
 
     @Test
@@ -240,7 +249,7 @@ class PolicyControllerTest {
     @Test
     void contentRejectsPathTraversalSegment() {
         final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> controller.content("embedded", "../../etc/passwd"));
+                () -> controller.content("embedded", "../../etc/passwd", adminAuth()));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
         verify(policyRepository, never()).findByName(anyString());
     }
@@ -248,14 +257,14 @@ class PolicyControllerTest {
     @Test
     void contentRejectsSingleDotDotSegment() {
         final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> controller.content("embedded", "../status"));
+                () -> controller.content("embedded", "../status", adminAuth()));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
     }
 
     @Test
     void contentRejectsSlashInName() {
         final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> controller.content("embedded", "valid/extra"));
+                () -> controller.content("embedded", "valid/extra", adminAuth()));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
     }
 
@@ -263,14 +272,14 @@ class PolicyControllerTest {
     void contentRejectsNameExceedingMaxLength() {
         final String longName = "a".repeat(65);
         final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> controller.content("embedded", longName));
+                () -> controller.content("embedded", longName, adminAuth()));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
     }
 
     @Test
     void contentRejectsBlankName() {
         final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> controller.content("embedded", "   "));
+                () -> controller.content("embedded", "   ", adminAuth()));
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
     }
 
@@ -281,7 +290,7 @@ class PolicyControllerTest {
         p.setContent("{\"identifiers\":{}}");
         when(policyRepository.findByName("default-policy")).thenReturn(Optional.of(p));
 
-        final java.util.Map<String, String> result = controller.content("embedded", "default-policy");
+        final java.util.Map<String, String> result = controller.content("embedded", "default-policy", adminAuth());
 
         assertEquals("default-policy", result.get("name"));
         assertEquals("{\"identifiers\":{}}", result.get("content"));
@@ -294,7 +303,7 @@ class PolicyControllerTest {
         p.setContent("{}");
         when(policyRepository.findByName("my-policy_v2")).thenReturn(Optional.of(p));
 
-        final java.util.Map<String, String> result = controller.content("embedded", "my-policy_v2");
+        final java.util.Map<String, String> result = controller.content("embedded", "my-policy_v2", adminAuth());
         assertEquals("my-policy_v2", result.get("name"));
     }
 }

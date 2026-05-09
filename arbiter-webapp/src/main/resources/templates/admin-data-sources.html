@@ -180,9 +180,10 @@
         </aside>
 
         <div class="flex-1 flex flex-col min-w-0">
+        <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8">
             <div class="flex items-center justify-between mb-2">
-                <h2 class="text-3xl font-bold text-gray-900">Data Sources</h2>
+                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Data Sources</h2><a href="/docs/admin/data-sources/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
             </div>
             <p class="text-sm text-gray-600 mb-6 max-w-3xl">
                 Data sources are external systems Arbiter pulls documents from for redaction.
@@ -521,12 +522,21 @@
                     or <code>**/*.pdf</code>). Names must be unique.
                 </p>
                 <form th:action="@{/admin/data-sources/s3}" method="post" class="space-y-3">
-                    <div class="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] gap-2">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
                             <label for="s3Name" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Name</label>
                             <input id="s3Name" name="name" type="text" required placeholder="contracts-archive"
                                    class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
+                        <div>
+                            <label for="s3Endpoint" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
+                                Endpoint URL <span class="text-gray-400 normal-case font-normal">(optional)</span>
+                            </label>
+                            <input id="s3Endpoint" name="endpoint" type="text" placeholder="http://minio:9000"
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         <div>
                             <label for="s3Bucket" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Bucket name</label>
                             <input id="s3Bucket" name="bucketName" type="text" required placeholder="my-bucket"
@@ -564,6 +574,9 @@
                         </button>
                     </div>
                     <p class="text-xs text-gray-500">
+                        Leave the Endpoint URL blank to use Amazon S3 with the AWS default endpoint;
+                        set it to point at MinIO (e.g. <code>http://minio:9000</code>),
+                        Cloudflare R2, Backblaze B2, or any other S3-compatible storage.
                         Leave Access key and Secret key blank to use the application's ambient AWS
                         credentials (environment / instance profile). When provided, both keys are
                         encrypted at rest with the application's symmetric key.
@@ -576,6 +589,7 @@
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Endpoint</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Bucket</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Key</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Glob</th>
@@ -584,13 +598,19 @@
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
                         <tr th:if="${#lists.isEmpty(s3DataSources)}">
-                            <td colspan="5" class="px-6 py-8 text-center text-sm text-gray-500">
+                            <td colspan="6" class="px-6 py-8 text-center text-sm text-gray-500">
                                 No S3 data sources registered yet.
                             </td>
                         </tr>
                         <tr th:each="s : ${s3DataSources}" class="hover:bg-gray-50">
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
                                 th:text="${s.name}">name</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono">
+                                <span th:if="${s.endpoint != null and !#strings.isEmpty(s.endpoint)}"
+                                      th:text="${s.endpoint}">http://minio:9000</span>
+                                <span th:if="${s.endpoint == null or #strings.isEmpty(s.endpoint)}"
+                                      class="text-gray-400 italic">AWS default</span>
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono"
                                 th:text="${s.bucketName}">my-bucket</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono"

@@ -20,6 +20,8 @@ import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -30,6 +32,14 @@ import java.util.stream.Collectors;
 
 @Controller
 public class BackgroundJobsController {
+
+    /**
+     * Cutoff for the Background Jobs page: rows older than this are hidden.
+     * The page is meant for "what's happening right now" plus recent
+     * troubleshooting; the long-tail history lives in the audit log
+     * ({@code DATA_IMPORT_*} / {@code BATCH_EXPORT}) and survives indefinitely.
+     */
+    private static final int MAX_VISIBLE_AGE_DAYS = 7;
 
     private final BackgroundJobRepository repository;
     private final BatchRepository batchRepository;
@@ -45,7 +55,14 @@ public class BackgroundJobsController {
 
     @GetMapping("/jobs")
     public String list(final Authentication authentication, final Model model) {
-        final List<BackgroundJob> all = repository.findAllByOrderByCreatedAtDesc();
+        // Drop everything older than the cutoff up front. The repository sorts
+        // by createdAt desc, so once we hit a row outside the window every row
+        // after it is also outside — but the list is small enough in practice
+        // that filter() reads more clearly than a takeWhile.
+        final Instant cutoff = Instant.now().minus(MAX_VISIBLE_AGE_DAYS, ChronoUnit.DAYS);
+        final List<BackgroundJob> all = repository.findAllByOrderByCreatedAtDesc().stream()
+                .filter(j -> j.getCreatedAt() == null || !j.getCreatedAt().isBefore(cutoff))
+                .toList();
         final List<BackgroundJob> visible;
         if (AuthUtils.isAdminOrAuditor(authentication)) {
             visible = all;
@@ -98,6 +115,7 @@ public class BackgroundJobsController {
             sections.add(section);
         }
         model.addAttribute("sections", sections);
+        model.addAttribute("maxVisibleAgeDays", MAX_VISIBLE_AGE_DAYS);
         return "jobs";
     }
 

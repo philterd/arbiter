@@ -15,6 +15,7 @@
     <script th:src="@{/js/tailwind.js}"></script>
 </head>
 <body class="bg-gray-50 min-h-screen flex flex-col">
+    <div th:replace="~{fragments/topbar :: topbar}"></div>
     <div class="flex-1 flex items-center justify-center p-4">
     <div class="w-full max-w-md bg-white p-8 rounded-xl shadow-md border border-gray-100">
         <h1 class="text-2xl font-bold text-gray-900 mb-1">Set Up Two-Factor Authentication</h1>

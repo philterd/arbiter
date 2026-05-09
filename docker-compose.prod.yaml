@@ -1,0 +1,71 @@
+services:
+
+  arbiter:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: arbiter-app
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/arbiter
+      - ARBITER_OPENSEARCH_ENDPOINT=http://opensearch:9200
+      - ARBITER_CRYPTO_SECRET=${ARBITER_CRYPTO_SECRET:?Set ARBITER_CRYPTO_SECRET in .env}
+      - ARBITER_DEMO_DATA_ENABLED=false
+      - SPRING_SESSION_STORE_TYPE=none
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      opensearch:
+        condition: service_healthy
+    networks:
+      - arbiter
+
+  mongodb:
+    image: mongo:latest
+    container_name: arbiter-mongodb
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.runCommand({ping:1})"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - arbiter
+
+  opensearch:
+    image: opensearchproject/opensearch:3.6.0
+    container_name: arbiter-opensearch
+    restart: unless-stopped
+    environment:
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "DISABLE_SECURITY_PLUGIN=true"
+      - "DISABLE_INSTALL_DEMO_CONFIG=true"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fs http://localhost:9200 >/dev/null || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    networks:
+      - arbiter
+
+networks:
+  arbiter:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+  opensearch_data:

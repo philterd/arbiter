@@ -10,8 +10,12 @@
 package ai.philterd.arbiter.webapp.controllers;
 
 import ai.philterd.arbiter.model.GeneralSettings;
+import ai.philterd.arbiter.model.User;
+import ai.philterd.arbiter.repository.UserRepository;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.GeneralSettingsService;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -20,6 +24,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 @Controller
@@ -28,16 +34,34 @@ public class AdminSecurityController {
 
     private final GeneralSettingsService generalSettingsService;
     private final AuditLogService auditLogService;
+    private final UserRepository userRepository;
 
     public AdminSecurityController(final GeneralSettingsService generalSettingsService,
-                                   final AuditLogService auditLogService) {
+                                   final AuditLogService auditLogService,
+                                   final UserRepository userRepository) {
         this.generalSettingsService = generalSettingsService;
         this.auditLogService = auditLogService;
+        this.userRepository = userRepository;
     }
 
     @GetMapping
     public String form(final Model model) {
         model.addAttribute("settings", generalSettingsService.load());
+
+        // Pull just the email of every user without MFA enabled — the popup
+        // surfaces the list, and an empty list flips the widget into the
+        // "All users currently have MFA enabled" state. Capped at 500 because
+        // the popup is for human review, not bulk export.
+        final org.springframework.data.domain.Page<User> page = userRepository
+                .findAll(PageRequest.of(0, 500, Sort.by("email")));
+        final List<User> all = page == null ? List.of() : page.getContent();
+        final List<String> usersWithoutMfa = new ArrayList<>();
+        for (User u : all) {
+            if (!u.isMfaEnabled() && u.getEmail() != null && !u.getEmail().isBlank()) {
+                usersWithoutMfa.add(u.getEmail());
+            }
+        }
+        model.addAttribute("usersWithoutMfa", usersWithoutMfa);
         return "admin-security";
     }
 

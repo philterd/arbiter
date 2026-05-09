@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <!--
+        Top menu shown on every page. Mirrors the footer's Documentation /
+        Support links so they're reachable without scrolling. Both open in a
+        new tab — Documentation lands at the in-app docs (/docs/), Support at
+        the public Philterd support page.
+    -->
+    <header th:fragment="topbar"
+            class="bg-white border-b border-gray-200 text-xs text-gray-500 py-2 px-6 flex items-center justify-end gap-4">
+        <a href="https://www.philterd.ai" target="_blank" rel="noopener noreferrer"
+           class="text-blue-600 hover:text-blue-800">Philterd</a>
+        <a th:href="@{/docs/}" target="_blank" rel="noopener noreferrer"
+           class="text-blue-600 hover:text-blue-800">Documentation</a>
+        <a href="https://www.philterd.ai/support" target="_blank" rel="noopener noreferrer"
+           class="text-blue-600 hover:text-blue-800">Support</a>
+    </header>
+</body>
+</html>

@@ -174,9 +174,10 @@
         </aside>
 
         <div class="flex-1 flex flex-col min-w-0">
+        <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8">
             <div class="flex items-center justify-between mb-2">
-                <h2 class="text-3xl font-bold text-gray-900">Admin</h2>
+                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Admin</h2><a href="/docs/admin/security/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
             </div>
             <nav class="flex border-b border-gray-200 mb-6 text-sm">
                 <a th:href="@{/admin/general}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">General</a>
@@ -226,6 +227,23 @@
                         <span>MFA is currently required. Users without an authenticator app configured cannot access the application.</span>
                     </div>
 
+                    <!-- Audit affordance: enumerate users who haven't enrolled yet.
+                         Hidden entirely when every user already has MFA on, since
+                         the empty list isn't actionable. -->
+                    <div class="mt-4 flex items-center justify-between">
+                        <button type="button" id="usersWithoutMfaBtn"
+                                th:if="${not #lists.isEmpty(usersWithoutMfa)}"
+                                class="px-4 py-2 text-sm font-medium text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition duration-200">
+                            Users without MFA enabled
+                            <span class="ml-1 text-xs text-blue-700"
+                                  th:text="'(' + ${#lists.size(usersWithoutMfa)} + ')'">(0)</span>
+                        </button>
+                        <span th:if="${#lists.isEmpty(usersWithoutMfa)}"
+                              class="text-sm text-green-700 font-medium">
+                            All users currently have MFA enabled.
+                        </span>
+                    </div>
+
                     <div class="flex justify-end mt-4">
                         <button type="submit"
                                 class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
@@ -234,6 +252,55 @@
                     </div>
                 </form>
             </div>
+
+            <!-- Modal listing every user without MFA, opened by the
+                 "Users without MFA enabled" button above. The list is rendered
+                 server-side from the controller; no fetch needed on open. -->
+            <div id="usersWithoutMfaModal"
+                 th:if="${not #lists.isEmpty(usersWithoutMfa)}"
+                 class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+                <div class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-md p-6">
+                    <div class="flex items-center justify-between mb-3">
+                        <h3 class="text-lg font-semibold text-gray-900">Users without MFA enabled</h3>
+                        <button type="button" id="usersWithoutMfaClose"
+                                class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+                    </div>
+                    <p class="text-sm text-gray-600 mb-4">
+                        These users have not yet enrolled in multi-factor authentication.
+                        If <strong>Require MFA for all users</strong> is enabled, they will
+                        be forced to set it up at next sign-in.
+                    </p>
+                    <ul class="max-h-80 overflow-auto divide-y divide-gray-100 border border-gray-200 rounded-lg">
+                        <li th:each="email : ${usersWithoutMfa}"
+                            class="px-4 py-2 text-sm text-gray-800 font-mono"
+                            th:text="${email}">user@example.com</li>
+                    </ul>
+                    <div class="flex justify-end mt-4">
+                        <button type="button" id="usersWithoutMfaCancel"
+                                class="px-4 py-2 text-sm border border-gray-300 text-gray-700 hover:bg-gray-100 rounded-lg">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <script th:if="${not #lists.isEmpty(usersWithoutMfa)}">
+                (function () {
+                    const modal = document.getElementById('usersWithoutMfaModal');
+                    const openBtn = document.getElementById('usersWithoutMfaBtn');
+                    const closeBtn = document.getElementById('usersWithoutMfaClose');
+                    const cancelBtn = document.getElementById('usersWithoutMfaCancel');
+                    if (!modal || !openBtn) return;
+                    function close() { modal.classList.add('hidden'); }
+                    openBtn.addEventListener('click', () => modal.classList.remove('hidden'));
+                    closeBtn.addEventListener('click', close);
+                    cancelBtn.addEventListener('click', close);
+                    modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+                    document.addEventListener('keydown', (e) => {
+                        if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
+                    });
+                })();
+            </script>
 
             <!-- Host allow-list master switch. Defaults to enabled; the warning
                  banner below the checkbox makes the SSRF risk of disabling

@@ -11,10 +11,14 @@ package ai.philterd.arbiter.service;
 
 import ai.philterd.arbiter.model.ElasticsearchDataSource;
 import ai.philterd.arbiter.model.LocalDirectoryDataSource;
+import ai.philterd.arbiter.model.LocalDirectoryDestination;
 import ai.philterd.arbiter.model.OpenSearchDataSource;
+import ai.philterd.arbiter.model.S3DataSource;
 import ai.philterd.arbiter.repository.ElasticsearchDataSourceRepository;
 import ai.philterd.arbiter.repository.LocalDirectoryDataSourceRepository;
+import ai.philterd.arbiter.repository.LocalDirectoryDestinationRepository;
 import ai.philterd.arbiter.repository.OpenSearchDataSourceRepository;
+import ai.philterd.arbiter.repository.S3DataSourceRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -61,9 +65,17 @@ public class DemoDataSourceLoader implements ApplicationRunner {
     private final OpenSearchDataSourceRepository openSearchRepository;
     private final ElasticsearchDataSourceRepository elasticsearchRepository;
     private final LocalDirectoryDataSourceRepository localDirectoryRepository;
+    private final LocalDirectoryDestinationRepository localDestinationRepository;
+    private final S3DataSourceRepository s3Repository;
+    private final SymmetricCipher cipher;
     private final String opensearchEndpoint;
     private final String elasticsearchEndpoint;
     private final String localDirectoryPath;
+    private final String outputDestinationPath;
+    private final String minioEndpoint;
+    private final String minioBucket;
+    private final String minioAccessKey;
+    private final String minioSecretKey;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
@@ -71,15 +83,31 @@ public class DemoDataSourceLoader implements ApplicationRunner {
     public DemoDataSourceLoader(final OpenSearchDataSourceRepository openSearchRepository,
                                 final ElasticsearchDataSourceRepository elasticsearchRepository,
                                 final LocalDirectoryDataSourceRepository localDirectoryRepository,
+                                final LocalDirectoryDestinationRepository localDestinationRepository,
+                                final S3DataSourceRepository s3Repository,
+                                final SymmetricCipher cipher,
                                 @Value("${arbiter.demo-data.opensearch-endpoint:http://opensearch:9200}") final String opensearchEndpoint,
                                 @Value("${arbiter.demo-data.elasticsearch-endpoint:http://elasticsearch:9200}") final String elasticsearchEndpoint,
-                                @Value("${arbiter.demo-data.local-directory-path:/app/local-files}") final String localDirectoryPath) {
+                                @Value("${arbiter.demo-data.local-directory-path:/app/local-files}") final String localDirectoryPath,
+                                @Value("${arbiter.demo-data.output-destination-path:/app/output}") final String outputDestinationPath,
+                                @Value("${arbiter.demo-data.minio-endpoint:http://minio:9000}") final String minioEndpoint,
+                                @Value("${arbiter.demo-data.minio-bucket:arbiter-demo}") final String minioBucket,
+                                @Value("${arbiter.demo-data.minio-access-key:minioadmin}") final String minioAccessKey,
+                                @Value("${arbiter.demo-data.minio-secret-key:minioadmin}") final String minioSecretKey) {
         this.openSearchRepository = openSearchRepository;
         this.elasticsearchRepository = elasticsearchRepository;
         this.localDirectoryRepository = localDirectoryRepository;
+        this.localDestinationRepository = localDestinationRepository;
+        this.s3Repository = s3Repository;
+        this.cipher = cipher;
         this.opensearchEndpoint = opensearchEndpoint;
         this.elasticsearchEndpoint = elasticsearchEndpoint;
         this.localDirectoryPath = localDirectoryPath;
+        this.outputDestinationPath = outputDestinationPath;
+        this.minioEndpoint = minioEndpoint;
+        this.minioBucket = minioBucket;
+        this.minioAccessKey = minioAccessKey;
+        this.minioSecretKey = minioSecretKey;
     }
 
     @Override
@@ -89,6 +117,8 @@ public class DemoDataSourceLoader implements ApplicationRunner {
         ensureOpenSearchDataSource();
         ensureElasticsearchDataSource();
         ensureLocalDirectoryDataSource();
+        ensureMinioDataSource();
+        ensureOutputDestination();
     }
 
     private void seedBackend(final String label, final String endpoint) {
@@ -218,6 +248,70 @@ public class DemoDataSourceLoader implements ApplicationRunner {
         ds.setCreatedAt(LocalDateTime.now());
         localDirectoryRepository.save(ds);
         log.info("Registered demo local-directory data source '{}' at {}.", name, localDirectoryPath);
+    }
+
+    /**
+     * Registers an S3-compatible data source pointing at the MinIO container shipped
+     * with the demo Docker compose. The endpoint is {@code http://minio:9000} on the
+     * shared {@code arbiter} network, the bucket is {@code arbiter-demo}, and the
+     * default minio root credentials are baked in (encrypted at rest like any
+     * operator-supplied credentials). The {@code minio-init} sidecar in the compose
+     * file creates the bucket and populates it with sample files.
+     *
+     * <p>Skipped when the demo row already exists, so re-running the loader is safe.
+     * Skipped also if the symmetric cipher hasn't been configured (which would
+     * leave credentials unprotected on disk) — in that case the operator can
+     * register an unencrypted demo source manually from Admin → Data Sources.
+     */
+    private void ensureMinioDataSource() {
+        final String name = "Demo MinIO (S3-compatible)";
+        if (s3Repository.findFirstByNameIgnoreCase(name).isPresent()) {
+            return;
+        }
+        final S3DataSource ds = new S3DataSource();
+        ds.setId(UUID.randomUUID().toString());
+        ds.setName(name);
+        ds.setEndpoint(minioEndpoint);
+        ds.setBucketName(minioBucket);
+        // Bucket-key prefix the minio-init container drops sample files under.
+        ds.setBucketKey("");
+        ds.setFilenameGlob("*.txt");
+        try {
+            ds.setEncryptedAccessKey(cipher.encrypt(minioAccessKey));
+            ds.setEncryptedSecretKey(cipher.encrypt(minioSecretKey));
+        } catch (RuntimeException e) {
+            log.warn("Could not encrypt MinIO demo credentials, skipping demo S3 data source: {}",
+                    e.getMessage());
+            return;
+        }
+        ds.setCreatedAt(LocalDateTime.now());
+        s3Repository.save(ds);
+        log.info("Registered demo S3 data source '{}' at {} (bucket {}).",
+                name, minioEndpoint, minioBucket);
+    }
+
+    /**
+     * Registers a local-directory destination named "output" pointing at the
+     * mount the demo Docker compose maps from the host's {@code /tmp}. Gives
+     * operators a one-click target for batch exports without configuring a
+     * destination by hand. Skipped when a destination of the same name already
+     * exists (case-insensitive), so re-running the loader is safe.
+     */
+    private void ensureOutputDestination() {
+        final String name = "output";
+        if (localDestinationRepository.findFirstByNameIgnoreCase(name).isPresent()) {
+            return;
+        }
+        final LocalDirectoryDestination dest = new LocalDirectoryDestination();
+        dest.setId(UUID.randomUUID().toString());
+        dest.setName(name);
+        // Path inside the container — docker-compose mounts /tmp on the host
+        // to /app/output here so exported files land somewhere easy to inspect.
+        dest.setDirectoryPath(outputDestinationPath);
+        dest.setCreatedAt(LocalDateTime.now());
+        localDestinationRepository.save(dest);
+        log.info("Registered demo local-directory destination '{}' at {}.",
+                name, outputDestinationPath);
     }
 
     private HttpResponse<String> send(final HttpRequest.Builder b) throws Exception {

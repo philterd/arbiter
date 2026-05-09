@@ -205,7 +205,7 @@ class AdminDataSourceControllerTest {
         when(s3Repository.findFirstByNameIgnoreCase("archive")).thenReturn(Optional.empty());
         final RedirectAttributes ra = flash();
 
-        controller.createS3("archive", "my-bucket", "raw/", "*.txt",
+        controller.createS3("archive", null, "my-bucket", "raw/", "*.txt",
                 "AKIA…", "wJalrXUtnFEMI", ra);
 
         final ArgumentCaptor<S3DataSource> saved = ArgumentCaptor.forClass(S3DataSource.class);
@@ -224,7 +224,7 @@ class AdminDataSourceControllerTest {
         when(s3Repository.findFirstByNameIgnoreCase("amb")).thenReturn(Optional.empty());
         final RedirectAttributes ra = flash();
 
-        controller.createS3("amb", "my-bucket", "k/", "*.pdf", "", "", ra);
+        controller.createS3("amb", null, "my-bucket", "k/", "*.pdf", "", "", ra);
 
         final ArgumentCaptor<S3DataSource> saved = ArgumentCaptor.forClass(S3DataSource.class);
         verify(s3Repository).save(saved.capture());
@@ -235,28 +235,28 @@ class AdminDataSourceControllerTest {
     @Test
     void s3CreateRejectsBlankBucket() {
         final RedirectAttributes ra = flash();
-        controller.createS3("n", "  ", "k/", "*.txt", null, null, ra);
+        controller.createS3("n", null, "  ", "k/", "*.txt", null, null, ra);
         assertEquals("Bucket name is required.", error(ra));
     }
 
     @Test
     void s3CreateRejectsBlankBucketKey() {
         final RedirectAttributes ra = flash();
-        controller.createS3("n", "b", "", "*.txt", null, null, ra);
+        controller.createS3("n", null, "b", "", "*.txt", null, null, ra);
         assertEquals("Bucket key is required.", error(ra));
     }
 
     @Test
     void s3CreateRejectsBlankFilenameGlob() {
         final RedirectAttributes ra = flash();
-        controller.createS3("n", "b", "k/", " ", null, null, ra);
+        controller.createS3("n", null, "b", "k/", " ", null, null, ra);
         assertEquals("Filename glob is required.", error(ra));
     }
 
     @Test
     void s3CreateRejectsAccessKeyWithoutSecretKey() {
         final RedirectAttributes ra = flash();
-        controller.createS3("n", "b", "k/", "*.txt", "AKIA", "", ra);
+        controller.createS3("n", null, "b", "k/", "*.txt", "AKIA", "", ra);
         assertEquals("Provide both Access key and Secret key, or leave both blank.", error(ra));
         verify(s3Repository, never()).save(any());
     }
@@ -264,7 +264,7 @@ class AdminDataSourceControllerTest {
     @Test
     void s3CreateRejectsSecretKeyWithoutAccessKey() {
         final RedirectAttributes ra = flash();
-        controller.createS3("n", "b", "k/", "*.txt", "", "secret", ra);
+        controller.createS3("n", null, "b", "k/", "*.txt", "", "secret", ra);
         assertEquals("Provide both Access key and Secret key, or leave both blank.", error(ra));
     }
 

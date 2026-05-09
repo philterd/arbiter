@@ -112,13 +112,14 @@ the Redaction sidebar group). Each job tracks status (`PENDING` /
 processed vs. the total, and — when individual hits fail — a list of
 per-hit reasons accessible behind a *Show failure details* disclosure.
 
-### Amazon S3
+### S3-Compatible
 
 | Field          | Required | Notes                                                                  |
 | -------------- | -------- | ---------------------------------------------------------------------- |
 | Name           | yes      | Unique among S3 sources                                                 |
+| Endpoint URL   | no       | S3 API endpoint to target. Leave blank for Amazon S3; set to e.g. `http://minio:9000` for MinIO, or to the API endpoint published by Cloudflare R2 / Backblaze B2 / any other S3-compatible storage. |
 | Bucket name    | yes      | The bucket to read from                                                 |
-| Bucket key     | yes      | Object-key prefix under which to look (e.g. `archive/2026/`)            |
+| Bucket key     | yes      | Object-key prefix under which to look (e.g. `archive/2026/`). Leave blank to read from the bucket root. |
 | Filename glob  | yes      | Filter applied within the prefix, e.g. `*.txt`, `**/*.pdf`              |
 | Access key     | no       | Encrypted at rest                                                       |
 | Secret key     | no       | Encrypted at rest                                                       |
@@ -126,7 +127,14 @@ per-hit reasons accessible behind a *Show failure details* disclosure.
 Access key and secret key are validated as a pair — provide both or neither.
 Leaving them blank means the runtime will use whatever ambient AWS credentials
 the application process has (environment variables, instance profile, etc.).
-Credentials are not shown in the listing table.
+Credentials are not shown in the listing table. The Endpoint URL column shows
+"AWS default" in italics when the field is left blank.
+
+The shipped Docker compose stack registers a **Demo MinIO (S3-compatible)**
+data source pointing at the bundled `minio` service (`http://minio:9000`,
+bucket `arbiter-demo`) so the S3 path can be exercised without an AWS
+account. See [Getting started](../getting-started.md) for the full demo
+layout.
 
 ### Relational Database
 

@@ -24,6 +24,15 @@ public class S3DataSource {
     @Indexed(unique = true)
     private String name;
 
+    /**
+     * Optional S3-API endpoint URL. Null/blank means use the AWS default endpoint
+     * for the configured region. Set to {@code http://minio:9000} (or another
+     * S3-compatible host like Cloudflare R2 or Backblaze B2) to point this data
+     * source at non-AWS storage. The matching admin form labels this field
+     * "Endpoint URL (optional)".
+     */
+    private String endpoint;
+
     private String bucketName;
 
     private String bucketKey;
@@ -52,6 +61,9 @@ public class S3DataSource {
 
     public String getName() { return name; }
     public void setName(final String name) { this.name = name; }
+
+    public String getEndpoint() { return endpoint; }
+    public void setEndpoint(final String endpoint) { this.endpoint = endpoint; }
 
     public String getBucketName() { return bucketName; }
     public void setBucketName(final String bucketName) { this.bucketName = bucketName; }

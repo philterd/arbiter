@@ -61,17 +61,39 @@ public class DestinationWriter {
                 || destination.getDirectoryPath().isBlank()) {
             return Result.failure("Local directory destination is missing a directory path.");
         }
-        final Path dir = Paths.get(destination.getDirectoryPath());
+        final Path dir = Paths.get(destination.getDirectoryPath()).toAbsolutePath().normalize();
         if (!Files.exists(dir)) {
             return Result.failure("Directory does not exist: " + dir);
         }
         if (!Files.isDirectory(dir)) {
             return Result.failure("Path is not a directory: " + dir);
         }
-        final Path target = dir.resolve(filename);
+        final Path target = dir.resolve(filename).normalize();
+        // Path-traversal defence: a filename like "../etc/passwd" would resolve
+        // outside the configured destination directory. Refuse anything that
+        // doesn't ultimately live under the operator-configured root.
+        if (!target.startsWith(dir)) {
+            return Result.failure("Refusing to write outside the destination directory: " + filename);
+        }
         try {
+            // The BIO export uses "<batch-slug>/<doc-slug>.bio" which needs the
+            // per-batch subdirectory to exist before Files.write can create the
+            // file. createDirectories is a no-op when the directory already
+            // exists. The startsWith check above guarantees we only mkdir
+            // inside the operator-configured destination root.
+            final Path parent = target.getParent();
+            if (parent != null && !parent.equals(dir)) {
+                Files.createDirectories(parent);
+            }
             Files.write(target, payload);
-            return Result.success("Wrote " + payload.length + " bytes to " + target.toAbsolutePath());
+            return Result.success("Wrote " + payload.length + " bytes to " + target);
+        } catch (java.nio.file.NoSuchFileException e) {
+            // NoSuchFileException's getMessage() is just the path, which leads
+            // to messages like "Could not write to /a/b: /a/b". Translate it
+            // into something an operator can act on.
+            LOG.warn("Local export write failed for {}: {}", target, e.toString());
+            return Result.failure("Could not write to " + target
+                    + ": parent directory does not exist or is not writable.");
         } catch (IOException e) {
             LOG.warn("Local export write failed for {}: {}", target, e.toString());
             return Result.failure("Could not write to " + target + ": " + e.getMessage());

@@ -80,7 +80,8 @@ class LocalDirectoryIngestJobServiceTest {
                     return d;
                 });
         service = new LocalDirectoryIngestJobService(jobRepository, dataSourceRepository,
-                batchRepository, documentRepository, ingestQueueService, inboxService);
+                batchRepository, documentRepository, ingestQueueService, inboxService,
+                mock(AuditLogService.class));
     }
 
     private static LocalDirectoryDataSource source(final String id, final Path dir, final String glob) {

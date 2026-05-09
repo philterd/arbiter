@@ -61,6 +61,7 @@ public class OpenSearchIngestJobService {
     private final SymmetricCipher cipher;
     private final InboxService inboxService;
     private final DataSourceHostAllowList hostAllowList;
+    private final AuditLogService auditLogService;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
@@ -73,7 +74,8 @@ public class OpenSearchIngestJobService {
                                       final ObjectMapper objectMapper,
                                       final SymmetricCipher cipher,
                                       final InboxService inboxService,
-                                      final DataSourceHostAllowList hostAllowList) {
+                                      final DataSourceHostAllowList hostAllowList,
+                                      final AuditLogService auditLogService) {
         this.jobRepository = jobRepository;
         this.dataSourceRepository = dataSourceRepository;
         this.batchRepository = batchRepository;
@@ -83,6 +85,7 @@ public class OpenSearchIngestJobService {
         this.cipher = cipher;
         this.inboxService = inboxService;
         this.hostAllowList = hostAllowList;
+        this.auditLogService = auditLogService;
     }
 
     /**
@@ -143,6 +146,7 @@ public class OpenSearchIngestJobService {
         job.setFinishedAt(now);
         job.setCreatedBy(actorEmail == null ? "" : actorEmail);
         final BackgroundJob saved = jobRepository.save(job);
+        auditJobTerminal(saved, error);
         notifyOwner(saved);
         return saved;
     }
@@ -161,6 +165,7 @@ public class OpenSearchIngestJobService {
         job.setStatus(BackgroundJob.STATUS_RUNNING);
         job.setStartedAt(Instant.now());
         jobRepository.save(job);
+        auditJobStarted(job);
 
         final OpenSearchDataSource source = dataSourceRepository.findById(job.getSourceId()).orElse(null);
         final Batch batch = batchRepository.findById(job.getBatchId()).orElse(null);
@@ -287,6 +292,7 @@ public class OpenSearchIngestJobService {
                 doc.setSourceDocId(sourceDocIdValue);
                 doc.setImportedAt(java.time.LocalDateTime.now());
                 documentRepository.save(doc);
+                auditDocumentImport(job, doc, "SUCCESS");
                 bumpProcessed(job);
             } catch (Exception e) {
                 final String reason = "Failed to enqueue hit " + hitId + ": " + e.getMessage();
@@ -319,6 +325,7 @@ public class OpenSearchIngestJobService {
         doc.setPriority(job.getPriority());
         doc.changeStatus("SKIPPED");
         documentRepository.save(doc);
+        auditDocumentImport(job, doc, "SKIPPED");
         bumpSkipped(job);
     }
 
@@ -444,7 +451,66 @@ public class OpenSearchIngestJobService {
         if (error != null) job.setErrorMessage(error);
         job.setFinishedAt(Instant.now());
         jobRepository.save(job);
+        auditJobTerminal(job, error);
         notifyOwner(job);
+    }
+
+    /** {@code DATA_IMPORT_STARTED} when the dispatcher promotes the job to RUNNING. */
+    private void auditJobStarted(final BackgroundJob job) {
+        final java.util.Map<String, Object> details = new java.util.LinkedHashMap<>();
+        details.put("jobId", job.getId());
+        details.put("type", BackgroundJob.TYPE_OPENSEARCH_INGEST);
+        details.put("sourceId", job.getSourceId() == null ? "" : job.getSourceId());
+        details.put("sourceName", job.getSourceName() == null ? "" : job.getSourceName());
+        details.put("batchId", job.getBatchId() == null ? "" : job.getBatchId());
+        details.put("batchName", job.getBatchName() == null ? "" : job.getBatchName());
+        auditLogService.logForUser(actor(job), "DATA_IMPORT_STARTED",
+                "BackgroundJob", job.getId(),
+                AuditLogService.OUTCOME_SUCCESS, details);
+    }
+
+    /**
+     * One audit row per imported document, carrying the import job ID and the
+     * source attribution so an investigator can trace any document on the
+     * queue back to the OpenSearch hit it came from.
+     */
+    private void auditDocumentImport(final BackgroundJob job,
+                                     final ai.philterd.arbiter.model.Document doc,
+                                     final String outcome) {
+        final java.util.Map<String, Object> details = new java.util.LinkedHashMap<>();
+        details.put("jobId", job.getId());
+        details.put("batchId", doc.getBatchId() == null ? "" : doc.getBatchId());
+        details.put("filename", doc.getFilename() == null ? "" : doc.getFilename());
+        details.put("sourceSystem", doc.getSourceSystem() == null ? "" : doc.getSourceSystem());
+        details.put("sourceUrl", doc.getSourceUrl() == null ? "" : doc.getSourceUrl());
+        details.put("sourceIndex", doc.getSourceIndex() == null ? "" : doc.getSourceIndex());
+        details.put("sourceDocId", doc.getSourceDocId() == null ? "" : doc.getSourceDocId());
+        auditLogService.logForUser(actor(job), "DOCUMENT_IMPORT",
+                "Document", doc.getId(),
+                outcome == null ? AuditLogService.OUTCOME_SUCCESS : outcome, details);
+    }
+
+    /** Terminal {@code DATA_IMPORT_COMPLETED} / {@code DATA_IMPORT_FAILED} audit row. */
+    private void auditJobTerminal(final BackgroundJob job, final String error) {
+        final boolean ok = BackgroundJob.STATUS_COMPLETED.equals(job.getStatus());
+        final String action = ok ? "DATA_IMPORT_COMPLETED" : "DATA_IMPORT_FAILED";
+        final java.util.Map<String, Object> details = new java.util.LinkedHashMap<>();
+        details.put("jobId", job.getId());
+        details.put("type", BackgroundJob.TYPE_OPENSEARCH_INGEST);
+        details.put("sourceId", job.getSourceId() == null ? "" : job.getSourceId());
+        details.put("batchId", job.getBatchId() == null ? "" : job.getBatchId());
+        details.put("processed", job.getProcessedDocuments());
+        details.put("failed", job.getFailedDocuments());
+        details.put("skipped", job.getSkippedDocuments());
+        if (error != null && !error.isBlank()) details.put("error", error);
+        auditLogService.logForUser(actor(job), action, "BackgroundJob", job.getId(),
+                ok ? AuditLogService.OUTCOME_SUCCESS : AuditLogService.OUTCOME_FAILURE,
+                details);
+    }
+
+    private static String actor(final BackgroundJob job) {
+        return job.getCreatedBy() == null || job.getCreatedBy().isBlank()
+                ? null : job.getCreatedBy();
     }
 
     /**

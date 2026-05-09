@@ -180,8 +180,9 @@
         </aside>
 
         <div class="flex-1 flex flex-col min-w-0">
+        <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8">
-            <h2 class="text-3xl font-bold text-gray-900 mb-6">Settings</h2>
+            <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900 mb-6">Settings</h2><a href="/docs/user-guide/settings/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
 
             <div th:if="${error}" class="mb-6 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
                  th:text="${error}">Error message</div>

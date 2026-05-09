@@ -620,6 +620,7 @@ public class AdminDataSourceController {
 
     @PostMapping("/s3")
     public String createS3(@RequestParam("name") final String name,
+                           @RequestParam(value = "endpoint", required = false) final String endpoint,
                            @RequestParam("bucketName") final String bucketName,
                            @RequestParam("bucketKey") final String bucketKey,
                            @RequestParam("filenameGlob") final String filenameGlob,
@@ -627,6 +628,7 @@ public class AdminDataSourceController {
                            @RequestParam(value = "secretKey", required = false) final String secretKey,
                            final RedirectAttributes redirectAttributes) {
         final String trimmedName = name == null ? "" : name.trim();
+        final String trimmedEndpoint = endpoint == null ? "" : endpoint.trim();
         final String trimmedBucket = bucketName == null ? "" : bucketName.trim();
         final String trimmedKey = bucketKey == null ? "" : bucketKey.trim();
         final String trimmedGlob = filenameGlob == null ? "" : filenameGlob.trim();
@@ -668,6 +670,7 @@ public class AdminDataSourceController {
         final S3DataSource source = new S3DataSource();
         source.setId(UUID.randomUUID().toString());
         source.setName(trimmedName);
+        source.setEndpoint(trimmedEndpoint.isEmpty() ? null : trimmedEndpoint);
         source.setBucketName(trimmedBucket);
         source.setBucketKey(trimmedKey);
         source.setFilenameGlob(trimmedGlob);

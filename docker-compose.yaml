@@ -32,6 +32,11 @@ services:
       # to ingest the files in ./local-files. Mounted read-only so the
       # container can never modify the host directory.
       - ./local-files:/app/local-files:ro
+      # Test fixture for the Local Directory destination. The DemoDataSourceLoader
+      # registers an "output" destination pointing at /app/output, which maps to
+      # the host's /tmp so finalized exports land somewhere easy to inspect.
+      # Mounted read-write so the application can actually write export files.
+      - /tmp:/app/output
     depends_on:
       mongodb:
         condition: service_healthy
@@ -41,6 +46,10 @@ services:
         condition: service_healthy
       valkey:
         condition: service_healthy
+      minio:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
     networks:
       - arbiter
 
@@ -127,6 +136,53 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+    networks:
+      - arbiter
+
+  # S3-compatible object storage for the demo S3 data source. The DemoDataSourceLoader
+  # registers a "Demo MinIO (S3-compatible)" data source that points at this service.
+  # Default root credentials are minioadmin / minioadmin — fine for the demo, but
+  # change them for any non-demo deployment (and update the loader's @Value defaults
+  # to match, or supply ARBITER_DEMO_DATA_MINIO_ACCESS_KEY / _SECRET_KEY env vars).
+  minio:
+    image: minio/minio:latest
+    container_name: arbiter-minio
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    healthcheck:
+      test: ["CMD-SHELL", "mc ready local || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - arbiter
+
+  # One-shot bootstrap that waits for MinIO to become ready, creates the
+  # "arbiter-demo" bucket, and seeds it with the bundled sample files. Exits 0
+  # when done; Docker keeps the exited container around so the work isn't redone
+  # on subsequent `docker compose up` calls (the bucket already exists, mc cp
+  # is idempotent for the file overwrite path).
+  minio-init:
+    image: minio/mc:latest
+    container_name: arbiter-minio-init
+    depends_on:
+      minio:
+        condition: service_healthy
+    volumes:
+      - ./sample-files:/sample-files:ro
+    entrypoint: >
+      /bin/sh -c "
+        mc alias set local http://minio:9000 minioadmin minioadmin &&
+        mc mb --ignore-existing local/arbiter-demo &&
+        mc cp --recursive /sample-files/. local/arbiter-demo/ &&
+        echo 'Seeded arbiter-demo bucket from /sample-files.'
+      "
     networks:
       - arbiter
 

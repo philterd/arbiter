@@ -22,12 +22,14 @@ import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import ai.philterd.arbiter.repository.PolicyRepository;
 import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.service.AuthUtils;
 import ai.philterd.arbiter.service.GeneralSettingsService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -40,6 +42,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import static org.springframework.http.HttpStatus.BAD_GATEWAY;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
+import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 import org.springframework.data.domain.PageRequest;
@@ -371,7 +374,15 @@ public class PolicyController {
 
     @GetMapping("/api/v1/policies")
     @ResponseBody
-    public Map<String, Object> listJson(@RequestParam(value = "instanceId", required = false) final String instanceId) {
+    public Map<String, Object> listJson(@RequestParam(value = "instanceId", required = false) final String instanceId,
+                                        final Authentication authentication) {
+        // Defense-in-depth: SecurityConfig already gates /api/v1/policies to ADMIN+AUDITOR
+        // via the framework matcher, but a future SecurityConfig change that drops the
+        // matcher would otherwise expose policy listings to any authenticated caller.
+        // Repeating the role check here makes the authorization local to the endpoint.
+        if (!AuthUtils.isAdminOrAuditor(authentication)) {
+            throw new ResponseStatusException(FORBIDDEN, "Not authorized.");
+        }
         final String selected = (instanceId == null || instanceId.isBlank()) ? EMBEDDED : instanceId;
         List<String> names;
         if (EMBEDDED.equals(selected)) {
@@ -405,7 +416,12 @@ public class PolicyController {
     @GetMapping("/api/v1/policies/content")
     @ResponseBody
     public Map<String, String> content(@RequestParam("instanceId") final String instanceId,
-                                       @RequestParam("name") final String name) {
+                                       @RequestParam("name") final String name,
+                                       final Authentication authentication) {
+        // Defense-in-depth role check — see listJson above for the rationale.
+        if (!AuthUtils.isAdminOrAuditor(authentication)) {
+            throw new ResponseStatusException(FORBIDDEN, "Not authorized.");
+        }
         if (name == null || name.isBlank()) {
             throw new ResponseStatusException(NOT_FOUND, "Policy name is required.");
         }

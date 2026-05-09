@@ -24,7 +24,11 @@ collection in MongoDB. There are two ways to view and export it:
 | `BATCH_WEIGHTS_RESET`               | Batch       | All overrides cleared                               |
 | `BATCH_CLOSE`                       | Batch       | Records who closed it and when                      |
 | `DOCUMENT_UPLOAD`                   | Document    | Web upload                                          |
-| `DOCUMENT_INGEST`                   | Document    | API ingest                                          |
+| `DOCUMENT_INGEST`                   | Document    | API ingest (`POST /api/v1/ingest`)                  |
+| `DOCUMENT_IMPORT`                   | Document    | One row per document pulled in by a data-import background job. Outcome is `SUCCESS` for newly-imported documents and `SKIPPED` for placeholders written when the source row already had a Document. Details include the import `jobId` and the source attribution (`sourceSystem`, `sourceUrl`, `sourceIndex`, `sourceDocId`) so the document can be traced back to the OpenSearch / Elasticsearch hit, S3 object, or local file it came from. |
+| `DATA_IMPORT_STARTED`               | BackgroundJob | Fired when a data-import job is promoted from PENDING to RUNNING by the dispatcher. Details include the job's `type`, `sourceId`, `batchId`, and friendly names. |
+| `DATA_IMPORT_COMPLETED`             | BackgroundJob | Terminal SUCCESS row for a data-import job. Details include `processed`, `failed`, `skipped` counters. |
+| `DATA_IMPORT_FAILED`                | BackgroundJob | Terminal FAILURE row for a data-import job (validation failure at queue time, or runtime error during the run). Carries the same counters plus an `error` string. |
 | `DOCUMENT_STATUS_CHANGE`            | Document    | Generic status transition; also fires on Approve / Unapprove / Unreject |
 | `DOCUMENT_APPROVAL`                 | Document    | Reviewer approved a document; payload includes `approvedBy`, `acquired`, and `required` approval counts |
 | `DOCUMENT_REJECT`                   | Document    | Reviewer rejected a document; payload includes `previous` status and `rejectedBy` |

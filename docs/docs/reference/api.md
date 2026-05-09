@@ -1,13 +1,27 @@
 # REST API
 
-Arbiter exposes a JSON-over-HTTP API under `/api/v1`. All endpoints require
-authentication via a personal **API key** sent as a Bearer token. The API key
-carries the same role and group permissions as the user that owns it.
+Arbiter exposes a JSON-over-HTTP API under `/api/v1`. The API surface is split
+into two categories that authenticate differently.
 
 ## Authentication
 
-Generate an API key from [Personal settings](../user-guide/settings.md). Send it
-on every request:
+### Programmatic (Bearer-only)
+
+These endpoints are intended for scripts, integrations, and downstream
+consumers. They accept **only** a personal API key sent as a Bearer token —
+session cookies are explicitly stripped by the security filter chain so a
+logged-in admin's browser session cannot be CSRF'd into reaching them. The
+Bearer-only set is small and stable:
+
+| Method | Path |
+|---|---|
+| `POST` | `/api/v1/ingest` |
+| `GET`  | `/api/v1/search` |
+| `POST` | `/api/v1/documents/{id}/finalize` |
+| `GET`  | `/api/v1/documents/{id}/audit` |
+
+To use them, generate an API key from
+[Personal settings](../user-guide/settings.md) and send it on every request:
 
 ```http
 Authorization: Bearer <your-api-key>
@@ -15,16 +29,25 @@ Authorization: Bearer <your-api-key>
 
 Arbiter stores only the SHA-512 hash of the key. The plaintext value is shown
 once at generation and cannot be recovered. Rotate by generating a new key
-(which replaces the old one) or revoking the existing one.
+(which replaces the old one) or revoke the existing one. Failed authentication
+(no header, malformed header, or unknown key) returns `401 Unauthorized`.
 
-Failed authentication (no header, malformed header, or unknown key) returns
-`401 Unauthorized`.
+### Session-allowed (browser-UI shared)
+
+The remaining `/api/v1/**` endpoints are used by Arbiter's own web UI and
+accept either a Bearer token or the browser's session cookie. Cross-origin
+abuse is blocked by the browser's same-origin policy plus the absence of a
+permissive CORS configuration; Bearer authentication still works for
+programmatic clients that prefer to use them. Endpoints in this category are
+called out below per-section. The API key carries the same role and group
+permissions as the user that owns it; session callers carry whatever role and
+groups their account has.
 
 ## Document ingestion
 
 ### `POST /api/v1/ingest`
 
-Submit a plain-text document. Ingestion is **asynchronous**: the document is
+Bearer-only. Submit a plain-text document. Ingestion is **asynchronous**: the document is
 persisted in `PENDING` and placed on the redaction queue. A background worker
 runs Philter in arrival order; once redaction completes, the document moves to
 `REVIEW_REQUIRED` (PII detected with low-confidence spans), `AUDIT_REQUIRED`
@@ -67,7 +90,7 @@ document at ingest time — see
 
 ### `GET /api/v1/queue`
 
-List documents the caller can see, paged by sort field.
+Session-allowed. List documents the caller can see, paged by sort field.
 
 | Query param      | Default       | Meaning                                                |
 | ---------------- | ------------- | ------------------------------------------------------ |
@@ -118,22 +141,24 @@ user-decided terminal state (`APPROVED`, `REJECTED`, `FAILED`) nor in
 
 ### `GET /api/v1/batches`
 
-List batches the caller can target. Honors the same `myGroupsOnly` query
-param. Returns a JSON array of `{id, name}`.
+Session-allowed. List batches the caller can target. Honors the same
+`myGroupsOnly` query param. Returns a JSON array of `{id, name}`.
 
 ## Documents
 
 ### `GET /api/v1/documents/{id}/spans`
 
-Return every `Span` row in the document. Useful for building a custom review
-client or for reconciling the redactor's output with downstream systems.
+Session-allowed. Return every `Span` row in the document. Useful for building
+a custom review client or for reconciling the redactor's output with
+downstream systems.
 
 `404` if the document doesn't exist or the caller lacks group access.
 
 ### `POST /api/v1/documents/{documentId}/spans`
 
-Manually create a span at an explicit character range. Used by the review UI
-when a reviewer highlights uncovered PII; the API is also available to clients.
+Session-allowed. Manually create a span at an explicit character range. Used
+by the review UI when a reviewer highlights uncovered PII; the API is also
+available to clients.
 
 ```json
 { "type": "ssn", "start": 42, "end": 53 }
@@ -152,8 +177,8 @@ true`.
 
 ### `POST /api/v1/documents/{id}/finalize`
 
-Produce the redacted text for a document by sending its approved spans to
-Philter and applying them. The response is the post-redaction string. On
+Bearer-only. Produce the redacted text for a document by sending its approved
+spans to Philter and applying them. The response is the post-redaction string. On
 success, the document is transitioned to `FINALIZED` and the rendered
 redacted text is persisted on the document so a later download still works
 even if a finalization policy clears the source text.
@@ -170,9 +195,9 @@ even if a finalization policy clears the source text.
 
 ### `GET /api/v1/documents/{id}/audit`
 
-Return a redaction audit trail — every span on the document with its
-`text`, `type`, `confidence`, and current `status`. Useful for after-the-fact
-review or compliance reporting.
+Bearer-only. Return a redaction audit trail — every span on the document
+with its `text`, `type`, `confidence`, and current `status`. Useful for
+after-the-fact review or compliance reporting.
 
 ```json
 [
@@ -184,12 +209,12 @@ review or compliance reporting.
 
 ### `GET /api/v1/documents/{id}/history`
 
-Return the full audit history for a document — document-level events and all
-span events — as a JSON array sorted newest first. Powers the Audit Log popup
-on the Document Queue.
+Session-allowed. Return the full audit history for a document — document-level
+events and all span events — as a JSON array sorted newest first. Powers the
+Audit Log popup on the Document Queue.
 
-**Admin only.** Returns `403` for non-admin callers, because the history
-includes raw PII span text.
+**Restricted to `ROLE_ADMIN` or `ROLE_AUDITOR`.** Returns `403` for any other
+caller because the history includes raw PII span text.
 
 Each element:
 
@@ -205,57 +230,84 @@ Each element:
 ```
 
 The `actor` field defaults to the MongoDB user ID. Pass `?resolveActors=true`
-to receive the user's email address instead — this parameter also requires
-`ROLE_ADMIN` and returns `403` if called by a non-admin.
+to receive the user's email address instead — this parameter requires
+`ROLE_ADMIN` or `ROLE_AUDITOR` and returns `403` otherwise.
 
 ### `GET /api/v1/documents/{id}/history.csv`
 
-Download the document's full audit history (document-level events plus all
-events on its spans) as a CSV, sorted newest first. Powers the **Download**
-button on the Document Queue's Audit Log popup. See
+Session-allowed. Download the document's full audit history (document-level
+events plus all events on its spans) as a CSV, sorted newest first. Powers
+the **Download** button on the Document Queue's Audit Log popup. See
 [Audit log](../admin/audit-log.md#download-csv) for the column list.
 
-**Admin only.** Returns `403` for non-admin callers. The CSV deliberately
-omits PII text — span entries include `spanCharacterStart`,
-`spanCharacterEnd`, and `spanPage` instead. The `actor` column contains the
-actor's email address (the CSV is admin-only, so email exposure is
-appropriate).
+**Restricted to `ROLE_ADMIN` or `ROLE_AUDITOR`.** Returns `403` for any other
+caller. The CSV deliberately omits PII text — span entries include
+`spanCharacterStart`, `spanCharacterEnd`, and `spanPage` instead. The `actor`
+column contains the actor's email address (the CSV is admin/auditor-only, so
+email exposure is appropriate).
+
+### `GET /api/v1/documents/{id}/certificate`
+
+Session-allowed. Return the redaction certificate for a finalized document —
+a JSON object summarising the document hash, finalize timestamp, and span
+counts. Powers the Certificate popup on the Document Queue. The caller must
+have group access to the document; `404` is returned if the document doesn't
+exist or the caller lacks access.
 
 ### `GET /api/v1/documents/{id}/comments`
 
-Return reviewer comments left on the document, oldest first.
+Session-allowed. Return reviewer comments left on the document, oldest first.
 
 ```json
 [
-  { "id": "...", "documentId": "...", "author": "user@example.com",
-    "createdAt": "2026-05-04T13:00:00", "body": "..." }
+  { "id": "...", "userEmail": "user@example.com",
+    "timestamp": "2026-05-04T13:00:00Z", "text": "..." }
 ]
 ```
 
 ### `POST /api/v1/documents/{id}/comments`
 
-Add a comment to the document. Body is a JSON object with a `body` string.
-Returns the saved comment.
+Session-allowed. Add a comment to the document. The request body is a JSON
+object with a single `text` string (max 4 000 characters; surrounding
+whitespace is trimmed). Returns the saved comment in the same shape the GET
+above produces.
+
+```json
+{ "text": "..." }
+```
 
 ## Spans
 
 ### `PATCH /api/v1/spans/{id}`
 
-Update a span's status, type, or both.
+Session-allowed. Update a span's status, type, or both.
 
 ```json
-{ "status": "APPROVED|REJECTED|PENDING", "type": "ssn" }
+{
+  "status":        "APPROVED|REJECTED|PENDING|NEEDS_SECOND_OPINION",
+  "type":          "ssn",
+  "reason":        "...",
+  "exemptionCode": "..."
+}
 ```
 
-Either field may be omitted; sending neither returns `400`. `type` is validated
-against the [PII types list](pii-types.md). Returns the updated `Span` object.
+| Field           | Required | Notes                                                                                     |
+| --------------- | -------- | ----------------------------------------------------------------------------------------- |
+| `status`        | optional | One of the allowed statuses. Sending neither `status` nor `type` returns `400`.            |
+| `type`          | optional | New PII type; validated against the [PII types list](pii-types.md).                        |
+| `reason`        | optional | Required when **overturning** another reviewer's prior `APPROVED` decision (changing status away from `APPROVED` while the prior approval was recorded by a different actor). Returns `409 OVERTURN_REASON_REQUIRED` otherwise. Recorded in the audit trail. |
+| `exemptionCode` | optional | Free-form string applied only when the new `status` is `APPROVED`. Cleared automatically when the span moves out of `APPROVED`. |
 
-`409` if the parent document is in a terminal state.
+Returns the updated `Span` object.
+
+`409` if the parent document is in a terminal state, or if an overturn is
+attempted without a `reason`.
 
 ### `DELETE /api/v1/spans/{id}`
 
-Hard-delete a span. **Only manually-created spans can be deleted** — for spans
-the redactor produced, flip status to `REJECTED` instead.
+Session-allowed. Hard-delete a span. **Only manually-created spans can be
+deleted** — for spans the redactor produced, flip status to `REJECTED`
+instead.
 
 ```json
 { "id": "...", "deleted": true }
@@ -266,11 +318,15 @@ terminal.
 
 ### `POST /api/v1/spans/{id}/redact-like`
 
-Find every other occurrence of the source span's text in the parent document
-and approve each match with the source span's PII type. New `Span` rows are
-created where matches don't already have one; existing spans at exact ranges
-are flipped to `APPROVED` and aligned to the source type. Overlapping non-exact
-matches are skipped to avoid duplicate spans.
+Session-allowed. Find every other occurrence of the source span's text in the
+parent document and approve each match with the source span's PII type. New
+`Span` rows are created where matches don't already have one; existing spans
+at exact ranges are flipped to `APPROVED` and aligned to the source type.
+Overlapping non-exact matches are skipped to avoid duplicate spans.
+
+Requires `Content-Type: application/json` (the request body itself is
+ignored; the JSON content type is enforced as a CSRF defence so cross-site
+form posts can't trigger this endpoint).
 
 Response:
 
@@ -284,11 +340,24 @@ existing spans flipped to approved.
 `400` if the source span has empty text. `404` if the span or its document is
 missing.
 
+### `POST /api/v1/spans/{id}/reset`
+
+Session-allowed. Revert a span back to its previous status. The intended use
+is "I clicked Approve / Reject by mistake" — the endpoint moves a span out of
+its terminal state and back into review. The optional JSON body
+`{"originalStatus": "PENDING|REVIEW_REQUIRED"}` selects the target status; an
+empty body falls back to the span's prior status as recorded in the audit log.
+
+Requires `Content-Type: application/json`. Returns the updated `Span` JSON.
+
+`404` if the span doesn't exist or the caller lacks group access. `409` if
+the parent document is in a terminal state.
+
 ### `GET /api/v1/spans/{id}/history`
 
-Return the audit history for a single span as a JSON array sorted newest
-first. Accessible to any authenticated user with group access to the span's
-parent document.
+Session-allowed. Return the audit history for a single span as a JSON array
+sorted newest first. Accessible to any authenticated user with group access
+to the span's parent document.
 
 ```json
 [
@@ -305,8 +374,8 @@ parent document.
 
 The `actor` field defaults to the MongoDB user ID of the actor to avoid
 leaking email addresses to other reviewers. Pass `?resolveActors=true` to
-receive email addresses instead — this parameter requires `ROLE_ADMIN` and
-returns `403` if called by a non-admin.
+receive email addresses instead — this parameter requires `ROLE_ADMIN` or
+`ROLE_AUDITOR` and returns `403` otherwise.
 
 `404` if the span doesn't exist or the caller lacks group access.
 
@@ -314,7 +383,7 @@ returns `403` if called by a non-admin.
 
 ### `GET /api/v1/search`
 
-Full-text search across the OpenSearch index of ingested documents. Each
+Bearer-only. Full-text search across the OpenSearch index of ingested documents. Each
 document is indexed at ingest time with its filename, batch, status, and full
 original text.
 
@@ -368,7 +437,7 @@ opinion on the redactor's output. Configuration lives under
 
 ### `GET /api/v1/ollama/{instanceId}/models`
 
-List the models installed on a configured Ollama instance.
+Session-allowed. List the models installed on a configured Ollama instance.
 
 ```json
 { "instanceId": "...", "instanceName": "...", "models": ["llama3", "mistral"] }
@@ -378,7 +447,7 @@ List the models installed on a configured Ollama instance.
 
 ### `POST /api/v1/documents/{documentId}/explain`
 
-Ask the LLM to explain the PII risk in a document.
+Session-allowed. Ask the LLM to explain the PII risk in a document.
 
 ```json
 { "instanceId": "...", "model": "llama3" }
@@ -392,9 +461,11 @@ Response:
 
 ### `POST /api/v1/spans/{spanId}/second-opinion`
 
-Ask the configured Second Opinion default Ollama instance/model whether the
-named span is genuinely PII or a likely false positive. The instance and model
-are chosen from the LLM-as-a-Judge defaults — the request body is empty.
+Session-allowed. Ask the configured Second Opinion default Ollama
+instance/model whether the named span is genuinely PII or a likely false
+positive. The instance and model are chosen from the LLM-as-a-Judge defaults
+— the request body is empty but the `Content-Type: application/json` header
+is required (CSRF defence).
 
 ```json
 { "instanceName": "...", "model": "...",
@@ -403,6 +474,69 @@ are chosen from the LLM-as-a-Judge defaults — the request body is empty.
 ```
 
 `400` if no Second Opinion default is configured.
+
+## Policies
+
+These endpoints power the Phileas redaction-policy editor under
+**Admin → Policies**. The framework gates them to `ROLE_ADMIN` or
+`ROLE_AUDITOR` for reads — non-admin callers get `403`.
+
+### `GET /api/v1/policies`
+
+Session-allowed. List the policies installed on a configured Philter
+instance, or on the embedded Phileas runtime when no instance is specified.
+
+| Query param  | Default     | Meaning                                              |
+| ------------ | ----------- | ---------------------------------------------------- |
+| `instanceId` | `embedded`  | Philter instance id, or `embedded` for the built-in. |
+
+Response:
+
+```json
+{ "instanceId": "embedded", "policies": ["Default", "..."] }
+```
+
+`502` when the named Philter instance is unreachable; `404` if `instanceId`
+doesn't match any configured instance.
+
+### `GET /api/v1/policies/content`
+
+Session-allowed. Fetch the JSON content of one named policy on the chosen
+instance. Both query parameters are required.
+
+| Query param  | Required | Meaning                                              |
+| ------------ | -------- | ---------------------------------------------------- |
+| `instanceId` | yes      | Philter instance id, or `embedded` for the built-in. |
+| `name`       | yes      | Policy name; restricted to letters, digits, hyphens, and underscores (1–64 chars). |
+
+Response:
+
+```json
+{ "name": "Default", "content": "{ ...JSON policy... }" }
+```
+
+`content` is the raw policy JSON as a string (the embedded runtime stores
+policies as text; remote Philter responses are returned verbatim).
+
+`400` for malformed names (the regex check rejects path-traversal attempts).
+`404` when the named policy doesn't exist on the instance. `502` when the
+remote Philter instance is unreachable.
+
+## Browser-only internal endpoints
+
+The following paths exist under `/api/v1/**` but are intended only for the
+in-page JavaScript that drives the review UI. They are session-callable, do
+nothing harmful in isolation, and are documented here purely so that traffic
+from arbiter's own UI doesn't look surprising in HTTP logs:
+
+| Path | Purpose |
+|---|---|
+| `POST /api/v1/review/{documentId}/pulse` | Sliding-expiry heartbeat sent every ~30 s by the review page so the document's pessimistic edit lock doesn't expire while the reviewer is still on the page. Operates on the caller's own lock only. |
+| `POST /api/v1/review/{documentId}/release` | `navigator.sendBeacon`'d when the reviewer leaves the page. Releases the caller's own lock. |
+| `GET /api/v1/review/{documentId}/similar` | Backs the "Find similar documents" button on the review page. Returns up to 10 hits filtered to the caller's accessible batches. |
+
+There's no programmatic-API reason to call these — use `PATCH /spans/{id}` and
+`GET /search` instead.
 
 ## Errors
 

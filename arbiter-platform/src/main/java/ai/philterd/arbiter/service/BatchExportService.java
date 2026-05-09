@@ -67,7 +67,18 @@ public class BatchExportService {
      *  doesn't materialize all rows at once on a small heap. */
     private static final int PAGE_SIZE = 200;
 
-    public enum Format { JSONL }
+    /**
+     * Available export formats.
+     *
+     * <ul>
+     *   <li>{@link #JSONL} — one document per line in a single file (see
+     *       {@link JsonlExportRenderer}).</li>
+     *   <li>{@link #BIO} — one document per file, token-per-line BIO format
+     *       (see {@link BioExportRenderer}). The destination receives a
+     *       file-per-document fan-out instead of a single combined file.</li>
+     * </ul>
+     */
+    public enum Format { JSONL, BIO }
 
     public enum DestinationKind { LOCAL, S3 }
 
@@ -77,6 +88,7 @@ public class BatchExportService {
     private final LocalDirectoryDestinationRepository localDestinationRepository;
     private final S3DestinationRepository s3DestinationRepository;
     private final JsonlExportRenderer jsonlRenderer;
+    private final BioExportRenderer bioRenderer;
     private final DestinationWriter destinationWriter;
     private final AuditLogService auditLogService;
     private final BackgroundJobRepository backgroundJobRepository;
@@ -87,6 +99,7 @@ public class BatchExportService {
                               final LocalDirectoryDestinationRepository localDestinationRepository,
                               final S3DestinationRepository s3DestinationRepository,
                               final JsonlExportRenderer jsonlRenderer,
+                              final BioExportRenderer bioRenderer,
                               final DestinationWriter destinationWriter,
                               final AuditLogService auditLogService,
                               final BackgroundJobRepository backgroundJobRepository) {
@@ -96,6 +109,7 @@ public class BatchExportService {
         this.localDestinationRepository = localDestinationRepository;
         this.s3DestinationRepository = s3DestinationRepository;
         this.jsonlRenderer = jsonlRenderer;
+        this.bioRenderer = bioRenderer;
         this.destinationWriter = destinationWriter;
         this.auditLogService = auditLogService;
         this.backgroundJobRepository = backgroundJobRepository;
@@ -115,9 +129,8 @@ public class BatchExportService {
                                 final DestinationKind destinationKind,
                                 final String destinationId,
                                 final String actorEmail) {
-        if (format != Format.JSONL) {
-            return Result.failure("Unsupported data format: " + format
-                    + ". Only JSONL is available today.");
+        if (format == null) {
+            return Result.failure("Data format is required.");
         }
         final Batch batch = batchRepository.findById(batchId).orElse(null);
         if (batch == null) {
@@ -194,11 +207,23 @@ public class BatchExportService {
             return;
         }
 
+        switch (format) {
+            case JSONL -> runJsonlJob(job, batch, kind);
+            case BIO   -> runBioJob(job, batch, kind);
+        }
+    }
+
+    /**
+     * JSONL export: render every approved document into a single in-memory file
+     * and ship it as one upload. Best for downstream pipelines that expect a
+     * single combined artifact per export run.
+     */
+    private void runJsonlJob(final BackgroundJob job, final Batch batch, final DestinationKind kind) {
         final RenderedPayload rendered;
         try {
             rendered = renderJsonl(job);
         } catch (IOException e) {
-            LOG.warn("Failed to render export for job {}: {}", jobId, e.toString());
+            LOG.warn("Failed to render JSONL for job {}: {}", job.getId(), e.toString());
             finish(job, BackgroundJob.STATUS_FAILED,
                     "Could not render JSONL: " + e.getMessage());
             return;
@@ -209,12 +234,12 @@ public class BatchExportService {
             return;
         }
 
-        final String filename = filenameFor(batch, format);
+        final String filename = filenameFor(batch, Format.JSONL);
         final DestinationWriter.Result writeResult = ship(kind, job.getDestinationId(), filename, rendered.bytes);
 
         final Map<String, Object> auditDetails = new LinkedHashMap<>();
         auditDetails.put("batchName", batch.getName() == null ? "" : batch.getName());
-        auditDetails.put("format", format.name());
+        auditDetails.put("format", Format.JSONL.name());
         auditDetails.put("destinationKind", kind.name());
         auditDetails.put("destinationId", job.getDestinationId());
         auditDetails.put("documentCount", rendered.documentCount);
@@ -231,6 +256,106 @@ public class BatchExportService {
         auditDetails.put("location", writeResult.getMessage());
         auditLogService.log("BATCH_EXPORT", "Batch", job.getBatchId(), auditDetails);
         finishSuccess(job, rendered.documentCount, writeResult.getMessage());
+    }
+
+    /**
+     * BIO export: each approved document becomes its own {@code .bio} file.
+     * The destination receives a fan-out of file-per-document writes — one
+     * call to {@link #ship} per successfully-rendered document. The job's
+     * counters reflect per-document progress, including write-side failures
+     * (e.g. an S3 PutObject that the bucket policy rejected for one object
+     * doesn't sink the export of the others).
+     */
+    private void runBioJob(final BackgroundJob job, final Batch batch, final DestinationKind kind) {
+        final String batchSlug = slugify(batch.getName());
+        long written = 0;
+        long failed = 0;
+        long bytes = 0;
+        int page = 0;
+        while (true) {
+            final Page<Document> slice = documentRepository.findByBatchIdAndStatus(
+                    job.getBatchId(), APPROVED_STATUS,
+                    PageRequest.of(page, PAGE_SIZE, Sort.by(Sort.Direction.ASC, "createdAt")));
+            if (slice == null || slice.isEmpty()) break;
+            for (Document doc : slice.getContent()) {
+                final List<Span> spans = spanRepository.findByDocumentId(doc.getId());
+                final String body = bioRenderer.render(doc, spans);
+                if (body.isEmpty()) {
+                    // Document with no source text — count as failed so the operator
+                    // sees the discrepancy on the Jobs page.
+                    failed++;
+                    recordFailureMessage(job, doc.getId(),
+                            "Document has no original text to render.");
+                    continue;
+                }
+                final byte[] payload = body.getBytes(StandardCharsets.UTF_8);
+                final String filename = bioFilenameFor(batchSlug, doc);
+                final DestinationWriter.Result writeResult =
+                        ship(kind, job.getDestinationId(), filename, payload);
+                if (!writeResult.isOk()) {
+                    failed++;
+                    recordFailureMessage(job, doc.getId(),
+                            "Write failed: " + writeResult.getError());
+                    continue;
+                }
+                written++;
+                bytes += payload.length;
+            }
+            // Progress checkpoint per page so the Jobs page UI updates while
+            // the export streams.
+            job.setProcessedDocuments(written);
+            job.setFailedDocuments(failed);
+            backgroundJobRepository.save(job);
+            if (!slice.hasNext()) break;
+            page++;
+        }
+
+        final Map<String, Object> auditDetails = new LinkedHashMap<>();
+        auditDetails.put("batchName", batch.getName() == null ? "" : batch.getName());
+        auditDetails.put("format", Format.BIO.name());
+        auditDetails.put("destinationKind", kind.name());
+        auditDetails.put("destinationId", job.getDestinationId());
+        auditDetails.put("documentCount", written);
+        auditDetails.put("failedDocuments", failed);
+        auditDetails.put("bytes", bytes);
+        auditLogService.log("BATCH_EXPORT", "Batch", job.getBatchId(), auditDetails);
+
+        if (written == 0) {
+            finish(job, BackgroundJob.STATUS_FAILED,
+                    "BIO export wrote 0 documents (" + failed + " failed).");
+            return;
+        }
+        finishSuccess(job, (int) written,
+                "Wrote " + written + " BIO file(s) ("
+                        + (failed > 0 ? failed + " failed; " : "")
+                        + bytes + " bytes total) to "
+                        + kind.name() + " destination.");
+    }
+
+    private static String bioFilenameFor(final String batchSlug, final Document doc) {
+        // Prefer the original filename so the export is recognisable; fall
+        // back to the document id when the upload had no filename. Always
+        // prefix with the batch slug so concurrent batch exports to the same
+        // destination don't collide on a generic name like "report".
+        final String base = (doc.getFilename() != null && !doc.getFilename().isBlank())
+                ? slugify(stripExtension(doc.getFilename()))
+                : (doc.getId() == null ? "doc" : slugify(doc.getId()));
+        return batchSlug + "/" + base + ".bio";
+    }
+
+    private static String stripExtension(final String name) {
+        final int dot = name.lastIndexOf('.');
+        if (dot <= 0) return name;
+        return name.substring(0, dot);
+    }
+
+    private void recordFailureMessage(final BackgroundJob job, final String docId, final String message) {
+        if (job.getFailureMessages() == null) {
+            job.setFailureMessages(new java.util.ArrayList<>());
+        }
+        if (job.getFailureMessages().size() < BackgroundJob.MAX_FAILURE_MESSAGES) {
+            job.getFailureMessages().add("Document " + docId + ": " + message);
+        }
     }
 
     private RenderedPayload renderJsonl(final BackgroundJob job) throws IOException {

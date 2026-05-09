@@ -66,19 +66,22 @@ public class LocalDirectoryIngestJobService {
     private final DocumentRepository documentRepository;
     private final IngestQueueService ingestQueueService;
     private final InboxService inboxService;
+    private final AuditLogService auditLogService;
 
     public LocalDirectoryIngestJobService(final BackgroundJobRepository jobRepository,
                                           final LocalDirectoryDataSourceRepository dataSourceRepository,
                                           final BatchRepository batchRepository,
                                           final DocumentRepository documentRepository,
                                           final IngestQueueService ingestQueueService,
-                                          final InboxService inboxService) {
+                                          final InboxService inboxService,
+                                          final AuditLogService auditLogService) {
         this.jobRepository = jobRepository;
         this.dataSourceRepository = dataSourceRepository;
         this.batchRepository = batchRepository;
         this.documentRepository = documentRepository;
         this.ingestQueueService = ingestQueueService;
         this.inboxService = inboxService;
+        this.auditLogService = auditLogService;
     }
 
     /**
@@ -140,6 +143,7 @@ public class LocalDirectoryIngestJobService {
         job.setFinishedAt(now);
         job.setCreatedBy(actorEmail == null ? "" : actorEmail);
         final BackgroundJob saved = jobRepository.save(job);
+        auditJobTerminal(saved, error);
         notifyOwner(saved);
         return saved;
     }
@@ -157,6 +161,7 @@ public class LocalDirectoryIngestJobService {
         job.setStatus(BackgroundJob.STATUS_RUNNING);
         job.setStartedAt(Instant.now());
         jobRepository.save(job);
+        auditJobStarted(job);
 
         final LocalDirectoryDataSource source = dataSourceRepository.findById(job.getSourceId()).orElse(null);
         final Batch batch = batchRepository.findById(job.getBatchId()).orElse(null);
@@ -224,6 +229,7 @@ public class LocalDirectoryIngestJobService {
                     doc.setSourceDocId(relative);
                     doc.setImportedAt(java.time.LocalDateTime.now());
                     documentRepository.save(doc);
+                    auditDocumentImport(job, doc, "SUCCESS");
                     bumpProcessed(job);
                 } catch (Exception e) {
                     final String reason = "Failed to read or enqueue \"" + relative + "\": "
@@ -328,6 +334,7 @@ public class LocalDirectoryIngestJobService {
         doc.setPriority(job.getPriority());
         doc.changeStatus("SKIPPED");
         documentRepository.save(doc);
+        auditDocumentImport(job, doc, "SKIPPED");
         bumpSkipped(job);
     }
 
@@ -355,7 +362,78 @@ public class LocalDirectoryIngestJobService {
         if (error != null) job.setErrorMessage(error);
         job.setFinishedAt(Instant.now());
         jobRepository.save(job);
+        auditJobTerminal(job, error);
         notifyOwner(job);
+    }
+
+    /**
+     * Records a {@code DATA_IMPORT_STARTED} audit event when the dispatcher
+     * promotes the job to RUNNING. Attribution goes to the user who queued
+     * the job ({@link BackgroundJob#getCreatedBy()}); job-runner threads have
+     * no SecurityContext so {@code logForUser} is required rather than
+     * {@code log}.
+     */
+    private void auditJobStarted(final BackgroundJob job) {
+        final java.util.Map<String, Object> details = new java.util.LinkedHashMap<>();
+        details.put("jobId", job.getId());
+        details.put("type", BackgroundJob.TYPE_LOCAL_DIRECTORY_INGEST);
+        details.put("sourceId", job.getSourceId() == null ? "" : job.getSourceId());
+        details.put("sourceName", job.getSourceName() == null ? "" : job.getSourceName());
+        details.put("batchId", job.getBatchId() == null ? "" : job.getBatchId());
+        details.put("batchName", job.getBatchName() == null ? "" : job.getBatchName());
+        auditLogService.logForUser(actor(job), "DATA_IMPORT_STARTED",
+                "BackgroundJob", job.getId(),
+                AuditLogService.OUTCOME_SUCCESS, details);
+    }
+
+    /**
+     * Records a single {@code DOCUMENT_IMPORT} audit event per imported
+     * document, including the import job ID and a link back to the source
+     * (system + URL + index + source doc id) so an investigator can trace
+     * any document on the queue back to the file it came from.
+     */
+    private void auditDocumentImport(final BackgroundJob job,
+                                     final ai.philterd.arbiter.model.Document doc,
+                                     final String outcome) {
+        final java.util.Map<String, Object> details = new java.util.LinkedHashMap<>();
+        details.put("jobId", job.getId());
+        details.put("batchId", doc.getBatchId() == null ? "" : doc.getBatchId());
+        details.put("filename", doc.getFilename() == null ? "" : doc.getFilename());
+        details.put("sourceSystem", doc.getSourceSystem() == null ? "" : doc.getSourceSystem());
+        details.put("sourceUrl", doc.getSourceUrl() == null ? "" : doc.getSourceUrl());
+        details.put("sourceIndex", doc.getSourceIndex() == null ? "" : doc.getSourceIndex());
+        details.put("sourceDocId", doc.getSourceDocId() == null ? "" : doc.getSourceDocId());
+        auditLogService.logForUser(actor(job), "DOCUMENT_IMPORT",
+                "Document", doc.getId(),
+                outcome == null ? AuditLogService.OUTCOME_SUCCESS : outcome, details);
+    }
+
+    /**
+     * Records the terminal state of the import job. Outcome reflects the
+     * stored job status — SUCCESS for COMPLETED, FAILURE for FAILED — so a
+     * single audit-log filter on {@code DATA_IMPORT_*} surfaces both the
+     * happy path and the failures.
+     */
+    private void auditJobTerminal(final BackgroundJob job, final String error) {
+        final boolean ok = BackgroundJob.STATUS_COMPLETED.equals(job.getStatus());
+        final String action = ok ? "DATA_IMPORT_COMPLETED" : "DATA_IMPORT_FAILED";
+        final java.util.Map<String, Object> details = new java.util.LinkedHashMap<>();
+        details.put("jobId", job.getId());
+        details.put("type", BackgroundJob.TYPE_LOCAL_DIRECTORY_INGEST);
+        details.put("sourceId", job.getSourceId() == null ? "" : job.getSourceId());
+        details.put("batchId", job.getBatchId() == null ? "" : job.getBatchId());
+        details.put("processed", job.getProcessedDocuments());
+        details.put("failed", job.getFailedDocuments());
+        details.put("skipped", job.getSkippedDocuments());
+        if (error != null && !error.isBlank()) details.put("error", error);
+        auditLogService.logForUser(actor(job), action, "BackgroundJob", job.getId(),
+                ok ? AuditLogService.OUTCOME_SUCCESS : AuditLogService.OUTCOME_FAILURE,
+                details);
+    }
+
+    private static String actor(final BackgroundJob job) {
+        return job.getCreatedBy() == null || job.getCreatedBy().isBlank()
+                ? null : job.getCreatedBy();
     }
 
     private void notifyOwner(final BackgroundJob job) {
