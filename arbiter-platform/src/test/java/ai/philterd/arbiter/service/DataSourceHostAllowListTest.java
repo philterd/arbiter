@@ -9,11 +9,17 @@
  */
 package ai.philterd.arbiter.service;
 
+import ai.philterd.arbiter.model.GeneralSettings;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.ObjectProvider;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class DataSourceHostAllowListTest {
 
@@ -194,5 +200,63 @@ class DataSourceHostAllowListTest {
         assertEquals(2, list.patterns().size());
         assertTrue(list.patterns().contains("a.example.com"));
         assertTrue(list.patterns().contains("*.b.example.com"));
+    }
+
+    // ---------- master switch (Admin → Security) ----------
+
+    @SuppressWarnings("unchecked")
+    private static DataSourceHostAllowList listWithToggle(final String csv,
+                                                          final boolean enabled) {
+        final GeneralSettings settings = new GeneralSettings();
+        settings.setHostAllowListEnabled(enabled);
+        final GeneralSettingsService service = mock(GeneralSettingsService.class);
+        when(service.load()).thenReturn(settings);
+        final ObjectProvider<GeneralSettingsService> provider = mock(ObjectProvider.class);
+        lenient().when(provider.getIfAvailable()).thenReturn(service);
+        when(provider.getIfAvailable(any())).thenReturn(service);
+        return new DataSourceHostAllowList(csv, provider);
+    }
+
+    @Test
+    void masterSwitchOffPermitsHostThatPatternsWouldBlock() {
+        // The patterns explicitly list only example.com; without the toggle off,
+        // a.com would be rejected. With the toggle off, the same URL passes.
+        final DataSourceHostAllowList list = listWithToggle("example.com", false);
+        assertTrue(list.isAllowed("https://a.com:9200/_search"),
+                "master switch off should allow public hosts that patterns reject");
+    }
+
+    @Test
+    void masterSwitchOffPermitsPrivateRangeHost() {
+        // The default-deny on RFC-1918 / loopback is itself part of the allow-list
+        // — when the master switch is off, private addresses also pass. This is
+        // the SSRF re-opening the docs warn about, so it has to be explicit.
+        final DataSourceHostAllowList list = listWithToggle("", false);
+        assertTrue(list.isAllowed("http://127.0.0.1:9200"),
+                "master switch off should bypass the private-range default-deny");
+        assertTrue(list.isAllowed("http://10.0.0.5:9200"));
+        assertTrue(list.isAllowed("http://192.168.1.10:9200"));
+    }
+
+    @Test
+    void masterSwitchOnRestoresOriginalEnforcement() {
+        // Sanity: with the toggle on, the same constructor produces the same
+        // allow/deny decisions as the test-only constructor with the same CSV.
+        final DataSourceHostAllowList list = listWithToggle("example.com", true);
+        assertTrue(list.isAllowed("https://example.com:9200"));
+        assertFalse(list.isAllowed("https://other.com:9200"));
+        assertFalse(list.isAllowed("http://127.0.0.1:9200"),
+                "private-range default-deny must still apply when the master switch is on");
+    }
+
+    @Test
+    void masterSwitchOffEvenForBlankUrlReturnsFalse() {
+        // The toggle relaxes the pattern checks but doesn't accept malformed
+        // input — a blank/null URL still rejects, since there's no host to
+        // even attempt a connection against.
+        final DataSourceHostAllowList list = listWithToggle("example.com", false);
+        assertFalse(list.isAllowed(null));
+        assertFalse(list.isAllowed(""));
+        assertFalse(list.isAllowed("   "));
     }
 }

@@ -42,6 +42,15 @@ public class User {
     private boolean mfaEnabled;
     private String totpSecret;
 
+    /**
+     * When true, the user must change their password on next login before they
+     * can reach any other page. Set when an admin creates an account with an
+     * initial password, or resets an existing user's password — the admin knows
+     * the password and the user must rotate it before doing anything else.
+     * Cleared when the user successfully changes their password from Settings.
+     */
+    private boolean mustChangePassword;
+
     public User() {
     }
 
@@ -50,6 +59,9 @@ public class User {
 
     public boolean isMfaEnabled() { return mfaEnabled; }
     public void setMfaEnabled(final boolean mfaEnabled) { this.mfaEnabled = mfaEnabled; }
+
+    public boolean isMustChangePassword() { return mustChangePassword; }
+    public void setMustChangePassword(final boolean mustChangePassword) { this.mustChangePassword = mustChangePassword; }
 
     public String getTotpSecret() { return totpSecret; }
     public void setTotpSecret(final String totpSecret) { this.totpSecret = totpSecret; }

@@ -52,7 +52,9 @@ public class DocumentAccessService {
      * repository lookup.
      */
     public void requireDocumentAccess(final Authentication auth, final Document document) {
-        if (AuthUtils.isAdmin(auth)) return;
+        // Admins and auditors both bypass the group lookup; auditors' read-only contract
+        // is enforced by AuditorWriteRejectFilter, not by this service.
+        if (AuthUtils.isAdminOrAuditor(auth)) return;
         final Batch batch = document.getBatchId() == null ? null
                 : batchRepository.findById(document.getBatchId()).orElse(null);
         if (!batchAccessService.canAccessBatch(auth, batch)) {
@@ -76,7 +78,9 @@ public class DocumentAccessService {
         }
         final Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Span not found."));
-        if (AuthUtils.isAdmin(auth)) return document;
+        // Admins and auditors both bypass the group lookup; auditors' read-only contract
+        // is enforced by AuditorWriteRejectFilter, not by this service.
+        if (AuthUtils.isAdminOrAuditor(auth)) return document;
         final Batch batch = document.getBatchId() == null ? null
                 : batchRepository.findById(document.getBatchId()).orElse(null);
         if (!batchAccessService.canAccessBatch(auth, batch)) {

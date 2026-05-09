@@ -1,0 +1,13 @@
+Meeting notes — Q2 onboarding sync
+Date: April 5, 2024
+Attendees: Ada Lovelace (ada@analytical.example), Charles Babbage
+           (charles@analytical.example), Grace Hopper (USMC, retired)
+
+Action items:
+- Ada to finalize the difference-engine pricing sheet by April 12.
+- Grace to schedule a follow-up with finance. Reach her at 757-555-0188
+  or grace.hopper@compass.example.
+- Charles to send the signed NDA to legal@analytical.example by April 9.
+
+Next meeting: April 19, 2:00 PM EST. Conference bridge 800-555-0123,
+PIN 1492.

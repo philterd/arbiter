@@ -10,8 +10,10 @@
 package ai.philterd.arbiter.service;
 
 import ai.philterd.arbiter.model.ElasticsearchDataSource;
+import ai.philterd.arbiter.model.LocalDirectoryDataSource;
 import ai.philterd.arbiter.model.OpenSearchDataSource;
 import ai.philterd.arbiter.repository.ElasticsearchDataSourceRepository;
+import ai.philterd.arbiter.repository.LocalDirectoryDataSourceRepository;
 import ai.philterd.arbiter.repository.OpenSearchDataSourceRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,12 +38,16 @@ import java.util.UUID;
 /**
  * Seeds the OpenSearch and Elasticsearch backends shipped with the demo Docker compose: each gets
  * a {@code documents} index with a {@code document}/{@code filename} mapping and 100 synthetic
- * records. Then registers two Arbiter data sources ("Demo OpenSearch" and "Demo Elasticsearch")
- * pointing at those backends via their Docker service names.
+ * records. Then registers three Arbiter data sources ("Demo OpenSearch", "Demo Elasticsearch",
+ * and "Demo Local Directory") pointing at those backends via their Docker service names — the
+ * Local Directory source points at the {@code /app/local-files} mount that {@code docker-compose}
+ * provides as a test fixture.
  *
  * <p>Idempotent — if the indexes already have data or the data sources already exist, the seed
- * step is skipped. Best-effort: if either backend is unreachable (e.g. running tests without the
- * Docker compose stack) the loader logs and moves on.
+ * step is skipped. Best-effort: if either search backend is unreachable (e.g. running tests
+ * without the Docker compose stack) the loader logs and moves on. The local-directory source
+ * is registered regardless of whether the directory currently exists; the ingest job will
+ * surface a clear error if an admin tries to use it without the mount in place.
  */
 @Component
 @Order(3)
@@ -54,20 +60,26 @@ public class DemoDataSourceLoader implements ApplicationRunner {
 
     private final OpenSearchDataSourceRepository openSearchRepository;
     private final ElasticsearchDataSourceRepository elasticsearchRepository;
+    private final LocalDirectoryDataSourceRepository localDirectoryRepository;
     private final String opensearchEndpoint;
     private final String elasticsearchEndpoint;
+    private final String localDirectoryPath;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
 
     public DemoDataSourceLoader(final OpenSearchDataSourceRepository openSearchRepository,
                                 final ElasticsearchDataSourceRepository elasticsearchRepository,
+                                final LocalDirectoryDataSourceRepository localDirectoryRepository,
                                 @Value("${arbiter.demo-data.opensearch-endpoint:http://opensearch:9200}") final String opensearchEndpoint,
-                                @Value("${arbiter.demo-data.elasticsearch-endpoint:http://elasticsearch:9200}") final String elasticsearchEndpoint) {
+                                @Value("${arbiter.demo-data.elasticsearch-endpoint:http://elasticsearch:9200}") final String elasticsearchEndpoint,
+                                @Value("${arbiter.demo-data.local-directory-path:/app/local-files}") final String localDirectoryPath) {
         this.openSearchRepository = openSearchRepository;
         this.elasticsearchRepository = elasticsearchRepository;
+        this.localDirectoryRepository = localDirectoryRepository;
         this.opensearchEndpoint = opensearchEndpoint;
         this.elasticsearchEndpoint = elasticsearchEndpoint;
+        this.localDirectoryPath = localDirectoryPath;
     }
 
     @Override
@@ -76,6 +88,7 @@ public class DemoDataSourceLoader implements ApplicationRunner {
         seedBackend("Elasticsearch", elasticsearchEndpoint);
         ensureOpenSearchDataSource();
         ensureElasticsearchDataSource();
+        ensureLocalDirectoryDataSource();
     }
 
     private void seedBackend(final String label, final String endpoint) {
@@ -187,6 +200,24 @@ public class DemoDataSourceLoader implements ApplicationRunner {
         ds.setCreatedAt(LocalDateTime.now());
         elasticsearchRepository.save(ds);
         log.info("Registered demo Elasticsearch data source '{}'.", name);
+    }
+
+    private void ensureLocalDirectoryDataSource() {
+        final String name = "Demo Local Directory";
+        if (localDirectoryRepository.findFirstByNameIgnoreCase(name).isPresent()) {
+            return;
+        }
+        final LocalDirectoryDataSource ds = new LocalDirectoryDataSource();
+        ds.setId(UUID.randomUUID().toString());
+        ds.setName(name);
+        // Path inside the container — docker-compose mounts ./local-files to /app/local-files.
+        // The default '*.txt' glob picks up the bundled fixtures; an admin can edit the source
+        // to '**.pdf' or another pattern to ingest different files dropped into the same dir.
+        ds.setDirectoryPath(localDirectoryPath);
+        ds.setFilenameGlob("*.txt");
+        ds.setCreatedAt(LocalDateTime.now());
+        localDirectoryRepository.save(ds);
+        log.info("Registered demo local-directory data source '{}' at {}.", name, localDirectoryPath);
     }
 
     private HttpResponse<String> send(final HttpRequest.Builder b) throws Exception {

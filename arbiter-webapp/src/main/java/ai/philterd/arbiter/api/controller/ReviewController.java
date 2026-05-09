@@ -244,7 +244,14 @@ public class ReviewController {
         return Map.of("id", id, "deleted", true);
     }
 
-    @PostMapping("/spans/{id}/redact-like")
+    /**
+     * {@code consumes = application/json} is a CSRF defence: a cross-site simple
+     * form POST sends form-urlencoded data, which the JSON content-type
+     * requirement rejects up front. The browser UI's fetch already sends an
+     * empty JSON content-type header, so legitimate calls are unaffected.
+     */
+    @PostMapping(value = "/spans/{id}/redact-like",
+            consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     public Map<String, Object> redactAllLike(@PathVariable final String id, final Authentication authentication) {
         final Span source = spanRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found."));
@@ -347,7 +354,8 @@ public class ReviewController {
 
     public record ResetSpanRequest(String originalStatus) {}
 
-    @PostMapping("/spans/{id}/reset")
+    @PostMapping(value = "/spans/{id}/reset",
+            consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     public Span resetSpan(@PathVariable final String id,
                           @RequestBody(required = false) final ResetSpanRequest request,
                           final Authentication authentication) {

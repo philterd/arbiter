@@ -11,7 +11,6 @@ package ai.philterd.arbiter.service;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import software.amazon.awssdk.regions.Region;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -21,14 +20,13 @@ import java.util.stream.Stream;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Tests for {@link DestinationTester}. Local directory tests run against a real
- * temporary directory; SQS region parsing is pure logic. S3 and SQS network
- * calls are not exercised here — those require live AWS or LocalStack and are
- * covered by the controller's mock-based tests in arbiter-webapp.
+ * temporary directory. S3 network calls are not exercised here — those require
+ * live AWS or LocalStack and are covered by the controller's mock-based tests
+ * in arbiter-webapp.
  */
 class DestinationTesterTest {
 
@@ -117,53 +115,4 @@ class DestinationTesterTest {
         assertEquals("Provide both Access key and Secret key, or leave both blank.", result.getError());
     }
 
-    // --- SQS input validation + region parsing -----------------------------
-
-    @Test
-    void sqsRejectsBlankUrl() {
-        final DestinationTester.TestResult result = tester.testSqs("  ", null, null);
-        assertFalse(result.isOk());
-        assertEquals("Queue URL is required.", result.getError());
-    }
-
-    @Test
-    void sqsRejectsHalfSuppliedCredentials() {
-        final DestinationTester.TestResult result = tester.testSqs(
-                "https://sqs.us-east-1.amazonaws.com/123/q", "", "secret");
-        assertFalse(result.isOk());
-        assertEquals("Provide both Access key and Secret key, or leave both blank.", result.getError());
-    }
-
-    @Test
-    void sqsRejectsMalformedQueueUrlMissingRegion() {
-        final DestinationTester.TestResult result = tester.testSqs(
-                "https://example.com/some/path", null, null);
-        assertFalse(result.isOk());
-        assertNotNull(result.getError());
-        assertTrue(result.getError().startsWith("Could not parse AWS region from the queue URL"));
-    }
-
-    @Test
-    void sqsRegionParserExtractsRegionFromTypicalUrl() {
-        final Region region = DestinationTester.parseRegionFromQueueUrl(
-                "https://sqs.us-east-1.amazonaws.com/123456789012/MyQueue");
-        assertEquals(Region.US_EAST_1, region);
-    }
-
-    @Test
-    void sqsRegionParserExtractsRegionFromOtherRegionUrl() {
-        final Region region = DestinationTester.parseRegionFromQueueUrl(
-                "https://sqs.eu-west-2.amazonaws.com/123456789012/MyQueue");
-        assertEquals(Region.EU_WEST_2, region);
-    }
-
-    @Test
-    void sqsRegionParserRejectsNonAwsHost() {
-        assertNull(DestinationTester.parseRegionFromQueueUrl("https://example.com/q"));
-    }
-
-    @Test
-    void sqsRegionParserRejectsHostWithoutRegion() {
-        assertNull(DestinationTester.parseRegionFromQueueUrl("https://sqs.amazonaws.com/q"));
-    }
 }

@@ -15,7 +15,7 @@ collection in MongoDB. There are two ways to view and export it:
 
 | Action                              | Resource    | Notes                                              |
 | ----------------------------------- | ----------- | -------------------------------------------------- |
-| `LOGIN` (success / failure)         | User        | Authentication outcome                              |
+| `LOGIN` (success / failure)         | User        | Authentication outcome. Every form-login attempt produces one row regardless of result. A failure row carries a `reason` detail naming the underlying exception (e.g. `BadCredentialsException`, `LockedException`, `UsernameNotFoundException`) so an operator can tell wrong-password from unknown-user from rate-limited at a glance. The attempted email is always recorded, even when the email doesn't match a known account. |
 | `LOGOUT`                            | User        | Manual sign-out                                     |
 | `BATCH_CREATE`                      | Batch       | Includes name, group, thresholds                    |
 | `BATCH_GROUP_CHANGE`                | Batch       | Old → new group                                     |

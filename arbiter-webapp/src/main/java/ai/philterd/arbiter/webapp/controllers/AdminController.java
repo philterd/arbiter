@@ -92,14 +92,25 @@ public class AdminController {
     }
 
     /**
-     * Issue an invitation for a new user. The recipient sets their own password via the
-     * link in the email — no plaintext password is ever typed by the admin, written to a
-     * log, or transported over SMTP. Outbound email must be configured: with no SMTP path
-     * the recipient could not receive the link, so the create is refused up front.
+     * Create a new user. There are two supported flows:
+     * <ol>
+     *   <li><strong>Initial password</strong>: the admin types a one-time password
+     *       in the form. The account is created immediately, marked
+     *       {@code mustChangePassword=true}, and the admin reads the password to
+     *       the recipient out-of-band (Slack, phone, in person). On first sign-in
+     *       the user is forced to /settings/password before reaching any other
+     *       page. SMTP is not required.</li>
+     *   <li><strong>Email invitation</strong>: leave the password field empty and
+     *       Arbiter generates an invitation link, e-mails it to the recipient, and
+     *       the recipient sets their own password via the link. SMTP must be
+     *       configured for this flow.</li>
+     * </ol>
+     * The two flows are mutually exclusive — the admin picks one per create.
      */
     @PostMapping("/users")
     public String create(@RequestParam("email") final String email,
                          @RequestParam(value = "admin", defaultValue = "false") final boolean admin,
+                         @RequestParam(value = "initialPassword", required = false) final String initialPassword,
                          final RedirectAttributes redirectAttributes) {
         final String trimmed = email == null ? "" : email.trim().toLowerCase();
         if (trimmed.isEmpty()) {
@@ -114,11 +125,40 @@ public class AdminController {
             redirectAttributes.addFlashAttribute("error", "Email \"" + trimmed + "\" is already taken.");
             return "redirect:/admin/users";
         }
+
+        final boolean usePassword = initialPassword != null && !initialPassword.isEmpty();
+        if (usePassword) {
+            // SMTP-free path: the admin sets a one-time password and is responsible
+            // for delivering it to the recipient out-of-band. The recipient is
+            // forced to rotate it on first login.
+            if (initialPassword.length() < 12) {
+                redirectAttributes.addFlashAttribute("error",
+                        "Initial password must be at least 12 characters.");
+                return "redirect:/admin/users";
+            }
+            final User user = new User();
+            user.setId(java.util.UUID.randomUUID().toString());
+            user.setEmail(trimmed);
+            user.setPasswordHash(passwordEncoder.encode(initialPassword));
+            user.setRoles(Set.of(admin ? Roles.ADMIN : Roles.USER));
+            user.setCreatedAt(java.time.LocalDateTime.now());
+            user.setMustChangePassword(true);
+            userRepository.save(user);
+            auditLogService.log("USER_CREATE", "User", user.getId(),
+                    Map.of("email", trimmed, "admin", admin, "initialPasswordSet", true));
+            redirectAttributes.addFlashAttribute("success",
+                    "User \"" + trimmed + "\" created. Share the password with them out-of-band; "
+                            + "they will be required to change it at first sign-in.");
+            return "redirect:/admin/users";
+        }
+
+        // Email-invitation path: requires outbound SMTP.
         final NotificationSettings settings = notificationSettingsService.load();
         if (!settings.isEnabled()) {
             redirectAttributes.addFlashAttribute("error",
                     "Outbound email is not enabled, so an invitation cannot be sent. "
-                            + "Configure SMTP under Admin → Notifications first.");
+                            + "Either set an initial password above, or configure SMTP under "
+                            + "Admin → Notifications.");
             return "redirect:/admin/users";
         }
 
@@ -138,9 +178,12 @@ public class AdminController {
         return "redirect:/admin/users";
     }
 
+    /** Allowed values for the role select on the Edit-user form. */
+    private static final Set<String> ASSIGNABLE_ROLES = Set.of(Roles.USER, Roles.ADMIN, Roles.AUDITOR);
+
     @PostMapping("/users/{userId}/edit")
     public String edit(@PathVariable final String userId,
-                       @RequestParam(value = "admin", defaultValue = "false") final boolean admin,
+                       @RequestParam(value = "role", defaultValue = "USER") final String role,
                        @RequestParam(value = "newPassword", required = false) final String newPassword,
                        final Authentication authentication,
                        final RedirectAttributes redirectAttributes) {
@@ -158,15 +201,23 @@ public class AdminController {
                     "You cannot edit your own account here. Use Settings to change your password or 2FA.");
             return "redirect:/admin/users";
         }
+        final String requestedRole = role == null ? "" : role.trim().toUpperCase();
+        if (!ASSIGNABLE_ROLES.contains(requestedRole)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Unknown role \"" + role + "\". Choose one of User, Admin, Auditor.");
+            return "redirect:/admin/users";
+        }
         final boolean wasAdmin = user.getRoles() != null && user.getRoles().contains(Roles.ADMIN);
-        // Last-admin guard: refuse a demotion that would leave the system with zero admins,
-        // which would lock everyone out of the /admin/** surface.
-        if (wasAdmin && !admin && userRepository.countByRolesContaining(Roles.ADMIN) <= 1) {
+        final boolean willBeAdmin = Roles.ADMIN.equals(requestedRole);
+        // Last-admin guard: refuse a transition that would leave the system with zero admins,
+        // which would lock everyone out of the /admin/** surface. Auditors don't count toward
+        // the admin tally — converting the last admin to AUDITOR also trips this guard.
+        if (wasAdmin && !willBeAdmin && userRepository.countByRolesContaining(Roles.ADMIN) <= 1) {
             redirectAttributes.addFlashAttribute("error",
                     "Cannot remove admin from \"" + user.getEmail() + "\": at least one administrator is required.");
             return "redirect:/admin/users";
         }
-        user.setRoles(rolesFor(admin));
+        user.setRoles(Set.of(requestedRole));
         boolean passwordReset = false;
         if (newPassword != null && !newPassword.isEmpty()) {
             if (newPassword.length() < 12) {
@@ -174,16 +225,30 @@ public class AdminController {
                 return "redirect:/admin/users";
             }
             user.setPasswordHash(passwordEncoder.encode(newPassword));
+            // The admin knows this password but the user does not yet — force a
+            // rotation on the user's next sign-in so the admin's knowledge of the
+            // hash doesn't outlive a single login.
+            user.setMustChangePassword(true);
             passwordReset = true;
         }
         userRepository.save(user);
         auditLogService.log("USER_UPDATE", "User", user.getId(),
                 Map.of("email", user.getEmail() == null ? "" : user.getEmail(),
-                        "previousAdmin", wasAdmin,
-                        "admin", admin,
+                        "previousRole", primaryRole(user.getRoles(), wasAdmin),
+                        "role", requestedRole,
                         "passwordReset", passwordReset));
         redirectAttributes.addFlashAttribute("success", "User \"" + user.getEmail() + "\" updated.");
         return "redirect:/admin/users";
+    }
+
+    /** Best-effort name of the user's primary role for the audit-log payload. Falls back
+     *  to "USER" when the set is empty so old rows that pre-date this audit field still
+     *  read sensibly. */
+    private static String primaryRole(final Set<String> roles, final boolean wasAdmin) {
+        if (wasAdmin) return Roles.ADMIN;
+        if (roles == null || roles.isEmpty()) return Roles.USER;
+        if (roles.contains(Roles.AUDITOR)) return Roles.AUDITOR;
+        return Roles.USER;
     }
 
     @PostMapping("/users/{userId}/delete")
@@ -225,6 +290,7 @@ public class AdminController {
         return "redirect:/admin/users";
     }
 
+    /** Helper used by the invitation flow, which still presents a binary admin checkbox. */
     private static Set<String> rolesFor(final boolean admin) {
         return Set.of(admin ? Roles.ADMIN : Roles.USER);
     }

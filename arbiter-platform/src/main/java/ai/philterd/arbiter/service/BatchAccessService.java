@@ -57,14 +57,53 @@ public class BatchAccessService {
 
     /**
      * Returns {@code true} if the caller may access {@code batch} — i.e. they are an admin
-     * or hold a group membership matching {@link Batch#getGroupId()}. A {@code null} batch
-     * or a batch without a group id is treated as inaccessible to non-admins.
+     * or auditor (both see all batches), or hold a group membership matching
+     * {@link Batch#getGroupId()}. A {@code null} batch or a batch without a group id is
+     * treated as inaccessible to non-admins.
+     *
+     * <p>Auditors are admitted alongside admins because they are the global read role.
+     * The write-side gating that prevents auditors from mutating any batch lives in the
+     * {@code AuditorWriteRejectFilter} on the security pipeline, so it is safe to widen
+     * read access here without scattering write checks across every controller.
      */
     public boolean canAccessBatch(final Authentication auth, final Batch batch) {
-        if (AuthUtils.isAdmin(auth)) return true;
+        if (AuthUtils.isAdminOrAuditor(auth)) return true;
         if (batch == null || batch.getGroupId() == null) return false;
         final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(
                 auth == null ? null : auth.getName());
         return myGroupIds.contains(batch.getGroupId());
+    }
+
+    /**
+     * Returns {@code true} when the caller may perform admin-level mutations on
+     * {@code batch} — i.e. they are an admin (global authority) or a designated
+     * <em>team lead</em> of the batch's group. Auditors are explicitly excluded:
+     * the role is read-only and {@link AuthUtils#isAdminOrAuditor(Authentication)} is
+     * not the right check here.
+     *
+     * <p>Team leadership is per-group: the same user can lead group A and merely
+     * be a member of group B. Use this method to gate batch-level write actions
+     * (create / edit / close, weight overrides, threshold changes); use
+     * {@link #canAccessBatch(Authentication, Batch)} for read decisions.
+     */
+    public boolean canLeadBatch(final Authentication auth, final Batch batch) {
+        if (AuthUtils.isAdmin(auth)) return true;
+        if (batch == null || batch.getGroupId() == null) return false;
+        final Set<String> myLedGroupIds = userGroupsService.leadGroupIdsForEmail(
+                auth == null ? null : auth.getName());
+        return myLedGroupIds.contains(batch.getGroupId());
+    }
+
+    /**
+     * Returns {@code true} when the caller leads the named group. Used to gate
+     * "create a batch in this group" before a Batch object exists. Admins are
+     * implicitly authorized for every group.
+     */
+    public boolean canLeadGroup(final Authentication auth, final String groupId) {
+        if (AuthUtils.isAdmin(auth)) return true;
+        if (groupId == null || groupId.isBlank()) return false;
+        final Set<String> myLedGroupIds = userGroupsService.leadGroupIdsForEmail(
+                auth == null ? null : auth.getName());
+        return myLedGroupIds.contains(groupId);
     }
 }

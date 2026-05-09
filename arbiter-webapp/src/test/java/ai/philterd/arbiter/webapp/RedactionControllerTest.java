@@ -35,7 +35,6 @@ import ai.philterd.arbiter.repository.PendingUploadRepository;
 import ai.philterd.arbiter.repository.RelationalDbDataSourceRepository;
 import ai.philterd.arbiter.repository.S3DataSourceRepository;
 import ai.philterd.arbiter.repository.S3DestinationRepository;
-import ai.philterd.arbiter.repository.SqsDestinationRepository;
 import ai.philterd.arbiter.repository.RedactionCertificateRepository;
 import ai.philterd.arbiter.repository.PhilterDefaultsRepository;
 import ai.philterd.arbiter.repository.PhilterInstanceRepository;
@@ -141,9 +140,6 @@ public class RedactionControllerTest {
 
     @MockBean
     private S3DestinationRepository s3DestinationRepository;
-
-    @MockBean
-    private SqsDestinationRepository sqsDestinationRepository;
 
     @MockBean
     private DestinationTester destinationTester;

@@ -2,14 +2,19 @@
 
 ## Users and roles
 
-A **user** signs in with an **email address** and a password. Each user has one
-of two roles:
+A **user** signs in with an **email address** and a password. Each user has
+exactly one role:
 
-- **`USER`** — can view and review the batches and documents in groups they
-  belong to.
+- **`USER`** — the default. Can view and review the batches and documents in
+  groups they belong to.
 - **`ADMIN`** — has full visibility (with an opt-in "Limit to my groups"
   filter) and exclusive access to administrative actions like creating batches,
   closing batches, and managing users / groups / settings.
+- **`AUDITOR`** — read-only counterpart to `ADMIN`. Sees the same cross-group
+  data an admin sees (queue, search, audit log, reports, batches), but cannot
+  mutate any state. Useful for compliance, legal, or analyst roles that need
+  to inspect activity without being able to change it. See
+  [Roles and permissions](reference/roles.md) for the full feature matrix.
 
 Each user can also generate a personal **API key** for programmatic access.
 API keys carry the same permissions as the owning user account.
@@ -24,9 +29,20 @@ exactly one group, and that assignment is what scopes visibility:
 - An `ADMIN` sees everything by default. The "Limit to my groups" checkbox on
   the queue and batches pages flips an admin to the same scoped view a regular
   user would see.
+- An `AUDITOR` sees everything an admin sees and is not bound to a group; the
+  role is intentionally cross-cutting because the whole point is a global read.
 
 A group must have at least one member. Admins manage groups under
 **Admin → Groups**.
+
+Within a group, an admin can additionally designate one or more members as
+**team leads**. A team lead is a regular `USER` who, *for that one group*,
+gains the operational authority to create batches, close them, and change
+their settings (Philter instance, domain, weights, thresholds). Team
+leadership is per-group: a user can lead group A and remain a regular member
+of group B. This lets day-to-day batch operations be delegated without
+granting site-wide admin authority. See
+[Team leads](reference/roles.md#team-leads) for the full description.
 
 ## Batches
 
@@ -45,8 +61,10 @@ A **batch** is a container for documents. It has:
 | Domain                | Optional grouping tag used for reporting                                               |
 | Closed                | A closed batch refuses new documents (existing ones remain reviewable)                 |
 
-Only admins can create or close a batch. Settings (group, thresholds, weights)
-can be changed at any time by anyone with access to the batch.
+Admins can create or close any batch, and team leads can create or close
+batches in groups they lead. Most batch settings (Philter instance, domain,
+thresholds, weights) can be changed by an admin or by a team lead of the
+batch's group; reassigning a batch to a different group is admin-only.
 
 ## Documents
 

@@ -215,7 +215,14 @@ public class LlmJudgeController {
         }
     }
 
-    @PostMapping("/spans/{spanId}/second-opinion")
+    /**
+     * {@code consumes = application/json} is a CSRF defence — a cross-site
+     * simple form POST sends form-urlencoded data, which the JSON content-type
+     * requirement rejects before any side effects fire. The review-page fetch
+     * already sets the JSON content type.
+     */
+    @PostMapping(value = "/spans/{spanId}/second-opinion",
+            consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     public Map<String, Object> secondOpinion(@PathVariable final String spanId,
                                              final Authentication authentication) {
         final Span span = spanRepository.findById(spanId)

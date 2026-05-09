@@ -29,6 +29,20 @@ public class Group {
 
     private Set<String> userIds = new HashSet<>();
 
+    /**
+     * Subset of {@link #userIds} that lead this group. A team lead has admin-equivalent
+     * authority over the batches assigned to <em>this</em> group (create / edit / close,
+     * etc.) but no global permissions and no authority over other groups. Leadership is
+     * per-group: the same user can lead group A and merely be a member of group B.
+     *
+     * <p>Invariant: every entry in {@code leaderUserIds} must also appear in
+     * {@code userIds}. The admin Groups UI enforces this on save.
+     *
+     * <p>Pre-existing group rows that pre-date this field deserialize to an empty set,
+     * which is correct — no leaders until an admin designates one.
+     */
+    private Set<String> leaderUserIds = new HashSet<>();
+
     private LocalDateTime createdAt;
 
     public Group() {
@@ -59,5 +73,14 @@ public class Group {
 
     public void setUserIds(final Set<String> userIds) {
         this.userIds = userIds;
+    }
+
+    public Set<String> getLeaderUserIds() {
+        if (leaderUserIds == null) leaderUserIds = new HashSet<>();
+        return leaderUserIds;
+    }
+
+    public void setLeaderUserIds(final Set<String> leaderUserIds) {
+        this.leaderUserIds = leaderUserIds == null ? new HashSet<>() : leaderUserIds;
     }
 }

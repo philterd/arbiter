@@ -126,6 +126,46 @@ public class AuditLogAdminController {
         return auditLogQueryService.find(start, end, userEmail, resourceType, resourceId, PREVIEW_LIMIT);
     }
 
+    /** Hard cap on page size accepted from the query UI. The service caps to 200
+     *  defensively; this matches that ceiling so the validation error message and
+     *  the actual behavior agree. */
+    private static final int MAX_PAGE_SIZE = 200;
+
+    /**
+     * Paged investigation query for the Query Audit Log tab. Returns a slice of
+     * entries plus the total matching count so the client can render pager
+     * controls. Sorted newest-first — investigators are typically chasing the
+     * most recent activity, not the oldest.
+     */
+    @GetMapping("/query")
+    @ResponseBody
+    public AuditLogQueryService.Result query(@RequestParam(name = "startTime", required = false) final String startTime,
+                                             @RequestParam(name = "endTime", required = false) final String endTime,
+                                             @RequestParam(name = "userEmail", required = false) final String userEmail,
+                                             @RequestParam(name = "action", required = false) final String action,
+                                             @RequestParam(name = "resourceType", required = false) final String resourceType,
+                                             @RequestParam(name = "resourceId", required = false) final String resourceId,
+                                             @RequestParam(name = "outcome", required = false) final String outcome,
+                                             @RequestParam(name = "ipAddress", required = false) final String ipAddress,
+                                             @RequestParam(name = "page", defaultValue = "0") final int page,
+                                             @RequestParam(name = "pageSize", defaultValue = "25") final int pageSize) {
+        final Instant start = parseInstant(startTime, "startTime");
+        final Instant end = parseInstant(endTime, "endTime");
+        if (start != null && end != null && start.isAfter(end)) {
+            throw new ResponseStatusException(BAD_REQUEST, "startTime must be before endTime");
+        }
+        if (page < 0) {
+            throw new ResponseStatusException(BAD_REQUEST, "page must be >= 0");
+        }
+        if (pageSize <= 0 || pageSize > MAX_PAGE_SIZE) {
+            throw new ResponseStatusException(BAD_REQUEST,
+                    "pageSize must be between 1 and " + MAX_PAGE_SIZE);
+        }
+        final AuditLogQueryService.QueryFilters filters = new AuditLogQueryService.QueryFilters(
+                start, end, userEmail, action, resourceType, resourceId, outcome, ipAddress);
+        return auditLogQueryService.query(filters, page, pageSize);
+    }
+
     private void writeCsv(final Writer w, final List<AuditLog> entries) throws IOException {
         w.write("timestamp,userEmail,userId,action,resourceType,resourceId,outcome,ipAddress,details\n");
         for (AuditLog e : entries) {

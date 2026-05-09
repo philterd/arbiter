@@ -92,7 +92,9 @@ public class ReportingController {
                        @RequestParam(name = "domain", required = false) final List<String> domain,
                        final Authentication authentication,
                        final Model model) {
-        final boolean admin = AuthUtils.isAdmin(authentication);
+        // Reports show cross-group data to admins and auditors alike. Auditors land
+        // here too — the GET on /reporting is admitted by SecurityConfig.
+        final boolean admin = AuthUtils.isAdminOrAuditor(authentication);
         final boolean restrict = !admin;
         final Set<String> myGroupIds = restrict
                 ? userGroupsService.groupIdsForEmail(authentication == null ? null : authentication.getName())

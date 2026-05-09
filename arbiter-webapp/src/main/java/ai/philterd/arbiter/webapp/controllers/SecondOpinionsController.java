@@ -91,7 +91,8 @@ public class SecondOpinionsController {
     @GetMapping("/second-opinions")
     public String list(final Authentication authentication, final Model model) {
         final String email = authentication == null ? null : authentication.getName();
-        final boolean admin = AuthUtils.isAdmin(authentication);
+        // Cross-group view for both admins and auditors; this is a read.
+        final boolean admin = AuthUtils.isAdminOrAuditor(authentication);
         final Set<String> myGroupIds = admin
                 ? Set.of()
                 : userGroupsService.groupIdsForEmail(email);
@@ -156,13 +157,15 @@ public class SecondOpinionsController {
             @PathVariable final String id,
             @RequestParam(value = "resolveActors", defaultValue = "false") final boolean resolveActors,
             final Authentication authentication) {
-        if (!AuthUtils.isAdmin(authentication)) {
+        // Audit history with span text + actor identity is exactly what auditors need —
+        // it's a read of audit data. Admins also have access for the same reason.
+        if (!AuthUtils.isAdminOrAuditor(authentication)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "Audit history with span text is restricted to administrators.");
+                    "Audit history with span text is restricted to administrators and auditors.");
         }
-        if (resolveActors && !AuthUtils.isAdmin(authentication)) {
+        if (resolveActors && !AuthUtils.isAdminOrAuditor(authentication)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "resolveActors requires ROLE_ADMIN.");
+                    "resolveActors requires ROLE_ADMIN or ROLE_AUDITOR.");
         }
         final Document document = documentRepository.findById(id).orElse(null);
         if (document == null) return List.of();
@@ -220,7 +223,9 @@ public class SecondOpinionsController {
     public void documentHistoryCsv(@PathVariable final String id,
                                    final Authentication authentication,
                                    final HttpServletResponse response) throws IOException {
-        if (!AuthUtils.isAdmin(authentication)) {
+        // CSV export of the audit history is read-only chain-of-custody — auditors get it
+        // for the same reason admins do.
+        if (!AuthUtils.isAdminOrAuditor(authentication)) {
             response.sendError(HttpServletResponse.SC_FORBIDDEN);
             return;
         }
@@ -328,9 +333,9 @@ public class SecondOpinionsController {
             @PathVariable final String id,
             @RequestParam(value = "resolveActors", defaultValue = "false") final boolean resolveActors,
             final Authentication authentication) {
-        if (resolveActors && !AuthUtils.isAdmin(authentication)) {
+        if (resolveActors && !AuthUtils.isAdminOrAuditor(authentication)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "resolveActors requires ROLE_ADMIN.");
+                    "resolveActors requires ROLE_ADMIN or ROLE_AUDITOR.");
         }
         final Span span = spanRepository.findById(id).orElse(null);
         if (span == null) return List.of();
@@ -339,7 +344,7 @@ public class SecondOpinionsController {
         final Document document = span.getDocumentId() == null ? null
                 : documentRepository.findById(span.getDocumentId()).orElse(null);
         if (document == null) return List.of();
-        if (!AuthUtils.isAdmin(authentication)) {
+        if (!AuthUtils.isAdminOrAuditor(authentication)) {
             final Batch batch = document.getBatchId() == null ? null
                     : batchRepository.findById(document.getBatchId()).orElse(null);
             if (batch == null || batch.getGroupId() == null) return List.of();

@@ -8,26 +8,42 @@ role.
 The user list shows every account, sorted by email. The current admin's row is
 marked **(you)** — you cannot delete yourself.
 
-### Create a user
+### Add a user
 
-Fill in **Email** and **Password**, optionally tick **Admin**, and click
-**Create user**.
+The Add-user form supports two flows; pick one per user.
 
-- The email is validated for shape (`local@domain.tld`) and lowercased before
-  storage.
-- The password must be at least **12 characters**. It is stored as a hash —
-  Arbiter never keeps plaintext passwords.
+**1. Set an initial password yourself (works without SMTP).** Fill in
+**Email**, type an **Initial password** (at least 12 characters), optionally
+tick **Admin**, and click **Add user**. The account is created immediately
+and the password you typed is stored as a hash — Arbiter never keeps
+plaintext passwords. **Communicate the password to the recipient
+out-of-band** (direct message, phone, in person). On their first sign-in
+they are redirected to **Settings → Change password** and cannot reach any
+other page until they choose a new password. This is the recommended flow
+when outbound email is not configured.
 
-The user can sign in immediately. They have access to the batches and
-documents in any group they belong to (or all of them, if **Admin** is
-checked).
+**2. Send a one-time invitation link by email.** Fill in **Email**, leave
+the **Initial password** field blank, optionally tick **Admin**, and click
+**Add user**. Arbiter generates a single-use token, stores an `Invitation`
+record, and emails a link to the recipient. The recipient sets their own
+password by following the link. Outbound email must be configured under
+[Notifications](../admin/notifications.md) — without SMTP this flow is
+refused, with an error message pointing you back to the Initial-password
+flow above.
+
+In both flows the email is validated for shape (`local@domain.tld`) and
+lowercased before storage. After signing in, the new user has access to the
+batches and documents in any group they belong to (or all of them, if
+**Admin** was checked).
 
 ### Edit a user
 
-Each row has an **Admin** checkbox and a **New password (optional)** field.
+Each row has a **Role** select and a **New password (optional)** field.
 
-- Toggling Admin changes the role on save. Both directions are allowed
-  (subject to the safeguards below).
+- The Role select offers **User**, **Admin**, and **Auditor (read-only)**.
+  Auditor is the cross-group read-only role — see
+  [Roles and permissions](../reference/roles.md) for what each role can do.
+  Any direction of role change is allowed (subject to the safeguards below).
 - Leaving New password blank keeps the existing password. Filling it in
   replaces the password (still validated to ≥ 12 characters).
 
@@ -38,11 +54,13 @@ Each row has an **Admin** checkbox and a **New password (optional)** field.
   Use Settings to change your own password, manage 2FA, or rotate your API
   key — those flows require your current password as a re-auth check, which
   the admin Edit form bypasses by design.
-- **The last admin cannot be demoted.** Unchecking the **Admin** box on the
-  only remaining administrator account is rejected with an error
+- **The last admin cannot be demoted.** Setting the only remaining
+  administrator's role to **User** *or* **Auditor** is rejected with an error
   (*"Cannot remove admin from … : at least one administrator is required"*)
   to prevent locking the entire deployment out of `/admin/**`. Add a second
-  admin first, then demote.
+  admin first, then demote. Note that Auditor is a read-only role and does
+  **not** count toward the admin tally — converting your last admin to an
+  auditor would leave nobody able to mutate state, so the same guard fires.
 
 ### Reset a user's password
 
@@ -61,7 +79,9 @@ password, an admin must set a new one manually:
    available only when *creating* a new user, not on resets.
 
 The change takes effect immediately; the user's next login attempt will use
-the new password.
+the new password. The user is then **forced to choose a new password**
+before reaching any other page — the password the admin set is meant to be
+a one-time hand-off, not a long-lived credential.
 
 A `USER_UPDATE` event is written to the [audit log](audit-log.md) with
 `passwordReset: true`, the user's email, and the acting admin's identity.
@@ -124,9 +144,18 @@ want to avoid orphaning them.
 
 ## Defaults
 
-On first start with an empty `users` collection, Arbiter creates a single
-admin: `admin@philterd.ai` / `admin`. On first start with empty
-`groups` and the demo loader enabled, Arbiter creates a `Default` group
-containing every existing user and assigns the seeded sample-files batch
-to it. Both are placeholders — change the password and add real users and
-groups before going live.
+On any start where no admin account exists in the database, Arbiter
+creates a single admin (`admin@philterd.ai`). The password is taken from
+the **`ARBITER_ADMIN_INITIAL_PASSWORD`** environment variable when that
+variable is set to a value of at least 12 characters; otherwise Arbiter
+generates a random password and prints it to standard output. A
+generated password is flagged for forced rotation at first login (since
+it was briefly visible in stdout); a password supplied via
+`ARBITER_ADMIN_INITIAL_PASSWORD` is not — the operator already controls
+where that value lives. See
+[Getting started → First run](../getting-started.md#first-run) for the
+full banner format. On first start with empty `groups` and the demo
+loader enabled, Arbiter creates a `Default` group containing every
+existing user and assigns the seeded sample-files batch to it. All of
+this is placeholder configuration — sign in, rotate the password, and
+add real users and groups before going live.

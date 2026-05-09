@@ -26,7 +26,6 @@ import ai.philterd.arbiter.repository.PendingUploadRepository;
 import ai.philterd.arbiter.repository.RelationalDbDataSourceRepository;
 import ai.philterd.arbiter.repository.S3DataSourceRepository;
 import ai.philterd.arbiter.repository.S3DestinationRepository;
-import ai.philterd.arbiter.repository.SqsDestinationRepository;
 import ai.philterd.arbiter.repository.RedactionCertificateRepository;
 import ai.philterd.arbiter.repository.PhilterDefaultsRepository;
 import ai.philterd.arbiter.repository.PhilterInstanceRepository;
@@ -64,6 +63,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -116,7 +116,6 @@ public class AuthorizationIntegrationTest {
     @MockBean private LocalDirectoryDataSourceRepository localDirectoryDataSourceRepository;
     @MockBean private LocalDirectoryDestinationRepository localDirectoryDestinationRepository;
     @MockBean private S3DestinationRepository s3DestinationRepository;
-    @MockBean private SqsDestinationRepository sqsDestinationRepository;
     @MockBean private DestinationTester destinationTester;
     @MockBean private PhilterInstanceRepository philterInstanceRepository;
     @MockBean private PhilterDefaultsRepository philterDefaultsRepository;
@@ -195,16 +194,22 @@ public class AuthorizationIntegrationTest {
                 .andExpect(status().isForbidden());
         mockMvc.perform(get("/policies/some-id/edit").with(user("u").roles("USER")))
                 .andExpect(status().isForbidden());
-        // /api/** now rejects cookie-based auth: the session is dropped before the
-        // role check, so the response is 401 (not 403). See cookieAuthRejectedOnApiPaths.
+        // /api/v1/policies is reachable from the browser UI via session cookie, so
+        // a USER hitting it via the framework matcher gets 403 (not 401) — the
+        // session is preserved, the role check fails. The Bearer-only paths
+        // (/api/v1/ingest etc.) still strip session auth and 401 — see
+        // cookieAuthRejectedOnApiPaths below.
         mockMvc.perform(get("/api/v1/policies").with(user("u").roles("USER")))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isForbidden());
         mockMvc.perform(get("/api/v1/policies/content?instanceId=embedded&name=Default")
-                .with(user("u").roles("USER"))).andExpect(status().isUnauthorized());
+                .with(user("u").roles("USER"))).andExpect(status().isForbidden());
         mockMvc.perform(get("/reporting").with(user("u").roles("USER")))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/batches").with(user("u").roles("USER")))
-                .andExpect(status().isForbidden());
+        // /batches is intentionally NOT in this list — it's open to .authenticated() so
+        // team leads can reach it. Non-lead USERs see the page filtered to their groups
+        // (empty by default) but the framework no longer blocks the request at 403. The
+        // write-side gate is now controller-level (BatchAccessService.canLeadBatch) — see
+        // userRoleCannotModifyBatches for that boundary.
     }
 
     @Test
@@ -225,33 +230,57 @@ public class AuthorizationIntegrationTest {
                 .andExpect(status().isOk());
         mockMvc.perform(get("/policies").with(user("a").roles("ADMIN")))
                 .andExpect(status().isOk());
-        // /api/v1/policies is now Bearer-only — see cookieAuthRejectedOnApiPaths /
-        // bearerTokenAuthAllowedOnApiPaths below for the new shape of these checks.
+        // /api/v1/policies is browser-UI accessible (the policy editor reads it
+        // via fetch with a session cookie) and the framework matcher requires
+        // ADMIN, so an admin reaches it just like any UI page.
+        mockMvc.perform(get("/api/v1/policies").with(user("a").roles("ADMIN")))
+                .andExpect(status().isOk());
         mockMvc.perform(get("/reporting").with(user("a").roles("ADMIN")))
                 .andExpect(status().isOk());
     }
 
     // ---------------------------------------------------------------------
-    // /api/** is Bearer-only: cookie/session authentication is dropped at
-    // the security filter chain, so the only way to reach the API is by
-    // sending a valid {@code Authorization: Bearer <api-key>} header.
+    // /api/** has two kinds of endpoint:
+    //   - Browser-UI endpoints (queue, batches, policies, spans, etc.) accept
+    //     session cookies — the in-page JS calls them with the same cookie the
+    //     surrounding page is authenticated with.
+    //   - External programmatic endpoints (ingest, search, document finalize,
+    //     document audit export) are Bearer-only — session cookies are dropped
+    //     by ApiSessionRejectingFilter so a CSRF on a logged-in admin can't
+    //     reach them.
     // ---------------------------------------------------------------------
 
     @Test
-    void cookieAuthRejectedOnApiPaths_admin() throws Exception {
-        // Even an authenticated admin gets 401 on /api/** without a Bearer token —
-        // the session cookie is no longer accepted on the API surface.
-        mockMvc.perform(get("/api/v1/policies").with(user("a").roles("ADMIN")))
+    void cookieAuthRejectedOnBearerOnlyApiPaths_admin() throws Exception {
+        // Even an authenticated admin gets 401 on the truly programmatic API
+        // endpoints without a Bearer token — the session cookie is dropped
+        // before the framework's role check has a chance to grant access.
+        mockMvc.perform(post("/api/v1/ingest").with(user("a").roles("ADMIN")).with(csrf()))
                 .andExpect(status().isUnauthorized());
-        mockMvc.perform(get("/api/v1/policies/content?instanceId=embedded&name=Default")
-                        .with(user("a").roles("ADMIN")))
+        mockMvc.perform(get("/api/v1/search?q=hi").with(user("a").roles("ADMIN")))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
-    void cookieAuthRejectedOnApiPaths_user() throws Exception {
-        mockMvc.perform(get("/api/v1/policies").with(user("u").roles("USER")))
+    void cookieAuthRejectedOnBearerOnlyApiPaths_user() throws Exception {
+        mockMvc.perform(post("/api/v1/ingest").with(user("u").roles("USER")).with(csrf()))
                 .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/search?q=hi").with(user("u").roles("USER")))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void cookieAuthAllowedOnBrowserUiApiPaths() throws Exception {
+        // Browser-UI endpoints accept the session cookie. /api/v1/queue and
+        // /api/v1/batches are called by the Documents-to-Review page; if the
+        // filter strips session auth here, the page returns 401 in the JS.
+        org.mockito.Mockito.when(batchRepository.findAll(org.mockito.ArgumentMatchers.any(
+                        org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of()));
+        mockMvc.perform(get("/api/v1/queue").with(user("u").roles("USER")))
+                .andExpect(status().isOk());
+        mockMvc.perform(get("/api/v1/batches").with(user("u").roles("USER")))
+                .andExpect(status().isOk());
     }
 
     @Test
@@ -307,12 +336,13 @@ public class AuthorizationIntegrationTest {
 
     @Test
     void cookieAndInvalidBearerTogetherStillRejected() throws Exception {
-        // Even with a real session cookie, a present-but-invalid Bearer header doesn't
-        // upgrade the request — the session cookie is still dropped on /api/**.
+        // On a Bearer-only endpoint, a present-but-invalid Bearer header doesn't
+        // upgrade the request — the session cookie is still dropped, and the
+        // bad Bearer fails the lookup, so the request is anonymous and 401s.
         org.mockito.Mockito.when(userRepository.findByApiKey(org.mockito.ArgumentMatchers.anyString()))
                 .thenReturn(java.util.Optional.empty());
 
-        mockMvc.perform(get("/api/v1/policies").with(user("a").roles("ADMIN"))
+        mockMvc.perform(get("/api/v1/search?q=x").with(user("a").roles("ADMIN"))
                         .header("Authorization", "Bearer not-a-real-key"))
                 .andExpect(status().isUnauthorized());
     }
@@ -340,14 +370,21 @@ public class AuthorizationIntegrationTest {
     }
 
     // ---------------------------------------------------------------------
-    // /batches is URL-gated to ADMIN: every method is rejected at the security
-    // filter chain for non-admin roles, ahead of any controller-level check.
+    // /batches now lives on the .authenticated() tier (so team leads can reach
+    // their group's batches). Per-endpoint controller checks reject non-leads
+    // for mutations: a USER POST returns a 302 redirect with a flash error
+    // rather than a framework-layer 403.
     // ---------------------------------------------------------------------
 
     @Test
     void userRoleCannotModifyBatches() throws Exception {
+        // Non-lead USERs trying to modify a batch get bounced via the flash-redirect
+        // pattern that BatchController uses for in-controller authorization failures.
+        // The mutation does not happen — that's the security guarantee being asserted —
+        // even though the HTTP status is 302 instead of 403.
         mockMvc.perform(post("/batches/abc/group").with(user("u").roles("USER")).with(csrf())
                         .param("groupId", "g1"))
-                .andExpect(status().isForbidden());
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/batches"));
     }
 }

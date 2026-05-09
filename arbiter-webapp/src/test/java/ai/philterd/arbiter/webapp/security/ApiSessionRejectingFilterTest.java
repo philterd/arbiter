@@ -59,27 +59,117 @@ class ApiSessionRejectingFilterTest {
         return r;
     }
 
-    // ----- /api/** paths (session auth must be stripped) -----
+    // ----- Programmatic Bearer-only endpoints: session auth must be stripped -----
 
     @Test
-    void stripsSessionAuthOnApiPath() throws Exception {
+    void stripsSessionAuthOnIngestPath() throws Exception {
+        // /api/v1/ingest is the canonical external API write — it accepts only
+        // Bearer auth, so a logged-in admin's session cookie is dropped here so
+        // a malicious page can't trick them into POSTing fake documents.
         SecurityContextHolder.getContext().setAuthentication(sessionAuth("user@x.com"));
 
-        filter.doFilter(req("/api/v1/batches"), new MockHttpServletResponse(), mock(FilterChain.class));
+        filter.doFilter(req("/api/v1/ingest"), new MockHttpServletResponse(), mock(FilterChain.class));
 
         assertNull(SecurityContextHolder.getContext().getAuthentication());
     }
 
     @Test
-    void preservesBearerAuthOnApiPath() throws Exception {
+    void stripsSessionAuthOnSearchPath() throws Exception {
         SecurityContextHolder.getContext().setAuthentication(sessionAuth("user@x.com"));
 
-        filter.doFilter(bearerReq("/api/v1/batches"), new MockHttpServletResponse(), mock(FilterChain.class));
+        filter.doFilter(req("/api/v1/search?q=hello"), new MockHttpServletResponse(), mock(FilterChain.class));
+
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    @Test
+    void stripsSessionAuthOnDocumentFinalize() throws Exception {
+        // /api/v1/documents/{id}/finalize is an external Export endpoint that
+        // shares a URL prefix with browser-UI document endpoints. Match by suffix
+        // so the Bearer-only rule applies.
+        SecurityContextHolder.getContext().setAuthentication(sessionAuth("user@x.com"));
+
+        filter.doFilter(req("/api/v1/documents/doc-123/finalize"),
+                new MockHttpServletResponse(), mock(FilterChain.class));
+
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    @Test
+    void stripsSessionAuthOnDocumentAudit() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(sessionAuth("user@x.com"));
+
+        filter.doFilter(req("/api/v1/documents/doc-123/audit"),
+                new MockHttpServletResponse(), mock(FilterChain.class));
+
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    @Test
+    void preservesBearerAuthOnIngestPath() throws Exception {
+        // Bearer-authenticated requests pass through even on Bearer-only paths —
+        // that's the intended way to call them.
+        SecurityContextHolder.getContext().setAuthentication(sessionAuth("user@x.com"));
+
+        filter.doFilter(bearerReq("/api/v1/ingest"), new MockHttpServletResponse(), mock(FilterChain.class));
 
         assertNotNull(SecurityContextHolder.getContext().getAuthentication());
     }
 
-    // ----- /api/v1/review/** paths (session auth must be preserved) -----
+    // ----- Browser-UI /api/v1/** endpoints: session auth must be preserved -----
+
+    @Test
+    void preservesSessionAuthOnQueuePath() throws Exception {
+        // /api/v1/queue is called by the Documents to Review page. The page is
+        // authenticated by session cookie, so the AJAX call inherits the same.
+        SecurityContextHolder.getContext().setAuthentication(sessionAuth("user@x.com"));
+
+        filter.doFilter(req("/api/v1/queue?page=0"), new MockHttpServletResponse(), mock(FilterChain.class));
+
+        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    @Test
+    void preservesSessionAuthOnBatchesPath() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(sessionAuth("user@x.com"));
+
+        filter.doFilter(req("/api/v1/batches"), new MockHttpServletResponse(), mock(FilterChain.class));
+
+        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    @Test
+    void preservesSessionAuthOnDocumentSpansPath() throws Exception {
+        // The review page reads spans via this path. /finalize and /audit on
+        // the same prefix are Bearer-only (covered above); /spans is UI-only.
+        SecurityContextHolder.getContext().setAuthentication(sessionAuth("user@x.com"));
+
+        filter.doFilter(req("/api/v1/documents/doc-123/spans"),
+                new MockHttpServletResponse(), mock(FilterChain.class));
+
+        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    @Test
+    void preservesSessionAuthOnDocumentHistoryPath() throws Exception {
+        // /history is browser-UI; /audit is the Bearer-only export. They share
+        // a URL prefix so the suffix-based match has to be exact.
+        SecurityContextHolder.getContext().setAuthentication(sessionAuth("user@x.com"));
+
+        filter.doFilter(req("/api/v1/documents/doc-123/history"),
+                new MockHttpServletResponse(), mock(FilterChain.class));
+
+        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    @Test
+    void preservesSessionAuthOnSpanPath() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(sessionAuth("user@x.com"));
+
+        filter.doFilter(req("/api/v1/spans/span-1"), new MockHttpServletResponse(), mock(FilterChain.class));
+
+        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
+    }
 
     @Test
     void preservesSessionAuthOnPulsePath() throws Exception {
@@ -90,25 +180,7 @@ class ApiSessionRejectingFilterTest {
         assertNotNull(SecurityContextHolder.getContext().getAuthentication());
     }
 
-    @Test
-    void preservesSessionAuthOnReleasePath() throws Exception {
-        SecurityContextHolder.getContext().setAuthentication(sessionAuth("user@x.com"));
-
-        filter.doFilter(req("/api/v1/review/doc1/release"), new MockHttpServletResponse(), mock(FilterChain.class));
-
-        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
-    }
-
-    @Test
-    void preservesSessionAuthOnSimilarPath() throws Exception {
-        SecurityContextHolder.getContext().setAuthentication(sessionAuth("user@x.com"));
-
-        filter.doFilter(req("/api/v1/review/doc1/similar"), new MockHttpServletResponse(), mock(FilterChain.class));
-
-        assertNotNull(SecurityContextHolder.getContext().getAuthentication());
-    }
-
-    // ----- non-API paths (always untouched) -----
+    // ----- Non-API paths: always untouched -----
 
     @Test
     void preservesSessionAuthOnUiPath() throws Exception {
@@ -119,12 +191,12 @@ class ApiSessionRejectingFilterTest {
         assertNotNull(SecurityContextHolder.getContext().getAuthentication());
     }
 
-    // ----- filter chain always called -----
+    // ----- Filter chain always called -----
 
     @Test
     void alwaysCallsFilterChain() throws Exception {
         final FilterChain chain = mock(FilterChain.class);
-        final MockHttpServletRequest request = req("/api/v1/batches");
+        final MockHttpServletRequest request = req("/api/v1/queue");
         final MockHttpServletResponse response = new MockHttpServletResponse();
 
         filter.doFilter(request, response, chain);
@@ -132,14 +204,14 @@ class ApiSessionRejectingFilterTest {
         verify(chain).doFilter(request, response);
     }
 
-    // ----- context-path stripping -----
+    // ----- Context-path stripping -----
 
     @Test
-    void stripsSessionAuthWhenContextPathPresent() throws Exception {
+    void stripsSessionAuthOnIngestPathWithContextPath() throws Exception {
         SecurityContextHolder.getContext().setAuthentication(sessionAuth("user@x.com"));
         final MockHttpServletRequest r = new MockHttpServletRequest();
         r.setContextPath("/arbiter");
-        r.setRequestURI("/arbiter/api/v1/batches");
+        r.setRequestURI("/arbiter/api/v1/ingest");
 
         filter.doFilter(r, new MockHttpServletResponse(), mock(FilterChain.class));
 
@@ -147,11 +219,11 @@ class ApiSessionRejectingFilterTest {
     }
 
     @Test
-    void preservesSessionAuthForReviewPathWithContextPath() throws Exception {
+    void preservesSessionAuthForBatchesPathWithContextPath() throws Exception {
         SecurityContextHolder.getContext().setAuthentication(sessionAuth("user@x.com"));
         final MockHttpServletRequest r = new MockHttpServletRequest();
         r.setContextPath("/arbiter");
-        r.setRequestURI("/arbiter/api/v1/review/doc1/pulse");
+        r.setRequestURI("/arbiter/api/v1/batches");
 
         filter.doFilter(r, new MockHttpServletResponse(), mock(FilterChain.class));
 

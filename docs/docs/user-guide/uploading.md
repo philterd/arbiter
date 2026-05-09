@@ -10,9 +10,12 @@ documents into Arbiter; pick the matching tab at the top of the page:
   [data source](../admin/data-sources.md) and queue every document its query
   returns. Both ingest paths are fully implemented; see
   [Adding from OpenSearch or Elasticsearch](#adding-from-opensearch-or-elasticsearch).
-- **Amazon S3**, **Relational Database**, **Local Directory** — visible
-  for completeness but not yet implemented; submitting one of these forms
-  returns a *"…is not yet implemented"* notice.
+- **Local Directory** — pick a registered local-directory data source and
+  queue every file under that directory matching the configured filename
+  glob. See [Adding from a Local Directory](#adding-from-a-local-directory).
+- **Amazon S3**, **Relational Database** — visible for completeness but
+  not yet implemented; submitting one of these forms returns a
+  *"…is not yet implemented"* notice.
 
 ## What you can upload (Upload files tab)
 
@@ -144,6 +147,37 @@ an `(_index, _id)` pair already present in MongoDB, the hit is recorded
 as **Skipped** — a placeholder Document row with status `SKIPPED` is
 written for the audit trail but no new content is enqueued. See
 [Background Jobs · Skipped (already-imported) documents](background-jobs.md#skipped-already-imported-documents).
+
+### Adding from a Local Directory
+
+Local-directory ingest pulls files from a path on the **application server**
+(not your laptop) — useful when an admin has dropped a batch of documents
+into a watched folder. Like OpenSearch / Elasticsearch ingest, the work runs
+as a **background job**, so the page returns immediately.
+
+1. Pick a **Batch**, a **Priority**, and the **Local source** the admin
+   registered.
+2. Click **Ingest from Local Directory**.
+3. Arbiter redirects you to the **Background Jobs** page with a confirmation
+   banner. The job moves through `PENDING` → `RUNNING` → `COMPLETED` /
+   `FAILED`.
+
+The worker walks the configured directory and queues every file whose path
+(relative to the directory) matches the configured **filename glob**. Files
+ending in `.pdf` are queued as binary uploads; everything else is read as
+UTF-8 text. Each imported document records the absolute directory path and
+the file's relative path as source attribution, visible on the
+**Document Information** popup of the Review page.
+
+If the directory does not exist, isn't a directory, or isn't readable by
+the application user, the job fails up front with a clear error and no
+documents are queued. Per-file failures (unreadable file, etc.) don't stop
+the job — the rest of the directory still imports, and the failures appear
+under *Show failure details* on the Background Jobs page.
+
+Re-running an import is safe: the worker dedupes by `(directory, relative
+path)`, so files already imported from the same directory are recorded as
+**Skipped** and not re-enqueued.
 
 ## Errors you might see
 

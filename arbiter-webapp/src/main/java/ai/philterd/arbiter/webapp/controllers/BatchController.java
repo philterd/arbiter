@@ -73,6 +73,9 @@ public class BatchController {
     private final PhilterDefaultsService philterDefaultsService;
     private final ai.philterd.arbiter.repository.FinalizationPolicyRepository finalizationPolicyRepository;
     private final ComplianceProfileRepository complianceProfileRepository;
+    private final ai.philterd.arbiter.repository.LocalDirectoryDestinationRepository localDirectoryDestinationRepository;
+    private final ai.philterd.arbiter.repository.S3DestinationRepository s3DestinationRepository;
+    private final ai.philterd.arbiter.service.BatchExportService batchExportService;
 
     public BatchController(final BatchRepository batchRepository,
                            final DocumentRepository documentRepository,
@@ -84,7 +87,10 @@ public class BatchController {
                            final PhilterInstanceRepository philterInstanceRepository,
                            final PhilterDefaultsService philterDefaultsService,
                            final ai.philterd.arbiter.repository.FinalizationPolicyRepository finalizationPolicyRepository,
-                           final ComplianceProfileRepository complianceProfileRepository) {
+                           final ComplianceProfileRepository complianceProfileRepository,
+                           final ai.philterd.arbiter.repository.LocalDirectoryDestinationRepository localDirectoryDestinationRepository,
+                           final ai.philterd.arbiter.repository.S3DestinationRepository s3DestinationRepository,
+                           final ai.philterd.arbiter.service.BatchExportService batchExportService) {
         this.batchRepository = batchRepository;
         this.documentRepository = documentRepository;
         this.groupRepository = groupRepository;
@@ -96,6 +102,9 @@ public class BatchController {
         this.philterDefaultsService = philterDefaultsService;
         this.finalizationPolicyRepository = finalizationPolicyRepository;
         this.complianceProfileRepository = complianceProfileRepository;
+        this.localDirectoryDestinationRepository = localDirectoryDestinationRepository;
+        this.s3DestinationRepository = s3DestinationRepository;
+        this.batchExportService = batchExportService;
     }
 
     private static final Set<String> SORTABLE_FIELDS = Set.of("name", "createdAt", "documentCount");
@@ -108,7 +117,9 @@ public class BatchController {
                        @RequestParam(name = "dir", defaultValue = "desc") final String dir,
                        final Authentication authentication,
                        final Model model) {
-        final boolean admin = AuthUtils.isAdmin(authentication);
+        // Admins and auditors see every batch; this is a read-only listing. Write
+        // actions on individual batches still require ADMIN further down.
+        final boolean admin = AuthUtils.isAdminOrAuditor(authentication);
         final boolean restrict = !admin;
         final Set<String> myGroupIds = restrict
                 ? userGroupsService.groupIdsForEmail(authentication == null ? null : authentication.getName())
@@ -209,6 +220,21 @@ public class BatchController {
         final List<ComplianceProfile> complianceProfiles = complianceProfileRepository.findAll(PageRequest.of(0, 500, Sort.by("name"))).getContent()
                 .stream().filter(cp -> !cp.isArchived()).collect(java.util.stream.Collectors.toList());
 
+        // Destination dropdowns for the Export modal. Each option carries
+        // {kind, id, label} so the modal can show one combined select grouped
+        // by destination type without separate fetches.
+        final List<Map<String, String>> exportDestinations = new ArrayList<>();
+        for (ai.philterd.arbiter.model.LocalDirectoryDestination d : localDirectoryDestinationRepository
+                .findAll(PageRequest.of(0, 500, Sort.by("name"))).getContent()) {
+            exportDestinations.add(Map.of("kind", "LOCAL", "id", d.getId(),
+                    "label", d.getName() + " (Local Directory)"));
+        }
+        for (ai.philterd.arbiter.model.S3Destination d : s3DestinationRepository
+                .findAll(PageRequest.of(0, 500, Sort.by("name"))).getContent()) {
+            exportDestinations.add(Map.of("kind", "S3", "id", d.getId(),
+                    "label", d.getName() + " (Amazon S3)"));
+        }
+
         model.addAttribute("batches", rows);
         model.addAttribute("groups", assignableGroups);
         model.addAttribute("philterInstances", philterInstances);
@@ -216,6 +242,7 @@ public class BatchController {
         model.addAttribute("domains", Domains.VALUES);
         model.addAttribute("finalizationPolicies", finalizationPolicies);
         model.addAttribute("complianceProfiles", complianceProfiles);
+        model.addAttribute("exportDestinations", exportDestinations);
         model.addAttribute("isAdmin", admin);
         model.addAttribute("currentSort", activeSort);
         model.addAttribute("currentDir", ascending ? "asc" : "desc");
@@ -253,10 +280,9 @@ public class BatchController {
                          @RequestParam(value = "exemptionCodeRequired", required = false) Boolean exemptionCodeRequired,
                          Authentication authentication,
                          RedirectAttributes redirectAttributes) {
-        if (!AuthUtils.isAdmin(authentication)) {
-            redirectAttributes.addFlashAttribute("error", "Only administrators can create batches.");
-            return "redirect:/batches";
-        }
+        // Admins can create in any group; team leads can only create in groups they
+        // lead. We check after the groupId is parsed below since the lead check is
+        // per-group.
         final String trimmed = name == null ? "" : name.trim();
         if (trimmed.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Batch name is required.");
@@ -274,6 +300,15 @@ public class BatchController {
         }
         if (groupId == null || groupId.isBlank() || !groupRepository.existsById(groupId)) {
             redirectAttributes.addFlashAttribute("error", "A valid group must be selected.");
+            return "redirect:/batches";
+        }
+        // Per-group lead check: a team lead can only create batches in a group they lead.
+        // Admins pass implicitly. Auditors are filtered out by AuditorWriteRejectFilter
+        // before reaching this controller.
+        if (!batchAccessService.canLeadGroup(authentication, groupId)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "You can only create batches in groups you lead. Ask an administrator "
+                            + "to make you a team lead of this group, or pick a different group.");
             return "redirect:/batches";
         }
         final String trimmedPhilterId = philterInstanceId == null ? "" : philterInstanceId.trim();
@@ -365,13 +400,14 @@ public class BatchController {
                                 @RequestParam(value = "policyName", required = false) final String policyName,
                                 final Authentication authentication,
                                 final RedirectAttributes redirectAttributes) {
-        if (!AuthUtils.isAdmin(authentication)) {
-            redirectAttributes.addFlashAttribute("error", "Only administrators can modify batches.");
-            return "redirect:/batches";
-        }
         final Batch batch = batchRepository.findById(batchId).orElse(null);
         if (batch == null) {
             redirectAttributes.addFlashAttribute("error", "Batch not found.");
+            return "redirect:/batches";
+        }
+        if (!batchAccessService.canLeadBatch(authentication, batch)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Only administrators or the batch's team lead can modify batches.");
             return "redirect:/batches";
         }
         final String trimmed = philterInstanceId == null ? "" : philterInstanceId.trim();
@@ -406,8 +442,12 @@ public class BatchController {
                               @RequestParam("groupId") final String groupId,
                               final Authentication authentication,
                               final RedirectAttributes redirectAttributes) {
+        // Reassigning a batch to a different group is admin-only — a team lead could
+        // otherwise transfer batches into or out of their own scope, sidestepping the
+        // per-group authority boundary.
         if (!AuthUtils.isAdmin(authentication)) {
-            redirectAttributes.addFlashAttribute("error", "Only administrators can modify batches.");
+            redirectAttributes.addFlashAttribute("error",
+                    "Only administrators can reassign a batch to a different group.");
             return "redirect:/batches";
         }
         final Batch batch = batchRepository.findById(batchId).orElse(null);
@@ -437,13 +477,14 @@ public class BatchController {
                                @RequestParam("domain") final String domain,
                                final Authentication authentication,
                                final RedirectAttributes redirectAttributes) {
-        if (!AuthUtils.isAdmin(authentication)) {
-            redirectAttributes.addFlashAttribute("error", "Only administrators can modify batches.");
-            return "redirect:/batches";
-        }
         final Batch batch = batchRepository.findById(batchId).orElse(null);
         if (batch == null) {
             redirectAttributes.addFlashAttribute("error", "Batch not found.");
+            return "redirect:/batches";
+        }
+        if (!batchAccessService.canLeadBatch(authentication, batch)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Only administrators or the batch's team lead can modify batches.");
             return "redirect:/batches";
         }
         final String trimmed = domain == null ? "" : domain.trim();
@@ -514,13 +555,14 @@ public class BatchController {
                               @RequestParam(value = "weightSetId", required = false) final String weightSetId,
                               final Authentication authentication,
                               final RedirectAttributes redirectAttributes) {
-        if (!AuthUtils.isAdmin(authentication)) {
-            redirectAttributes.addFlashAttribute("error", "Only administrators can modify batches.");
-            return "redirect:/batches";
-        }
         final Batch batch = batchRepository.findById(batchId).orElse(null);
         if (batch == null) {
             redirectAttributes.addFlashAttribute("error", "Batch not found.");
+            return "redirect:/batches";
+        }
+        if (!batchAccessService.canLeadBatch(authentication, batch)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Only administrators or the batch's team lead can modify batches.");
             return "redirect:/batches";
         }
 
@@ -586,13 +628,14 @@ public class BatchController {
                                  @RequestParam(value = "description", required = false) final String description,
                                  final Authentication authentication,
                                  final RedirectAttributes redirectAttributes) {
-        if (!AuthUtils.isAdmin(authentication)) {
-            redirectAttributes.addFlashAttribute("error", "Only administrators can modify batches.");
-            return "redirect:/batches";
-        }
         final Batch batch = batchRepository.findById(batchId).orElse(null);
         if (batch == null) {
             redirectAttributes.addFlashAttribute("error", "Batch not found.");
+            return "redirect:/batches";
+        }
+        if (!batchAccessService.canLeadBatch(authentication, batch)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Only administrators or the batch's team lead can modify batches.");
             return "redirect:/batches";
         }
         final Double normalizedPii = normalizeThreshold(confidenceThreshold);
@@ -665,13 +708,14 @@ public class BatchController {
     public String close(@PathVariable final String batchId,
                         final Authentication authentication,
                         final RedirectAttributes redirectAttributes) {
-        if (!AuthUtils.isAdmin(authentication)) {
-            redirectAttributes.addFlashAttribute("error", "Only administrators can close batches.");
-            return "redirect:/batches";
-        }
         final Batch batch = batchRepository.findById(batchId).orElse(null);
         if (batch == null) {
             redirectAttributes.addFlashAttribute("error", "Batch not found.");
+            return "redirect:/batches";
+        }
+        if (!batchAccessService.canLeadBatch(authentication, batch)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Only administrators or the batch's team lead can close batches.");
             return "redirect:/batches";
         }
         if (batch.isClosed()) {
@@ -696,6 +740,71 @@ public class BatchController {
                 Map.of("name", batch.getName() == null ? "" : batch.getName()));
         redirectAttributes.addFlashAttribute("success",
                 "Batch \"" + batch.getName() + "\" closed.");
+        return "redirect:/batches";
+    }
+
+    /**
+     * Export the APPROVED documents in a batch to a configured destination as a
+     * single file in the chosen data format. Currently only JSONL is supported;
+     * the {@code format} parameter is validated server-side so a tampered form
+     * value can't request an unimplemented format. Restricted to admin or the
+     * batch's team lead — exporting redacted source data is the same blast
+     * radius as changing the batch's destination wiring.
+     */
+    @PostMapping("/{batchId}/export")
+    public String export(@PathVariable final String batchId,
+                         @RequestParam("destination") final String destinationCombined,
+                         @RequestParam(value = "format", defaultValue = "JSONL") final String formatRaw,
+                         final Authentication authentication,
+                         final RedirectAttributes redirectAttributes) {
+        final Batch batch = batchRepository.findById(batchId).orElse(null);
+        if (batch == null) {
+            redirectAttributes.addFlashAttribute("error", "Batch not found.");
+            return "redirect:/batches";
+        }
+        if (!batchAccessService.canLeadBatch(authentication, batch)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Only administrators or the batch's team lead can export batches.");
+            return "redirect:/batches";
+        }
+        // The destination select carries values like "LOCAL:abcd123" so a single
+        // <select> can offer all destination types side by side. Split here.
+        if (destinationCombined == null || !destinationCombined.contains(":")) {
+            redirectAttributes.addFlashAttribute("error", "Pick a destination.");
+            return "redirect:/batches";
+        }
+        final int colon = destinationCombined.indexOf(':');
+        final String kindRaw = destinationCombined.substring(0, colon).trim().toUpperCase();
+        final String destinationId = destinationCombined.substring(colon + 1).trim();
+        final ai.philterd.arbiter.service.BatchExportService.DestinationKind kind;
+        try {
+            kind = ai.philterd.arbiter.service.BatchExportService.DestinationKind.valueOf(kindRaw);
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", "Unknown destination kind: " + kindRaw);
+            return "redirect:/batches";
+        }
+        final ai.philterd.arbiter.service.BatchExportService.Format format;
+        try {
+            format = ai.philterd.arbiter.service.BatchExportService.Format.valueOf(
+                    formatRaw == null ? "JSONL" : formatRaw.trim().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            redirectAttributes.addFlashAttribute("error", "Unknown data format: " + formatRaw);
+            return "redirect:/batches";
+        }
+
+        final String actorEmail = authentication == null ? null : authentication.getName();
+        final ai.philterd.arbiter.service.BatchExportService.Result result =
+                batchExportService.enqueueExport(batchId, format, kind, destinationId, actorEmail);
+        if (!result.isOk()) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Export could not be queued: " + result.getError());
+            return "redirect:/batches";
+        }
+        redirectAttributes.addFlashAttribute("success",
+                "Export queued for batch \"" + batch.getName() + "\" — "
+                        + result.getApprovedCount()
+                        + (result.getApprovedCount() == 1 ? " approved document" : " approved documents")
+                        + ". See the Background Jobs page for progress.");
         return "redirect:/batches";
     }
 

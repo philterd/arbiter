@@ -47,7 +47,7 @@ public class BackgroundJobsController {
     public String list(final Authentication authentication, final Model model) {
         final List<BackgroundJob> all = repository.findAllByOrderByCreatedAtDesc();
         final List<BackgroundJob> visible;
-        if (AuthUtils.isAdmin(authentication)) {
+        if (AuthUtils.isAdminOrAuditor(authentication)) {
             visible = all;
         } else {
             // Resolve each job's batch's groupId in one round-trip and keep only the jobs
@@ -71,9 +71,12 @@ public class BackgroundJobsController {
         }
 
         // Group by category, preserving the createdAt-desc ordering inside each group and a
-        // stable section order across them. Future categories will appear automatically.
+        // stable section order across them. Sections seeded here always render — even with
+        // zero jobs — so each category gets its heading and an empty-state row. Categories
+        // not seeded (e.g. CATEGORY_OTHER) only show up when at least one job exists.
         final Map<String, List<BackgroundJob>> grouped = new LinkedHashMap<>();
         grouped.put(BackgroundJob.CATEGORY_DATA_IMPORT, new ArrayList<>());
+        grouped.put(BackgroundJob.CATEGORY_DATA_EXPORT, new ArrayList<>());
         for (BackgroundJob job : visible) {
             grouped.computeIfAbsent(job.getCategory(), k -> new ArrayList<>()).add(job);
         }

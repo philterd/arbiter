@@ -37,6 +37,20 @@ public class GeneralSettings {
      * applied at read time when the persisted value is unset or out of range.
      */
     private int maxConcurrentDataImports;
+    /**
+     * Master switch for the data-source host allow-list. When {@code true} (the
+     * default for new and legacy rows alike — see the field initializer below),
+     * outbound connections to OpenSearch / Elasticsearch / Philter / Ollama
+     * endpoints are gated by {@code DataSourceHostAllowList}. When {@code false},
+     * the allow-list is bypassed entirely and any operator-supplied endpoint is
+     * accepted. Disabling is documented as not recommended (Admin → Security
+     * help text plus {@code docs/admin/security.md}) — it removes the SSRF
+     * defence that protects internal infrastructure from admin-driven probing.
+     *
+     * <p>Initialized to {@code true} so legacy persisted rows that pre-date this
+     * field load with the allow-list enabled.
+     */
+    private boolean hostAllowListEnabled = true;
 
     public GeneralSettings() {
     }
@@ -64,5 +78,10 @@ public class GeneralSettings {
     public int getMaxConcurrentDataImports() { return maxConcurrentDataImports; }
     public void setMaxConcurrentDataImports(final int maxConcurrentDataImports) {
         this.maxConcurrentDataImports = maxConcurrentDataImports;
+    }
+
+    public boolean isHostAllowListEnabled() { return hostAllowListEnabled; }
+    public void setHostAllowListEnabled(final boolean hostAllowListEnabled) {
+        this.hostAllowListEnabled = hostAllowListEnabled;
     }
 }

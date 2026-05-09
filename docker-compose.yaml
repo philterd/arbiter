@@ -19,8 +19,19 @@ services:
       #
       # echo "ARBITER_CRYPTO_SECRET=$(openssl rand -base64 32)" >> .env
       - ARBITER_CRYPTO_SECRET=${ARBITER_CRYPTO_SECRET:?Set ARBITER_CRYPTO_SECRET in .env (see .env.example)}
+      # Initial password for the bootstrap admin (admin@philterd.ai). Used only
+      # when no admin account yet exists in the database. Must
+      # be at least 12 characters; if blank or too short, Arbiter generates a
+      # random password and prints it to stdout instead.
+      - ARBITER_ADMIN_INITIAL_PASSWORD=ChangeMeOnFirstLogin!
+
     volumes:
       - ./sample-files:/app/sample-files:ro
+      # Test fixture for the Local Directory data source. Configure a Local
+      # Directory source in the admin UI with directory path /app/local-files
+      # to ingest the files in ./local-files. Mounted read-only so the
+      # container can never modify the host directory.
+      - ./local-files:/app/local-files:ro
     depends_on:
       mongodb:
         condition: service_healthy

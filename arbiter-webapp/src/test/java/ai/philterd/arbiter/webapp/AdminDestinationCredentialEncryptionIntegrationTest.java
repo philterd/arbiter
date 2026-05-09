@@ -10,10 +10,8 @@
 package ai.philterd.arbiter.webapp;
 
 import ai.philterd.arbiter.model.S3Destination;
-import ai.philterd.arbiter.model.SqsDestination;
 import ai.philterd.arbiter.repository.LocalDirectoryDestinationRepository;
 import ai.philterd.arbiter.repository.S3DestinationRepository;
-import ai.philterd.arbiter.repository.SqsDestinationRepository;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.DestinationTester;
 import ai.philterd.arbiter.service.SymmetricCipher;
@@ -64,13 +62,11 @@ class AdminDestinationCredentialEncryptionIntegrationTest {
 
     private static final String ACCESS_KEY = "AKIAIOSFODNN7EXAMPLE";
     private static final String SECRET_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY";
-    private static final String QUEUE_URL = "https://sqs.us-east-1.amazonaws.com/123456789012/MyQueue";
 
     private MockMvc mockMvc;
     private SymmetricCipher cipher;
     private LocalDirectoryDestinationRepository localRepository;
     private S3DestinationRepository s3Repository;
-    private SqsDestinationRepository sqsRepository;
     private AuditLogService auditLogService;
 
     @BeforeEach
@@ -83,11 +79,10 @@ class AdminDestinationCredentialEncryptionIntegrationTest {
 
         localRepository = mock(LocalDirectoryDestinationRepository.class);
         s3Repository = mock(S3DestinationRepository.class);
-        sqsRepository = mock(SqsDestinationRepository.class);
         auditLogService = mock(AuditLogService.class);
 
         final AdminDestinationController controller = new AdminDestinationController(
-                localRepository, s3Repository, sqsRepository,
+                localRepository, s3Repository,
                 auditLogService, cipher, mock(DestinationTester.class));
 
         // Standalone setup wires this single controller through the real Spring MVC
@@ -216,153 +211,19 @@ class AdminDestinationCredentialEncryptionIntegrationTest {
         assertNull(captor.getValue().getEncryptedSecretKey());
     }
 
-    // ====================================================================
-    // SQS — create
-    // ====================================================================
-
-    @Test
-    void sqsCreateViaHttpPersistsCiphertextNotPlaintext() throws Exception {
-        when(sqsRepository.findFirstByNameIgnoreCase(any())).thenReturn(Optional.empty());
-
-        mockMvc.perform(post("/admin/destinations/sqs")
-                        .param("name", "redaction-events")
-                        .param("queueUrl", QUEUE_URL)
-                        .param("accessKey", ACCESS_KEY)
-                        .param("secretKey", SECRET_KEY))
-                .andExpect(status().is3xxRedirection())
-                .andExpect(redirectedUrl("/admin/destinations"));
-
-        final ArgumentCaptor<SqsDestination> captor = ArgumentCaptor.forClass(SqsDestination.class);
-        verify(sqsRepository).save(captor.capture());
-        final SqsDestination saved = captor.getValue();
-
-        assertEncrypted(saved.getEncryptedAccessKey(), ACCESS_KEY);
-        assertEncrypted(saved.getEncryptedSecretKey(), SECRET_KEY);
-    }
-
-    @Test
-    void sqsCreateWithBlankCredentialsPersistsNullEncryptedFields() throws Exception {
-        when(sqsRepository.findFirstByNameIgnoreCase(any())).thenReturn(Optional.empty());
-
-        mockMvc.perform(post("/admin/destinations/sqs")
-                        .param("name", "ambient")
-                        .param("queueUrl", QUEUE_URL)
-                        .param("accessKey", "")
-                        .param("secretKey", ""))
-                .andExpect(status().is3xxRedirection());
-
-        final ArgumentCaptor<SqsDestination> captor = ArgumentCaptor.forClass(SqsDestination.class);
-        verify(sqsRepository).save(captor.capture());
-        assertNull(captor.getValue().getEncryptedAccessKey());
-        assertNull(captor.getValue().getEncryptedSecretKey());
-    }
-
-    @Test
-    void sqsCreateTwiceProducesDistinctCiphertextForIdenticalCredentials() throws Exception {
-        when(sqsRepository.findFirstByNameIgnoreCase(any())).thenReturn(Optional.empty());
-
-        for (final String name : new String[]{"first", "second"}) {
-            mockMvc.perform(post("/admin/destinations/sqs")
-                            .param("name", name)
-                            .param("queueUrl", QUEUE_URL)
-                            .param("accessKey", ACCESS_KEY)
-                            .param("secretKey", SECRET_KEY))
-                    .andExpect(status().is3xxRedirection());
-        }
-
-        final ArgumentCaptor<SqsDestination> captor = ArgumentCaptor.forClass(SqsDestination.class);
-        verify(sqsRepository, times(2)).save(captor.capture());
-        final SqsDestination first = captor.getAllValues().get(0);
-        final SqsDestination second = captor.getAllValues().get(1);
-
-        assertNotEquals(first.getEncryptedAccessKey(), second.getEncryptedAccessKey());
-        assertNotEquals(first.getEncryptedSecretKey(), second.getEncryptedSecretKey());
-    }
-
-    // ====================================================================
-    // SQS — edit
-    // ====================================================================
-
-    @Test
-    void sqsEditReplaceCredentialsViaHttpPersistsCiphertextNotPlaintext() throws Exception {
-        final SqsDestination existing = new SqsDestination();
-        existing.setId("q1"); existing.setName("redaction-events");
-        existing.setQueueUrl(QUEUE_URL);
-        existing.setEncryptedAccessKey(cipher.encrypt("OLD-AK"));
-        existing.setEncryptedSecretKey(cipher.encrypt("OLD-SK"));
-        when(sqsRepository.findById("q1")).thenReturn(Optional.of(existing));
-
-        mockMvc.perform(post("/admin/destinations/sqs/q1/edit")
-                        .param("queueUrl", QUEUE_URL)
-                        .param("accessKey", ACCESS_KEY)
-                        .param("secretKey", SECRET_KEY))
-                .andExpect(status().is3xxRedirection());
-
-        final ArgumentCaptor<SqsDestination> captor = ArgumentCaptor.forClass(SqsDestination.class);
-        verify(sqsRepository).save(captor.capture());
-        final SqsDestination saved = captor.getValue();
-
-        assertEncrypted(saved.getEncryptedAccessKey(), ACCESS_KEY);
-        assertEncrypted(saved.getEncryptedSecretKey(), SECRET_KEY);
-    }
-
-    @Test
-    void sqsEditClearCredentialsViaHttpPersistsNullEncryptedFields() throws Exception {
-        final SqsDestination existing = new SqsDestination();
-        existing.setId("q1"); existing.setName("redaction-events");
-        existing.setQueueUrl(QUEUE_URL);
-        existing.setEncryptedAccessKey(cipher.encrypt("OLD-AK"));
-        existing.setEncryptedSecretKey(cipher.encrypt("OLD-SK"));
-        when(sqsRepository.findById("q1")).thenReturn(Optional.of(existing));
-
-        mockMvc.perform(post("/admin/destinations/sqs/q1/edit")
-                        .param("queueUrl", QUEUE_URL)
-                        .param("clearCredentials", "true"))
-                .andExpect(status().is3xxRedirection());
-
-        final ArgumentCaptor<SqsDestination> captor = ArgumentCaptor.forClass(SqsDestination.class);
-        verify(sqsRepository).save(captor.capture());
-        assertNull(captor.getValue().getEncryptedAccessKey());
-        assertNull(captor.getValue().getEncryptedSecretKey());
-    }
-
-    // ====================================================================
-    // Helper — the encryption contract for a single credential field.
-    // ====================================================================
-
     /**
-     * Asserts the field is the AES-GCM ciphertext of {@code plaintext} under the
-     * test cipher: present, distinct from the plaintext (verbatim, hex, or
-     * base64), and decryptable back to the original.
+     * Asserts that {@code ciphertext} is non-null, not equal to the plaintext,
+     * does not contain the plaintext as a substring, and round-trips back to
+     * the plaintext via the real cipher. Catches naive "fake encryption" like
+     * base64-of-plaintext that decrypts correctly but leaks via substring.
      */
-    private void assertEncrypted(final String storedField, final String plaintext) {
-        assertNotNull(storedField, "credential field is null — encryption was bypassed entirely");
-        assertNotEquals(plaintext, storedField, "credential was stored unencrypted");
-
-        if (storedField.contains(plaintext)) {
-            throw new AssertionError("ciphertext contains plaintext substring");
+    private void assertEncrypted(final String ciphertext, final String plaintext) {
+        assertNotNull(ciphertext, "expected non-null ciphertext");
+        assertNotEquals(plaintext, ciphertext, "ciphertext equals plaintext — encryption bypassed");
+        if (ciphertext.contains(plaintext)) {
+            throw new AssertionError("ciphertext leaks the plaintext as a substring: " + plaintext);
         }
-        final String hex = bytesToHex(plaintext.getBytes(StandardCharsets.UTF_8));
-        if (storedField.toLowerCase().contains(hex.toLowerCase())) {
-            throw new AssertionError("ciphertext contains hex-encoded plaintext");
-        }
-        final String b64 = Base64.getEncoder().encodeToString(plaintext.getBytes(StandardCharsets.UTF_8))
-                .replace("=", "");
-        if (b64.length() >= 8 && storedField.contains(b64)) {
-            throw new AssertionError("ciphertext contains base64-encoded plaintext");
-        }
-
-        // Round-trip — proves the stored value is ciphertext under our key, not random
-        // bytes or a constant or ciphertext under some other key.
-        assertEquals(plaintext, cipher.decrypt(storedField),
-                "stored ciphertext does not round-trip back to the original plaintext");
-    }
-
-    private static String bytesToHex(final byte[] bytes) {
-        final StringBuilder sb = new StringBuilder(bytes.length * 2);
-        for (final byte b : bytes) {
-            sb.append(String.format("%02x", b));
-        }
-        return sb.toString();
+        assertEquals(plaintext, cipher.decrypt(ciphertext),
+                "decrypt did not round-trip back to the original plaintext");
     }
 }

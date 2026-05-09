@@ -20,27 +20,22 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
-import software.amazon.awssdk.services.sqs.SqsClient;
-import software.amazon.awssdk.services.sqs.model.SendMessageRequest;
 
 import java.io.IOException;
-import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Performs live "can I actually write here?" probes for redaction destinations.
  * Used by the admin UI's Test buttons to give operators immediate feedback that
  * a destination is reachable and that the configured credentials work.
  *
- * <p>S3 and SQS calls use AWS SDK v2; credentials are either the explicitly
- * supplied static pair or the ambient credentials chain (instance profile,
- * environment, shared credentials file).</p>
+ * <p>S3 calls use AWS SDK v2; credentials are either the explicitly supplied
+ * static pair or the ambient credentials chain (instance profile, environment,
+ * shared credentials file).</p>
  */
 @Service
 public class DestinationTester {
@@ -48,9 +43,6 @@ public class DestinationTester {
     private static final Logger LOG = LoggerFactory.getLogger(DestinationTester.class);
 
     private static final Region DEFAULT_S3_REGION = Region.US_EAST_1;
-    /** SQS queue URL host: sqs.&lt;region&gt;.amazonaws.com */
-    private static final Pattern SQS_REGION_PATTERN =
-            Pattern.compile("^https?://sqs\\.([a-z0-9-]+)\\.amazonaws\\.com/", Pattern.CASE_INSENSITIVE);
 
     public TestResult testLocalDirectory(final String directoryPath) {
         if (directoryPath == null || directoryPath.isBlank()) {
@@ -104,42 +96,6 @@ public class DestinationTester {
         }
     }
 
-    public TestResult testSqs(final String queueUrl,
-                              final String accessKey, final String secretKey) {
-        if (queueUrl == null || queueUrl.isBlank()) {
-            return TestResult.failure("Queue URL is required.");
-        }
-        if (paired(accessKey, secretKey) == Paired.HALF) {
-            return TestResult.failure("Provide both Access key and Secret key, or leave both blank.");
-        }
-        final Region region = parseRegionFromQueueUrl(queueUrl);
-        if (region == null) {
-            return TestResult.failure("Could not parse AWS region from the queue URL. " +
-                    "Expected a URL like https://sqs.<region>.amazonaws.com/<account>/<queue>.");
-        }
-        // Validate URL syntax up front so a malformed URL doesn't surface as a generic SDK error.
-        try {
-            URI.create(queueUrl);
-        } catch (IllegalArgumentException e) {
-            return TestResult.failure("Invalid queue URL: " + e.getMessage());
-        }
-
-        final String body = testContent("SQS");
-        try (SqsClient sqs = SqsClient.builder()
-                .region(region)
-                .credentialsProvider(credentialsFor(accessKey, secretKey))
-                .build()) {
-            sqs.sendMessage(SendMessageRequest.builder()
-                    .queueUrl(queueUrl)
-                    .messageBody(body)
-                    .build());
-            return TestResult.success("Test message sent to " + queueUrl + ".");
-        } catch (Exception e) {
-            LOG.warn("SQS destination test failed for {}: {}", queueUrl, e.toString());
-            return TestResult.failure("Could not send to SQS: " + e.getMessage());
-        }
-    }
-
     private static AwsCredentialsProvider credentialsFor(final String accessKey, final String secretKey) {
         if (accessKey != null && !accessKey.isEmpty() && secretKey != null && !secretKey.isEmpty()) {
             return StaticCredentialsProvider.create(AwsBasicCredentials.create(accessKey, secretKey));
@@ -150,16 +106,6 @@ public class DestinationTester {
     private static String joinKey(final String prefix, final String filename) {
         if (prefix == null || prefix.isBlank()) return filename;
         return prefix.endsWith("/") ? prefix + filename : prefix + "/" + filename;
-    }
-
-    static Region parseRegionFromQueueUrl(final String queueUrl) {
-        final Matcher m = SQS_REGION_PATTERN.matcher(queueUrl);
-        if (!m.find()) return null;
-        try {
-            return Region.of(m.group(1));
-        } catch (Exception e) {
-            return null;
-        }
     }
 
     private static String testContent(final String destinationKind) {

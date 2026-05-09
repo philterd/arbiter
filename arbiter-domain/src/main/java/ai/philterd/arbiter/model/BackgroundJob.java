@@ -36,7 +36,8 @@ import java.time.Instant;
         def = "{'batchId': 1}",
         unique = true,
         partialFilter = "{ 'status': 'RUNNING', "
-                + "'type': { $in: ['OPENSEARCH_INGEST', 'ELASTICSEARCH_INGEST'] } }")
+                + "'type': { $in: ['OPENSEARCH_INGEST', 'ELASTICSEARCH_INGEST', "
+                + "'LOCAL_DIRECTORY_INGEST'] } }")
 public class BackgroundJob {
 
     public static final String STATUS_PENDING = "PENDING";
@@ -51,12 +52,18 @@ public class BackgroundJob {
     public static final String TYPE_OPENSEARCH_INGEST = "OPENSEARCH_INGEST";
     /** Elasticsearch ingest — mirrors OpenSearch since the wire protocol is the same. */
     public static final String TYPE_ELASTICSEARCH_INGEST = "ELASTICSEARCH_INGEST";
+    /** Local-filesystem directory ingest. */
+    public static final String TYPE_LOCAL_DIRECTORY_INGEST = "LOCAL_DIRECTORY_INGEST";
+    /** Export of a batch's APPROVED documents to a configured destination. */
+    public static final String TYPE_BATCH_EXPORT = "BATCH_EXPORT";
 
     // ---- Category constants. A category groups related types so the Background Jobs page
     //      can render a section per category. -------------------------------------------------
 
     /** Imports documents from an external data source into the redaction queue. */
     public static final String CATEGORY_DATA_IMPORT = "DATA_IMPORT";
+    /** Exports finalized review output to a configured destination. */
+    public static final String CATEGORY_DATA_EXPORT = "DATA_EXPORT";
     /** Fallback for types that haven't declared a category. */
     public static final String CATEGORY_OTHER = "OTHER";
 
@@ -68,7 +75,9 @@ public class BackgroundJob {
     public static String categoryFor(final String type) {
         if (type == null) return CATEGORY_OTHER;
         return switch (type) {
-            case TYPE_OPENSEARCH_INGEST, TYPE_ELASTICSEARCH_INGEST -> CATEGORY_DATA_IMPORT;
+            case TYPE_OPENSEARCH_INGEST, TYPE_ELASTICSEARCH_INGEST,
+                 TYPE_LOCAL_DIRECTORY_INGEST -> CATEGORY_DATA_IMPORT;
+            case TYPE_BATCH_EXPORT -> CATEGORY_DATA_EXPORT;
             default -> CATEGORY_OTHER;
         };
     }
@@ -78,6 +87,7 @@ public class BackgroundJob {
         if (category == null) return "Other Jobs";
         return switch (category) {
             case CATEGORY_DATA_IMPORT -> "Data Import Jobs";
+            case CATEGORY_DATA_EXPORT -> "Data Export Jobs";
             default -> "Other Jobs";
         };
     }
@@ -138,6 +148,18 @@ public class BackgroundJob {
 
     /** Email of the user who started the job. */
     private String createdBy;
+
+    /**
+     * For {@link #TYPE_BATCH_EXPORT} jobs only: which destination kind the export
+     * targets — one of {@code LOCAL} or {@code S3}. Null for non-export jobs.
+     */
+    private String destinationKind;
+    /** For {@link #TYPE_BATCH_EXPORT}: the destination row's id. */
+    private String destinationId;
+    /** For {@link #TYPE_BATCH_EXPORT}: the destination's display name (e.g. "archive"). */
+    private String destinationName;
+    /** For {@link #TYPE_BATCH_EXPORT}: the chosen data format (e.g. {@code JSONL}). */
+    private String dataFormat;
 
     public BackgroundJob() {
     }
@@ -200,4 +222,16 @@ public class BackgroundJob {
 
     public String getCreatedBy() { return createdBy; }
     public void setCreatedBy(final String createdBy) { this.createdBy = createdBy; }
+
+    public String getDestinationKind() { return destinationKind; }
+    public void setDestinationKind(final String destinationKind) { this.destinationKind = destinationKind; }
+
+    public String getDestinationId() { return destinationId; }
+    public void setDestinationId(final String destinationId) { this.destinationId = destinationId; }
+
+    public String getDestinationName() { return destinationName; }
+    public void setDestinationName(final String destinationName) { this.destinationName = destinationName; }
+
+    public String getDataFormat() { return dataFormat; }
+    public void setDataFormat(final String dataFormat) { this.dataFormat = dataFormat; }
 }

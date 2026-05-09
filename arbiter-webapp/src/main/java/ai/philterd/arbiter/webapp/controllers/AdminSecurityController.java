@@ -56,4 +56,27 @@ public class AdminSecurityController {
                 : "MFA requirement removed.");
         return "redirect:/admin/security";
     }
+
+    /**
+     * Toggle the data-source host allow-list. Disabling it removes the SSRF defence
+     * that gates outbound connections to OpenSearch / Elasticsearch / Philter / Ollama
+     * endpoints by hostname, so the audit row records exactly who flipped it and when.
+     */
+    @PostMapping("/host-allow-list")
+    public String saveHostAllowList(
+            @RequestParam(value = "hostAllowListEnabled", defaultValue = "false")
+            final boolean hostAllowListEnabled,
+            final RedirectAttributes redirectAttributes) {
+        final GeneralSettings settings = generalSettingsService.load();
+        final boolean previous = settings.isHostAllowListEnabled();
+        settings.setHostAllowListEnabled(hostAllowListEnabled);
+        generalSettingsService.save(settings);
+        auditLogService.log("SECURITY_SETTINGS_CHANGE", "Settings", GeneralSettings.SINGLETON_ID,
+                Map.of("previousHostAllowListEnabled", previous,
+                        "hostAllowListEnabled", hostAllowListEnabled));
+        redirectAttributes.addFlashAttribute("success", hostAllowListEnabled
+                ? "Host allow-list is now enabled."
+                : "Host allow-list is now disabled. Outbound endpoints will not be checked against the allow-list.");
+        return "redirect:/admin/security";
+    }
 }

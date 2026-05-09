@@ -29,9 +29,34 @@ public final class AuthUtils {
      * unauthenticated principals without a separate guard.
      */
     public static boolean isAdmin(final Authentication auth) {
+        return hasAuthority(auth, "ROLE_ADMIN");
+    }
+
+    /**
+     * Returns {@code true} if the principal carries the {@code ROLE_AUDITOR} authority.
+     * Auditors see the same cross-group reads an admin sees but never mutate state —
+     * the {@code AuditorWriteRejectFilter} on {@code SecurityConfig} enforces the
+     * read-only contract.
+     */
+    public static boolean isAuditor(final Authentication auth) {
+        return hasAuthority(auth, "ROLE_AUDITOR");
+    }
+
+    /**
+     * Returns {@code true} when the principal is either an admin or an auditor — both
+     * roles see the cross-group view (queue, search, audit log, etc.). Use this in
+     * controller branches that decide between "see everything" and "see only my groups."
+     * For branches that gate WRITES, use {@link #isAdmin(Authentication)} instead so
+     * auditors stay read-only.
+     */
+    public static boolean isAdminOrAuditor(final Authentication auth) {
+        return isAdmin(auth) || isAuditor(auth);
+    }
+
+    private static boolean hasAuthority(final Authentication auth, final String name) {
         if (auth == null) return false;
         for (GrantedAuthority a : auth.getAuthorities()) {
-            if ("ROLE_ADMIN".equals(a.getAuthority())) return true;
+            if (name.equals(a.getAuthority())) return true;
         }
         return false;
     }

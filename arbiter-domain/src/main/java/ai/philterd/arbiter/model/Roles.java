@@ -11,8 +11,19 @@ package ai.philterd.arbiter.model;
 
 public final class Roles {
 
+    /** Full access — manage users, configure integrations, perform every operation. */
     public static final String ADMIN = "ADMIN";
+
+    /** Default role. Group-scoped reviewer with write access inside their groups. */
     public static final String USER = "USER";
+
+    /**
+     * Read-only counterpart to {@link #ADMIN}. Sees the same cross-group data an admin
+     * sees (queue, search, audit log, batches, reports) but cannot mutate state. Treated
+     * as mutually exclusive with USER and ADMIN at assignment time, even though the role
+     * set technically supports multiple roles per user.
+     */
+    public static final String AUDITOR = "AUDITOR";
 
     private Roles() {
     }

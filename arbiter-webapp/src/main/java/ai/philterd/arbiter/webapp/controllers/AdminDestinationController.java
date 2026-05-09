@@ -11,10 +11,8 @@ package ai.philterd.arbiter.webapp.controllers;
 
 import ai.philterd.arbiter.model.LocalDirectoryDestination;
 import ai.philterd.arbiter.model.S3Destination;
-import ai.philterd.arbiter.model.SqsDestination;
 import ai.philterd.arbiter.repository.LocalDirectoryDestinationRepository;
 import ai.philterd.arbiter.repository.S3DestinationRepository;
-import ai.philterd.arbiter.repository.SqsDestinationRepository;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.DestinationTester;
 import ai.philterd.arbiter.service.SymmetricCipher;
@@ -38,9 +36,8 @@ import java.util.UUID;
 
 /**
  * CRUD for redaction destinations — places finalized documents are written to.
- * Today the page supports three destination types: local filesystem directories,
- * Amazon S3 buckets, and Amazon SQS queues. Mirrors the layout of
- * {@link AdminDataSourceController}.
+ * Today the page supports two destination types: local filesystem directories
+ * and Amazon S3 buckets. Mirrors the layout of {@link AdminDataSourceController}.
  *
  * <p>TODO: Wire destinations into the finalize flow. Today admins can configure and
  * "Test" destinations here, but no part of the document workflow actually writes to them:
@@ -57,20 +54,17 @@ public class AdminDestinationController {
 
     private final LocalDirectoryDestinationRepository localRepository;
     private final S3DestinationRepository s3Repository;
-    private final SqsDestinationRepository sqsRepository;
     private final AuditLogService auditLogService;
     private final SymmetricCipher cipher;
     private final DestinationTester destinationTester;
 
     public AdminDestinationController(final LocalDirectoryDestinationRepository localRepository,
                                       final S3DestinationRepository s3Repository,
-                                      final SqsDestinationRepository sqsRepository,
                                       final AuditLogService auditLogService,
                                       final SymmetricCipher cipher,
                                       final DestinationTester destinationTester) {
         this.localRepository = localRepository;
         this.s3Repository = s3Repository;
-        this.sqsRepository = sqsRepository;
         this.auditLogService = auditLogService;
         this.cipher = cipher;
         this.destinationTester = destinationTester;
@@ -85,10 +79,6 @@ public class AdminDestinationController {
         final List<S3Destination> s3Destinations = s3Repository
                 .findAll(PageRequest.of(0, 500, Sort.by("name"))).getContent();
         model.addAttribute("s3Destinations", s3Destinations);
-
-        final List<SqsDestination> sqsDestinations = sqsRepository
-                .findAll(PageRequest.of(0, 500, Sort.by("name"))).getContent();
-        model.addAttribute("sqsDestinations", sqsDestinations);
 
         return "admin-destinations";
     }
@@ -330,135 +320,6 @@ public class AdminDestinationController {
     }
 
     // ------------------------------------------------------------------
-    // Amazon SQS
-    // ------------------------------------------------------------------
-
-    @PostMapping("/sqs")
-    public String createSqs(@RequestParam("name") final String name,
-                            @RequestParam("queueUrl") final String queueUrl,
-                            @RequestParam(value = "accessKey", required = false) final String accessKey,
-                            @RequestParam(value = "secretKey", required = false) final String secretKey,
-                            final RedirectAttributes redirectAttributes) {
-        final String trimmedName = name == null ? "" : name.trim();
-        final String trimmedUrl = queueUrl == null ? "" : queueUrl.trim();
-        final String rawAccessKey = accessKey == null ? "" : accessKey;
-        final String rawSecretKey = secretKey == null ? "" : secretKey;
-
-        if (trimmedName.isEmpty()) {
-            redirectAttributes.addFlashAttribute("error", "Name is required.");
-            return "redirect:/admin/destinations";
-        }
-        if (trimmedUrl.isEmpty()) {
-            redirectAttributes.addFlashAttribute("error", "Queue URL is required.");
-            return "redirect:/admin/destinations";
-        }
-        if (rawAccessKey.isEmpty() != rawSecretKey.isEmpty()) {
-            redirectAttributes.addFlashAttribute("error",
-                    "Provide both Access key and Secret key, or leave both blank.");
-            return "redirect:/admin/destinations";
-        }
-        if (sqsRepository.findFirstByNameIgnoreCase(trimmedName).isPresent()) {
-            redirectAttributes.addFlashAttribute("error",
-                    "An SQS destination named \"" + trimmedName + "\" already exists.");
-            return "redirect:/admin/destinations";
-        }
-
-        final SqsDestination dest = new SqsDestination();
-        dest.setId(UUID.randomUUID().toString());
-        dest.setName(trimmedName);
-        dest.setQueueUrl(trimmedUrl);
-        dest.setEncryptedAccessKey(rawAccessKey.isEmpty() ? null : cipher.encrypt(rawAccessKey));
-        dest.setEncryptedSecretKey(rawSecretKey.isEmpty() ? null : cipher.encrypt(rawSecretKey));
-        dest.setCreatedAt(LocalDateTime.now());
-
-        try {
-            sqsRepository.save(dest);
-        } catch (DuplicateKeyException e) {
-            redirectAttributes.addFlashAttribute("error",
-                    "An SQS destination named \"" + trimmedName + "\" already exists.");
-            return "redirect:/admin/destinations";
-        }
-
-        auditLogService.log("SQS_DESTINATION_CREATE", "SqsDestination", dest.getId(),
-                Map.of("name", trimmedName,
-                        "queueUrl", trimmedUrl,
-                        "credentialsSet", dest.getEncryptedAccessKey() != null));
-        redirectAttributes.addFlashAttribute("success",
-                "SQS destination \"" + trimmedName + "\" added.");
-        return "redirect:/admin/destinations";
-    }
-
-    @PostMapping("/sqs/{id}/edit")
-    public String editSqs(@PathVariable final String id,
-                          @RequestParam("queueUrl") final String queueUrl,
-                          @RequestParam(value = "accessKey", required = false) final String accessKey,
-                          @RequestParam(value = "secretKey", required = false) final String secretKey,
-                          @RequestParam(value = "clearCredentials", required = false) final String clearCredentials,
-                          final RedirectAttributes redirectAttributes) {
-        final SqsDestination dest = sqsRepository.findById(id).orElse(null);
-        if (dest == null) {
-            redirectAttributes.addFlashAttribute("error", "SQS destination not found.");
-            return "redirect:/admin/destinations";
-        }
-
-        final String trimmedUrl = queueUrl == null ? "" : queueUrl.trim();
-        final String rawAccessKey = accessKey == null ? "" : accessKey;
-        final String rawSecretKey = secretKey == null ? "" : secretKey;
-        final boolean clear = "true".equalsIgnoreCase(clearCredentials);
-
-        if (trimmedUrl.isEmpty()) {
-            redirectAttributes.addFlashAttribute("error", "Queue URL is required.");
-            return "redirect:/admin/destinations";
-        }
-        if (!clear && rawAccessKey.isEmpty() != rawSecretKey.isEmpty()) {
-            redirectAttributes.addFlashAttribute("error",
-                    "Provide both Access key and Secret key, leave both blank to keep existing, or check Clear credentials.");
-            return "redirect:/admin/destinations";
-        }
-
-        dest.setQueueUrl(trimmedUrl);
-
-        final boolean credentialsChanged;
-        if (clear) {
-            dest.setEncryptedAccessKey(null);
-            dest.setEncryptedSecretKey(null);
-            credentialsChanged = true;
-        } else if (!rawAccessKey.isEmpty()) {
-            dest.setEncryptedAccessKey(cipher.encrypt(rawAccessKey));
-            dest.setEncryptedSecretKey(cipher.encrypt(rawSecretKey));
-            credentialsChanged = true;
-        } else {
-            credentialsChanged = false;
-        }
-
-        sqsRepository.save(dest);
-
-        auditLogService.log("SQS_DESTINATION_UPDATE", "SqsDestination", id,
-                Map.of("name", dest.getName() == null ? "" : dest.getName(),
-                        "queueUrl", trimmedUrl,
-                        "credentialsChanged", credentialsChanged,
-                        "credentialsCleared", clear));
-        redirectAttributes.addFlashAttribute("success",
-                "SQS destination \"" + dest.getName() + "\" updated.");
-        return "redirect:/admin/destinations";
-    }
-
-    @PostMapping("/sqs/{id}/delete")
-    public String deleteSqs(@PathVariable final String id, final RedirectAttributes redirectAttributes) {
-        final SqsDestination dest = sqsRepository.findById(id).orElse(null);
-        if (dest == null) {
-            redirectAttributes.addFlashAttribute("error", "SQS destination not found.");
-            return "redirect:/admin/destinations";
-        }
-        sqsRepository.deleteById(id);
-        auditLogService.log("SQS_DESTINATION_DELETE", "SqsDestination", id,
-                Map.of("name", dest.getName() == null ? "" : dest.getName()));
-        redirectAttributes.addFlashAttribute("success",
-                "SQS destination \"" + dest.getName() + "\" removed.");
-        return "redirect:/admin/destinations";
-    }
-
-    // ------------------------------------------------------------------
     // Test endpoints — exercised by the Test buttons on the Add forms.
     // Each returns JSON: { ok: boolean, message?: string, error?: string }.
     // No persistence; no audit log entry — these are read-only probes from
@@ -479,14 +340,6 @@ public class AdminDestinationController {
             @RequestParam(value = "accessKey", required = false) final String accessKey,
             @RequestParam(value = "secretKey", required = false) final String secretKey) {
         return toJson(destinationTester.testS3(bucketName, bucketKey, accessKey, secretKey));
-    }
-
-    @PostMapping(value = "/sqs/test", produces = "application/json")
-    public ResponseEntity<Map<String, Object>> testSqs(
-            @RequestParam("queueUrl") final String queueUrl,
-            @RequestParam(value = "accessKey", required = false) final String accessKey,
-            @RequestParam(value = "secretKey", required = false) final String secretKey) {
-        return toJson(destinationTester.testSqs(queueUrl, accessKey, secretKey));
     }
 
     private static ResponseEntity<Map<String, Object>> toJson(final DestinationTester.TestResult result) {

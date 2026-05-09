@@ -96,6 +96,7 @@ public class RedactionController {
     private final LocalDirectoryDataSourceRepository localDataSourceRepository;
     private final ai.philterd.arbiter.service.OpenSearchIngestJobService openSearchIngestJobService;
     private final ai.philterd.arbiter.service.ElasticsearchIngestJobService elasticsearchIngestJobService;
+    private final ai.philterd.arbiter.service.LocalDirectoryIngestJobService localDirectoryIngestJobService;
 
     public RedactionController(final RedactionService redactionService,
                                final BatchRepository batchRepository,
@@ -113,7 +114,8 @@ public class RedactionController {
                                final RelationalDbDataSourceRepository rdbDataSourceRepository,
                                final LocalDirectoryDataSourceRepository localDataSourceRepository,
                                final ai.philterd.arbiter.service.OpenSearchIngestJobService openSearchIngestJobService,
-                               final ai.philterd.arbiter.service.ElasticsearchIngestJobService elasticsearchIngestJobService) {
+                               final ai.philterd.arbiter.service.ElasticsearchIngestJobService elasticsearchIngestJobService,
+                               final ai.philterd.arbiter.service.LocalDirectoryIngestJobService localDirectoryIngestJobService) {
         this.redactionService = redactionService;
         this.batchRepository = batchRepository;
         this.documentRepository = documentRepository;
@@ -131,11 +133,13 @@ public class RedactionController {
         this.localDataSourceRepository = localDataSourceRepository;
         this.openSearchIngestJobService = openSearchIngestJobService;
         this.elasticsearchIngestJobService = elasticsearchIngestJobService;
+        this.localDirectoryIngestJobService = localDirectoryIngestJobService;
     }
 
     @GetMapping("/")
     public String dashboard(final Authentication authentication, final Model model) {
-        final boolean admin = AuthUtils.isAdmin(authentication);
+        // Auditors see the same dashboard rollups admins see — both are read-everywhere.
+        final boolean admin = AuthUtils.isAdminOrAuditor(authentication);
         final Set<String> myGroupIds = admin
                 ? Set.of()
                 : userGroupsService.groupIdsForEmail(authentication == null ? null : authentication.getName());
@@ -192,7 +196,10 @@ public class RedactionController {
 
     @GetMapping("/upload")
     public String upload(final Authentication authentication, final Model model) {
-        final boolean admin = AuthUtils.isAdmin(authentication);
+        // Same cross-group read scope for admins and auditors. The actual upload POST
+        // below is gated by AuditorWriteRejectFilter, so an auditor reaches this page
+        // but cannot submit it.
+        final boolean admin = AuthUtils.isAdminOrAuditor(authentication);
         final Set<String> myGroupIds = admin
                 ? Set.of()
                 : userGroupsService.groupIdsForEmail(authentication == null ? null : authentication.getName());
@@ -287,17 +294,29 @@ public class RedactionController {
             }
             return "redirect:/jobs";
         }
-        // TODO: Implement S3, RDB, and local-directory ingest. The admin UI lets operators
-        // configure data sources of these three types (with credential encryption, JDBC URL
-        // validation, host allow-list checks); the upload page lists them in tabs; the test
-        // buttons exercise the connection path. But selecting one and clicking ingest lands
-        // here and does nothing. Each needs an Ingest-Job service modeled on
-        // OpenSearchIngestJobService — background-job row, paginated read, hash-based dedupe
-        // placeholder Documents — plus a JdbcUrlValidator-gated JDBC connect site for RDB.
+        if ("local".equals(sourceType)) {
+            final String email = authentication == null ? null : authentication.getName();
+            final ai.philterd.arbiter.model.BackgroundJob job =
+                    localDirectoryIngestJobService.start(dataSourceId, batchId, priority, email);
+            if (ai.philterd.arbiter.model.BackgroundJob.STATUS_FAILED.equals(job.getStatus())) {
+                redirectAttributes.addFlashAttribute("error",
+                        "Could not start local-directory ingest: " + job.getErrorMessage());
+            } else {
+                redirectAttributes.addFlashAttribute("success",
+                        "Local-directory ingest started. Watch its progress on the Background Jobs page.");
+            }
+            return "redirect:/jobs";
+        }
+        // TODO: Implement S3 and RDB ingest. The admin UI lets operators configure data
+        // sources of these two types (with credential encryption and JDBC URL validation);
+        // the upload page lists them in tabs; the test buttons exercise the connection
+        // path. But selecting one and clicking ingest lands here and does nothing. Each
+        // needs an Ingest-Job service modeled on LocalDirectoryIngestJobService /
+        // OpenSearchIngestJobService — background-job row, paginated read, dedupe placeholder
+        // Documents — plus a JdbcUrlValidator-gated JDBC connect site for RDB.
         final String label = switch (sourceType == null ? "" : sourceType) {
             case "s3" -> "Amazon S3";
             case "rdb" -> "relational database";
-            case "local" -> "local directory";
             default -> "data source";
         };
         redirectAttributes.addFlashAttribute("info",
@@ -306,7 +325,7 @@ public class RedactionController {
     }
 
     @PostMapping("/redact")
-    public String redact(@RequestParam("file") final MultipartFile file,
+    public String redact(@RequestParam("file") final MultipartFile[] files,
                          @RequestParam("batchId") final String batchId,
                          @RequestParam(value = "priority", defaultValue = "2") final int priority,
                          final Authentication authentication,
@@ -323,38 +342,57 @@ public class RedactionController {
                     "Batch \"" + batch.getName() + "\" is closed and cannot accept new documents.");
             return "redirect:/upload";
         }
-
-        final long maxBytes = generalSettingsService.load().getMaxUploadFileSizeBytes();
-        if (file.getSize() > maxBytes) {
-            redirectAttributes.addFlashAttribute("error",
-                    "File exceeds the configured max upload size of "
-                            + String.format("%.2f", maxBytes / 1048576.0) + " MB.");
+        if (files == null || files.length == 0
+                || java.util.Arrays.stream(files).allMatch(MultipartFile::isEmpty)) {
+            redirectAttributes.addFlashAttribute("error", "Pick at least one file to upload.");
             return "redirect:/upload";
         }
 
-        final String contentType = file.getContentType();
-        final byte[] fileBytes = file.getBytes();
-        final String originalFilename = file.getOriginalFilename();
-
+        final long maxBytes = generalSettingsService.load().getMaxUploadFileSizeBytes();
         final int safePriority = (priority >= 1 && priority <= 3) ? priority : 2;
-        final Document queued;
-        if (MediaType.APPLICATION_PDF_VALUE.equals(contentType)) {
-            queued = ingestQueueService.enqueueFile(batch, originalFilename, fileBytes, contentType, safePriority);
-        } else {
-            final String text = new String(fileBytes, StandardCharsets.UTF_8);
-            queued = ingestQueueService.enqueueText(batch, originalFilename, text, safePriority);
+
+        // Best-effort per file: a single oversized or unreadable file should not
+        // sink the whole batch — queue what we can, report what we couldn't.
+        int queuedCount = 0;
+        final java.util.List<String> rejected = new java.util.ArrayList<>();
+        for (MultipartFile file : files) {
+            if (file == null || file.isEmpty()) continue;
+            final String originalFilename = file.getOriginalFilename();
+            if (file.getSize() > maxBytes) {
+                rejected.add((originalFilename == null ? "(unnamed)" : originalFilename)
+                        + " — exceeds " + String.format("%.2f", maxBytes / 1048576.0) + " MB");
+                continue;
+            }
+            final String contentType = file.getContentType();
+            final byte[] fileBytes = file.getBytes();
+            final Document queued;
+            if (MediaType.APPLICATION_PDF_VALUE.equals(contentType)) {
+                queued = ingestQueueService.enqueueFile(batch, originalFilename, fileBytes, contentType, safePriority);
+            } else {
+                final String text = new String(fileBytes, StandardCharsets.UTF_8);
+                queued = ingestQueueService.enqueueText(batch, originalFilename, text, safePriority);
+            }
+            auditLogService.log("DOCUMENT_QUEUED", "Document", queued.getId(),
+                    Map.of(
+                            "batchId", batch.getId(),
+                            "filename", originalFilename == null ? "" : originalFilename,
+                            "contentType", contentType == null ? "" : contentType,
+                            "size", fileBytes.length));
+            queuedCount++;
         }
 
-        auditLogService.log("DOCUMENT_QUEUED", "Document", queued.getId(),
-                Map.of(
-                        "batchId", batch.getId(),
-                        "filename", originalFilename == null ? "" : originalFilename,
-                        "contentType", contentType == null ? "" : contentType,
-                        "size", fileBytes.length));
-
-        redirectAttributes.addFlashAttribute("success",
-                "\"" + (originalFilename == null ? "Document" : originalFilename)
-                        + "\" was queued for redaction. It will appear in Documents once processed.");
+        if (queuedCount == 0) {
+            redirectAttributes.addFlashAttribute("error",
+                    "No documents were queued. " + String.join("; ", rejected));
+            return "redirect:/upload";
+        }
+        final StringBuilder msg = new StringBuilder();
+        msg.append(queuedCount).append(queuedCount == 1 ? " document was" : " documents were")
+                .append(" queued for redaction.");
+        if (!rejected.isEmpty()) {
+            msg.append(" Skipped: ").append(String.join("; ", rejected)).append('.');
+        }
+        redirectAttributes.addFlashAttribute("success", msg.toString());
         return "redirect:/upload";
     }
 

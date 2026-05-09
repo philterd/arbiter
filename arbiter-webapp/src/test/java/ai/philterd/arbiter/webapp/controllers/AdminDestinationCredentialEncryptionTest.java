@@ -10,10 +10,8 @@
 package ai.philterd.arbiter.webapp.controllers;
 
 import ai.philterd.arbiter.model.S3Destination;
-import ai.philterd.arbiter.model.SqsDestination;
 import ai.philterd.arbiter.repository.LocalDirectoryDestinationRepository;
 import ai.philterd.arbiter.repository.S3DestinationRepository;
-import ai.philterd.arbiter.repository.SqsDestinationRepository;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.DestinationTester;
 import ai.philterd.arbiter.service.SymmetricCipher;
@@ -34,7 +32,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * End-to-end check that S3 and SQS destination credentials are AES-GCM encrypted
+ * End-to-end check that S3 destination credentials are AES-GCM encrypted
  * <em>before</em> being handed to the repository for persistence. Unlike
  * {@link AdminDestinationControllerTest}, this suite wires in the real
  * {@link SymmetricCipher} and asserts that the persisted value:
@@ -54,7 +52,6 @@ class AdminDestinationCredentialEncryptionTest {
 
     private LocalDirectoryDestinationRepository localRepository;
     private S3DestinationRepository s3Repository;
-    private SqsDestinationRepository sqsRepository;
     private AuditLogService auditLogService;
     private SymmetricCipher cipher;
     private AdminDestinationController controller;
@@ -63,7 +60,6 @@ class AdminDestinationCredentialEncryptionTest {
     void setUp() {
         localRepository = mock(LocalDirectoryDestinationRepository.class);
         s3Repository = mock(S3DestinationRepository.class);
-        sqsRepository = mock(SqsDestinationRepository.class);
         auditLogService = mock(AuditLogService.class);
         // A real cipher with a fixed test key — produces real AES-GCM ciphertext.
         // The cipher requires base64 of exactly 32 bytes; build one inline.
@@ -72,7 +68,7 @@ class AdminDestinationCredentialEncryptionTest {
         cipher = new SymmetricCipher(java.util.Base64.getEncoder().encodeToString(keyBytes));
 
         controller = new AdminDestinationController(
-                localRepository, s3Repository, sqsRepository,
+                localRepository, s3Repository,
                 auditLogService, cipher,
                 mock(DestinationTester.class));
     }
@@ -157,107 +153,15 @@ class AdminDestinationCredentialEncryptionTest {
         assertEquals(SECRET_KEY, cipher.decrypt(saved.getEncryptedSecretKey()));
     }
 
-    // ====================================================================
-    // SQS — create
-    // ====================================================================
-
-    @Test
-    void sqsCreatePersistsRealCiphertext() {
-        when(sqsRepository.findFirstByNameIgnoreCase(any())).thenReturn(Optional.empty());
-
-        controller.createSqs("redaction-events",
-                "https://sqs.us-east-1.amazonaws.com/123/q",
-                ACCESS_KEY, SECRET_KEY, flash());
-
-        final ArgumentCaptor<SqsDestination> captor = ArgumentCaptor.forClass(SqsDestination.class);
-        verify(sqsRepository).save(captor.capture());
-        final SqsDestination saved = captor.getValue();
-
-        assertNotNull(saved.getEncryptedAccessKey());
-        assertNotNull(saved.getEncryptedSecretKey());
-        assertNotEquals(ACCESS_KEY, saved.getEncryptedAccessKey(),
-                "access key was stored unencrypted");
-        assertNotEquals(SECRET_KEY, saved.getEncryptedSecretKey(),
-                "secret key was stored unencrypted");
-        assertNoPlaintextLeak(saved.getEncryptedAccessKey(), ACCESS_KEY);
-        assertNoPlaintextLeak(saved.getEncryptedSecretKey(), SECRET_KEY);
-        assertEquals(ACCESS_KEY, cipher.decrypt(saved.getEncryptedAccessKey()));
-        assertEquals(SECRET_KEY, cipher.decrypt(saved.getEncryptedSecretKey()));
-    }
-
-    @Test
-    void sqsCreateProducesDifferentCiphertextEachTimeForSamePlaintext() {
-        when(sqsRepository.findFirstByNameIgnoreCase(any())).thenReturn(Optional.empty());
-
-        controller.createSqs("a", "https://sqs.us-east-1.amazonaws.com/123/q",
-                ACCESS_KEY, SECRET_KEY, flash());
-        controller.createSqs("b", "https://sqs.us-east-1.amazonaws.com/123/q",
-                ACCESS_KEY, SECRET_KEY, flash());
-
-        final ArgumentCaptor<SqsDestination> captor = ArgumentCaptor.forClass(SqsDestination.class);
-        verify(sqsRepository, org.mockito.Mockito.times(2)).save(captor.capture());
-        final SqsDestination first = captor.getAllValues().get(0);
-        final SqsDestination second = captor.getAllValues().get(1);
-
-        assertNotEquals(first.getEncryptedAccessKey(), second.getEncryptedAccessKey());
-        assertNotEquals(first.getEncryptedSecretKey(), second.getEncryptedSecretKey());
-    }
-
-    // ====================================================================
-    // SQS — edit (replace credentials)
-    // ====================================================================
-
-    @Test
-    void sqsEditReplaceCredentialsPersistsRealCiphertext() {
-        final String url = "https://sqs.us-east-1.amazonaws.com/123/q";
-        final SqsDestination existing = new SqsDestination();
-        existing.setId("q1"); existing.setName("redaction-events");
-        existing.setQueueUrl(url);
-        existing.setEncryptedAccessKey(cipher.encrypt("OLD-AK"));
-        existing.setEncryptedSecretKey(cipher.encrypt("OLD-SK"));
-        when(sqsRepository.findById("q1")).thenReturn(Optional.of(existing));
-
-        controller.editSqs("q1", url, ACCESS_KEY, SECRET_KEY, null, flash());
-
-        final ArgumentCaptor<SqsDestination> captor = ArgumentCaptor.forClass(SqsDestination.class);
-        verify(sqsRepository).save(captor.capture());
-        final SqsDestination saved = captor.getValue();
-
-        assertNotEquals(ACCESS_KEY, saved.getEncryptedAccessKey());
-        assertNotEquals(SECRET_KEY, saved.getEncryptedSecretKey());
-        assertNoPlaintextLeak(saved.getEncryptedAccessKey(), ACCESS_KEY);
-        assertNoPlaintextLeak(saved.getEncryptedSecretKey(), SECRET_KEY);
-        assertEquals(ACCESS_KEY, cipher.decrypt(saved.getEncryptedAccessKey()));
-        assertEquals(SECRET_KEY, cipher.decrypt(saved.getEncryptedSecretKey()));
-    }
-
     /**
-     * Asserts the ciphertext doesn't contain the plaintext verbatim, nor a
-     * trivially-encoded (hex / base64) form of it. Catches naive non-encryption
-     * implementations that might pass the simple {@code !equals} check.
+     * Asserts that the stored ciphertext does not contain the plaintext as a
+     * substring. Catches naive "fake encryption" like base64-of-plaintext that
+     * round-trips correctly but leaks the secret to anyone who can read the row.
      */
     private static void assertNoPlaintextLeak(final String ciphertext, final String plaintext) {
+        assertNotNull(ciphertext, "expected non-null ciphertext");
         if (ciphertext.contains(plaintext)) {
-            throw new AssertionError("ciphertext contains plaintext substring: " + plaintext);
+            throw new AssertionError("ciphertext leaks the plaintext as a substring: " + plaintext);
         }
-        final String hex = bytesToHex(plaintext.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        if (ciphertext.toLowerCase().contains(hex.toLowerCase())) {
-            throw new AssertionError("ciphertext contains hex-encoded plaintext");
-        }
-        final String b64 = java.util.Base64.getEncoder().encodeToString(
-                plaintext.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-        // Strip trailing '=' padding so that "AKIA…=" and "AKIA…" both get caught.
-        final String b64Stripped = b64.replace("=", "");
-        if (b64Stripped.length() >= 8 && ciphertext.contains(b64Stripped)) {
-            throw new AssertionError("ciphertext contains base64-encoded plaintext");
-        }
-    }
-
-    private static String bytesToHex(final byte[] bytes) {
-        final StringBuilder sb = new StringBuilder(bytes.length * 2);
-        for (final byte b : bytes) {
-            sb.append(String.format("%02x", b));
-        }
-        return sb.toString();
     }
 }

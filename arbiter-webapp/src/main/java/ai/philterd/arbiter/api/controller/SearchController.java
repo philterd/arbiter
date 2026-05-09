@@ -56,7 +56,9 @@ public class SearchController {
         // Restrict at the OpenSearch query layer for non-admins so the reported `total` and
         // the hit list both exclude foreign documents — an attacker can no longer probe
         // queries to detect the existence of content in batches they can't see.
-        final boolean admin = AuthUtils.isAdmin(authentication);
+        // Auditors see cross-group results too — this controls the OpenSearch
+        // batch-id filter, a read-only decision.
+        final boolean admin = AuthUtils.isAdminOrAuditor(authentication);
         final Set<String> allowedBatchIds = admin ? null : batchAccessService.allowedBatchIds(authentication);
         final SearchResults results = openSearchIndexService.search(query, offset, size, allowedBatchIds);
         if (offset == 0) {

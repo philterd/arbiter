@@ -75,6 +75,8 @@ public class AdminGroupController {
             row.put("id", g.getId());
             row.put("name", g.getName());
             row.put("userIds", g.getUserIds() == null ? Set.of() : g.getUserIds());
+            row.put("leaderUserIds",
+                    g.getLeaderUserIds() == null ? Set.of() : g.getLeaderUserIds());
             final List<String> memberNames = new ArrayList<>();
             if (g.getUserIds() != null) {
                 for (String uid : g.getUserIds()) {
@@ -84,6 +86,17 @@ public class AdminGroupController {
             }
             memberNames.sort(String::compareToIgnoreCase);
             row.put("memberNames", memberNames);
+            // Leader emails surfaced separately so the listing can show "Led by …" beside
+            // the membership list.
+            final List<String> leaderNames = new ArrayList<>();
+            if (g.getLeaderUserIds() != null) {
+                for (String uid : g.getLeaderUserIds()) {
+                    final String email = emailsById.get(uid);
+                    if (email != null) leaderNames.add(email);
+                }
+            }
+            leaderNames.sort(String::compareToIgnoreCase);
+            row.put("leaderNames", leaderNames);
             rows.add(row);
         }
 
@@ -95,6 +108,7 @@ public class AdminGroupController {
     @PostMapping
     public String create(@RequestParam("name") final String name,
                          @RequestParam(value = "userIds", required = false) final List<String> userIds,
+                         @RequestParam(value = "leaderIds", required = false) final List<String> leaderIds,
                          final RedirectAttributes redirectAttributes) {
         final String trimmed = name == null ? "" : name.trim();
         if (trimmed.isEmpty()) {
@@ -110,15 +124,19 @@ public class AdminGroupController {
             redirectAttributes.addFlashAttribute("error", "A group must contain at least one user.");
             return "redirect:/admin/groups";
         }
+        final Set<String> validLeaderIds = filterLeadersToMembers(leaderIds, validUserIds);
 
         final Group group = new Group();
         group.setCreatedAt(LocalDateTime.now());
         group.setId(UUID.randomUUID().toString());
         group.setName(trimmed);
         group.setUserIds(validUserIds);
+        group.setLeaderUserIds(validLeaderIds);
         groupRepository.save(group);
         auditLogService.log("GROUP_CREATE", "Group", group.getId(),
-                Map.of("name", trimmed, "memberCount", validUserIds.size()));
+                Map.of("name", trimmed,
+                        "memberCount", validUserIds.size(),
+                        "leaderCount", validLeaderIds.size()));
         redirectAttributes.addFlashAttribute("success", "Group \"" + trimmed + "\" created.");
         return "redirect:/admin/groups";
     }
@@ -127,6 +145,7 @@ public class AdminGroupController {
     public String edit(@PathVariable final String groupId,
                        @RequestParam("name") final String name,
                        @RequestParam(value = "userIds", required = false) final List<String> userIds,
+                       @RequestParam(value = "leaderIds", required = false) final List<String> leaderIds,
                        final RedirectAttributes redirectAttributes) {
         final Group group = groupRepository.findById(groupId).orElse(null);
         if (group == null) {
@@ -150,19 +169,45 @@ public class AdminGroupController {
             redirectAttributes.addFlashAttribute("error", "A group must contain at least one user.");
             return "redirect:/admin/groups";
         }
+        final Set<String> validLeaderIds = filterLeadersToMembers(leaderIds, validUserIds);
 
         final String previousName = group.getName();
         final int previousCount = group.getUserIds() == null ? 0 : group.getUserIds().size();
+        final int previousLeaderCount = group.getLeaderUserIds() == null
+                ? 0 : group.getLeaderUserIds().size();
         group.setName(trimmed);
         group.setUserIds(validUserIds);
+        group.setLeaderUserIds(validLeaderIds);
         groupRepository.save(group);
         auditLogService.log("GROUP_UPDATE", "Group", group.getId(),
                 Map.of("previousName", previousName == null ? "" : previousName,
                         "name", trimmed,
                         "previousMemberCount", previousCount,
-                        "memberCount", validUserIds.size()));
+                        "memberCount", validUserIds.size(),
+                        "previousLeaderCount", previousLeaderCount,
+                        "leaderCount", validLeaderIds.size()));
         redirectAttributes.addFlashAttribute("success", "Group \"" + trimmed + "\" updated.");
         return "redirect:/admin/groups";
+    }
+
+    /**
+     * Enforces the invariant that team leads must also be members. Filters the requested
+     * leader-id list down to entries that are both (a) in {@code memberIds} and (b)
+     * actually existing users. Submitting a leader id that isn't a member is silently
+     * dropped — the form sources the checkboxes from the same membership pool, so this
+     * only fires for tampered POSTs.
+     */
+    private Set<String> filterLeadersToMembers(final List<String> requested,
+                                               final Set<String> memberIds) {
+        final Set<String> result = new HashSet<>();
+        if (requested == null) return result;
+        for (String id : requested) {
+            if (id != null && !id.isBlank() && memberIds.contains(id)
+                    && userRepository.existsById(id)) {
+                result.add(id);
+            }
+        }
+        return result;
     }
 
     @PostMapping("/{groupId}/delete")

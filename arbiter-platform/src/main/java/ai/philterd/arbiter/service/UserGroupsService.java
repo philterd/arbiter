@@ -42,4 +42,25 @@ public class UserGroupsService {
         return ids;
     }
 
+    /**
+     * IDs of groups this user leads. Leadership is per-group: a user can lead group A
+     * and merely be a member of group B; this method returns only A. Returns an empty
+     * set when the user is not found or leads no group.
+     *
+     * <p>Leaders are also members (the admin Groups UI enforces leaders ⊆ members),
+     * so {@link #groupIdsForEmail(String)} is always a superset of the IDs returned
+     * here.
+     */
+    public Set<String> leadGroupIdsForEmail(final String email) {
+        if (email == null || email.isBlank()) return Set.of();
+        final User user = userRepository.findByEmail(email).orElse(null);
+        if (user == null || user.getId() == null) return Set.of();
+        final List<Group> groups = groupRepository.findByLeaderUserIdsContaining(user.getId());
+        final Set<String> ids = new HashSet<>();
+        for (Group g : groups) {
+            if (g.getId() != null) ids.add(g.getId());
+        }
+        return ids;
+    }
+
 }

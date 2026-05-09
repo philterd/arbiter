@@ -339,7 +339,9 @@ public class ReviewViewController {
         // This is defense-in-depth: the OpenSearch query already scopes to the source
         // document's batchId (which requireDocumentAccess already validated), but explicit
         // per-hit filtering ensures the check holds even if the search logic changes.
-        final boolean admin = AuthUtils.isAdmin(authentication);
+        // Auditors join the cross-group view here — the similar-document widget is
+        // a read, just like admin's similar view.
+        final boolean admin = AuthUtils.isAdminOrAuditor(authentication);
         final Set<String> allowedBatchIds = admin ? null : similarAllowedBatchIds(authentication);
 
         final java.util.Set<String> docIds = new java.util.HashSet<>();

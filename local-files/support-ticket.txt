@@ -1,0 +1,13 @@
+Ticket #SR-44891
+Opened: 2024-04-02 09:14 EST
+Reporter: Alan Turing <alan.turing@bletchley.example>
+Phone: 555-867-5309
+
+Description:
+I cannot sign in to my account. The reset email never arrives. My account
+email is alan.turing@bletchley.example and the address on file is
+1 Bletchley Park Way, Milton Keynes. My SSN on the verification call was
+123-45-7890.
+
+Resolution:
+Cleared lockout, asked the user to retry. Closed 2024-04-02 11:02 EST.

@@ -32,14 +32,53 @@ outbound call).
 
 Arbiter ships with a one-time bootstrap:
 
-1. On the first start with an **empty `users` collection**, an administrator is
-   seeded with email **`admin@philterd.ai`** and password **`admin`**.
+1. On any start where **no admin account exists** in the database, an
+   administrator is created with email **`admin@philterd.ai`**. The
+   password it gets depends on whether you have configured one:
+
+    - If the **`ARBITER_ADMIN_INITIAL_PASSWORD`** environment variable is
+      set to a value of at least 12 characters, that value is used. (The
+      shipped `docker-compose.yaml` sets one — change it before running
+      Arbiter for real.) The start-up banner confirms a configured
+      password was used but does **not** echo it back, since it already
+      lives in your compose file or secret store.
+    - Otherwise, Arbiter generates a fresh random password and prints it
+      to **standard output** during startup, inside a banner that looks
+      like:
+
+    ```
+    ============================================================
+      Arbiter bootstrap admin account created
+    ============================================================
+      Email:    admin@philterd.ai
+      Password: <24-character random password>
+
+      This password is shown ONCE. Sign in and change it from
+      Settings -> Account immediately. It is not recoverable.
+    ============================================================
+    ```
+
+    A generated password is **only printed once** — capture it from the
+    start-up logs (`docker compose logs arbiter-webapp`, your service
+    supervisor's stdout capture, etc.) before they roll over. If you lose
+    it before signing in, delete the admin account from the database and
+    restart to seed a new one.
+
+    A **generated** password is also flagged for forced rotation: on first
+    sign-in the admin is redirected to **Settings → Change password** and
+    cannot reach any other page until they choose a new one — the value
+    that was briefly visible in stdout shouldn't outlive the first
+    session. A password that came from **`ARBITER_ADMIN_INITIAL_PASSWORD`**
+    is **not** flagged for forced rotation; the operator already controls
+    where that value lives (compose file, secret store), so Arbiter
+    accepts it as the durable credential. Rotate it later from Settings
+    when you wish.
 2. On the first start with **empty `batches` / `documents` / `spans` collections
    and demo data enabled**, Arbiter loads any files under the configured demo
    directory into a sample batch and runs them through the redactor so the
    queue isn't empty.
 
-Sign in at `/login` using the seeded credentials, then **change the password
+Sign in at `/login` using the printed credentials, then **change the password
 immediately** under [Personal settings](user-guide/settings.md).
 
 ## What you'll see after sign-in

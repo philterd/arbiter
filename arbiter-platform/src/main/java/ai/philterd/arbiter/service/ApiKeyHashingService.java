@@ -19,8 +19,6 @@ import ai.philterd.arbiter.util.Hashing;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.util.Base64;
-
 /**
  * Hashes API keys with HMAC-SHA-256 keyed by {@code arbiter.crypto.secret}.
  *
@@ -37,19 +35,11 @@ public class ApiKeyHashingService {
 
     private final byte[] keyBytes;
 
-    public ApiKeyHashingService(@Value("${arbiter.crypto.secret}") final String configured) {
-        try {
-            this.keyBytes = Base64.getDecoder().decode(configured.trim());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalStateException(
-                    "arbiter.crypto.secret must be base64-encoded. "
-                            + "Generate one with `openssl rand -base64 32`.");
-        }
-        if (this.keyBytes.length != 32) {
-            throw new IllegalStateException(
-                    "arbiter.crypto.secret decoded to " + keyBytes.length
-                            + " bytes; expected exactly 32 bytes.");
-        }
+    public ApiKeyHashingService(@Value("${arbiter.crypto.secret:}") final String configured) {
+        // Validation is centralized in CryptoSecretLoader so this service and SymmetricCipher
+        // can't drift, and so the typed CryptoSecretConfigurationException flows up to the
+        // FailureAnalyzer that produces the operator-facing startup banner.
+        this.keyBytes = CryptoSecretLoader.load(configured);
     }
 
     public String hash(final String apiKey) {

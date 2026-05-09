@@ -102,7 +102,7 @@ class AdminControllerTest {
     @Test
     void rejectsBlankEmail() {
         final RedirectAttributes ra = flash();
-        controller.create(" ", false, ra);
+        controller.create(" ", false, null, ra);
         assertEquals("Email address is required.", error(ra));
         verify(invitationService, never()).issue(anyString(), anyBoolean(), anySet());
         verify(userNotificationService, never()).sendInvitation(anyString(), anyString());
@@ -111,7 +111,7 @@ class AdminControllerTest {
     @Test
     void rejectsInvalidEmail() {
         final RedirectAttributes ra = flash();
-        controller.create("not-an-email", false, ra);
+        controller.create("not-an-email", false, null, ra);
         assertNotNull(error(ra));
         assertTrue(error(ra).contains("not a valid email address"));
         verify(invitationService, never()).issue(anyString(), anyBoolean(), anySet());
@@ -122,27 +122,69 @@ class AdminControllerTest {
         when(userRepository.findByEmail("a@b.com")).thenReturn(Optional.of(new User()));
 
         final RedirectAttributes ra = flash();
-        controller.create("A@b.com", false, ra);
+        controller.create("A@b.com", false, null, ra);
         assertEquals("Email \"a@b.com\" is already taken.", error(ra));
         verify(invitationService, never()).issue(anyString(), anyBoolean(), anySet());
     }
 
     @Test
-    void refusesToCreateUserWhenSmtpDisabled() {
-        // The whole point of the invitation flow: the recipient gets the link by email.
-        // No SMTP → no link → refuse the create up front. (The previous flow let admin
-        // type a password and skip the email; that's the path we're closing.)
+    void refusesToCreateUserWhenSmtpDisabledAndNoInitialPasswordGiven() {
+        // The email-invitation path requires SMTP. With SMTP disabled and the
+        // admin not supplying an initial password, the create is refused — and
+        // the error message points the admin at the SMTP-free alternative.
         when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
         when(notificationSettingsService.load()).thenReturn(smtpDisabled());
 
         final RedirectAttributes ra = flash();
-        controller.create("a@b.com", false, ra);
+        controller.create("a@b.com", false, null, ra);
 
         assertNotNull(error(ra));
         assertTrue(error(ra).toLowerCase().contains("outbound email is not enabled"),
                 "expected SMTP-disabled error, got: " + error(ra));
         verify(invitationService, never()).issue(anyString(), anyBoolean(), anySet());
         verify(userNotificationService, never()).sendInvitation(anyString(), anyString());
+    }
+
+    @Test
+    void createWithInitialPasswordSkipsSmtpAndForcesRotationOnFirstLogin() {
+        // SMTP-free admin add: an initial password is supplied so the create
+        // succeeds even with SMTP disabled, and the saved user is flagged
+        // mustChangePassword so the user can't keep the credential the admin
+        // chose for them past first sign-in.
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
+        when(notificationSettingsService.load()).thenReturn(smtpDisabled());
+
+        final RedirectAttributes ra = flash();
+        controller.create("a@b.com", false, "correct-horse-battery-staple", ra);
+
+        assertNotNull(success(ra));
+        assertTrue(success(ra).toLowerCase().contains("out-of-band"),
+                "expected out-of-band hand-off message, got: " + success(ra));
+        // No invitation was issued, no email was sent, no SMTP was consulted.
+        verify(invitationService, never()).issue(anyString(), anyBoolean(), anySet());
+        verify(userNotificationService, never()).sendInvitation(anyString(), anyString());
+        // The new user is persisted with the encoded password and the rotation flag.
+        final org.mockito.ArgumentCaptor<User> captor = org.mockito.ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(captor.capture());
+        final User saved = captor.getValue();
+        assertEquals("a@b.com", saved.getEmail());
+        assertEquals("hash", saved.getPasswordHash());
+        assertTrue(saved.isMustChangePassword(),
+                "newly-created accounts with admin-set passwords must rotate at first login");
+    }
+
+    @Test
+    void createWithInitialPasswordRejectsShortPassword() {
+        // Mirrors the 12-char minimum enforced by /settings/password so the
+        // admin can't bypass the policy by choosing the user's password.
+        when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
+
+        final RedirectAttributes ra = flash();
+        controller.create("a@b.com", false, "short", ra);
+
+        assertNotNull(error(ra));
+        assertTrue(error(ra).contains("at least 12 characters"));
+        verify(userRepository, never()).save(any());
     }
 
     @Test
@@ -156,7 +198,7 @@ class AdminControllerTest {
                 eq("https://arbiter.example/invitations/tok-12345"))).thenReturn(true);
 
         final RedirectAttributes ra = flash();
-        controller.create("a@b.com", false, ra);
+        controller.create("a@b.com", false, null, ra);
 
         // Invitation issued, link built from token, email sent — and an audit row written
         // referencing the invitation id (NOT the user id, since no user exists yet).
@@ -180,7 +222,7 @@ class AdminControllerTest {
         when(userNotificationService.sendInvitation(anyString(), anyString())).thenReturn(false);
 
         final RedirectAttributes ra = flash();
-        controller.create("a@b.com", true, ra);
+        controller.create("a@b.com", true, null, ra);
 
         assertNotNull(error(ra));
         assertTrue(error(ra).contains("could not be sent"));
@@ -196,7 +238,7 @@ class AdminControllerTest {
         when(userNotificationService.buildInvitationLink(anyString())).thenReturn("link");
         when(userNotificationService.sendInvitation(anyString(), anyString())).thenReturn(true);
 
-        controller.create("  A@B.COM ", false, flash());
+        controller.create("  A@B.COM ", false, null, flash());
 
         verify(invitationService).issue(eq("a@b.com"), eq(false), anySet());
         verify(userRepository).findByEmail("a@b.com");
@@ -260,7 +302,7 @@ class AdminControllerTest {
         when(userRepository.findById("u-self")).thenReturn(Optional.of(self));
 
         final RedirectAttributes ra = flash();
-        controller.edit("u-self", false, null, adminAuth("admin@x.com"), ra);
+        controller.edit("u-self", "USER", null, adminAuth("admin@x.com"), ra);
 
         assertNotNull(error(ra));
         assertTrue(error(ra).toLowerCase().contains("cannot edit your own account"),
@@ -278,7 +320,7 @@ class AdminControllerTest {
         when(userRepository.countByRolesContaining("ADMIN")).thenReturn(1L);
 
         final RedirectAttributes ra = flash();
-        controller.edit("u-1", false, null, adminAuth("admin@x.com"), ra);
+        controller.edit("u-1", "USER", null, adminAuth("admin@x.com"), ra);
 
         assertNotNull(error(ra));
         assertTrue(error(ra).toLowerCase().contains("at least one administrator"),
@@ -288,13 +330,30 @@ class AdminControllerTest {
     }
 
     @Test
+    void editRefusesConvertingLastAdminToAuditor() {
+        // The last-admin guard treats AUDITOR as "no longer admin" — converting the only
+        // remaining ADMIN to AUDITOR also leaves the system with zero admins.
+        final User target = userWith("u-1", "alice@x.com", true);
+        when(userRepository.findById("u-1")).thenReturn(Optional.of(target));
+        when(userRepository.countByRolesContaining("ADMIN")).thenReturn(1L);
+
+        final RedirectAttributes ra = flash();
+        controller.edit("u-1", "AUDITOR", null, adminAuth("admin@x.com"), ra);
+
+        assertNotNull(error(ra));
+        assertTrue(error(ra).toLowerCase().contains("at least one administrator"),
+                "expected last-admin refusal even when target role is AUDITOR, got: " + error(ra));
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
     void editAllowsDemotingWhenAnotherAdminRemains() {
         final User target = userWith("u-1", "alice@x.com", true);
         when(userRepository.findById("u-1")).thenReturn(Optional.of(target));
         when(userRepository.countByRolesContaining("ADMIN")).thenReturn(2L);
 
         final RedirectAttributes ra = flash();
-        controller.edit("u-1", false, null, adminAuth("admin@x.com"), ra);
+        controller.edit("u-1", "USER", null, adminAuth("admin@x.com"), ra);
 
         assertNotNull(success(ra));
         assertFalse(target.getRoles().contains("ADMIN"));
@@ -309,7 +368,7 @@ class AdminControllerTest {
         when(userRepository.findById("u-1")).thenReturn(Optional.of(target));
 
         final RedirectAttributes ra = flash();
-        controller.edit("u-1", true, null, adminAuth("admin@x.com"), ra);
+        controller.edit("u-1", "ADMIN", null, adminAuth("admin@x.com"), ra);
 
         assertNotNull(success(ra));
         assertTrue(target.getRoles().contains("ADMIN"));
@@ -324,10 +383,41 @@ class AdminControllerTest {
         when(userRepository.findById("u-1")).thenReturn(Optional.of(target));
 
         final RedirectAttributes ra = flash();
-        controller.edit("u-1", true, null, adminAuth("admin@x.com"), ra);
+        controller.edit("u-1", "ADMIN", null, adminAuth("admin@x.com"), ra);
 
         assertNotNull(success(ra));
         verify(userRepository).save(target);
         verify(userRepository, never()).countByRolesContaining(anyString());
+    }
+
+    @Test
+    void editAssignsAuditorRole() {
+        // Promoting USER → AUDITOR is allowed for any non-admin target. AUDITOR doesn't
+        // touch the admin pool so the count check is skipped.
+        final User target = userWith("u-1", "alice@x.com", false);
+        when(userRepository.findById("u-1")).thenReturn(Optional.of(target));
+
+        final RedirectAttributes ra = flash();
+        controller.edit("u-1", "AUDITOR", null, adminAuth("admin@x.com"), ra);
+
+        assertNotNull(success(ra));
+        assertTrue(target.getRoles().contains("AUDITOR"));
+        assertFalse(target.getRoles().contains("ADMIN"));
+        verify(userRepository).save(target);
+        verify(userRepository, never()).countByRolesContaining(anyString());
+    }
+
+    @Test
+    void editRejectsUnknownRoleString() {
+        final User target = userWith("u-1", "alice@x.com", false);
+        when(userRepository.findById("u-1")).thenReturn(Optional.of(target));
+
+        final RedirectAttributes ra = flash();
+        controller.edit("u-1", "WIZARD", null, adminAuth("admin@x.com"), ra);
+
+        assertNotNull(error(ra));
+        assertTrue(error(ra).toLowerCase().contains("unknown role"),
+                "expected unknown-role refusal, got: " + error(ra));
+        verify(userRepository, never()).save(any());
     }
 }

@@ -51,12 +51,14 @@ public class DataImportDispatcher {
 
     private static final List<String> DATA_IMPORT_TYPES = List.of(
             BackgroundJob.TYPE_OPENSEARCH_INGEST,
-            BackgroundJob.TYPE_ELASTICSEARCH_INGEST);
+            BackgroundJob.TYPE_ELASTICSEARCH_INGEST,
+            BackgroundJob.TYPE_LOCAL_DIRECTORY_INGEST);
 
     private final BackgroundJobRepository jobRepository;
     private final MongoOperations mongoOperations;
     private final OpenSearchIngestJobService osService;
     private final ElasticsearchIngestJobService esService;
+    private final LocalDirectoryIngestJobService localService;
     private final GeneralSettingsService generalSettingsService;
     /**
      * Pool that runs claimed jobs. Sized to the upper bound of the admin-configurable
@@ -69,11 +71,13 @@ public class DataImportDispatcher {
                                 final MongoOperations mongoOperations,
                                 final OpenSearchIngestJobService osService,
                                 final ElasticsearchIngestJobService esService,
+                                final LocalDirectoryIngestJobService localService,
                                 final GeneralSettingsService generalSettingsService) {
         this.jobRepository = jobRepository;
         this.mongoOperations = mongoOperations;
         this.osService = osService;
         this.esService = esService;
+        this.localService = localService;
         this.generalSettingsService = generalSettingsService;
         this.workerPool = Executors.newFixedThreadPool(
                 GeneralSettingsService.MAX_CONCURRENT_DATA_IMPORTS, r -> {
@@ -149,6 +153,7 @@ public class DataImportDispatcher {
             switch (job.getType() == null ? "" : job.getType()) {
                 case BackgroundJob.TYPE_OPENSEARCH_INGEST -> osService.run(job.getId());
                 case BackgroundJob.TYPE_ELASTICSEARCH_INGEST -> esService.run(job.getId());
+                case BackgroundJob.TYPE_LOCAL_DIRECTORY_INGEST -> localService.run(job.getId());
                 default -> log.warn("DataImportDispatcher: unknown job type {} for job {}",
                         job.getType(), job.getId());
             }

@@ -45,4 +45,5 @@ nav:
       - PII types: reference/pii-types.md
       - REST API: reference/api.md
       - Configuration: reference/configuration.md
+      - Roles and permissions: reference/roles.md
   - Security: security.md

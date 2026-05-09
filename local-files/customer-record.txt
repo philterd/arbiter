@@ -1,0 +1,10 @@
+Customer: Marie Curie
+Date of birth: November 7, 1867
+SSN: 444-55-6666
+Address: 12 Rue Cuvier, Paris, France
+Phone: +33 1 40 79 30 00
+Email: marie.curie@radium.example
+Credit card on file: 4111-1111-1111-1234
+
+Notes: Customer requested a refund on order #98271. Refund issued to the
+card on file on 2024-03-14. Remaining balance: $0.00.

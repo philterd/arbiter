@@ -74,7 +74,9 @@ public class SearchViewController {
             // Restrict at the OpenSearch layer for non-admins so the reported total and the
             // hit list both exclude documents the caller can't see — see SearchController for
             // the matching API change.
-            final boolean admin = AuthUtils.isAdmin(authentication);
+            // Auditors see cross-group results too — this controls the OpenSearch
+            // batch-id filter, a read-only decision.
+            final boolean admin = AuthUtils.isAdminOrAuditor(authentication);
             final Set<String> allowedBatchIds = admin ? null : allowedBatchIds(authentication);
             final SearchResults results = openSearchIndexService.search(query, safeOffset, PAGE_SIZE, allowedBatchIds);
             total = results.total();

@@ -254,6 +254,10 @@ public class SettingsController {
         }
 
         user.setPasswordHash(passwordEncoder.encode(newPassword));
+        // Clear any "must change password" flag set by the admin who created or
+        // reset this account — the user has now rotated the password the admin
+        // gave them, so the gate that forces them onto this page is satisfied.
+        user.setMustChangePassword(false);
         userRepository.save(user);
         auditLogService.log("PASSWORD_CHANGE", "User", user.getId(), null);
         redirectAttributes.addFlashAttribute("success", "Password updated.");

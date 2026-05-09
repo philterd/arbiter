@@ -68,13 +68,28 @@ admin policy change is recorded as `SECURITY_SETTINGS_CHANGE`.
 
 ## Authorization
 
-Two roles, applied per-endpoint:
+Three roles, applied per-endpoint:
 
 - `ROLE_USER` — default for non-admin accounts. Limited to batches in groups
   they belong to.
 - `ROLE_ADMIN` — required for everything under `/admin/**`, the batch create
   and close endpoints, and for the unscoped (`myGroupsOnly=false`) view on
   the batches and queue pages.
+- `ROLE_AUDITOR` — read-only counterpart to `ROLE_ADMIN`. Sees the same
+  cross-group data an admin sees but cannot mutate state. Enforced by the
+  `AuditorWriteRejectFilter`, which 403s any non-safe HTTP method outside a
+  small self-management allow-list (`/login`, `/logout`, `/mfa`, `/settings`,
+  `/invitations`). See [Roles and permissions](reference/roles.md) for the
+  full feature matrix.
+
+In addition, any `ROLE_USER` may be designated a **team lead** for one or
+more groups. Team leadership is a per-group attribute stored on the group
+itself (the leaders are a subset of the group's members), not a separate
+role. The framework matchers therefore do not gate `/batches` to admins
+alone — that endpoint is open to any authenticated user, and the per-resource
+authorization happens in the controller via `BatchAccessService.canLeadBatch`,
+which permits the request only if the caller is an admin or leads the
+batch's group. Reassigning a batch to a different group remains admin-only.
 
 **Group scoping** is enforced server-side regardless of the UI. Whenever a
 non-admin attempts to:
@@ -109,9 +124,13 @@ existing hashes are unaffected (BCrypt verification reads the cost from the
 hash itself).
 
 Every sign-in, password change, admin reset, and invitation redemption
-produces a fresh `{bcrypt}` hash. The seeded admin's default password
-(`admin`) is encoded the same way on first run and **must** be rotated
-immediately after first sign-in.
+produces a fresh `{bcrypt}` hash. The bootstrap admin's password — printed
+to standard output once on first start (see
+[Getting started → First run](getting-started.md#first-run)) — is generated
+from a cryptographically secure random source and encoded the same way.
+It is not stored anywhere in plaintext after the start-up banner is
+printed, so capture it from the start-up output and rotate it from
+**Settings → Account** at first opportunity.
 
 ### Legacy SHA-512 fallback
 
@@ -211,10 +230,30 @@ need it for an out-of-band reconciliation.
 
 ## CSRF and CORS
 
-CSRF protection is enabled for HTML form posts and disabled only for the
-`/api/**` paths (which are protected by Bearer authentication). There is no
-CORS configuration shipped — if you front Arbiter with a different origin,
-configure CORS in your reverse proxy or extend `SecurityConfig`.
+CSRF protection is enabled for HTML form posts and disabled for the
+`/api/**` paths. The API surface is split into two categories:
+
+- **Browser-UI endpoints** (`/api/v1/queue`, `/api/v1/batches`,
+  `/api/v1/documents/{id}/spans|comments|history|certificate|explain`,
+  `/api/v1/spans/**`, `/api/v1/policies/**`, `/api/v1/ollama/**/models`,
+  `/api/v1/review/**`) accept the same session cookie the surrounding HTML
+  page uses. The in-page JavaScript calls them with `fetch`. Cross-origin
+  abuse is prevented by the browser's same-origin policy plus the absence
+  of a permissive CORS configuration — Arbiter does not expose
+  `Access-Control-Allow-Origin` for any other origin, so a malicious page
+  cannot read responses from these endpoints even if it happened to send
+  the user's session cookie.
+- **Programmatic-only endpoints** (`/api/v1/ingest`, `/api/v1/search`,
+  `POST /api/v1/documents/{id}/finalize`, `GET /api/v1/documents/{id}/audit`)
+  are Bearer-only: the `ApiSessionRejectingFilter` drops session-cookie
+  authentication for these paths so they can only be reached with an
+  `Authorization: Bearer <api-key>` header. This is the canonical defense
+  against a logged-in admin being CSRF-pushed into ingesting fake content
+  or exporting redacted data through their browser.
+
+There is no CORS configuration shipped — if you front Arbiter with a
+different origin, configure CORS in your reverse proxy or extend
+`SecurityConfig`.
 
 ## Audit visibility
 

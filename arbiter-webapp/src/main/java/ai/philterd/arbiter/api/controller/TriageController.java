@@ -103,9 +103,10 @@ public class TriageController {
         final String trimmedFilename = filename == null ? "" : filename.trim();
         final boolean hasFilename = !trimmedFilename.isEmpty();
 
-        final boolean admin = AuthUtils.isAdmin(authentication);
-        // Non-admins are always restricted to their groups. Admins see everything by default,
-        // but can opt in to the same scope via myGroupsOnly=true.
+        // Admins and auditors see everything; auditors are read-only but the queue
+        // listing is itself a read so the same scope applies. Both roles can opt in
+        // to the group-scoped view via myGroupsOnly=true.
+        final boolean admin = AuthUtils.isAdminOrAuditor(authentication);
         final boolean restrict = !admin || myGroupsOnly;
         final Set<String> allowedBatchIds = restrict ? batchAccessService.allowedBatchIds(authentication) : null;
 
@@ -172,7 +173,9 @@ public class TriageController {
     public List<Map<String, String>> getBatches(
             @RequestParam(name = "myGroupsOnly", defaultValue = "false") final boolean myGroupsOnly,
             final Authentication authentication) {
-        final boolean admin = AuthUtils.isAdmin(authentication);
+        // Admins and auditors see all batches; auditors join the global view because
+        // listing is a read.
+        final boolean admin = AuthUtils.isAdminOrAuditor(authentication);
         final boolean restrict = !admin || myGroupsOnly;
 
         final List<Batch> batches;

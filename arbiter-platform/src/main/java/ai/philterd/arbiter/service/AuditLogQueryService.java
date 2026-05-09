@@ -66,6 +66,71 @@ public class AuditLogQueryService {
     }
 
     /**
+     * Paged investigation query for the Admin → Audit Log page. Supports the same
+     * filter set as {@link #find} plus action and outcome, sorted newest-first
+     * (the natural order an investigator wants when chasing what happened most
+     * recently). Returns the page slice and the total matching count so the
+     * caller can render pager controls.
+     */
+    public Result query(final QueryFilters filters, final int page, final int pageSize) {
+        final int safePage = Math.max(0, page);
+        final int safeSize = pageSize <= 0 ? 25 : Math.min(pageSize, 200);
+        final List<Criteria> clauses = buildClauses(filters);
+
+        final Query base = new Query();
+        if (!clauses.isEmpty()) {
+            base.addCriteria(new Criteria().andOperator(clauses.toArray(new Criteria[0])));
+        }
+        // count() ignores skip/limit, so the same Query the slice is built from
+        // also serves as the count argument. The driver translates this into
+        // {@code countDocuments(filter)} on the collection.
+        final long total = mongoOperations.count(base, AuditLog.class);
+
+        base.with(Sort.by(Sort.Direction.DESC, "timestamp"))
+                .skip((long) safePage * safeSize)
+                .limit(safeSize);
+        final List<AuditLog> entries = mongoOperations.find(base, AuditLog.class);
+        return new Result(entries, total, safePage, safeSize);
+    }
+
+    private List<Criteria> buildClauses(final QueryFilters f) {
+        final List<Criteria> clauses = new ArrayList<>();
+        if (f.start() != null && f.end() != null) {
+            clauses.add(Criteria.where("timestamp").gte(f.start()).lte(f.end()));
+        } else if (f.start() != null) {
+            clauses.add(Criteria.where("timestamp").gte(f.start()));
+        } else if (f.end() != null) {
+            clauses.add(Criteria.where("timestamp").lte(f.end()));
+        }
+        if (notBlank(f.userEmail())) clauses.add(Criteria.where("userEmail").is(f.userEmail().trim()));
+        if (notBlank(f.action())) clauses.add(Criteria.where("action").is(f.action().trim()));
+        if (notBlank(f.resourceType())) clauses.add(Criteria.where("resourceType").is(f.resourceType().trim()));
+        if (notBlank(f.resourceId())) clauses.add(Criteria.where("resourceId").is(f.resourceId().trim()));
+        if (notBlank(f.outcome())) clauses.add(Criteria.where("outcome").is(f.outcome().trim()));
+        if (notBlank(f.ipAddress())) clauses.add(Criteria.where("ipAddress").is(f.ipAddress().trim()));
+        return clauses;
+    }
+
+    private static boolean notBlank(final String s) {
+        return s != null && !s.isBlank();
+    }
+
+    /** Filter inputs for {@link #query}. Any null or blank field is ignored. */
+    public record QueryFilters(Instant start,
+                               Instant end,
+                               String userEmail,
+                               String action,
+                               String resourceType,
+                               String resourceId,
+                               String outcome,
+                               String ipAddress) {
+    }
+
+    /** Page of results plus the total matching count. */
+    public record Result(List<AuditLog> entries, long total, int page, int pageSize) {
+    }
+
+    /**
      * Fetches all audit entries for a document and its spans in a single query,
      * sorted newest-first by the database.
      */

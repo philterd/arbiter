@@ -12,12 +12,12 @@ link in the sidebar's Administration section. ROLE_ADMIN only.
 Data sources are the *input* half of Arbiter's I/O. For where finalized
 redacted documents go *out*, see [Destinations](destinations.md).
 
-> **Status:** **OpenSearch** and **Elasticsearch** ingest are fully wired up —
-> clicking *Ingest from OpenSearch* or *Ingest from Elasticsearch* on the
-> Add Documents page kicks off a background job that pulls documents into
-> the redaction queue. **S3**, **Relational Database**, and **Local
-> Directory** ingest are not implemented yet; submitting those forms still
-> returns a *"…is not yet implemented"* notice.
+> **Status:** **OpenSearch**, **Elasticsearch**, and **Local Directory**
+> ingest are fully wired up — clicking *Ingest from …* on the Add Documents
+> page kicks off a background job that pulls documents into the redaction
+> queue. **S3** and **Relational Database** ingest are not implemented yet;
+> submitting those forms still returns a *"…is not yet implemented"*
+> notice.
 
 ## Source types
 
@@ -164,10 +164,24 @@ The match is whole-word-only, so legitimate column names like
 | -------------- | -------- | -------------------------------------------------------------------- |
 | Name           | yes      | Unique among local sources                                           |
 | Directory path | yes      | Absolute path on the **application server's** filesystem              |
-| Filename glob  | yes      | e.g. `*.txt`, `**/*.pdf`                                              |
+| Filename glob  | yes      | e.g. `*.txt` (top level only), `**.pdf` (any depth — `**` greedily spans `/`)              |
 
 No credentials — the directory is read with the application's process
 identity, so make sure the path is reachable and readable by that user.
+
+When the user clicks **Ingest from Local Directory**, the worker walks the
+configured path and queues every regular file whose **relative** path
+matches the configured glob. `.pdf` files are queued as binary uploads;
+everything else is read as UTF-8 text. The job runs as a
+[Background Job](../user-guide/background-jobs.md) and reports progress
+the same way the OpenSearch/Elasticsearch ingests do. If the directory is
+missing, isn't a directory, or isn't readable by the application user, the
+job fails up front with a clear error and no documents are queued.
+
+Re-running an import is safe: the worker dedupes by
+`(directory path, relative file path)`, so files that have already been
+imported from the same directory are recorded as **Skipped** and not
+re-enqueued.
 
 ## Trust model and host allow-list
 
@@ -202,19 +216,74 @@ error *"Endpoint host is not permitted."* The check applies even to
 **already-saved** instances: if a host is removed from the allow-list
 later, a Test click on an existing row is also rejected.
 
-**Private-range addresses are always blocked**, regardless of whether
-`arbiter.data-sources.allowed-hosts` is set. Arbiter resolves the configured
-hostname and rejects it if it resolves to a loopback address (`127.x.x.x`),
-an RFC-1918 private range (`10.x.x.x`, `172.16–31.x.x`, `192.168.x.x`), or
-a link-local address (`169.254.x.x`). This applies to both admin form
-submissions and Test clicks. Numeric IP addresses in the URL are evaluated
-directly without a DNS lookup, so they cannot be used to bypass the check by
-specifying a private IP as a literal.
+### Private-range default-deny
 
-When the property is **unset or blank** (the default), any public host is
-accepted (private ranges are still blocked). Set it to additionally restrict
-which public hosts are reachable — useful in multi-tenant or zero-trust
-deployments.
+Private-range addresses are blocked by default. Arbiter resolves the
+configured hostname and rejects it if it resolves to a loopback address
+(`127.x.x.x`), an RFC-1918 private range (`10.x.x.x`, `172.16–31.x.x`,
+`192.168.x.x`), or a link-local address (`169.254.x.x`). This applies to
+both admin form submissions and Test clicks. Numeric IP addresses in the
+URL are evaluated directly using `InetAddress.getByName(...)`, so a
+literal private IP (e.g. `http://127.0.0.1:9200` or
+`http://169.254.169.254/`) cannot bypass the check by skipping DNS
+resolution.
+
+The reason this exists by default — even before any operator has set
+`arbiter.data-sources.allowed-hosts` — is **server-side request forgery
+(SSRF)**. The application process can usually reach private addresses
+the operator does not intend to expose through admin-supplied URLs:
+cloud instance-metadata endpoints (`169.254.169.254` on AWS / GCP /
+Azure, which can leak role credentials), MongoDB / Redis / Philter on
+loopback, intranet HTTP services on RFC-1918, and other tenants on the
+same VPC. The default-deny on private ranges closes that surface
+without requiring any configuration.
+
+The default-deny is **not absolute**. There are two ways to admit a
+private host:
+
+1. **Add it to `arbiter.data-sources.allowed-hosts`.** When the
+   property is set, Arbiter checks the resolved host against every
+   pattern — including private addresses. So
+   `arbiter.data-sources.allowed-hosts=opensearch.internal,192.168.1.100`
+   admits exactly those two hosts (one of which is private). Hostnames
+   that resolve to a private address are admitted the same way, as long
+   as the hostname matches a pattern. This is the supported way to
+   reach a legitimate internal OpenSearch / Elasticsearch / Philter /
+   Ollama from the data-source UI.
+2. **Disable the allow-list from Admin → Security.** The master switch
+   bypasses both the pattern check *and* the private-range default-deny
+   for every outbound call. This is documented as not recommended — see
+   [Master switch (Admin → Security)](#master-switch-admin-security)
+   below and the
+   [Security settings explanation](security.md#data-source-host-allow-list)
+   for the SSRF rationale.
+
+### Allow-list behavior summary
+
+| `arbiter.data-sources.allowed-hosts` | Public host | Private host |
+| --- | --- | --- |
+| unset / blank (default) | accepted | rejected |
+| set, host matches a pattern | accepted | accepted |
+| set, host doesn't match | rejected | rejected |
+
+Use the property to restrict which public hosts are reachable in
+multi-tenant or zero-trust deployments, or to admit specific private
+hosts (an internal OpenSearch, a bastion-routed Philter) the operator
+genuinely needs to reach.
+
+### Master switch (Admin → Security)
+
+The whole allow-list — both the property-driven host patterns *and* the
+private-range default-deny — can be turned off from
+**Admin → Security → Enable host allow-list**. The setting is stored on
+the global settings document, defaults to **enabled**, and is read at
+request time, so a toggle takes effect on the next outbound check
+without restarting.
+
+Disabling the master switch is documented as **not recommended**: it
+re-opens the SSRF surface that this allow-list closes. See
+[Security settings → Data-source host allow-list](security.md#data-source-host-allow-list)
+for the rationale and the audit-trail entry that records each toggle.
 
 ## Credential encryption
 

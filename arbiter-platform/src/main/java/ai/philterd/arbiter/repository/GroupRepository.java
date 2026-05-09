@@ -20,4 +20,7 @@ public interface GroupRepository extends MongoRepository<Group, String> {
     Optional<Group> findByName(String name);
 
     java.util.List<Group> findByUserIdsContaining(String userId);
+
+    /** Groups the user leads — i.e. their id appears in {@code leaderUserIds}. */
+    java.util.List<Group> findByLeaderUserIdsContaining(String userId);
 }

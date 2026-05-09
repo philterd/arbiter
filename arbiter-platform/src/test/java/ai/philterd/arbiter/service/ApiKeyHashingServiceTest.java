@@ -17,6 +17,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ApiKeyHashingServiceTest {
 
@@ -74,6 +75,29 @@ class ApiKeyHashingServiceTest {
     void rejectsKeyTooLong() {
         final String longKey = Base64.getEncoder().encodeToString(new byte[64]);
         assertThrows(IllegalStateException.class, () -> service(longKey));
+    }
+
+    @Test
+    void rejectsLiteralPlaceholderFromEnvExample() {
+        // Operators who copy .env.example to .env without editing it ship this exact
+        // string. The exception must surface a distinct PLACEHOLDER reason so the
+        // FailureAnalyzer can render its targeted banner (the operator-facing remediation
+        // copy lives there — see CryptoSecretFailureAnalyzerTest).
+        final CryptoSecretConfigurationException e = assertThrows(
+                CryptoSecretConfigurationException.class,
+                () -> service("replace-me-with-base64-of-32-random-bytes"));
+        assertTrue(e instanceof IllegalStateException,
+                "must extend IllegalStateException so older callers still match");
+        assertEquals(CryptoSecretConfigurationException.Reason.PLACEHOLDER, e.getReason());
+    }
+
+    @Test
+    void rejectsNullSecret() {
+        // A null property — distinct from blank — must not NPE; the loader normalises null
+        // to empty and reports it as UNSET rather than crashing.
+        final CryptoSecretConfigurationException e = assertThrows(
+                CryptoSecretConfigurationException.class, () -> service(null));
+        assertEquals(CryptoSecretConfigurationException.Reason.UNSET, e.getReason());
     }
 
     @Test

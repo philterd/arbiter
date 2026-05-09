@@ -55,6 +55,9 @@ class BatchControllerTest {
     private PhilterDefaultsService philterDefaultsService;
     private FinalizationPolicyRepository finalizationPolicyRepository;
     private ComplianceProfileRepository complianceProfileRepository;
+    private ai.philterd.arbiter.repository.LocalDirectoryDestinationRepository localDirectoryDestinationRepository;
+    private ai.philterd.arbiter.repository.S3DestinationRepository s3DestinationRepository;
+    private ai.philterd.arbiter.service.BatchExportService batchExportService;
     private BatchController controller;
 
     @BeforeEach
@@ -69,6 +72,9 @@ class BatchControllerTest {
         philterDefaultsService = mock(PhilterDefaultsService.class);
         finalizationPolicyRepository = mock(FinalizationPolicyRepository.class);
         complianceProfileRepository = mock(ComplianceProfileRepository.class);
+        localDirectoryDestinationRepository = mock(ai.philterd.arbiter.repository.LocalDirectoryDestinationRepository.class);
+        s3DestinationRepository = mock(ai.philterd.arbiter.repository.S3DestinationRepository.class);
+        batchExportService = mock(ai.philterd.arbiter.service.BatchExportService.class);
         // The "fp1" finalization policy id and "cp1" compliance profile id are used by the happy-path test below.
         when(finalizationPolicyRepository.existsById("fp1")).thenReturn(true);
         when(complianceProfileRepository.existsById("cp1")).thenReturn(true);
@@ -77,7 +83,9 @@ class BatchControllerTest {
                 new ai.philterd.arbiter.service.BatchAccessService(batchRepository, userGroupsService),
                 auditLogService, weightSetRepository,
                 philterInstanceRepository, philterDefaultsService, finalizationPolicyRepository,
-                complianceProfileRepository);
+                complianceProfileRepository,
+                localDirectoryDestinationRepository, s3DestinationRepository,
+                batchExportService);
     }
 
     private static Authentication admin() {
@@ -101,10 +109,49 @@ class BatchControllerTest {
     // ---------- create ----------
 
     @Test
-    void createRequiresAdmin() {
+    void createRefusesUserWhoDoesNotLeadTheGroup() {
+        // After the "create requires admin" rule was relaxed to also admit team leads,
+        // a plain USER who isn't a lead of the chosen group must still be refused — but
+        // the refusal now comes from the per-group lead check, not a blanket admin gate.
+        when(groupRepository.existsById("g")).thenReturn(true);
+        when(userGroupsService.leadGroupIdsForEmail("user@x.com")).thenReturn(Set.of());
+
         final RedirectAttributes ra = flash();
         controller.create("b", null, null, null, "g", null, null, "Financial", "", null, null, null, user(), ra);
-        assertEquals("Only administrators can create batches.", error(ra));
+        assertNotNull(error(ra));
+        assertTrue(error(ra).contains("create batches in groups you lead"),
+                "expected the lead-required error, got: " + error(ra));
+        verify(batchRepository, never()).save(any());
+    }
+
+    @Test
+    void createSucceedsForTeamLeadOfTheGroup() {
+        // A USER who leads group g1 can create a batch there even though they aren't admin.
+        when(groupRepository.existsById("g1")).thenReturn(true);
+        when(batchRepository.findByName("Sample")).thenReturn(Optional.empty());
+        when(userGroupsService.leadGroupIdsForEmail("user@x.com")).thenReturn(Set.of("g1"));
+
+        final RedirectAttributes ra = flash();
+        final String view = controller.create("Sample", null, 0.5, 0.2, "g1", "", null, "Healthcare", "",
+                "fp1", "cp1", null, user(), ra);
+
+        assertEquals("redirect:/batches", view);
+        assertNull(error(ra));
+        verify(batchRepository).save(any(Batch.class));
+    }
+
+    @Test
+    void createRefusesLeadOfDifferentGroup() {
+        // Per-group authority: a lead of g2 cannot create a batch in g1. This is the
+        // central invariant of the role.
+        when(groupRepository.existsById("g1")).thenReturn(true);
+        when(userGroupsService.leadGroupIdsForEmail("user@x.com")).thenReturn(Set.of("g2"));
+
+        final RedirectAttributes ra = flash();
+        controller.create("b", null, null, null, "g1", null, null, "Financial", "", null, null, null, user(), ra);
+        assertNotNull(error(ra));
+        assertTrue(error(ra).contains("create batches in groups you lead"),
+                "expected the lead-required error, got: " + error(ra));
         verify(batchRepository, never()).save(any());
     }
 
@@ -195,11 +242,38 @@ class BatchControllerTest {
     // ---------- changePhilter ----------
 
     @Test
-    void changePhilterRequiresAdmin() {
+    void changePhilterRefusesNonLead() {
+        // A USER who isn't a lead of the batch's group is refused. The refusal is the
+        // team-lead message, not the prior admin-only message.
+        final Batch b = new Batch();
+        b.setId("b1");
+        b.setGroupId("g1");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
+        when(userGroupsService.leadGroupIdsForEmail("user@x.com")).thenReturn(Set.of());
+
         final RedirectAttributes ra = flash();
         controller.changePhilter("b1", "p", null, user(), ra);
-        assertEquals("Only administrators can modify batches.", error(ra));
+        assertNotNull(error(ra));
+        assertTrue(error(ra).contains("team lead"),
+                "expected lead-required refusal, got: " + error(ra));
         verify(batchRepository, never()).save(any());
+    }
+
+    @Test
+    void changePhilterAllowsLeadOfBatchsGroup() {
+        // A USER who leads the batch's group can edit the batch even though they aren't admin.
+        final Batch b = new Batch();
+        b.setId("b1");
+        b.setName("B");
+        b.setGroupId("g1");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
+        when(userGroupsService.leadGroupIdsForEmail("user@x.com")).thenReturn(Set.of("g1"));
+
+        final RedirectAttributes ra = flash();
+        final String view = controller.changePhilter("b1", "", "", user(), ra);
+        assertEquals("redirect:/batches", view);
+        assertNull(error(ra));
+        verify(batchRepository).save(b);
     }
 
     @Test
@@ -246,10 +320,17 @@ class BatchControllerTest {
     // ---------- changeGroup ----------
 
     @Test
-    void changeGroupRequiresAdmin() {
+    void changeGroupRequiresAdminEvenForTeamLead() {
+        // Reassigning a batch to a different group is admin-only — even a team lead of
+        // the source group cannot transfer batches in or out, since that would let them
+        // sidestep the per-group authority boundary.
+        when(userGroupsService.leadGroupIdsForEmail("user@x.com")).thenReturn(Set.of("g1"));
+
         final RedirectAttributes ra = flash();
         controller.changeGroup("b1", "g1", user(), ra);
-        assertEquals("Only administrators can modify batches.", error(ra));
+        assertNotNull(error(ra));
+        assertTrue(error(ra).contains("administrators"),
+                "expected admin-only refusal even for team leads, got: " + error(ra));
         verify(batchRepository, never()).save(any());
     }
 
@@ -269,11 +350,39 @@ class BatchControllerTest {
     // ---------- close ----------
 
     @Test
-    void closeRequiresAdmin() {
+    void closeRefusesNonLead() {
+        final Batch b = new Batch();
+        b.setId("b1");
+        b.setGroupId("g1");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
+        when(userGroupsService.leadGroupIdsForEmail("user@x.com")).thenReturn(Set.of());
+
         final RedirectAttributes ra = flash();
         controller.close("b1", user(), ra);
-        assertEquals("Only administrators can close batches.", error(ra));
+        assertNotNull(error(ra));
+        assertTrue(error(ra).contains("team lead"),
+                "expected team-lead refusal, got: " + error(ra));
         verify(batchRepository, never()).save(any());
+    }
+
+    @Test
+    void closeAllowsLeadOfBatchsGroup() {
+        // A USER who leads the batch's group can close it once all its documents are
+        // rejected or finalized. The "all docs ready" precondition still applies.
+        final Batch b = new Batch();
+        b.setId("b1");
+        b.setName("Sample");
+        b.setGroupId("g1");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
+        when(userGroupsService.leadGroupIdsForEmail("user@x.com")).thenReturn(Set.of("g1"));
+        when(documentRepository.countByBatchId("b1")).thenReturn(2L);
+        when(documentRepository.countByBatchIdAndStatusIn("b1", Set.of("REJECTED", "FINALIZED"))).thenReturn(2L);
+
+        final RedirectAttributes ra = flash();
+        controller.close("b1", user(), ra);
+        assertNull(error(ra));
+        assertTrue(b.isClosed());
+        verify(batchRepository).save(b);
     }
 
     @Test

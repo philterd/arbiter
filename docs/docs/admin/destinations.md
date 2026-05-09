@@ -21,9 +21,12 @@ only.
 
 ## Destination types
 
-The page is split into three sections, one per type. Names must be unique
-*within* a section (case-insensitive) — so a Local Directory destination and
-an S3 destination can both be named `archive` without conflict.
+The page is split into two tabs — **Local Directory** and **Amazon S3**
+— one per type. Click a tab to switch between them. The selected tab
+is reflected in the URL (`?tab=…`), so refreshing or sharing the URL
+preserves the tab. Names must be unique *within* a tab (case-insensitive)
+— so a Local Directory destination and an S3 destination can both be
+named `archive` without conflict.
 
 ### Local Directory
 
@@ -59,21 +62,6 @@ credentials file, etc.). The listing table shows a **Credentials** badge
 that reads **Configured** if explicit credentials were stored, **Ambient**
 otherwise.
 
-### Amazon SQS
-
-Sends finalized documents to an Amazon SQS queue as message bodies.
-
-| Field        | Required | Notes                                                                                                                              |
-| ------------ | -------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Name         | yes      | Unique among SQS destinations (case-insensitive)                                                                                    |
-| Queue URL    | yes      | Full SQS queue URL, e.g. `https://sqs.us-east-1.amazonaws.com/123456789012/MyQueue`. The AWS region is parsed from the host.        |
-| Access key   | no       | Encrypted at rest                                                                                                                   |
-| Secret key   | no       | Encrypted at rest                                                                                                                   |
-
-Access key and secret key are validated as a pair — provide both or neither.
-Same ambient-credentials fallback as S3. The same **Configured** /
-**Ambient** badge applies in the listing table.
-
 ## Testing a destination
 
 Beside each **Add** button there is a **Test** button that runs an immediate
@@ -88,7 +76,6 @@ What each Test does:
 | --------------- | ----------------------------------------------------------------------------------------------- |
 | Local Directory | Writes a small file `arbiter-test-<epoch>.txt` to the configured directory.                      |
 | Amazon S3       | Puts a small text object at `<bucketKey>/arbiter-test-<epoch>.txt` in the configured bucket.     |
-| Amazon SQS      | Sends a short text message to the configured queue.                                              |
 
 The test artifact is left behind so an operator can verify it landed where
 expected; clean it up by hand if you don't want test files lingering. Test
@@ -97,10 +84,7 @@ tuning credentials or paths. **Test does not produce an audit-log entry.**
 
 For S3, Arbiter creates the SDK client with cross-region access enabled and
 defaults the initial region to `us-east-1`; the SDK redirects to the
-bucket's actual region as needed. For SQS, the region is parsed from the
-queue URL host (`sqs.<region>.amazonaws.com`); if the URL doesn't match that
-shape the test fails up front with *"Could not parse AWS region from the
-queue URL."*
+bucket's actual region as needed.
 
 ## Editing a destination
 
@@ -111,8 +95,8 @@ destination if a different name is needed.
 
 For Local Directory, the only editable field is the directory path.
 
-For S3 and SQS, the credential fields behave the same as on the data
-sources page:
+For S3, the credential fields behave the same as on the data sources
+page:
 
 - **Leave both blank** to keep the existing credentials untouched.
 - **Fill both** to replace the stored credentials (encrypted before save).
@@ -124,7 +108,7 @@ sources page:
 
 Saving fires a `*_DESTINATION_UPDATE` audit event (see the
 [Audit trail](#audit-trail) below) with a `credentialsChanged` boolean and,
-for S3/SQS, a `credentialsCleared` boolean.
+for S3, a `credentialsCleared` boolean.
 
 ## Credential encryption
 
@@ -155,9 +139,6 @@ email and the affected destination's id and name:
 | `S3_DESTINATION_CREATE`      | `S3Destination`              | S3 destination added; payload includes a `credentialsSet` boolean                                         |
 | `S3_DESTINATION_UPDATE`      | `S3Destination`              | S3 destination edited; payload includes `credentialsChanged` and `credentialsCleared` booleans            |
 | `S3_DESTINATION_DELETE`      | `S3Destination`              | S3 destination removed                                                                                   |
-| `SQS_DESTINATION_CREATE`     | `SqsDestination`             | SQS destination added; payload includes a `credentialsSet` boolean                                        |
-| `SQS_DESTINATION_UPDATE`     | `SqsDestination`             | SQS destination edited; payload includes `credentialsChanged` and `credentialsCleared` booleans           |
-| `SQS_DESTINATION_DELETE`     | `SqsDestination`             | SQS destination removed                                                                                  |
 
 The `*_CREATE` and `*_UPDATE` entries record the connection details
 (directory path / bucket + key / queue URL) along with the credential

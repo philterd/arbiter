@@ -54,38 +54,11 @@ public class SymmetricCipher {
     private final SecureRandom random = new SecureRandom();
 
     public SymmetricCipher(@Value("${arbiter.crypto.secret:}") final String configured) {
-        this.key = new SecretKeySpec(loadKey(configured), "AES");
-    }
-
-    /**
-     * Decode and validate the configured secret. Throws {@link IllegalStateException}
-     * with a deployment-friendly message on any failure so the operator sees a clear
-     * startup error instead of a silent fallback to a weak key.
-     */
-    private static byte[] loadKey(final String configured) {
-        if (configured == null || configured.isBlank()) {
-            throw new IllegalStateException(
-                    "arbiter.crypto.secret is not set. Set it to a base64-encoded 32-byte "
-                            + "random value before starting Arbiter (e.g. `openssl rand -base64 32`). "
-                            + "There is no longer a development fallback — the application will "
-                            + "not start without a properly-formed key.");
-        }
-        final byte[] decoded;
-        try {
-            decoded = Base64.getDecoder().decode(configured.trim());
-        } catch (IllegalArgumentException e) {
-            throw new IllegalStateException(
-                    "arbiter.crypto.secret must be base64-encoded. Generate one with "
-                            + "`openssl rand -base64 32`. Passphrases and other formats are "
-                            + "no longer accepted.");
-        }
-        if (decoded.length != KEY_BYTES) {
-            throw new IllegalStateException(
-                    "arbiter.crypto.secret decoded to " + decoded.length + " bytes; expected "
-                            + "exactly " + KEY_BYTES + " bytes (256-bit AES key). Generate one "
-                            + "with `openssl rand -base64 32`.");
-        }
-        return decoded;
+        // Validation lives in CryptoSecretLoader so it can't drift between this and
+        // ApiKeyHashingService; the typed CryptoSecretConfigurationException it throws
+        // is caught by CryptoSecretFailureAnalyzer to render the startup banner instead
+        // of a stack trace.
+        this.key = new SecretKeySpec(CryptoSecretLoader.load(configured), "AES");
     }
 
     public String encrypt(final String plaintext) {

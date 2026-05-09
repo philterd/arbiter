@@ -56,12 +56,6 @@
                     </svg>
                     Documents to Review
                 </a>
-                <a th:href="@{/jobs}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
-                <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
-                </svg>
-                Background Jobs
-                </a>
                 <a th:href="@{/second-opinions}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
@@ -71,6 +65,12 @@
                 </div>
                 <div class="mt-2 pt-2 border-t border-gray-200 space-y-1">
                     <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Tools</p>
+                <a th:href="@{/jobs}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+                Background Jobs
+                </a>
                 <a th:href="@{/search}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"></path>
@@ -85,16 +85,16 @@
                     Settings
                 </a>
                 </div>
-                <div sec:authorize="hasRole('ADMIN')" class="mt-4 pt-3 border-t border-gray-200 space-y-1">
+                <div th:if="${seesBatchesNav}" class="mt-4 pt-3 border-t border-gray-200 space-y-1">
                     <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Administration</p>
-                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/data-sources}"
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/data-sources}"
                    class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path>
                     </svg>
                     Data Sources
                 </a>
-                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/destinations}"
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/destinations}"
                    class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
@@ -102,61 +102,61 @@
                     Destinations
                 </a>
 
-                <a sec:authorize="hasRole('ADMIN')" th:href="@{/batches}"
+                <a th:if="${seesBatchesNav}" th:href="@{/batches}"
                    class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
                     </svg>
                     Batches
                 </a>
-                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/ingest-queue}"
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/ingest-queue}"
                    class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                     </svg>
                     Ingest Queue
                 </a>
-                <a sec:authorize="hasRole('ADMIN')" th:href="@{/policies}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/policies}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
                     </svg>
                     Policies
                 </a>
-                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/compliance-profiles}"
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/compliance-profiles}"
                    class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
                     </svg>
                     Compliance Profiles
                 </a>
-                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/rules}"
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/rules}"
                    class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
                     </svg>
                     Approval Rules
                 </a>
-                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/weights}"
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/weights}"
                    class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path>
                     </svg>
                     Weight Sets
                 </a>
-                <a sec:authorize="hasRole('ADMIN')" th:href="@{/reporting}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/reporting}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v18h18M9 17v-7m4 7v-12m4 12v-4"></path>
                     </svg>
                     Reports
                 </a>
-                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/audit}"
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/audit}"
                    class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 11h6M9 14h6M9 17h6"></path>
                     </svg>
                     Audit Log
                 </a>
-                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/general}"
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/general}"
                    class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
@@ -169,7 +169,7 @@
                 <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd.png}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
                 <div class="px-3 mb-2">
                     Signed in as <span class="font-medium" sec:authentication="name">user</span>
-                    <span sec:authorize="hasRole('ADMIN')" class="ml-1 text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Admin</span>
+                    <span sec:authorize="hasAnyRole('ADMIN','AUDITOR')" class="ml-1 text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Admin</span>
                 </div>
                 <form th:action="@{/logout}" method="post">
                     <button type="submit" class="w-full text-left px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100">
@@ -209,15 +209,29 @@
                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                     <div>
-                        <span class="block text-xs font-medium text-gray-600 mb-1">Members</span>
+                        <span class="block text-xs font-medium text-gray-600 mb-1">Members and team leads</span>
+                        <p class="text-[11px] text-gray-500 mb-2">
+                            Tick <strong>Member</strong> for each user in the group; tick <strong>Lead</strong>
+                            for users who can manage the group's batches (create, edit, close).
+                            A team lead must also be a member.
+                        </p>
                         <div th:if="${#lists.isEmpty(allUsers)}" class="text-sm text-gray-500">
                             No users exist yet. Create users first under the Users tab.
                         </div>
-                        <div th:unless="${#lists.isEmpty(allUsers)}" class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-44 overflow-y-auto border border-gray-200 rounded-md p-2">
-                            <label th:each="u : ${allUsers}" class="inline-flex items-center text-sm">
-                                <input type="checkbox" name="userIds" th:value="${u.id}" class="mr-1.5">
-                                <span th:text="${u.email}">user</span>
-                            </label>
+                        <div th:unless="${#lists.isEmpty(allUsers)}"
+                             class="grid grid-cols-1 gap-1 max-h-56 overflow-y-auto border border-gray-200 rounded-md p-2">
+                            <div th:each="u : ${allUsers}"
+                                 class="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-3 items-center text-sm py-0.5">
+                                <span th:text="${u.email}" class="truncate">user</span>
+                                <label class="inline-flex items-center text-xs text-gray-700">
+                                    <input type="checkbox" name="userIds" th:value="${u.id}" class="mr-1">
+                                    Member
+                                </label>
+                                <label class="inline-flex items-center text-xs text-gray-700">
+                                    <input type="checkbox" name="leaderIds" th:value="${u.id}" class="mr-1">
+                                    Lead
+                                </label>
+                            </div>
                         </div>
                     </div>
                     <button type="submit"
@@ -233,7 +247,7 @@
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Group</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Members</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Members and leads</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1">Actions</th>
                         </tr>
                     </thead>
@@ -248,13 +262,27 @@
                                         <input type="text" name="name" th:value="${g.name}" required
                                                class="block w-full rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                     </div>
-                                    <div class="grid grid-cols-1 gap-1 max-h-44 overflow-y-auto border border-gray-200 rounded-md p-2">
-                                        <label th:each="u : ${allUsers}" class="inline-flex items-center text-sm">
-                                            <input type="checkbox" name="userIds" th:value="${u.id}"
-                                                   th:checked="${g.userIds.contains(u.id)}" class="mr-1.5">
-                                            <span th:text="${u.email}">user</span>
-                                        </label>
+                                    <div class="grid grid-cols-1 gap-1 max-h-56 overflow-y-auto border border-gray-200 rounded-md p-2">
+                                        <div th:each="u : ${allUsers}"
+                                             class="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-3 items-center text-xs py-0.5">
+                                            <span th:text="${u.email}" class="truncate">user</span>
+                                            <label class="inline-flex items-center text-[11px] text-gray-700">
+                                                <input type="checkbox" name="userIds" th:value="${u.id}"
+                                                       th:checked="${g.userIds.contains(u.id)}" class="mr-1">
+                                                Member
+                                            </label>
+                                            <label class="inline-flex items-center text-[11px] text-gray-700">
+                                                <input type="checkbox" name="leaderIds" th:value="${u.id}"
+                                                       th:checked="${g.leaderUserIds.contains(u.id)}" class="mr-1">
+                                                Lead
+                                            </label>
+                                        </div>
                                     </div>
+                                    <p class="text-[11px] text-gray-500">
+                                        Team leads can create, edit, and close batches in this group. Leads must
+                                        also be members; ticking <strong>Lead</strong> without <strong>Member</strong>
+                                        is silently ignored on save.
+                                    </p>
                                     <button type="submit"
                                             class="px-3 py-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 border border-blue-600 rounded-md">
                                         Save
@@ -262,11 +290,18 @@
                                 </form>
                             </td>
                             <td class="px-6 py-4 text-sm text-gray-700">
-                                <span th:if="${#lists.isEmpty(g.memberNames)}" class="text-gray-400">(none)</span>
-                                <span th:each="name, it : ${g.memberNames}">
-                                    <span class="inline-block bg-gray-100 text-gray-800 text-xs font-medium rounded px-2 py-0.5 mr-1 mb-1"
+                                <div th:if="${#lists.isEmpty(g.memberNames)}" class="text-gray-400">(no members)</div>
+                                <div th:unless="${#lists.isEmpty(g.memberNames)}">
+                                    <span th:each="name : ${g.memberNames}"
+                                          class="inline-block bg-gray-100 text-gray-800 text-xs font-medium rounded px-2 py-0.5 mr-1 mb-1"
                                           th:text="${name}">user</span>
-                                </span>
+                                </div>
+                                <div th:unless="${#lists.isEmpty(g.leaderNames)}" class="mt-2">
+                                    <span class="text-[10px] uppercase tracking-wider text-gray-500 mr-1">Leads:</span>
+                                    <span th:each="name : ${g.leaderNames}"
+                                          class="inline-block bg-blue-50 text-blue-700 text-xs font-medium rounded px-2 py-0.5 mr-1 mb-1"
+                                          th:text="${name}">lead</span>
+                                </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <form th:action="@{/admin/groups/{id}/delete(id=${g.id})}" method="post" class="inline"
