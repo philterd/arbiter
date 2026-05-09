@@ -29,9 +29,10 @@ entirely, tick **Clear stored password** and save.
 
 The stored password is held as-is in MongoDB so Arbiter can present it to the
 SMTP server when sending. This is a different threat model from user
-passwords (which are salted SHA-512). If you need encryption-at-rest for
-SMTP credentials, deploy MongoDB with WiredTiger encryption or pull the
-credential from a secret manager and disable storing it here.
+passwords (which are one-way BCrypt-hashed). If you
+need encryption-at-rest for SMTP credentials, deploy MongoDB with WiredTiger
+encryption or pull the credential from a secret manager and disable storing
+it here.
 
 ## Persistence
 

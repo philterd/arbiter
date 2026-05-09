@@ -4,11 +4,20 @@ Destinations are the places Arbiter writes finalized redacted documents to.
 They are the counterpart of [data sources](data-sources.md): a data source
 brings documents *in* for redaction; a destination sends them *out* once the
 review process is complete. Multiple destinations of multiple types can
-coexist — each one is selectable on a batch when it's finalized.
+coexist.
 
 The page is at `/admin/destinations`, also reachable from the
 **Destinations** link in the sidebar's Administration section. ROLE_ADMIN
 only.
+
+> **Status:** Destinations can be **created**, **edited**, **removed**, and
+> **tested** from this page today, but Arbiter does not yet emit finalized
+> documents to them. Batches do not currently expose a destination picker, and
+> the finalize flow does not write to any destination. Configurations created
+> here are stored and verified (the **Test** button works end-to-end) but
+> remain inert until destination-write support is wired into finalize. Treat
+> the page as configuration the system will start using once that support
+> lands rather than a live output channel today.
 
 ## Destination types
 

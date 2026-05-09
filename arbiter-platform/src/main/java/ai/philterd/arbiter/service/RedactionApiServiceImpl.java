@@ -24,7 +24,9 @@ import ai.philterd.arbiter.repository.SpanRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -166,9 +168,28 @@ public class RedactionApiServiceImpl implements RedactionApiService {
         openSearchIndexService.indexDocument(document);
     }
 
+    // TODO: Reach parity with ReviewViewController.finalizeDocument by also generating a
+    // Redaction Certificate, writing a DOCUMENT_FINALIZE audit entry, and applying the
+    // batch's finalization policy (legal hold / delete-immediately). Today the API
+    // finalize path leaves the document in FINALIZED but skips all three side-effects, so a
+    // document finalized via the API has no certificate and no auditable trail of who
+    // finalized it. Best fix: extract a DocumentFinalizationService that both this method
+    // and ReviewViewController.finalizeDocument call into so the two paths can't drift.
     @Override
     public String finalizeRedaction(final String documentId) throws IOException {
-        final Document document = documentRepository.findById(documentId).orElseThrow();
+        final Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Document not found."));
+
+        // The redactor needs the actual document content. If a prior finalization-policy run
+        // wiped originalText, we cannot reproduce the redacted output and must refuse rather
+        // than emit a redaction of empty/placeholder text.
+        final String originalText = document.getOriginalText();
+        if (originalText == null || originalText.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Document source text is unavailable; it may have been cleared by a "
+                            + "finalization policy and cannot be re-finalized.");
+        }
+
         final Batch batch = batchRepository.findById(document.getBatchId() == null ? "" : document.getBatchId()).orElse(null);
         final List<Span> spans = spanRepository.findByDocumentId(documentId);
 
@@ -184,15 +205,17 @@ public class RedactionApiServiceImpl implements RedactionApiService {
                 })
                 .collect(Collectors.toList());
 
-        final String originalText = "Original text placeholder";
+        final String finalizedText = philterClient(batch).redact(originalText,
+                document.getPhilterContextId(), approvedSpans);
 
-        final String finalizedText = philterClient(batch).redact(originalText, document.getPhilterContextId(), approvedSpans);
-
-        document.changeStatus("AUTO_APPROVED");
+        // Persist the rendered text on the document so the Download button keeps working
+        // after a finalization policy clears originalText, and so the API and UI finalize
+        // paths leave the document in the same state.
+        document.setRedactedText(finalizedText);
+        document.changeStatus("FINALIZED");
         documentRepository.save(document);
 
         return finalizedText;
-
     }
 
 }

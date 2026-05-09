@@ -287,6 +287,13 @@ public class RedactionController {
             }
             return "redirect:/jobs";
         }
+        // TODO: Implement S3, RDB, and local-directory ingest. The admin UI lets operators
+        // configure data sources of these three types (with credential encryption, JDBC URL
+        // validation, host allow-list checks); the upload page lists them in tabs; the test
+        // buttons exercise the connection path. But selecting one and clicking ingest lands
+        // here and does nothing. Each needs an Ingest-Job service modeled on
+        // OpenSearchIngestJobService — background-job row, paginated read, hash-based dedupe
+        // placeholder Documents — plus a JdbcUrlValidator-gated JDBC connect site for RDB.
         final String label = switch (sourceType == null ? "" : sourceType) {
             case "s3" -> "Amazon S3";
             case "rdb" -> "relational database";

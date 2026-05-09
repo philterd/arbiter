@@ -67,6 +67,7 @@ Document statuses:
 | `AUTO_APPROVED`   | All spans auto-accepted, no human review needed                    |
 | `APPROVED`        | A reviewer explicitly approved the document                        |
 | `REJECTED`        | A reviewer explicitly rejected the document                        |
+| `FINALIZED`       | The document was finalized after approval — the redacted text has been rendered and the Certificate of Redaction issued. Terminal: a finalized document cannot be reopened or re-finalized. |
 | `FAILED`          | Redaction failed and the document was stored without spans         |
 | `SKIPPED`         | Placeholder row written when an OpenSearch / Elasticsearch import detected a duplicate `(sourceIndex, sourceDocId)` and chose not to re-enqueue. Carries source attribution but no content. |
 

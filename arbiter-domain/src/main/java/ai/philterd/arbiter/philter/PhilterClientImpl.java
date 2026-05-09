@@ -57,9 +57,11 @@ public class PhilterClientImpl implements PhilterClient {
 
     @Override
     public RedactionResponse redactPdf(final byte[] pdfBytes, final String context) throws IOException {
-        // Basic implementation for Philter remote
-        // In a real app, we would call the Philter PDF redaction endpoint.
-        // For now, we'll convert to text and redact.
+        // TODO: Call the actual remote-Philter PDF redaction endpoint. Casting raw PDF
+        // bytes to a String and running text redaction over them produces garbage for any
+        // non-trivial PDF (binary stream content, font tables, compressed objects). Pairs
+        // with the matching TODO in RedactionServiceImpl.getRedactedPdf — both must be
+        // implemented before remote-Philter PDF redaction can be exposed in the UI.
         final String text = new String(pdfBytes);
         return redact(text, context);
     }

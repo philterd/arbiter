@@ -71,14 +71,18 @@ List documents the caller can see, paged by sort field.
 
 | Query param      | Default       | Meaning                                                |
 | ---------------- | ------------- | ------------------------------------------------------ |
-| `page`           | `0`           | Zero-indexed page                                      |
-| `size`           | `10`          | Page size                                              |
+| `page`           | `0`           | Zero-indexed page (negative values are clamped to `0`)  |
+| `size`           | `10`          | Page size, clamped to the range `[1, 100]`              |
 | `batchId`        | —             | Filter to one batch                                    |
 | `status`         | —             | Filter to one status                                   |
 | `filename`       | —             | Substring match on filename, case-insensitive          |
 | `myGroupsOnly`   | `false`       | Admin opt-in: restrict admins to their own groups      |
 | `sort`           | `riskScore`   | One of `riskScore`, `status`, `batchId`, `filename`, `priority` |
 | `dir`            | `desc`        | `asc` or `desc`                                        |
+
+`size` is hard-capped at 100 — values above that are silently lowered, and
+values below `1` are raised to `1`. Page through larger result sets with
+successive `page` values rather than a larger `size`.
 
 Non-admins are always restricted to their groups; the `myGroupsOnly` parameter
 only affects admin callers.
@@ -149,14 +153,20 @@ true`.
 ### `POST /api/v1/documents/{id}/finalize`
 
 Produce the redacted text for a document by sending its approved spans to
-Philter and applying them. The response is the post-redaction string and the
-document is transitioned to `AUTO_APPROVED`.
+Philter and applying them. The response is the post-redaction string. On
+success, the document is transitioned to `FINALIZED` and the rendered
+redacted text is persisted on the document so a later download still works
+even if a finalization policy clears the source text.
 
 ```json
 { "finalizedText": "string" }
 ```
 
-`404` if the document doesn't exist or the caller lacks group access.
+| Status | Meaning                                                                                |
+| ------ | -------------------------------------------------------------------------------------- |
+| `200`  | Returns `{ "finalizedText": "..." }` and the document is now `FINALIZED`.               |
+| `404`  | Document not found, or the caller lacks group access.                                   |
+| `409`  | Document is not in `APPROVED`, **or** its source text is unavailable (e.g. cleared by a finalization policy on a prior pass) and cannot be re-finalized. |
 
 ### `GET /api/v1/documents/{id}/audit`
 

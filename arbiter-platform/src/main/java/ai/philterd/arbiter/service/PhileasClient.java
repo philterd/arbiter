@@ -242,10 +242,11 @@ public class PhileasClient implements PhilterClient {
                 }
             }
 
-            // We need to map the spans to the extracted text for the UI.
-            // Phileas PdfFilterService doesn't directly give us the redacted plain text string.
-            // For now, let's use the plain text redaction logic to get the UI view, 
-            // but return the PDF-specific metadata.
+            // TODO: Surface the redacted plain text directly from PdfFilterService rather
+            // than re-running the text redactor over the extracted text. The current path
+            // can drift if the PDF and text redactors disagree on span boundaries (e.g.
+            // when a token spans a line break in the PDF), so the UI preview may differ
+            // from the bytes the user actually downloads.
             final RedactionResponse textResponse = redact(originalText, context);
 
             return new RedactionResponse(originalText, textResponse.getRedactedText(), distinctFinalRedactions);

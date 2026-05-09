@@ -91,21 +91,48 @@ re-applies group restrictions.
 
 ## Password storage
 
-User passwords are stored as **salted SHA-512** hashes. The format is:
+User passwords are stored as **BCrypt** hashes (cost 12) using Spring
+Security's `DelegatingPasswordEncoder`. New hashes carry the `{bcrypt}`
+prefix so the encoder can route verifications without having to guess the
+algorithm:
+
+```
+{bcrypt}$2a$12$<22-char-salt><31-char-hash>
+```
+
+BCrypt's 16-byte salt is generated per-password and embedded in the hash;
+verification is constant-time. The cost factor (12) is the encoder's work
+parameter — raising it makes both encode and verify slower, so it's the
+knob to turn if you want to harden against future hardware. Change the
+constructor argument to `BCryptPasswordEncoder` in the encoder bean and
+existing hashes are unaffected (BCrypt verification reads the cost from the
+hash itself).
+
+Every sign-in, password change, admin reset, and invitation redemption
+produces a fresh `{bcrypt}` hash. The seeded admin's default password
+(`admin`) is encoded the same way on first run and **must** be rotated
+immediately after first sign-in.
+
+### Legacy SHA-512 fallback
+
+Earlier versions of Arbiter stored passwords as salted SHA-512 in this
+**unprefixed** form:
 
 ```
 <saltHex>$<sha512Hex(salt + password)>
 ```
 
-The salt is 16 random bytes (32 hex characters) generated per-password with
-`SecureRandom`. Verification is constant-time. The seeded admin's default
-password (`admin`) is hashed with this scheme on first run and **must** be
-rotated immediately after first sign-in.
+with a 16-byte (32-hex-char) salt. Hashes already in this form continue to
+verify at login — the `DelegatingPasswordEncoder` is configured so that a
+hash with no `{prefix}` is matched against the legacy encoder. The first
+time the user signs in **and changes their password**, or an admin resets
+it, the stored hash transitions to the `{bcrypt}` form. Plain SHA-512
+hashes are never produced for new passwords.
 
-Plain SHA-512 with a salt is faster (and therefore weaker against brute
-force) than a deliberate KDF like bcrypt or argon2. For higher security
-you may want to swap the encoder for a PBKDF2/argon2/bcrypt
-implementation; the encoder bean is the only thing that needs to change.
+Plain salted SHA-512 is fast (and therefore weak against offline brute
+force) compared to a deliberate KDF. The fallback exists only so existing
+deployments don't lock users out at the upgrade boundary; rotate everyone's
+password to migrate them off the legacy scheme.
 
 ## API key storage
 

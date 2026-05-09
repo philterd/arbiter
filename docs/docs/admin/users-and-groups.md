@@ -15,8 +15,8 @@ Fill in **Email** and **Password**, optionally tick **Admin**, and click
 
 - The email is validated for shape (`local@domain.tld`) and lowercased before
   storage.
-- The password must be at least 4 characters. It is stored as a salted
-  SHA-512 hash.
+- The password must be at least **12 characters**. It is stored as a hash —
+  Arbiter never keeps plaintext passwords.
 
 The user can sign in immediately. They have access to the batches and
 documents in any group they belong to (or all of them, if **Admin** is
@@ -26,9 +26,23 @@ checked).
 
 Each row has an **Admin** checkbox and a **New password (optional)** field.
 
-- Toggling Admin changes the role on save. Both directions are allowed.
+- Toggling Admin changes the role on save. Both directions are allowed
+  (subject to the safeguards below).
 - Leaving New password blank keeps the existing password. Filling it in
-  replaces the password (still validated to ≥ 4 characters).
+  replaces the password (still validated to ≥ 12 characters).
+
+**Safeguards on the Edit form:**
+
+- **You cannot edit your own account from this page.** Your own row's edit
+  form is hidden and replaced with a link to your personal Settings page.
+  Use Settings to change your own password, manage 2FA, or rotate your API
+  key — those flows require your current password as a re-auth check, which
+  the admin Edit form bypasses by design.
+- **The last admin cannot be demoted.** Unchecking the **Admin** box on the
+  only remaining administrator account is rejected with an error
+  (*"Cannot remove admin from … : at least one administrator is required"*)
+  to prevent locking the entire deployment out of `/admin/**`. Add a second
+  admin first, then demote.
 
 ### Reset a user's password
 
@@ -37,7 +51,7 @@ password, an admin must set a new one manually:
 
 1. Go to **Admin → Users**.
 2. Find the user's row.
-3. Type a new password (at least 4 characters) into the **New password
+3. Type a new password (at least 12 characters) into the **New password
    (optional)** field. Leave the Admin checkbox as-is unless you also intend
    to change the role.
 4. Click **Save**.
@@ -59,9 +73,12 @@ use the Admin → Users page (you cannot log in). Options:
 
 - Another admin account, if one exists, can reset it via the Users page.
 - Otherwise, update the `passwordHash` field on your user document directly
-  in MongoDB. Generate a replacement hash with the same salted SHA-512 scheme
-  (see [Security](../security.md#password-storage)), or temporarily set a
-  known hash and change it immediately after login.
+  in MongoDB. Generate a replacement BCrypt hash and prefix it with
+  `{bcrypt}` so the encoder routes it correctly — for example,
+  `htpasswd -nbBC 12 '' '<your-new-password>' | sed -e 's/^://' -e 's/^/{bcrypt}/'`.
+  See [Security · Password storage](../security.md#password-storage) for the
+  encoder's full format. Change the password again from Settings as soon as
+  you can sign in, so the rotation is captured in the audit log.
 
 #### Locked out by MFA as well
 

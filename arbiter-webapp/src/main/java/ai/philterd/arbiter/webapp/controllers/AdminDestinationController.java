@@ -41,6 +41,15 @@ import java.util.UUID;
  * Today the page supports three destination types: local filesystem directories,
  * Amazon S3 buckets, and Amazon SQS queues. Mirrors the layout of
  * {@link AdminDataSourceController}.
+ *
+ * <p>TODO: Wire destinations into the finalize flow. Today admins can configure and
+ * "Test" destinations here, but no part of the document workflow actually writes to them:
+ * {@code Batch} has no {@code destinationId} field, no service references the destination
+ * repositories outside this controller, and {@code finalizeRedaction} doesn't emit
+ * anywhere. To finish the feature: add {@code Batch.destinationId}, surface a picker on
+ * the batch edit form, and emit finalized documents through a {@code DestinationWriter}
+ * invoked at the end of {@code RedactionApiServiceImpl.finalizeRedaction} and
+ * {@code ReviewViewController.finalizeDocument}.
  */
 @Controller
 @RequestMapping("/admin/destinations")

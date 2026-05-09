@@ -54,10 +54,12 @@ authenticator app (see [Login flow with 2FA](#login-flow-with-2fa) below).
 
 ### Disabling 2FA
 
-Expand the **Disable two-factor authentication** section at the bottom of the 2FA card, enter
-a valid code from your authenticator app, and click **Disable 2FA**. You must supply a correct
-code — this prevents an unattended session from being used to strip the protection. Once
-disabled, subsequent logins no longer prompt for a code.
+Expand the **Disable two-factor authentication** section at the bottom of the 2FA card,
+enter your **current password** and a valid code from your authenticator app, and click
+**Disable 2FA**. Both are required — the password proves the session-holder is really you,
+the TOTP code proves the authenticator device is still in your possession. An unattended
+session alone (or a compromised authenticator without your password) cannot strip 2FA.
+Once disabled, subsequent logins no longer prompt for a code.
 
 ### Login flow with 2FA
 
@@ -82,9 +84,9 @@ yellow banner on the page explains why you have been sent there.
 ## Change password
 
 Enter your current password, the new password, and a confirmation. The new
-password must be at least 4 characters. On success, your stored password is
-replaced with a freshly-salted SHA-512 hash — Arbiter never stores plaintext
-passwords (see [Security](../security.md)).
+password must be at least **12 characters**. On success, your stored password
+is replaced with a fresh hash — Arbiter never stores plaintext passwords (see
+[Security](../security.md)).
 
 If your current password is wrong, you'll get an error and nothing changes.
 
@@ -112,16 +114,22 @@ membership and admin role.
 
 ### Generate a new key
 
-Click **Generate API key**. The new key is displayed once on the resulting
-page in a yellow callout. **Copy it immediately** — Arbiter only stores the
-SHA-512 hash of the key, so it cannot be shown again.
+Enter your **current password** and click **Generate API key**. The new key
+is displayed once on the resulting page in a yellow callout. **Copy it
+immediately** — Arbiter only stores the SHA-512 hash of the key, so it cannot
+be shown again.
 
 If a key was already set, generating a new one replaces the old one.
 
+The password re-prompt is there to stop a hijacked session (or a tab left
+open on an unattended machine) from minting a long-lived API key on your
+behalf.
+
 ### Revoke
 
-**Revoke API key** clears the stored hash. Subsequent API requests using the
-old key will be rejected.
+Enter your **current password** and click **Revoke API key**. The stored
+hash is cleared and subsequent API requests using the old key will be
+rejected. The same password re-prompt rationale applies as for generation.
 
 ## Audit trail
 

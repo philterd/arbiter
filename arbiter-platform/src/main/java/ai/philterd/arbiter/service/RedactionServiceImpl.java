@@ -152,8 +152,11 @@ public class RedactionServiceImpl implements RedactionService {
                 throw new IOException("Failed to apply redactions to PDF", e);
             }
         } else {
-            // For Philter remote, we'd ideally call a Philter apply API.
-            // For now, return original as placeholder.
+            // TODO: Implement PDF redaction back-apply for remote Philter. Returning the
+            // original bytes is a confidentiality breach — the user clicks "Download
+            // redacted" and gets the unredacted file. Until a Philter "apply spans → PDF"
+            // call is wired up here, the caller should refuse the download for batches
+            // bound to a remote Philter instance instead of falling through to this branch.
             log.warn("PDF redaction back-apply not implemented for Philter remote - returning original.");
             return pdfBytes;
         }
