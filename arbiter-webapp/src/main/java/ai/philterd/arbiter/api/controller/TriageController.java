@@ -16,6 +16,7 @@ import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.SpanRepository;
 import ai.philterd.arbiter.service.ApprovalRuleEvaluator;
+import ai.philterd.arbiter.service.BatchAccessService;
 import ai.philterd.arbiter.service.UserGroupsService;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
@@ -31,7 +32,6 @@ import org.springframework.web.bind.annotation.RestController;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Comparator;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -48,17 +48,20 @@ public class TriageController {
     private final SpanRepository spanRepository;
     private final UserGroupsService userGroupsService;
     private final ApprovalRuleEvaluator approvalRuleEvaluator;
+    private final BatchAccessService batchAccessService;
 
     public TriageController(final DocumentRepository documentRepository,
                             final BatchRepository batchRepository,
                             final SpanRepository spanRepository,
                             final UserGroupsService userGroupsService,
-                            final ApprovalRuleEvaluator approvalRuleEvaluator) {
+                            final ApprovalRuleEvaluator approvalRuleEvaluator,
+                            final BatchAccessService batchAccessService) {
         this.documentRepository = documentRepository;
         this.batchRepository = batchRepository;
         this.spanRepository = spanRepository;
         this.userGroupsService = userGroupsService;
         this.approvalRuleEvaluator = approvalRuleEvaluator;
+        this.batchAccessService = batchAccessService;
     }
 
     private static final Set<String> SORTABLE_FIELDS = Set.of("riskScore", "status", "batchId", "filename", "priority");
@@ -158,7 +161,9 @@ public class TriageController {
                 ? userGroupsService.groupIdsForEmail(authentication == null ? null : authentication.getName())
                 : null;
 
-        return batchRepository.findAll().stream()
+        return batchRepository.findAll(
+                        PageRequest.of(0, BatchAccessService.BATCH_SCAN_LIMIT, Sort.by("name")))
+                .getContent().stream()
                 .filter(b -> !restrict || (b.getGroupId() != null && myGroupIds.contains(b.getGroupId())))
                 .sorted(Comparator.comparing(
                         (Batch b) -> b.getName() == null ? "" : b.getName().toLowerCase()))
@@ -244,14 +249,6 @@ public class TriageController {
     }
 
     private Set<String> allowedBatchIds(final Authentication auth) {
-        final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(auth == null ? null : auth.getName());
-        if (myGroupIds.isEmpty()) return Set.of();
-        final Set<String> ids = new HashSet<>();
-        for (Batch b : batchRepository.findAll()) {
-            if (b.getGroupId() != null && myGroupIds.contains(b.getGroupId())) {
-                ids.add(b.getId());
-            }
-        }
-        return ids;
+        return batchAccessService.allowedBatchIds(auth);
     }
 }

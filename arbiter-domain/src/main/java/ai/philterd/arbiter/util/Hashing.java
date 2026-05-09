@@ -15,6 +15,8 @@
  */
 package ai.philterd.arbiter.util;
 
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -34,6 +36,17 @@ public final class Hashing {
             return HexFormat.of().formatHex(md.digest(input));
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-512 unavailable", e);
+        }
+    }
+
+    public static String hmacSha256Hex(final String input, final byte[] key) {
+        if (input == null) return null;
+        try {
+            final Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(key, "HmacSHA256"));
+            return HexFormat.of().formatHex(mac.doFinal(input.getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception e) {
+            throw new IllegalStateException("HMAC-SHA-256 unavailable", e);
         }
     }
 

@@ -161,6 +161,7 @@ public class LlmJudgeController {
 
         final OllamaInstance instance = ollamaInstanceRepository.findById(request.instanceId())
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Ollama instance not found."));
+        requireListModelsAccess(authentication, instance);
 
         final List<Span> spans = spanRepository.findByDocumentId(documentId);
         final String prompt = buildPrompt(document, spans);
@@ -170,6 +171,14 @@ public class LlmJudgeController {
             body.put("model", request.model());
             body.put("prompt", prompt);
             body.put("stream", false);
+
+            // Audit before the HTTP call so the record exists even if Ollama returns an error
+            // or the connection fails. PII leaves the system at this point.
+            auditLogService.log("DOCUMENT_PII_SENT_TO_LLM", "Document", documentId,
+                    Map.of("instanceId", instance.getId(),
+                            "instanceName", instance.getName() == null ? "" : instance.getName(),
+                            "model", request.model(),
+                            "spanCount", spans.size()));
 
             final HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl(instance) + "/api/generate"))
@@ -184,13 +193,6 @@ public class LlmJudgeController {
             }
             final JsonNode root = objectMapper.readTree(resp.body());
             final String response = root.path("response").asText("");
-
-            auditLogService.log("OLLAMA_EXPLAIN", "Document", documentId,
-                    Map.of("instanceId", instance.getId(),
-                            "instanceName", instance.getName() == null ? "" : instance.getName(),
-                            "model", request.model(),
-                            "spanCount", spans.size(),
-                            "responseLength", response.length()));
 
             final Map<String, Object> out = new LinkedHashMap<>();
             out.put("instanceName", instance.getName());
@@ -235,6 +237,15 @@ public class LlmJudgeController {
             body.put("prompt", prompt);
             body.put("stream", false);
 
+            // Audit before the HTTP call so the record exists even if Ollama returns an error
+            // or the connection fails. PII leaves the system at this point.
+            auditLogService.log("DOCUMENT_PII_SENT_TO_LLM", "Document", document.getId(),
+                    Map.of("instanceId", instance.getId(),
+                            "instanceName", instance.getName() == null ? "" : instance.getName(),
+                            "model", model,
+                            "spanId", span.getId(),
+                            "spanType", span.getType() == null ? "" : span.getType()));
+
             final HttpRequest req = HttpRequest.newBuilder()
                     .uri(URI.create(baseUrl(instance) + "/api/generate"))
                     .timeout(GENERATE_TIMEOUT)
@@ -248,13 +259,6 @@ public class LlmJudgeController {
             }
             final JsonNode root = objectMapper.readTree(resp.body());
             final String response = root.path("response").asText("");
-
-            auditLogService.log("SPAN_SECOND_OPINION", "Span", span.getId(),
-                    Map.of("instanceId", instance.getId(),
-                            "instanceName", instance.getName() == null ? "" : instance.getName(),
-                            "model", model,
-                            "type", span.getType() == null ? "" : span.getType(),
-                            "responseLength", response.length()));
 
             final Map<String, Object> out = new LinkedHashMap<>();
             out.put("instanceName", instance.getName());

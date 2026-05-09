@@ -285,6 +285,24 @@
                 </form>
             </div>
 
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6 max-w-3xl">
+                <p class="text-sm text-amber-800">
+                    <strong>Security requirement:</strong>
+                    When a reviewer requests an explanation or second opinion, Arbiter sends the full
+                    unredacted document text and all PII span values to the configured Ollama instance.
+                    <strong>Ollama must be deployed with request-body logging disabled.</strong>
+                    If Ollama's HTTP server logs request bodies (e.g. when
+                    <code class="font-mono bg-amber-100 px-1 rounded">OLLAMA_DEBUG=1</code>
+                    is set), unredacted PII will appear in Ollama's logs outside Arbiter's security
+                    boundary. Ensure <code class="font-mono bg-amber-100 px-1 rounded">OLLAMA_DEBUG=0</code>
+                    and that your Ollama deployment does not forward request bodies to any external
+                    logging or observability sink.
+                    Each LLM call is recorded in Arbiter's audit log under the
+                    <code class="font-mono bg-amber-100 px-1 rounded">DOCUMENT_PII_SENT_TO_LLM</code>
+                    action.
+                </p>
+            </div>
+
             <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-6 max-w-3xl">
                 <h3 class="text-lg font-semibold text-gray-900 mb-1">Add Ollama instance</h3>
                 <p class="text-xs text-gray-500 mb-3">

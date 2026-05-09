@@ -411,6 +411,9 @@ public class ReviewController {
         final String previousStatus = span.getStatus() == null ? "" : span.getStatus();
         final String originalStatus = request == null ? null : request.originalStatus();
 
+        if (originalStatus == null || !ALLOWED_STATUSES.contains(originalStatus)) {
+            throw new ResponseStatusException(BAD_REQUEST, "Invalid status: " + originalStatus);
+        }
         span.changeStatus(originalStatus, actor);
         final Span saved = spanRepository.save(span);
 

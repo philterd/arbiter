@@ -14,42 +14,40 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.net.InetAddress;
 import java.net.URI;
+import java.net.UnknownHostException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 
 /**
- * Optional defense-in-depth allow-list for data-source URLs (OpenSearch / Elasticsearch
- * test endpoints and the ingest workers). Admins are trusted, but if the application
- * runs in a network where Arbiter has access to internal services that the admin role
- * shouldn't be able to reach, the deployer can pin acceptable hosts via:
+ * Host allow-list for data-source URLs (OpenSearch / Elasticsearch test endpoints,
+ * ingest workers, Philter, and Ollama test-connection calls).
+ *
+ * <p><strong>Default-deny for private ranges.</strong> RFC-1918, loopback, and link-local
+ * addresses (10.x, 172.16–31.x, 192.168.x, 127.x, 169.254.x, ::1, fe80::) are
+ * <em>always</em> blocked regardless of whether an allow-list is configured. This prevents
+ * admin-triggered SSRF probing of internal infrastructure. To allow a private address
+ * (e.g., a legitimate internal OpenSearch), add it explicitly to the allow-list:
  *
  * <pre>
- *   arbiter.data-sources.allowed-hosts=opensearch.internal,*.search.example.com
+ *   arbiter.data-sources.allowed-hosts=opensearch.internal,192.168.1.100
  * </pre>
  *
- * <p>The format is a comma-separated list of host patterns. Each pattern is either:
+ * <p><strong>Allow-list behavior.</strong> The format is a comma-separated list of host
+ * patterns. Each pattern is either:
  *
  * <ul>
  *   <li>An <strong>exact hostname</strong> like {@code opensearch.internal}, or
- *   <li>A <strong>leading-wildcard pattern</strong> like {@code *.search.example.com},
+ *   <li>A <strong>leading-wildcard</strong> like {@code *.search.example.com},
  *       which matches one-or-more left-side labels (so {@code a.search.example.com}
- *       and {@code search.example.com} both match, but {@code search.example.org}
- *       does not).
+ *       and {@code search.example.com} both match, but {@code search.example.org} does not).
  * </ul>
  *
- * <p>Behavior:
- *
- * <ul>
- *   <li>If the property is unset or blank, the allow-list is <em>disabled</em> and any
- *       host is accepted — this preserves the long-standing default and means the
- *       feature is opt-in for security-sensitive deployments.
- *   <li>When configured, any URL whose host doesn't match a pattern is rejected. This
- *       applies to both admin "Test connection" buttons and to the saved data-source
- *       ingest workers, so a saved data source that points at a now-forbidden host
- *       fails fast when its job runs.
- * </ul>
+ * <p>When the allow-list is unset, any <em>public</em> host is accepted. When it is set,
+ * only hosts that match a configured pattern are accepted (and private-range addresses must
+ * also match to pass the unconditional block above).
  */
 @Component
 public class DataSourceHostAllowList {
@@ -75,21 +73,22 @@ public class DataSourceHostAllowList {
         }
     }
 
-    /** {@code true} if the allow-list is configured (i.e. enforced). */
+    /** {@code true} if the allow-list is configured (i.e. a non-empty pattern list was supplied). */
     public boolean isEnforced() {
         return !patterns.isEmpty();
     }
 
     /**
-     * Verify a URL's host is permitted by the allow-list. When the list is empty (default),
-     * any host is allowed; otherwise the URL is parsed and its host compared to every
-     * configured pattern.
+     * Returns {@code true} if the URL's host is permitted.
      *
-     * <p>A {@code null} or unparseable URL, or one without a host (e.g. {@code "not a url"}),
-     * is rejected when the allow-list is configured.
+     * <p>Private/loopback/link-local addresses are always blocked unless the host is
+     * explicitly listed in the configured allow-list. Public addresses are blocked only
+     * when an allow-list is configured and the host doesn't match any pattern.
+     *
+     * <p>A {@code null}, blank, or unparseable URL (one without a recognisable host
+     * component) is always rejected.
      */
     public boolean isAllowed(final String url) {
-        if (patterns.isEmpty()) return true;
         if (url == null || url.isBlank()) return false;
         final String host;
         try {
@@ -100,6 +99,37 @@ public class DataSourceHostAllowList {
         }
         if (host == null || host.isBlank()) return false;
         final String h = host.toLowerCase(Locale.ROOT);
+
+        // Private/loopback/link-local: blocked unconditionally unless explicitly whitelisted.
+        if (isPrivateAddress(host)) {
+            return !patterns.isEmpty() && matchesPatterns(h);
+        }
+
+        // Public addresses: allowed when no allow-list is configured; otherwise must match.
+        return patterns.isEmpty() || matchesPatterns(h);
+    }
+
+    /** Useful in error messages so admins know what to add to their allow-list. */
+    public List<String> patterns() {
+        return patterns;
+    }
+
+    /**
+     * Returns {@code true} if the host resolves to a loopback, site-local (RFC-1918), or
+     * link-local address. Numeric IP literals are parsed without a DNS lookup; hostnames
+     * are resolved via the JVM. If the hostname cannot be resolved, {@code false} is
+     * returned — an unresolvable host cannot be connected to anyway.
+     */
+    private static boolean isPrivateAddress(final String host) {
+        try {
+            final InetAddress addr = InetAddress.getByName(host);
+            return addr.isLoopbackAddress() || addr.isSiteLocalAddress() || addr.isLinkLocalAddress();
+        } catch (UnknownHostException e) {
+            return false;
+        }
+    }
+
+    private boolean matchesPatterns(final String h) {
         for (String spec : patterns) {
             if (spec.startsWith("*.")) {
                 // *.foo.com matches anything ending in .foo.com plus the bare apex foo.com.
@@ -111,10 +141,5 @@ public class DataSourceHostAllowList {
             }
         }
         return false;
-    }
-
-    /** Useful in error messages so admins know what to add to their allow-list. */
-    public List<String> patterns() {
-        return patterns;
     }
 }

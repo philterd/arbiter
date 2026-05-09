@@ -17,20 +17,19 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DataSourceHostAllowListTest {
 
-    // ---------- disabled by default ----------
+    // ---------- no allow-list configured: public hosts allowed, private always blocked ----------
 
     @Test
-    void emptyConfigurationAllowsEverything() {
+    void noAllowListPermitsPublicHostnames() {
         final DataSourceHostAllowList list = new DataSourceHostAllowList("");
         assertFalse(list.isEnforced());
+        // Unresolvable hostnames are treated as public (can't be connected to anyway).
         assertTrue(list.isAllowed("http://opensearch.internal:9200"));
         assertTrue(list.isAllowed("https://anything.example.com/"));
-        // Even a malformed URL passes when the list isn't enforced — the historical default.
-        assertTrue(list.isAllowed("not a url"));
     }
 
     @Test
-    void nullConfigurationAllowsEverything() {
+    void nullConfigurationPermitsPublicHostnames() {
         final DataSourceHostAllowList list = new DataSourceHostAllowList(null);
         assertFalse(list.isEnforced());
         assertTrue(list.isAllowed("http://anywhere"));
@@ -38,10 +37,86 @@ class DataSourceHostAllowListTest {
 
     @Test
     void blankPatternsAreIgnored() {
-        // Whitespace-only entries are stripped during parsing.
         final DataSourceHostAllowList list = new DataSourceHostAllowList("  ,, ,");
         assertFalse(list.isEnforced(), "all-blank → effectively unset");
         assertTrue(list.isAllowed("http://anywhere"));
+    }
+
+    // ---------- private-range blocking (always enforced) ----------
+
+    @Test
+    void noAllowListBlocksLoopbackByName() {
+        final DataSourceHostAllowList list = new DataSourceHostAllowList("");
+        assertFalse(list.isAllowed("http://localhost:9200"));
+    }
+
+    @Test
+    void noAllowListBlocksLoopbackByIpv4() {
+        final DataSourceHostAllowList list = new DataSourceHostAllowList("");
+        assertFalse(list.isAllowed("http://127.0.0.1:9200"));
+        assertFalse(list.isAllowed("http://127.255.255.255/"));
+    }
+
+    @Test
+    void noAllowListBlocksRfc1918Class10() {
+        final DataSourceHostAllowList list = new DataSourceHostAllowList("");
+        assertFalse(list.isAllowed("http://10.0.0.1/"));
+        assertFalse(list.isAllowed("http://10.255.255.255:9200"));
+    }
+
+    @Test
+    void noAllowListBlocksRfc1918Class172() {
+        final DataSourceHostAllowList list = new DataSourceHostAllowList("");
+        assertFalse(list.isAllowed("http://172.16.0.1/"));
+        assertFalse(list.isAllowed("http://172.31.255.255/"));
+    }
+
+    @Test
+    void noAllowListBlocksRfc1918Class192() {
+        final DataSourceHostAllowList list = new DataSourceHostAllowList("");
+        assertFalse(list.isAllowed("http://192.168.0.1/"));
+        assertFalse(list.isAllowed("http://192.168.255.255:8080/"));
+    }
+
+    @Test
+    void noAllowListBlocksLinkLocal() {
+        final DataSourceHostAllowList list = new DataSourceHostAllowList("");
+        // Cloud metadata endpoint is the most sensitive link-local address.
+        assertFalse(list.isAllowed("http://169.254.169.254/latest/meta-data/"));
+        assertFalse(list.isAllowed("http://169.254.0.1/"));
+    }
+
+    @Test
+    void noAllowListBlocksNullAndBlankUrls() {
+        final DataSourceHostAllowList list = new DataSourceHostAllowList("");
+        assertFalse(list.isAllowed(null));
+        assertFalse(list.isAllowed(""));
+        assertFalse(list.isAllowed("   "));
+    }
+
+    @Test
+    void noAllowListBlocksUnparseableUrls() {
+        final DataSourceHostAllowList list = new DataSourceHostAllowList("");
+        // URI.create throws for whitespace-containing strings → rejected.
+        assertFalse(list.isAllowed("not a url"));
+        assertFalse(list.isAllowed("/some/relative/path"));
+    }
+
+    // ---------- allowlist can explicitly permit a private address ----------
+
+    @Test
+    void allowListCanWhitelistLoopback() {
+        final DataSourceHostAllowList list = new DataSourceHostAllowList("localhost");
+        assertTrue(list.isAllowed("http://localhost:9200"));
+    }
+
+    @Test
+    void allowListCanWhitelistPrivateIp() {
+        final DataSourceHostAllowList list = new DataSourceHostAllowList("192.168.1.100");
+        assertTrue(list.isAllowed("http://192.168.1.100:9200"));
+        // Other private IPs still blocked.
+        assertFalse(list.isAllowed("http://192.168.1.101:9200"));
+        assertFalse(list.isAllowed("http://10.0.0.1/"));
     }
 
     // ---------- enforced: exact match ----------

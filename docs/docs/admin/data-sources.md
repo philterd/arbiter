@@ -193,17 +193,28 @@ hostname or a leading-wildcard pattern (`*.foo.com`) that matches one-or-
 more left-side labels (so `a.foo.com` and `a.b.foo.com` both match) and
 also the bare apex (`foo.com`).
 
-When configured, every URL on every OpenSearch / Elasticsearch admin
-**Test** click and every saved-source ingest job is checked against the
-list. A non-matching host is rejected with the error *"Endpoint host is
-not on the data-source allow-list (arbiter.data-sources.allowed-hosts)."*
-The check applies even to **already-saved** data sources: if a host is
-removed from the allow-list later, an in-flight or newly-queued ingest job
-fails fast with the same message.
+When configured, every URL on every admin **Test** click and every
+saved-source ingest job is checked against the list. This covers OpenSearch
+/ Elasticsearch data sources, Philter instance endpoints
+(**Admin → Philter**), and Ollama instance endpoints
+(**Admin → LLM-as-a-Judge**). A non-matching host is rejected with the
+error *"Endpoint host is not permitted."* The check applies even to
+**already-saved** instances: if a host is removed from the allow-list
+later, a Test click on an existing row is also rejected.
 
-When the property is **unset or blank** (the default), the allow-list is
-disabled and any host is accepted — the long-standing behavior. The
-feature is opt-in for security-sensitive deployments.
+**Private-range addresses are always blocked**, regardless of whether
+`arbiter.data-sources.allowed-hosts` is set. Arbiter resolves the configured
+hostname and rejects it if it resolves to a loopback address (`127.x.x.x`),
+an RFC-1918 private range (`10.x.x.x`, `172.16–31.x.x`, `192.168.x.x`), or
+a link-local address (`169.254.x.x`). This applies to both admin form
+submissions and Test clicks. Numeric IP addresses in the URL are evaluated
+directly without a DNS lookup, so they cannot be used to bypass the check by
+specifying a private IP as a literal.
+
+When the property is **unset or blank** (the default), any public host is
+accepted (private ranges are still blocked). Set it to additionally restrict
+which public hosts are reachable — useful in multi-tenant or zero-trust
+deployments.
 
 ## Credential encryption
 

@@ -10,6 +10,7 @@
 package ai.philterd.arbiter.webapp.controllers;
 
 import ai.philterd.arbiter.model.InboxMessage;
+import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.InboxService;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -21,15 +22,19 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
+import java.util.Map;
 
 @Controller
 @RequestMapping("/inbox")
 public class InboxController {
 
     private final InboxService inboxService;
+    private final AuditLogService auditLogService;
 
-    public InboxController(final InboxService inboxService) {
+    public InboxController(final InboxService inboxService,
+                           final AuditLogService auditLogService) {
         this.inboxService = inboxService;
+        this.auditLogService = auditLogService;
     }
 
     @GetMapping
@@ -44,7 +49,10 @@ public class InboxController {
 
     @PostMapping("/{id}/read")
     public String markRead(@PathVariable("id") final String id, final Authentication authentication) {
-        inboxService.markRead(id, authentication == null ? null : authentication.getName());
+        final String email = authentication == null ? null : authentication.getName();
+        inboxService.markRead(id, email);
+        auditLogService.log("INBOX_MESSAGE_READ", "InboxMessage", id,
+                Map.of("actor", email == null ? "" : email));
         return "redirect:/inbox";
     }
 
@@ -52,7 +60,10 @@ public class InboxController {
     public String archive(@PathVariable("id") final String id,
                           @RequestParam(value = "showArchived", defaultValue = "false") final boolean showArchived,
                           final Authentication authentication) {
-        inboxService.archive(id, authentication == null ? null : authentication.getName());
+        final String email = authentication == null ? null : authentication.getName();
+        inboxService.archive(id, email);
+        auditLogService.log("INBOX_MESSAGE_ARCHIVED", "InboxMessage", id,
+                Map.of("actor", email == null ? "" : email));
         return showArchived ? "redirect:/inbox?showArchived=true" : "redirect:/inbox";
     }
 }

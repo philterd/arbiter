@@ -9,6 +9,7 @@
  */
 package ai.philterd.arbiter.service;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashSet;
@@ -111,6 +112,7 @@ public class JdbcUrlValidator {
     private final Set<String> allowedDrivers;
     private final DataSourceHostAllowList hostAllowList;
 
+    @Autowired
     public JdbcUrlValidator(final DataSourceHostAllowList hostAllowList) {
         this(hostAllowList, DEFAULT_ALLOWED_DRIVERS);
     }
@@ -166,10 +168,11 @@ public class JdbcUrlValidator {
             }
         }
 
-        // Host allow-list — only enforced when the deployer has configured one, so this
-        // is a no-op on installs that haven't opted in. When configured, applies to JDBC
-        // URLs the same as it does to OpenSearch/Elasticsearch endpoints.
-        if (hostAllowList != null && hostAllowList.isEnforced()) {
+        // Host allow-list — private/loopback/link-local addresses are always blocked by
+        // DataSourceHostAllowList.isAllowed(); the allowlist additionally restricts public
+        // hosts when configured. Apply unconditionally so JDBC URLs get the same
+        // private-range protection as HTTP data-source endpoints.
+        if (hostAllowList != null) {
             final String host = extractHost(url);
             if (host == null || host.isBlank()) {
                 return Result.rejected("JDBC URL host could not be parsed; cannot apply the "
@@ -180,8 +183,9 @@ public class JdbcUrlValidator {
             // across data-source types.
             if (!hostAllowList.isAllowed("http://" + host)) {
                 return Result.rejected("JDBC URL host \"" + host
-                        + "\" is not on the data-source allow-list "
-                        + "(arbiter.data-sources.allowed-hosts).");
+                        + "\" is not permitted. Private/loopback/link-local addresses are blocked"
+                        + " by default; to allow this host add it to"
+                        + " arbiter.data-sources.allowed-hosts.");
             }
         }
 

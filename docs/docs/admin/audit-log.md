@@ -7,8 +7,9 @@ collection in MongoDB. There are two ways to view and export it:
   system, exported as JSON or CSV. Admins only.
 - **Audit Log popup** on the Document Queue — the full history for a single
   document (document-level events plus all of its span events), shown inline
-  in a modal. Reviewers with access to the document can read the popup; only
-  admins can download the CSV from it.
+  in a modal. **Admin only** — the underlying
+  `GET /api/v1/documents/{id}/history` endpoint requires `ROLE_ADMIN`.
+  Admins can also download the history as CSV from the popup.
 
 ## What gets logged
 
@@ -24,8 +25,17 @@ collection in MongoDB. There are two ways to view and export it:
 | `BATCH_CLOSE`                       | Batch       | Records who closed it and when                      |
 | `DOCUMENT_UPLOAD`                   | Document    | Web upload                                          |
 | `DOCUMENT_INGEST`                   | Document    | API ingest                                          |
-| `DOCUMENT_STATUS_CHANGE`            | Document    | Approve / Reject / Unapprove                        |
+| `DOCUMENT_STATUS_CHANGE`            | Document    | Generic status transition; also fires on Approve / Unapprove / Unreject |
+| `DOCUMENT_APPROVAL`                 | Document    | Reviewer approved a document; payload includes `approvedBy`, `acquired`, and `required` approval counts |
+| `DOCUMENT_REJECT`                   | Document    | Reviewer rejected a document; payload includes `previous` status and `rejectedBy` |
+| `DOCUMENT_UNAPPROVE`                | Document    | Approval rescinded and document returned to review  |
+| `DOCUMENT_UNREJECT`                 | Document    | Rejection rescinded and document returned to review |
+| `DOCUMENT_FINALIZE`                 | Document    | Document finalized; includes `certificateId` and `documentHash` |
+| `DOCUMENT_DOWNLOAD`                 | Document    | Reviewer downloaded a finalized redacted document   |
 | `DOCUMENT_AUDIT_EXPORT`             | Document    | Admin downloaded the per-document audit log as CSV  |
+| `DOCUMENT_PII_SENT_TO_LLM`          | Document    | Fired **before** each outbound Ollama LLM call (Explain or Second Opinion). Records the Ollama instance, model, and span count. Written before the HTTP request so the entry exists even if Ollama is unreachable or returns an error. See [LLM-as-a-Judge](#llm-as-a-judge-events). |
+| `DOCUMENT_LOCK_BROKEN`              | Document    | Admin forcibly cleared a review lock held by another user |
+| `FINALIZATION_POLICY_APPLIED`       | Document    | A finalization policy ran after document finalize; payload includes `policyId`, `policyName`, `option`, and `action` |
 | `SPAN_UPDATE`                       | Span        | Status and/or type change                           |
 | `SPAN_REDACT_LIKE`                  | Span        | Counts of new-and-approved spans                    |
 | `USER_CREATE` / `_UPDATE` / `_DELETE` | User      | Admin user management                               |
@@ -33,6 +43,8 @@ collection in MongoDB. There are two ways to view and export it:
 | `API_KEY_GENERATE` / `_REVOKE`      | User        | Per-user API key lifecycle                          |
 | `PASSWORD_CHANGE`                   | User        | Self-service password change                        |
 | `NOTIFICATION_SETTINGS_CHANGE`      | Settings    | SMTP settings save (excluding the password value)   |
+| `INBOX_MESSAGE_READ`                | InboxMessage | User marked an inbox notification as read           |
+| `INBOX_MESSAGE_ARCHIVED`            | InboxMessage | User archived an inbox notification                 |
 | `OPENSEARCH_DATASOURCE_CREATE` / `_UPDATE` / `_DELETE` | OpenSearchDataSource | Data source registered, edited (with `passwordChanged` boolean), or removed (see [Data sources](data-sources.md)) |
 | `ELASTICSEARCH_DATASOURCE_CREATE` / `_UPDATE` / `_DELETE` | ElasticsearchDataSource | Same shape as OpenSearch — separate collection, separate audit lineage |
 | `S3_DATASOURCE_CREATE` / `_DELETE`  | S3DataSource | S3 data source registered or removed                |
@@ -81,10 +93,10 @@ and all events on spans that belong to the document (status changes, type
 changes, manual creation, deletion, second-opinion requests). Entries are
 sorted **newest first** and paginated 10 per page.
 
-Any reviewer with access to the document's batch can open the popup. The
-modal renders the PII text inline so reviewers can see, for example, that a
-span's status was changed from `PENDING` to `APPROVED` for the value
-`555-12-3456`.
+**Admin only.** The underlying `GET /api/v1/documents/{id}/history` endpoint
+requires `ROLE_ADMIN` because the history includes raw PII span text. Non-admin
+reviewers receive `403` if they call the endpoint directly; the popup button
+is hidden for non-admins in the UI.
 
 ### Download CSV
 
@@ -115,7 +127,7 @@ Columns:
 | Column                | Notes                                                        |
 | --------------------- | ------------------------------------------------------------ |
 | `timestamp`           | ISO-8601 UTC instant                                         |
-| `actor`               | Email of the user who performed the action (blank if system) |
+| `actor`               | Email address of the user who performed the action (blank if system). The CSV always uses the email address; the JSON history endpoints (`GET …/history` and `GET …/spans/{id}/history`) use the MongoDB user ID by default — pass `?resolveActors=true` (admin only) to receive email addresses there instead. |
 | `action`              | The action code (e.g. `SPAN_UPDATE`, `DOCUMENT_INGEST`)      |
 | `resourceType`        | `Document` or `Span`                                         |
 | `resourceId`          | The document or span ID                                      |
@@ -128,6 +140,35 @@ Columns:
 `spanText` is **never** present in the CSV. If you need to correlate an
 entry back to the actual PII value, do so against your secured copy of the
 original document using the character offsets and page number.
+
+## LLM-as-a-Judge events
+
+Every call that sends document content to an Ollama instance produces a
+`DOCUMENT_PII_SENT_TO_LLM` entry. The event is written **before** the HTTP
+request leaves Arbiter so the record exists even when Ollama is unreachable
+or returns an error.
+
+| Field in `details`  | Content                                                         |
+| ------------------- | --------------------------------------------------------------- |
+| `instanceId`        | MongoDB ID of the Ollama instance                               |
+| `instanceName`      | Display name of the Ollama instance                             |
+| `model`             | Model name sent to Ollama (e.g. `llama3`)                       |
+| `spanCount`         | Number of PII spans included in the prompt (Explain calls only) |
+| `spanId`            | ID of the span being evaluated (Second Opinion calls only)      |
+| `spanType`          | PII type of that span (Second Opinion calls only)               |
+
+The resource type is always `Document` and the resource ID is the parent
+document's ID — even for Second Opinion calls, which originate from a span —
+because the full document text is always included in the prompt.
+
+!!! warning "Ollama logging"
+    Arbiter sends the full unredacted document text and all PII span values
+    to Ollama in the request body. **Ollama must be deployed with request-body
+    logging disabled.** If `OLLAMA_DEBUG=1` is set or your Ollama deployment
+    forwards request bodies to an external logging sink, PII will appear in
+    logs outside Arbiter's security boundary. See
+    [Admin → LLM-as-a-Judge](../admin/security.md) for configuration
+    requirements.
 
 ## Storage and retention
 

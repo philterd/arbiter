@@ -308,7 +308,7 @@ class AdminDataSourceControllerTest {
     @Test
     void rdbCreateRejectsBlankSqlQuery() {
         final RedirectAttributes ra = flash();
-        controller.createRdb("n", "jdbc:x", "  ", null, null, ra);
+        controller.createRdb("n", "jdbc:postgresql://host:5432/db", "  ", null, null, ra);
         assertEquals("SQL query is required.", error(ra));
     }
 
@@ -316,7 +316,7 @@ class AdminDataSourceControllerTest {
     void rdbCreateRejectsDangerousSqlKeywords() {
         // The controller refuses queries that could mutate the source table.
         final RedirectAttributes ra = flash();
-        controller.createRdb("evil", "jdbc:x",
+        controller.createRdb("evil", "jdbc:postgresql://host:5432/db",
                 "DELETE FROM documents WHERE 1=1", null, null, ra);
         assertNotNull(error(ra));
         assertTrue(error(ra).toLowerCase().contains("disallowed"),
@@ -329,7 +329,7 @@ class AdminDataSourceControllerTest {
     @Test
     void rdbCreateRejectsUsernameWithoutPassword() {
         final RedirectAttributes ra = flash();
-        controller.createRdb("n", "jdbc:x", "SELECT 1", "alice", "", ra);
+        controller.createRdb("n", "jdbc:postgresql://host:5432/db", "SELECT 1", "alice", "", ra);
         assertEquals("Provide both Username and Password, or leave both blank.", error(ra));
     }
 

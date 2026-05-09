@@ -93,6 +93,8 @@ public class AuthorizationIntegrationTest {
 
     @Autowired private MockMvc mockMvc;
 
+    @MockBean private ai.philterd.arbiter.service.ApiKeyHashingService apiKeyHashingService;
+
     // Repositories — Spring Data interfaces, all mockable.
     @MockBean private RedactionService redactionService;
     @MockBean private SpanRepository spanRepository;
@@ -264,7 +266,9 @@ public class AuthorizationIntegrationTest {
         final ai.philterd.arbiter.model.User user = new ai.philterd.arbiter.model.User();
         user.setEmail("admin@example.com");
         user.setRoles(java.util.Set.of("ADMIN"));
-        org.mockito.Mockito.when(userRepository.findByApiKey(org.mockito.ArgumentMatchers.anyString()))
+        org.mockito.Mockito.when(apiKeyHashingService.hash(org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn("hashed-key");
+        org.mockito.Mockito.when(userRepository.findByApiKey("hashed-key"))
                 .thenReturn(java.util.Optional.of(user));
 
         mockMvc.perform(get("/api/v1/policies")
@@ -279,7 +283,9 @@ public class AuthorizationIntegrationTest {
         final ai.philterd.arbiter.model.User user = new ai.philterd.arbiter.model.User();
         user.setEmail("user@example.com");
         user.setRoles(java.util.Set.of("USER"));
-        org.mockito.Mockito.when(userRepository.findByApiKey(org.mockito.ArgumentMatchers.anyString()))
+        org.mockito.Mockito.when(apiKeyHashingService.hash(org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn("hashed-key");
+        org.mockito.Mockito.when(userRepository.findByApiKey("hashed-key"))
                 .thenReturn(java.util.Optional.of(user));
 
         mockMvc.perform(get("/api/v1/policies")

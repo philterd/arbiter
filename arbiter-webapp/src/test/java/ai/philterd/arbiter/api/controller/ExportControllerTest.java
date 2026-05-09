@@ -60,9 +60,22 @@ class ExportControllerTest {
         controller = new ExportController(redactionApiService, spanRepository,
                 documentRepository, batchRepository, userGroupsService);
 
-        final Document doc = new Document();
-        doc.setId("d1");
+        final Document doc = approvedDoc("d1");
         when(documentRepository.findById("d1")).thenReturn(Optional.of(doc));
+    }
+
+    private static Document approvedDoc(final String id) {
+        final Document doc = new Document();
+        doc.setId(id);
+        doc.changeStatus("APPROVED");
+        return doc;
+    }
+
+    private static Document docWithStatus(final String id, final String status) {
+        final Document doc = new Document();
+        doc.setId(id);
+        if (status != null) doc.changeStatus(status);
+        return doc;
     }
 
     private static Span span(final String id, final String type, final String text, final double conf, final String status) {
@@ -113,8 +126,11 @@ class ExportControllerTest {
     // ---- group-access enforcement (non-admin) ----
 
     private void seedGroupedDocument() {
-        final Document doc = new Document();
-        doc.setId("d1");
+        seedGroupedDocumentWithStatus("APPROVED");
+    }
+
+    private void seedGroupedDocumentWithStatus(final String status) {
+        final Document doc = docWithStatus("d1", status);
         doc.setBatchId("b1");
         when(documentRepository.findById("d1")).thenReturn(Optional.of(doc));
         final Batch batch = new Batch();
@@ -153,6 +169,48 @@ class ExportControllerTest {
 
         final List<Map<String, Object>> result = controller.audit("d1", TestAuth.user("alice@example.com"));
         assertTrue(result.isEmpty());
+    }
+
+    // ---- status precondition enforcement ----
+
+    @Test
+    void finalizeRejectsPendingDocument() throws IOException {
+        seedGroupedDocumentWithStatus("PENDING");
+        userGroupsService.withMembership("alice@example.com", Set.of("g1"));
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.finalize("d1", TestAuth.user("alice@example.com")));
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        verify(redactionApiService, never()).finalizeRedaction(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void finalizeRejectsRejectedDocument() throws IOException {
+        seedGroupedDocumentWithStatus("REJECTED");
+        userGroupsService.withMembership("alice@example.com", Set.of("g1"));
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.finalize("d1", TestAuth.user("alice@example.com")));
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        verify(redactionApiService, never()).finalizeRedaction(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void finalizeRejectsNullStatus() throws IOException {
+        seedGroupedDocumentWithStatus(null);
+        userGroupsService.withMembership("alice@example.com", Set.of("g1"));
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.finalize("d1", TestAuth.user("alice@example.com")));
+        assertEquals(HttpStatus.CONFLICT, ex.getStatusCode());
+        verify(redactionApiService, never()).finalizeRedaction(org.mockito.ArgumentMatchers.anyString());
+    }
+
+    @Test
+    void finalizeAllowsApprovedDocument() throws IOException {
+        seedGroupedDocument(); // status = APPROVED
+        userGroupsService.withMembership("alice@example.com", Set.of("g1"));
+        when(redactionApiService.finalizeRedaction("d1")).thenReturn("redacted text");
+
+        final Map<String, String> result = controller.finalize("d1", TestAuth.user("alice@example.com"));
+        assertEquals("redacted text", result.get("finalizedText"));
     }
 
     @Test

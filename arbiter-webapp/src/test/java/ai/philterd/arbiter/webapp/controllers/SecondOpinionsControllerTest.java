@@ -41,8 +41,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -239,6 +243,156 @@ class SecondOpinionsControllerTest {
         assertTrue(lines[2].contains(",ssn,10,21,3,"), "row 2 was: " + lines[2]);
         assertFalse(body.contains("555-12-3456"),
                 "PII text leaked into export: " + body);
+    }
+
+    // ---- documentHistory (JSON) admin-only enforcement ----
+
+    @Test
+    void documentHistoryJsonForbidsReviewer() {
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.documentHistory("doc1", false, user()));
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        verify(documentRepository, never()).findById(any());
+    }
+
+    @Test
+    void documentHistoryJsonForbidsUnauthenticated() {
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.documentHistory("doc1", false, null));
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        verify(documentRepository, never()).findById(any());
+    }
+
+    @Test
+    void documentHistoryJsonAllowsAdmin() {
+        when(documentRepository.findById("doc1")).thenReturn(Optional.of(doc("doc1", "report.txt")));
+        when(spanRepository.findByDocumentId("doc1")).thenReturn(List.of());
+        when(auditLogQueryService.findForDocument(eq("doc1"), any())).thenReturn(List.of());
+
+        final List<Map<String, Object>> result = controller.documentHistory("doc1", false, admin());
+
+        assertTrue(result.isEmpty());
+        verify(documentRepository).findById("doc1");
+    }
+
+    // ---- resolveActors parameter ----
+
+    private static AuditLog entryWithUserId(final String action, final String email,
+                                            final String userId, final Instant ts) {
+        final AuditLog e = new AuditLog();
+        e.setAction(action);
+        e.setResourceType("Document");
+        e.setResourceId("doc1");
+        e.setTimestamp(ts);
+        e.setUserEmail(email);
+        e.setUserId(userId);
+        e.setOutcome("SUCCESS");
+        return e;
+    }
+
+    @Test
+    void documentHistoryDefaultsToUserId() {
+        when(documentRepository.findById("doc1")).thenReturn(Optional.of(doc("doc1", "x.txt")));
+        when(spanRepository.findByDocumentId("doc1")).thenReturn(List.of());
+        final AuditLog e = entryWithUserId("SPAN_UPDATE", "reviewer@x.com", "user-id-123",
+                Instant.now());
+        when(auditLogQueryService.findForDocument(eq("doc1"), any())).thenReturn(List.of(e));
+
+        final List<Map<String, Object>> result = controller.documentHistory("doc1", false, admin());
+
+        assertEquals(1, result.size());
+        assertEquals("user-id-123", result.get(0).get("actor"),
+                "actor must be userId by default");
+    }
+
+    @Test
+    void documentHistoryResolveActorsTrueReturnsEmail() {
+        when(documentRepository.findById("doc1")).thenReturn(Optional.of(doc("doc1", "x.txt")));
+        when(spanRepository.findByDocumentId("doc1")).thenReturn(List.of());
+        final AuditLog e = entryWithUserId("SPAN_UPDATE", "reviewer@x.com", "user-id-123",
+                Instant.now());
+        when(auditLogQueryService.findForDocument(eq("doc1"), any())).thenReturn(List.of(e));
+
+        final List<Map<String, Object>> result = controller.documentHistory("doc1", true, admin());
+
+        assertEquals("reviewer@x.com", result.get(0).get("actor"),
+                "resolveActors=true must return email for admin");
+    }
+
+    @Test
+    void spanHistoryDefaultsToUserId() {
+        final ai.philterd.arbiter.model.Span span = new ai.philterd.arbiter.model.Span();
+        span.setId("span1");
+        span.setDocumentId("doc1");
+        when(spanRepository.findById("span1")).thenReturn(Optional.of(span));
+        when(documentRepository.findById("doc1")).thenReturn(Optional.of(doc("doc1", "x.txt")));
+        final AuditLog e = entryWithUserId("SPAN_UPDATE", "reviewer@x.com", "user-id-456",
+                Instant.now());
+        e.setResourceType("Span");
+        e.setResourceId("span1");
+        when(auditLogRepository.findByResourceTypeAndResourceIdOrderByTimestampAsc("Span", "span1"))
+                .thenReturn(List.of(e));
+
+        final List<Map<String, Object>> result = controller.history("span1", false, admin());
+
+        assertEquals(1, result.size());
+        assertEquals("user-id-456", result.get(0).get("actor"),
+                "actor must be userId by default");
+    }
+
+    @Test
+    void spanHistoryResolveActorsTrueReturnsEmail() {
+        final ai.philterd.arbiter.model.Span span = new ai.philterd.arbiter.model.Span();
+        span.setId("span1");
+        span.setDocumentId("doc1");
+        when(spanRepository.findById("span1")).thenReturn(Optional.of(span));
+        when(documentRepository.findById("doc1")).thenReturn(Optional.of(doc("doc1", "x.txt")));
+        final AuditLog e = entryWithUserId("SPAN_UPDATE", "reviewer@x.com", "user-id-456",
+                Instant.now());
+        e.setResourceType("Span");
+        e.setResourceId("span1");
+        when(auditLogRepository.findByResourceTypeAndResourceIdOrderByTimestampAsc("Span", "span1"))
+                .thenReturn(List.of(e));
+
+        final List<Map<String, Object>> result = controller.history("span1", true, admin());
+
+        assertEquals("reviewer@x.com", result.get(0).get("actor"),
+                "resolveActors=true must return email for admin");
+    }
+
+    @Test
+    void spanHistoryResolveActorsForbidsNonAdmin() {
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.history("span1", true, user()));
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        verify(spanRepository, never()).findById(any());
+    }
+
+    @Test
+    void spanHistoryResolveActorsForbidsUnauthenticated() {
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.history("span1", true, null));
+        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+    }
+
+    @Test
+    void actorIsEmptyStringWhenUserIdNull() {
+        final ai.philterd.arbiter.model.Span span = new ai.philterd.arbiter.model.Span();
+        span.setId("span1");
+        span.setDocumentId("doc1");
+        when(spanRepository.findById("span1")).thenReturn(Optional.of(span));
+        when(documentRepository.findById("doc1")).thenReturn(Optional.of(doc("doc1", "x.txt")));
+        // System-generated entry: no userId
+        final AuditLog e = entryWithUserId("DOCUMENT_STATUS_CHANGED", null, null, Instant.now());
+        e.setResourceType("Span");
+        e.setResourceId("span1");
+        when(auditLogRepository.findByResourceTypeAndResourceIdOrderByTimestampAsc("Span", "span1"))
+                .thenReturn(List.of(e));
+
+        final List<Map<String, Object>> result = controller.history("span1", false, admin());
+
+        assertEquals("", result.get(0).get("actor"),
+                "null userId must produce empty string, not NPE");
     }
 
     @Test

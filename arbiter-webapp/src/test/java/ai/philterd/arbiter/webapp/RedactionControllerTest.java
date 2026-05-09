@@ -85,6 +85,9 @@ public class RedactionControllerTest {
     private MockMvc mockMvc;
 
     @MockBean
+    private ai.philterd.arbiter.service.ApiKeyHashingService apiKeyHashingService;
+
+    @MockBean
     private RedactionService redactionService;
 
     @MockBean

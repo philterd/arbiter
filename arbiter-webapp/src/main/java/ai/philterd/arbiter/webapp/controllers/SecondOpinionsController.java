@@ -27,12 +27,15 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Controller;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 
 import java.io.IOException;
@@ -137,20 +140,34 @@ public class SecondOpinionsController {
         return "second-opinions";
     }
 
-    /** Full audit history for a document — document-level events plus all span events, ordered by time. */
+    /**
+     * Full audit history for a document — document-level events plus all span events, ordered by time.
+     *
+     * <p>Restricted to admins only. The response includes raw {@code spanText} (pre-redaction PII);
+     * exposing that to group-scoped reviewers would let them retrieve all identified PII regardless
+     * of what the review UI presents. The CSV export at {@code history.csv} carries the same restriction.
+     *
+     * <p>The {@code actor} field defaults to the user's MongoDB ID. Pass {@code ?resolveActors=true}
+     * to receive email addresses instead — requires {@code ROLE_ADMIN}.
+     */
     @GetMapping("/api/v1/documents/{id}/history")
     @ResponseBody
-    public List<Map<String, Object>> documentHistory(@PathVariable final String id, final Authentication authentication) {
+    public List<Map<String, Object>> documentHistory(
+            @PathVariable final String id,
+            @RequestParam(value = "resolveActors", defaultValue = "false") final boolean resolveActors,
+            final Authentication authentication) {
+        if (!isAdmin(authentication)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Audit history with span text is restricted to administrators.");
+        }
+        if (resolveActors && !isAdmin(authentication)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "resolveActors requires ROLE_ADMIN.");
+        }
         final Document document = documentRepository.findById(id).orElse(null);
         if (document == null) return List.of();
         final Batch batch = document.getBatchId() == null ? null
                 : batchRepository.findById(document.getBatchId()).orElse(null);
-        if (!isAdmin(authentication)) {
-            if (batch == null || batch.getGroupId() == null) return List.of();
-            final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(
-                    authentication == null ? null : authentication.getName());
-            if (!myGroupIds.contains(batch.getGroupId())) return List.of();
-        }
         final String complianceProfileName = (batch != null && batch.getComplianceProfileId() != null)
                 ? complianceProfileRepository.findById(batch.getComplianceProfileId())
                         .map(ComplianceProfile::getName).orElse(null)
@@ -173,7 +190,7 @@ public class SecondOpinionsController {
             row.put("resourceType", entry.getResourceType());
             row.put("resourceId", entry.getResourceId());
             row.put("timestamp", entry.getTimestamp());
-            row.put("actor", entry.getUserEmail() == null ? "" : entry.getUserEmail());
+            row.put("actor", resolveActor(entry, resolveActors));
             final Map<String, Object> details = entry.getDetails();
             if (details != null) {
                 details.forEach(row::putIfAbsent);
@@ -298,10 +315,23 @@ public class SecondOpinionsController {
         return "\"" + value.replace("\"", "\"\"") + "\"";
     }
 
-    /** Audit history for a single span — used by the History popup on the review page. */
+    /**
+     * Audit history for a single span — used by the History popup on the review page.
+     *
+     * <p>The {@code actor} field defaults to the user's MongoDB ID. Pass
+     * {@code ?resolveActors=true} to receive email addresses instead — requires
+     * {@code ROLE_ADMIN}.
+     */
     @GetMapping("/api/v1/spans/{id}/history")
     @ResponseBody
-    public List<Map<String, Object>> history(@PathVariable final String id, final Authentication authentication) {
+    public List<Map<String, Object>> history(
+            @PathVariable final String id,
+            @RequestParam(value = "resolveActors", defaultValue = "false") final boolean resolveActors,
+            final Authentication authentication) {
+        if (resolveActors && !isAdmin(authentication)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "resolveActors requires ROLE_ADMIN.");
+        }
         final Span span = spanRepository.findById(id).orElse(null);
         if (span == null) return List.of();
 
@@ -325,7 +355,7 @@ public class SecondOpinionsController {
             final Map<String, Object> row = new LinkedHashMap<>();
             row.put("action", entry.getAction());
             row.put("timestamp", entry.getTimestamp());
-            row.put("actor", entry.getUserEmail() == null ? "" : entry.getUserEmail());
+            row.put("actor", resolveActor(entry, resolveActors));
             final Map<String, Object> details = entry.getDetails();
             if (details != null) {
                 row.put("previousStatus", details.getOrDefault("previousStatus", ""));
@@ -338,6 +368,13 @@ public class SecondOpinionsController {
             out.add(row);
         }
         return out;
+    }
+
+    private static String resolveActor(final AuditLog entry, final boolean resolveActors) {
+        if (resolveActors) {
+            return entry.getUserEmail() == null ? "" : entry.getUserEmail();
+        }
+        return entry.getUserId() == null ? "" : entry.getUserId();
     }
 
     private boolean isAdmin(final Authentication auth) {

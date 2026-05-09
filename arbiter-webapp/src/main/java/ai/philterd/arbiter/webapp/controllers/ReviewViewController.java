@@ -697,8 +697,15 @@ public class ReviewViewController {
 
     @PostMapping("/review/{documentId}/reject")
     public String reject(@PathVariable final String documentId, final Authentication authentication) {
-        updateStatus(documentId, "REJECTED", authentication);
         final String email = authentication == null ? null : authentication.getName();
+        final Document preReject = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
+        requireAccess(authentication, preReject);
+        final String previous = preReject.getStatus();
+        updateStatus(documentId, "REJECTED", authentication);
+        auditLogService.log("DOCUMENT_REJECT", "Document", documentId,
+                Map.of("previous", previous == null ? "" : previous,
+                        "rejectedBy", email == null ? "" : email));
         incrementReviewCountByEmail(email);
         if (email != null) {
             documentLockService.release(documentId, email);

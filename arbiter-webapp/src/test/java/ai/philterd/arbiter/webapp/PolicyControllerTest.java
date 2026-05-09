@@ -23,12 +23,16 @@ import org.junit.jupiter.api.Test;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.servlet.mvc.support.RedirectAttributesModelMap;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -229,5 +233,68 @@ class PolicyControllerTest {
         assertEquals("redirect:/policies", view);
         assertEquals("Policy \"Unused\" removed.", success(ra));
         verify(policyRepository).deleteById("id-1");
+    }
+
+    // ---------- content (path-traversal validation) ----------
+
+    @Test
+    void contentRejectsPathTraversalSegment() {
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.content("embedded", "../../etc/passwd"));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        verify(policyRepository, never()).findByName(anyString());
+    }
+
+    @Test
+    void contentRejectsSingleDotDotSegment() {
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.content("embedded", "../status"));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+    }
+
+    @Test
+    void contentRejectsSlashInName() {
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.content("embedded", "valid/extra"));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+    }
+
+    @Test
+    void contentRejectsNameExceedingMaxLength() {
+        final String longName = "a".repeat(65);
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.content("embedded", longName));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+    }
+
+    @Test
+    void contentRejectsBlankName() {
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.content("embedded", "   "));
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+    }
+
+    @Test
+    void contentReturnsEmbeddedPolicyForValidName() {
+        final Policy p = new Policy();
+        p.setName("default-policy");
+        p.setContent("{\"identifiers\":{}}");
+        when(policyRepository.findByName("default-policy")).thenReturn(Optional.of(p));
+
+        final java.util.Map<String, String> result = controller.content("embedded", "default-policy");
+
+        assertEquals("default-policy", result.get("name"));
+        assertEquals("{\"identifiers\":{}}", result.get("content"));
+    }
+
+    @Test
+    void contentAcceptsHyphenatedAndUnderscoredNames() {
+        final Policy p = new Policy();
+        p.setName("my-policy_v2");
+        p.setContent("{}");
+        when(policyRepository.findByName("my-policy_v2")).thenReturn(Optional.of(p));
+
+        final java.util.Map<String, String> result = controller.content("embedded", "my-policy_v2");
+        assertEquals("my-policy_v2", result.get("name"));
     }
 }

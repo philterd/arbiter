@@ -19,6 +19,7 @@ import ai.philterd.arbiter.model.LlmJudgeDefaults;
 import ai.philterd.arbiter.model.OllamaInstance;
 import ai.philterd.arbiter.repository.OllamaInstanceRepository;
 import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.service.DataSourceHostAllowList;
 import ai.philterd.arbiter.service.LlmJudgeDefaultsService;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Controller;
@@ -54,16 +55,19 @@ public class AdminOllamaController {
     private final OllamaInstanceRepository repository;
     private final AuditLogService auditLogService;
     private final LlmJudgeDefaultsService defaultsService;
+    private final DataSourceHostAllowList hostAllowList;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(TEST_CONNECT_TIMEOUT)
             .build();
 
     public AdminOllamaController(final OllamaInstanceRepository repository,
                                  final AuditLogService auditLogService,
-                                 final LlmJudgeDefaultsService defaultsService) {
+                                 final LlmJudgeDefaultsService defaultsService,
+                                 final DataSourceHostAllowList hostAllowList) {
         this.repository = repository;
         this.auditLogService = auditLogService;
         this.defaultsService = defaultsService;
+        this.hostAllowList = hostAllowList;
     }
 
     @GetMapping
@@ -153,6 +157,15 @@ public class AdminOllamaController {
             return "redirect:/admin/llm-judge";
         }
 
+        final String instanceUrl = buildInstanceUrl(trimmedEndpoint, port);
+        if (!hostAllowList.isAllowed(instanceUrl)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Endpoint host is not permitted. Private network addresses (loopback, "
+                            + "RFC-1918, link-local) are blocked by default. To allow an internal "
+                            + "host, add it to arbiter.data-sources.allowed-hosts.");
+            return "redirect:/admin/llm-judge";
+        }
+
         final OllamaInstance instance = new OllamaInstance();
         instance.setCreatedAt(LocalDateTime.now());
         instance.setId(UUID.randomUUID().toString());
@@ -201,6 +214,11 @@ public class AdminOllamaController {
         }
 
         final String url = baseUrl(instance) + "/api";
+        if (!hostAllowList.isAllowed(url)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Endpoint host is not permitted. Update or remove this instance.");
+            return "redirect:/admin/llm-judge";
+        }
         boolean ok = false;
         int status = 0;
         String detail;
@@ -238,11 +256,16 @@ public class AdminOllamaController {
     }
 
     private static String baseUrl(final OllamaInstance instance) {
-        String host = instance.getEndpoint();
-        if (host == null) host = "localhost";
+        return buildInstanceUrl(
+                instance.getEndpoint() == null ? "localhost" : instance.getEndpoint(),
+                instance.getPort());
+    }
+
+    private static String buildInstanceUrl(final String endpoint, final int port) {
+        String host = endpoint == null ? "localhost" : endpoint;
         if (!host.startsWith("http://") && !host.startsWith("https://")) {
             host = "http://" + host;
         }
-        return host + ":" + instance.getPort();
+        return host + ":" + port;
     }
 }

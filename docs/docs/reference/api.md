@@ -172,6 +172,32 @@ review or compliance reporting.
 
 `404` if the document doesn't exist or the caller lacks group access.
 
+### `GET /api/v1/documents/{id}/history`
+
+Return the full audit history for a document — document-level events and all
+span events — as a JSON array sorted newest first. Powers the Audit Log popup
+on the Document Queue.
+
+**Admin only.** Returns `403` for non-admin callers, because the history
+includes raw PII span text.
+
+Each element:
+
+```json
+{
+  "timestamp": "2026-05-01T12:00:00Z",
+  "actor":     "<mongodb-user-id>",
+  "action":    "SPAN_UPDATE",
+  "resourceType": "Span",
+  "resourceId":   "...",
+  "details":   {}
+}
+```
+
+The `actor` field defaults to the MongoDB user ID. Pass `?resolveActors=true`
+to receive the user's email address instead — this parameter also requires
+`ROLE_ADMIN` and returns `403` if called by a non-admin.
+
 ### `GET /api/v1/documents/{id}/history.csv`
 
 Download the document's full audit history (document-level events plus all
@@ -181,7 +207,9 @@ button on the Document Queue's Audit Log popup. See
 
 **Admin only.** Returns `403` for non-admin callers. The CSV deliberately
 omits PII text — span entries include `spanCharacterStart`,
-`spanCharacterEnd`, and `spanPage` instead.
+`spanCharacterEnd`, and `spanPage` instead. The `actor` column contains the
+actor's email address (the CSV is admin-only, so email exposure is
+appropriate).
 
 ### `GET /api/v1/documents/{id}/comments`
 
@@ -246,6 +274,32 @@ existing spans flipped to approved.
 `400` if the source span has empty text. `404` if the span or its document is
 missing.
 
+### `GET /api/v1/spans/{id}/history`
+
+Return the audit history for a single span as a JSON array sorted newest
+first. Accessible to any authenticated user with group access to the span's
+parent document.
+
+```json
+[
+  {
+    "timestamp":    "2026-05-01T12:00:00Z",
+    "actor":        "<mongodb-user-id>",
+    "action":       "SPAN_UPDATE",
+    "resourceType": "Span",
+    "resourceId":   "...",
+    "details":      {}
+  }
+]
+```
+
+The `actor` field defaults to the MongoDB user ID of the actor to avoid
+leaking email addresses to other reviewers. Pass `?resolveActors=true` to
+receive email addresses instead — this parameter requires `ROLE_ADMIN` and
+returns `403` if called by a non-admin.
+
+`404` if the span doesn't exist or the caller lacks group access.
+
 ## Search
 
 ### `GET /api/v1/search`
@@ -270,7 +324,6 @@ Response:
   "total": 42,
   "hits": [
     {
-      "restricted": false,
       "id": "...",
       "batchId": "...",
       "filename": "...",
@@ -281,9 +334,10 @@ Response:
 }
 ```
 
-A hit in a batch the caller can't see is returned with `"restricted": true`
-and all other content fields nulled (or empty for `highlights`). This lets
-clients show that a hit exists without exposing any of the document's content.
+Results are pre-filtered to batches the caller can access. Non-admin callers
+only see hits from their own group's batches; `total` reflects that filtered
+count, not the full index size. Inaccessible hits are silently excluded — they
+are never returned as placeholder rows.
 
 If OpenSearch is unreachable, a query returns an empty result set rather than
 failing the request — search is best-effort.
@@ -293,6 +347,14 @@ failing the request — search is best-effort.
 These endpoints proxy a configured Ollama instance to provide an LLM second
 opinion on the redactor's output. Configuration lives under
 **Admin → LLM-as-a-Judge**.
+
+!!! warning "PII leaves Arbiter on every call"
+    Both `explain` and `second-opinion` send the full unredacted document text
+    and all PII span values to Ollama. Each call is recorded in the audit log
+    as `DOCUMENT_PII_SENT_TO_LLM` **before** the HTTP request is sent, so the
+    entry exists even if Ollama is unreachable. Ollama must be deployed with
+    request-body logging disabled (`OLLAMA_DEBUG=0`) to prevent PII from
+    appearing in Ollama's logs.
 
 ### `GET /api/v1/ollama/{instanceId}/models`
 

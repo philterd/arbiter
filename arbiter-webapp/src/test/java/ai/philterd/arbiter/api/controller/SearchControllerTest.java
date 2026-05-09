@@ -9,21 +9,16 @@
  */
 package ai.philterd.arbiter.api.controller;
 
-import ai.philterd.arbiter.model.Batch;
 import ai.philterd.arbiter.model.Document;
-import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.service.BatchAccessService;
 import ai.philterd.arbiter.service.OpenSearchIndexService;
 import ai.philterd.arbiter.service.OpenSearchIndexService.SearchHit;
 import ai.philterd.arbiter.service.OpenSearchIndexService.SearchResults;
-import ai.philterd.arbiter.service.UserGroupsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -56,21 +51,19 @@ import static org.mockito.Mockito.when;
 class SearchControllerTest {
 
     private OpenSearchIndexService openSearchIndexService;
-    private BatchRepository batchRepository;
     private DocumentRepository documentRepository;
-    private UserGroupsService userGroupsService;
     private AuditLogService auditLogService;
+    private BatchAccessService batchAccessService;
     private SearchController controller;
 
     @BeforeEach
     void setUp() {
         openSearchIndexService = mock(OpenSearchIndexService.class);
-        batchRepository = mock(BatchRepository.class);
         documentRepository = mock(DocumentRepository.class);
-        userGroupsService = mock(UserGroupsService.class);
         auditLogService = mock(AuditLogService.class);
-        controller = new SearchController(openSearchIndexService, batchRepository,
-                documentRepository, userGroupsService, auditLogService);
+        batchAccessService = mock(BatchAccessService.class);
+        controller = new SearchController(openSearchIndexService, documentRepository,
+                auditLogService, batchAccessService);
 
         // Default: no documents in MongoDB lookup (lets each test focus on the search side).
         when(documentRepository.findAllById(any())).thenReturn(List.of());
@@ -84,14 +77,6 @@ class SearchControllerTest {
     private static Authentication user(final String email) {
         return new UsernamePasswordAuthenticationToken(email, null,
                 Set.of(new SimpleGrantedAuthority("ROLE_USER")));
-    }
-
-    private static Batch batch(final String id, final String groupId) {
-        final Batch b = new Batch();
-        b.setId(id);
-        b.setGroupId(groupId);
-        b.setName("Batch " + id);
-        return b;
     }
 
     private static SearchHit hit(final String id, final String batchId) {
@@ -118,12 +103,7 @@ class SearchControllerTest {
 
     @Test
     void nonAdminPassesItsAllowedBatchIdsDownToService() {
-        when(userGroupsService.groupIdsForEmail("alice@x.com")).thenReturn(Set.of("g-mine"));
-        @SuppressWarnings({"rawtypes", "unchecked"})
-        final Page page = new PageImpl<>(List.of(
-                batch("b-mine", "g-mine"),
-                batch("b-theirs", "g-other")), PageRequest.of(0, 500), 2);
-        when(batchRepository.findAll(any(PageRequest.class))).thenReturn(page);
+        when(batchAccessService.allowedBatchIds(any())).thenReturn(Set.of("b-mine"));
         when(openSearchIndexService.search(anyString(), anyInt(), anyInt(), any()))
                 .thenReturn(new SearchResults(0, 0, 10, List.of()));
 
@@ -136,9 +116,7 @@ class SearchControllerTest {
 
     @Test
     void nonAdminWithNoGroupsGetsEmptyAllowListAndShortCircuits() {
-        when(userGroupsService.groupIdsForEmail("bob@x.com")).thenReturn(Set.of());
-        when(batchRepository.findAll(any(PageRequest.class)))
-                .thenReturn(new PageImpl<>(List.of(batch("b1", "g1")), PageRequest.of(0, 500), 1));
+        when(batchAccessService.allowedBatchIds(any())).thenReturn(Set.of());
         when(openSearchIndexService.search(anyString(), anyInt(), anyInt(), any()))
                 .thenReturn(new SearchResults(0, 0, 10, List.of()));
 
@@ -155,9 +133,7 @@ class SearchControllerTest {
     void totalReflectsRestrictedQueryNotFullIndex() {
         // The service returns a total of 3 (all matching docs in batches the user *can* see)
         // — even if the underlying index has many more matches, the user only learns this number.
-        when(userGroupsService.groupIdsForEmail("alice@x.com")).thenReturn(Set.of("g-mine"));
-        when(batchRepository.findAll(any(PageRequest.class)))
-                .thenReturn(new PageImpl<>(List.of(batch("b-mine", "g-mine")), PageRequest.of(0, 500), 1));
+        when(batchAccessService.allowedBatchIds(any())).thenReturn(Set.of("b-mine"));
         when(openSearchIndexService.search(anyString(), anyInt(), anyInt(), any()))
                 .thenReturn(new SearchResults(3, 0, 10, List.of(
                         hit("d1", "b-mine"),
@@ -175,9 +151,7 @@ class SearchControllerTest {
         // Defense-in-depth: even if the service somehow returned a hit outside the allow-list,
         // the controller must skip it silently — never expose a "restricted" placeholder that
         // leaks the existence of foreign documents.
-        when(userGroupsService.groupIdsForEmail("alice@x.com")).thenReturn(Set.of("g-mine"));
-        when(batchRepository.findAll(any(PageRequest.class)))
-                .thenReturn(new PageImpl<>(List.of(batch("b-mine", "g-mine")), PageRequest.of(0, 500), 1));
+        when(batchAccessService.allowedBatchIds(any())).thenReturn(Set.of("b-mine"));
         when(openSearchIndexService.search(anyString(), anyInt(), anyInt(), any()))
                 .thenReturn(new SearchResults(2, 0, 10, List.of(
                         hit("d1", "b-mine"),
@@ -218,9 +192,7 @@ class SearchControllerTest {
     void liveStatusFromMongoOverridesIndexedStatus() {
         // The OpenSearch index status is "REVIEW_REQUIRED" but the live document is APPROVED.
         // The controller should report the live status.
-        when(userGroupsService.groupIdsForEmail("alice@x.com")).thenReturn(Set.of("g-mine"));
-        when(batchRepository.findAll(any(PageRequest.class)))
-                .thenReturn(new PageImpl<>(List.of(batch("b-mine", "g-mine")), PageRequest.of(0, 500), 1));
+        when(batchAccessService.allowedBatchIds(any())).thenReturn(Set.of("b-mine"));
         when(openSearchIndexService.search(anyString(), anyInt(), anyInt(), any()))
                 .thenReturn(new SearchResults(1, 0, 10, List.of(hit("d1", "b-mine"))));
         final Document live = new Document();

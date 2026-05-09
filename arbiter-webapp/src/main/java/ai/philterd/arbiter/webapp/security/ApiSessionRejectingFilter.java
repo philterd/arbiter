@@ -37,10 +37,18 @@ import java.io.IOException;
  *
  * <p>Non-API paths are passed through untouched — the regular UI continues to use the
  * session cookie.
+ *
+ * <p>{@code /api/v1/review/**} is exempted from this filter. Those endpoints (pulse,
+ * release, similar) are browser-initiated, session-authenticated calls that live under
+ * {@code /api/**} only to bypass CSRF for {@code navigator.sendBeacon}. Each operates
+ * solely on the requesting user's own lock, so the CSRF risk is negligible.
  */
 public class ApiSessionRejectingFilter extends OncePerRequestFilter {
 
     private static final String API_PREFIX = "/api/";
+    // Exempted: browser-UI endpoints that need session auth and live under /api/** only
+    // for navigator.sendBeacon CSRF bypass. Each acts only on the caller's own data.
+    private static final String REVIEW_PREFIX = "/api/v1/review/";
 
     @Override
     protected void doFilterInternal(final HttpServletRequest request,
@@ -68,6 +76,6 @@ public class ApiSessionRejectingFilter extends OncePerRequestFilter {
         final String path = (contextPath != null && !contextPath.isEmpty() && uri.startsWith(contextPath))
                 ? uri.substring(contextPath.length())
                 : uri;
-        return path.startsWith(API_PREFIX);
+        return path.startsWith(API_PREFIX) && !path.startsWith(REVIEW_PREFIX);
     }
 }

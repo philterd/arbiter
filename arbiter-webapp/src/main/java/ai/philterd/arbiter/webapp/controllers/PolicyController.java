@@ -39,12 +39,14 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import static org.springframework.http.HttpStatus.BAD_GATEWAY;
+import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
 import java.net.URI;
+import java.util.regex.Pattern;
 import java.time.LocalDateTime;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -62,6 +64,7 @@ public class PolicyController {
 
     private static final Logger log = LoggerFactory.getLogger(PolicyController.class);
     private static final String EMBEDDED = "embedded";
+    private static final Pattern POLICY_NAME_PATTERN = Pattern.compile("[a-zA-Z0-9_\\-]{1,64}");
 
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
@@ -405,6 +408,10 @@ public class PolicyController {
                                        @RequestParam("name") final String name) {
         if (name == null || name.isBlank()) {
             throw new ResponseStatusException(NOT_FOUND, "Policy name is required.");
+        }
+        if (!POLICY_NAME_PATTERN.matcher(name).matches()) {
+            throw new ResponseStatusException(BAD_REQUEST,
+                    "Policy name must contain only letters, digits, hyphens, and underscores (1–64 characters).");
         }
         if (instanceId == null || instanceId.isBlank() || EMBEDDED.equals(instanceId)) {
             final Policy policy = policyRepository.findByName(name)

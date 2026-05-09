@@ -17,7 +17,7 @@ package ai.philterd.arbiter.webapp.security;
 
 import ai.philterd.arbiter.model.User;
 import ai.philterd.arbiter.repository.UserRepository;
-import ai.philterd.arbiter.util.Hashing;
+import ai.philterd.arbiter.service.ApiKeyHashingService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -35,6 +35,7 @@ import java.util.stream.Collectors;
 public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
+    private static final String API_PREFIX = "/api/";
 
     /**
      * Request attribute set on requests whose SecurityContext was populated by this filter
@@ -45,9 +46,12 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
     public static final String BEARER_AUTH_ATTR = "ai.philterd.arbiter.bearerAuth";
 
     private final UserRepository userRepository;
+    private final ApiKeyHashingService apiKeyHashingService;
 
-    public ApiKeyAuthFilter(final UserRepository userRepository) {
+    public ApiKeyAuthFilter(final UserRepository userRepository,
+                            final ApiKeyHashingService apiKeyHashingService) {
         this.userRepository = userRepository;
+        this.apiKeyHashingService = apiKeyHashingService;
     }
 
     @Override
@@ -55,10 +59,19 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
                                     final HttpServletResponse response,
                                     final FilterChain filterChain) throws ServletException, IOException {
 
-        if (SecurityContextHolder.getContext().getAuthentication() == null || !SecurityContextHolder.getContext().getAuthentication().isAuthenticated()) {
+        // On /api/** paths, always attempt Bearer extraction even when a session cookie has
+        // already populated the SecurityContext. If both are present, Bearer wins: we replace
+        // the session-derived auth and mark the request so ApiSessionRejectingFilter keeps it.
+        // On non-API paths (the UI), skip extraction when already authenticated so that the
+        // session is not replaced by a stale or invalid token.
+        final boolean isApiPath = isApiPath(request);
+        final boolean alreadyAuthenticated = SecurityContextHolder.getContext().getAuthentication() != null
+                && SecurityContextHolder.getContext().getAuthentication().isAuthenticated();
+
+        if (isApiPath || !alreadyAuthenticated) {
             final String apiKey = extractBearerToken(request);
             if (apiKey != null && !apiKey.isBlank()) {
-                final String apiKeyHash = Hashing.sha512Hex(apiKey);
+                final String apiKeyHash = apiKeyHashingService.hash(apiKey);
                 userRepository.findByApiKey(apiKeyHash).ifPresent(user -> {
                     final Set<SimpleGrantedAuthority> authorities = (user.getRoles() == null ? Set.<String>of() : user.getRoles())
                             .stream()
@@ -74,6 +87,16 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
         filterChain.doFilter(request, response);
 
+    }
+
+    private static boolean isApiPath(final HttpServletRequest request) {
+        final String uri = request.getRequestURI();
+        if (uri == null) return false;
+        final String contextPath = request.getContextPath();
+        final String path = (contextPath != null && !contextPath.isEmpty() && uri.startsWith(contextPath))
+                ? uri.substring(contextPath.length())
+                : uri;
+        return path.startsWith(API_PREFIX);
     }
 
     private static String extractBearerToken(final HttpServletRequest request) {

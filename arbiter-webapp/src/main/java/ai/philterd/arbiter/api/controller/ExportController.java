@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 @RestController
@@ -61,6 +62,11 @@ public class ExportController {
         final Document document = documentRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
         requireDocumentAccess(authentication, document);
+        if (!"APPROVED".equals(document.getStatus())) {
+            throw new ResponseStatusException(CONFLICT,
+                    "Document cannot be finalized: status is \"" + document.getStatus()
+                            + "\" but must be APPROVED.");
+        }
         final String finalizedText = redactionApiService.finalizeRedaction(id);
         return Map.of("finalizedText", finalizedText);
     }

@@ -15,6 +15,7 @@ import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.SpanRepository;
 import ai.philterd.arbiter.service.ApprovalRuleEvaluator;
+import ai.philterd.arbiter.service.BatchAccessService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -44,6 +45,7 @@ class TriageControllerTest {
     private BatchRepository batchRepository;
     private SpanRepository spanRepository;
     private TestDoubles.FakeUserGroups userGroupsService;
+    private BatchAccessService batchAccessService;
     private TriageController controller;
 
     @BeforeEach
@@ -53,8 +55,10 @@ class TriageControllerTest {
         spanRepository = mock(SpanRepository.class);
         when(spanRepository.findByDocumentId(anyString())).thenReturn(List.of());
         userGroupsService = TestDoubles.userGroups();
+        batchAccessService = mock(BatchAccessService.class);
+        when(batchAccessService.allowedBatchIds(any())).thenReturn(Set.of());
         controller = new TriageController(documentRepository, batchRepository, spanRepository,
-                userGroupsService, new ApprovalRuleEvaluator());
+                userGroupsService, new ApprovalRuleEvaluator(), batchAccessService);
     }
 
     private static Batch batch(final String id, final String groupId, final String name, final double documentThreshold) {
@@ -130,9 +134,7 @@ class TriageControllerTest {
 
     @Test
     void nonAdminFiltersToAllowedBatches() {
-        userGroupsService.withMembership("alice@example.com", Set.of("g1"));
-        when(batchRepository.findAll())
-                .thenReturn(List.of(batch("b1", "g1", "Yours", 0.25), batch("b2", "g2", "NotYours", 0.25)));
+        when(batchAccessService.allowedBatchIds(any())).thenReturn(Set.of("b1"));
         when(documentRepository.findByBatchIdInAndStatusNotIn(eq(Set.of("b1")), any(), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of(doc("d1", "b1", "REVIEW_REQUIRED", 0.1)),
                         PageRequest.of(0, 10), 1));
@@ -147,9 +149,7 @@ class TriageControllerTest {
 
     @Test
     void nonAdminAskingForBatchOutsideGroupsGetsEmpty() {
-        userGroupsService.withMembership("alice@example.com", Set.of("g1"));
-        when(batchRepository.findAll())
-                .thenReturn(List.of(batch("b1", "g1", "Yours", 0.25), batch("b2", "g2", "Theirs", 0.25)));
+        when(batchAccessService.allowedBatchIds(any())).thenReturn(Set.of("b1"));
 
         final Page<Map<String, Object>> page = controller.getQueue(0, 10, "b2", null, null, false, "riskScore", "desc", TestAuth.user("alice@example.com"));
 
@@ -197,8 +197,8 @@ class TriageControllerTest {
 
     @Test
     void getBatchesAdminUnscoped() {
-        when(batchRepository.findAll())
-                .thenReturn(List.of(batch("b2", "g1", "Zebra", 0.25), batch("b1", "g1", "Alpha", 0.25)));
+        when(batchRepository.findAll(any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(batch("b2", "g1", "Zebra", 0.25), batch("b1", "g1", "Alpha", 0.25))));
 
         final List<Map<String, String>> result = controller.getBatches(false, TestAuth.admin("admin@example.com"));
 
@@ -210,8 +210,8 @@ class TriageControllerTest {
 
     @Test
     void getBatchesNonAdminFilteredToGroups() {
-        when(batchRepository.findAll())
-                .thenReturn(List.of(batch("b1", "g1", "Mine", 0.25), batch("b2", "g2", "NotMine", 0.25)));
+        when(batchRepository.findAll(any(PageRequest.class)))
+                .thenReturn(new PageImpl<>(List.of(batch("b1", "g1", "Mine", 0.25), batch("b2", "g2", "NotMine", 0.25))));
         userGroupsService.withMembership("alice@example.com", Set.of("g1"));
 
         final List<Map<String, String>> result = controller.getBatches(false, TestAuth.user("alice@example.com"));

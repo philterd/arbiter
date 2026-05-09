@@ -795,4 +795,69 @@ class ReviewControllerTest {
                 () -> controller.getSpans("d1", TestAuth.user("alice@example.com")));
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
     }
+
+    // ---- resetSpan ----
+
+    @Test
+    void resetSpanRejectsArbitraryStatus() {
+        final Span existing = span("s1", "d1", "ssn", "APPROVED", 0, 5, "hello");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(existing));
+
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.resetSpan("s1",
+                        new ReviewController.ResetSpanRequest("HACKED"), ADMIN));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        verify(spanRepository, never()).save(any());
+    }
+
+    @Test
+    void resetSpanRejectsNullStatus() {
+        final Span existing = span("s1", "d1", "ssn", "APPROVED", 0, 5, "hello");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(existing));
+
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.resetSpan("s1",
+                        new ReviewController.ResetSpanRequest(null), ADMIN));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        verify(spanRepository, never()).save(any());
+    }
+
+    @Test
+    void resetSpanRejectsNullRequest() {
+        final Span existing = span("s1", "d1", "ssn", "APPROVED", 0, 5, "hello");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(existing));
+
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.resetSpan("s1", null, ADMIN));
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        verify(spanRepository, never()).save(any());
+    }
+
+    @Test
+    void resetSpanAcceptsAllValidStatuses() {
+        for (final String status : List.of("APPROVED", "REJECTED", "PENDING", Span.STATUS_NEEDS_SECOND_OPINION)) {
+            final Span existing = span("s1", "d1", "ssn", "APPROVED", 0, 5, "hello");
+            when(spanRepository.findById("s1")).thenReturn(Optional.of(existing));
+            when(spanRepository.save(any(Span.class))).thenAnswer(inv -> inv.getArgument(0));
+
+            final Span result = controller.resetSpan("s1",
+                    new ReviewController.ResetSpanRequest(status), ADMIN);
+            assertEquals(status, result.getStatus(), "Expected status " + status + " to be accepted");
+        }
+    }
+
+    @Test
+    void resetSpanForbidsNonAdminOutsideGroup() {
+        seedGroupedDocument();
+        userGroupsService.withMembership("alice@example.com", java.util.Set.of("g2"));
+        final Span existing = span("s1", "d1", "ssn", "APPROVED", 0, 5, "hello");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(existing));
+
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.resetSpan("s1",
+                        new ReviewController.ResetSpanRequest("PENDING"),
+                        TestAuth.user("alice@example.com")));
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        verify(spanRepository, never()).save(any());
+    }
 }

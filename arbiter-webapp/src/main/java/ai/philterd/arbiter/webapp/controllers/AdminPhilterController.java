@@ -19,6 +19,7 @@ import ai.philterd.arbiter.model.PhilterDefaults;
 import ai.philterd.arbiter.model.PhilterInstance;
 import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.service.DataSourceHostAllowList;
 import ai.philterd.arbiter.service.PhilterDefaultsService;
 import ai.philterd.arbiter.service.SymmetricCipher;
 import org.springframework.dao.DuplicateKeyException;
@@ -56,6 +57,7 @@ public class AdminPhilterController {
     private final AuditLogService auditLogService;
     private final PhilterDefaultsService defaultsService;
     private final SymmetricCipher symmetricCipher;
+    private final DataSourceHostAllowList hostAllowList;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(TEST_CONNECT_TIMEOUT)
             .build();
@@ -63,11 +65,13 @@ public class AdminPhilterController {
     public AdminPhilterController(final PhilterInstanceRepository repository,
                                   final AuditLogService auditLogService,
                                   final PhilterDefaultsService defaultsService,
-                                  final SymmetricCipher symmetricCipher) {
+                                  final SymmetricCipher symmetricCipher,
+                                  final DataSourceHostAllowList hostAllowList) {
         this.repository = repository;
         this.auditLogService = auditLogService;
         this.defaultsService = defaultsService;
         this.symmetricCipher = symmetricCipher;
+        this.hostAllowList = hostAllowList;
     }
 
     @GetMapping
@@ -133,6 +137,15 @@ public class AdminPhilterController {
         if (repository.findByName(trimmedName).isPresent()) {
             redirectAttributes.addFlashAttribute("error",
                     "A Philter instance named \"" + trimmedName + "\" already exists.");
+            return "redirect:/admin/philter";
+        }
+
+        final String instanceUrl = buildInstanceUrl(trimmedEndpoint, port);
+        if (!hostAllowList.isAllowed(instanceUrl)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Endpoint host is not permitted. Private network addresses (loopback, "
+                            + "RFC-1918, link-local) are blocked by default. To allow an internal "
+                            + "host, add it to arbiter.data-sources.allowed-hosts.");
             return "redirect:/admin/philter";
         }
 
@@ -223,6 +236,11 @@ public class AdminPhilterController {
         }
 
         final String url = baseUrl(instance) + "/api/status";
+        if (!hostAllowList.isAllowed(url)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Endpoint host is not permitted. Update or remove this instance.");
+            return "redirect:/admin/philter";
+        }
         boolean ok = false;
         int status = 0;
         String detail;
@@ -269,11 +287,16 @@ public class AdminPhilterController {
     }
 
     private static String baseUrl(final PhilterInstance instance) {
-        String host = instance.getEndpoint();
-        if (host == null) host = "localhost";
+        return buildInstanceUrl(
+                instance.getEndpoint() == null ? "localhost" : instance.getEndpoint(),
+                instance.getPort());
+    }
+
+    private static String buildInstanceUrl(final String endpoint, final int port) {
+        String host = endpoint == null ? "localhost" : endpoint;
         if (!host.startsWith("http://") && !host.startsWith("https://")) {
             host = "http://" + host;
         }
-        return host + ":" + instance.getPort();
+        return host + ":" + port;
     }
 }

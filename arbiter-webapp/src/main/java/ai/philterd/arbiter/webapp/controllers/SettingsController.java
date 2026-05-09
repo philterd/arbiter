@@ -18,9 +18,9 @@ package ai.philterd.arbiter.webapp.controllers;
 import ai.philterd.arbiter.model.User;
 import ai.philterd.arbiter.model.UserSettings;
 import ai.philterd.arbiter.repository.UserRepository;
+import ai.philterd.arbiter.service.ApiKeyHashingService;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.UserSettingsService;
-import ai.philterd.arbiter.util.Hashing;
 import ai.philterd.arbiter.webapp.security.TotpService;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.security.core.Authentication;
@@ -47,17 +47,20 @@ public class SettingsController {
     private final AuditLogService auditLogService;
     private final UserSettingsService userSettingsService;
     private final TotpService totpService;
+    private final ApiKeyHashingService apiKeyHashingService;
 
     public SettingsController(final UserRepository userRepository,
                               final PasswordEncoder passwordEncoder,
                               final AuditLogService auditLogService,
                               final UserSettingsService userSettingsService,
-                              final TotpService totpService) {
+                              final TotpService totpService,
+                              final ApiKeyHashingService apiKeyHashingService) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.auditLogService = auditLogService;
         this.userSettingsService = userSettingsService;
         this.totpService = totpService;
+        this.apiKeyHashingService = apiKeyHashingService;
     }
 
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -187,7 +190,7 @@ public class SettingsController {
         final byte[] bytes = new byte[32];
         RANDOM.nextBytes(bytes);
         final String apiKey = ENCODER.encodeToString(bytes);
-        user.setApiKey(Hashing.sha512Hex(apiKey));
+        user.setApiKey(apiKeyHashingService.hash(apiKey));
         userRepository.save(user);
         auditLogService.log("API_KEY_GENERATE", "User", user.getId(), null);
         redirectAttributes.addFlashAttribute("apiKey", apiKey);

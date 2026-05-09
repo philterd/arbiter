@@ -9,24 +9,19 @@
  */
 package ai.philterd.arbiter.api.controller;
 
-import ai.philterd.arbiter.model.Batch;
 import ai.philterd.arbiter.model.Document;
-import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.service.BatchAccessService;
 import ai.philterd.arbiter.service.OpenSearchIndexService;
 import ai.philterd.arbiter.service.OpenSearchIndexService.SearchHit;
 import ai.philterd.arbiter.service.OpenSearchIndexService.SearchResults;
-import ai.philterd.arbiter.service.UserGroupsService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Sort;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -39,21 +34,18 @@ import java.util.Set;
 public class SearchController {
 
     private final OpenSearchIndexService openSearchIndexService;
-    private final BatchRepository batchRepository;
     private final DocumentRepository documentRepository;
-    private final UserGroupsService userGroupsService;
     private final AuditLogService auditLogService;
+    private final BatchAccessService batchAccessService;
 
     public SearchController(final OpenSearchIndexService openSearchIndexService,
-                            final BatchRepository batchRepository,
                             final DocumentRepository documentRepository,
-                            final UserGroupsService userGroupsService,
-                            final AuditLogService auditLogService) {
+                            final AuditLogService auditLogService,
+                            final BatchAccessService batchAccessService) {
         this.openSearchIndexService = openSearchIndexService;
-        this.batchRepository = batchRepository;
         this.documentRepository = documentRepository;
-        this.userGroupsService = userGroupsService;
         this.auditLogService = auditLogService;
+        this.batchAccessService = batchAccessService;
     }
 
     @GetMapping("/search")
@@ -110,15 +102,7 @@ public class SearchController {
     }
 
     private Set<String> allowedBatchIds(final Authentication auth) {
-        final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(
-                auth == null ? null : auth.getName());
-        final Set<String> ids = new java.util.HashSet<>();
-        for (Batch b : batchRepository.findAll(PageRequest.of(0, 500, Sort.by("name"))).getContent()) {
-            if (b.getGroupId() != null && myGroupIds.contains(b.getGroupId())) {
-                ids.add(b.getId());
-            }
-        }
-        return ids;
+        return batchAccessService.allowedBatchIds(auth);
     }
 
     private static boolean isAdmin(final Authentication auth) {

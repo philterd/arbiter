@@ -10,6 +10,7 @@
 package ai.philterd.arbiter.webapp.security;
 
 import ai.philterd.arbiter.repository.UserRepository;
+import ai.philterd.arbiter.service.ApiKeyHashingService;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpStatus;
@@ -54,8 +55,9 @@ public class SecurityConfig {
     }
 
     @Bean
-    public ApiKeyAuthFilter apiKeyAuthFilter(final UserRepository userRepository) {
-        return new ApiKeyAuthFilter(userRepository);
+    public ApiKeyAuthFilter apiKeyAuthFilter(final UserRepository userRepository,
+                                             final ApiKeyHashingService apiKeyHashingService) {
+        return new ApiKeyAuthFilter(userRepository, apiKeyHashingService);
     }
 
     @Bean
