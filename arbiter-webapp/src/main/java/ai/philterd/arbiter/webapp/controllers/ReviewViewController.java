@@ -32,13 +32,14 @@ import ai.philterd.arbiter.model.User;
 import ai.philterd.arbiter.model.UserSettings;
 import ai.philterd.arbiter.service.ApprovalRuleEvaluator;
 import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.service.AuthUtils;
+import ai.philterd.arbiter.service.DocumentAccessService;
 import ai.philterd.arbiter.service.LlmJudgeDefaultsService;
 import ai.philterd.arbiter.service.OpenSearchIndexService;
 import ai.philterd.arbiter.service.UserGroupsService;
 import ai.philterd.arbiter.service.UserSettingsService;
 import ai.philterd.arbiter.service.RedactionCertificateService;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -86,6 +87,7 @@ public class ReviewViewController {
     private final BatchRepository batchRepository;
     private final ComplianceProfileRepository complianceProfileRepository;
     private final UserGroupsService userGroupsService;
+    private final DocumentAccessService documentAccessService;
     private final AuditLogService auditLogService;
     private final OllamaInstanceRepository ollamaInstanceRepository;
     private final LlmJudgeDefaultsService llmJudgeDefaultsService;
@@ -102,6 +104,7 @@ public class ReviewViewController {
                                 final BatchRepository batchRepository,
                                 final ComplianceProfileRepository complianceProfileRepository,
                                 final UserGroupsService userGroupsService,
+                                final DocumentAccessService documentAccessService,
                                 final AuditLogService auditLogService,
                                 final OllamaInstanceRepository ollamaInstanceRepository,
                                 final LlmJudgeDefaultsService llmJudgeDefaultsService,
@@ -117,6 +120,7 @@ public class ReviewViewController {
         this.batchRepository = batchRepository;
         this.complianceProfileRepository = complianceProfileRepository;
         this.userGroupsService = userGroupsService;
+        this.documentAccessService = documentAccessService;
         this.auditLogService = auditLogService;
         this.ollamaInstanceRepository = ollamaInstanceRepository;
         this.llmJudgeDefaultsService = llmJudgeDefaultsService;
@@ -129,32 +133,12 @@ public class ReviewViewController {
         this.finalizationPolicyRepository = finalizationPolicyRepository;
     }
 
-    private static boolean isAdmin(final Authentication auth) {
-        if (auth == null) return false;
-        for (GrantedAuthority a : auth.getAuthorities()) {
-            if ("ROLE_ADMIN".equals(a.getAuthority())) return true;
-        }
-        return false;
-    }
-
-    private void requireAccess(final Authentication auth, final Document document) {
-        if (isAdmin(auth)) return;
-        final Batch batch = document.getBatchId() == null ? null
-                : batchRepository.findById(document.getBatchId()).orElse(null);
-        if (batch == null || batch.getGroupId() == null) {
-            throw new ResponseStatusException(NOT_FOUND, "Document not found.");
-        }
-        final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(auth == null ? null : auth.getName());
-        if (!myGroupIds.contains(batch.getGroupId())) {
-            throw new ResponseStatusException(NOT_FOUND, "Document not found.");
-        }
-    }
 
     @GetMapping("/review/{documentId}")
     public String review(@PathVariable final String documentId, final Authentication authentication, final Model model) {
         Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
-        requireAccess(authentication, document);
+        documentAccessService.requireDocumentAccess(authentication, document);
         if (document.getOriginalText() == null || document.getOriginalText().isEmpty()) {
             throw new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
                     "Document source has been deleted by the batch's finalization policy "
@@ -345,7 +329,7 @@ public class ReviewViewController {
         final Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
         // Verify the caller can access the source document's batch.
-        requireAccess(authentication, document);
+        documentAccessService.requireDocumentAccess(authentication, document);
 
         final OpenSearchIndexService.SearchResults results =
                 openSearchIndexService.findSimilar(documentId, document.getBatchId(), 10);
@@ -353,9 +337,9 @@ public class ReviewViewController {
         // Filter every returned hit against the caller's accessible batches. Admins see
         // all results; non-admins only see hits whose batchId is in one of their groups.
         // This is defense-in-depth: the OpenSearch query already scopes to the source
-        // document's batchId (which requireAccess already validated), but explicit
+        // document's batchId (which requireDocumentAccess already validated), but explicit
         // per-hit filtering ensures the check holds even if the search logic changes.
-        final boolean admin = isAdmin(authentication);
+        final boolean admin = AuthUtils.isAdmin(authentication);
         final Set<String> allowedBatchIds = admin ? null : similarAllowedBatchIds(authentication);
 
         final java.util.Set<String> docIds = new java.util.HashSet<>();
@@ -404,7 +388,7 @@ public class ReviewViewController {
             redirectAttributes.addFlashAttribute("error", "Document not found.");
             return "redirect:/queue";
         }
-        requireAccess(authentication, document);
+        documentAccessService.requireDocumentAccess(authentication, document);
         // Finalize is reachable only from a fully-approved document; the queue button is
         // gated on (status == APPROVED && approvalsAcquired >= approvalsRequired). Defend
         // here as well so direct POSTs can't bypass the precondition.
@@ -492,7 +476,7 @@ public class ReviewViewController {
             final Authentication authentication) {
         final Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
-        requireAccess(authentication, document);
+        documentAccessService.requireDocumentAccess(authentication, document);
         if (!"FINALIZED".equals(document.getStatus())) {
             throw new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
                     "Only finalized documents can be downloaded.");
@@ -577,7 +561,7 @@ public class ReviewViewController {
     public String breakLock(@PathVariable final String documentId,
                             final Authentication authentication,
                             final org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
-        if (!isAdmin(authentication)) {
+        if (!AuthUtils.isAdmin(authentication)) {
             redirectAttributes.addFlashAttribute("error", "Only admins can break a review lock.");
             return "redirect:/review/" + documentId;
         }
@@ -604,7 +588,7 @@ public class ReviewViewController {
                           final org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
         final Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
-        requireAccess(authentication, document);
+        documentAccessService.requireDocumentAccess(authentication, document);
 
         final String email = authentication == null ? null : authentication.getName();
         final Batch batch = document.getBatchId() == null ? null
@@ -700,7 +684,7 @@ public class ReviewViewController {
         final String email = authentication == null ? null : authentication.getName();
         final Document preReject = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
-        requireAccess(authentication, preReject);
+        documentAccessService.requireDocumentAccess(authentication, preReject);
         final String previous = preReject.getStatus();
         updateStatus(documentId, "REJECTED", authentication);
         auditLogService.log("DOCUMENT_REJECT", "Document", documentId,
@@ -737,7 +721,7 @@ public class ReviewViewController {
                             final org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
         final Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
-        requireAccess(authentication, document);
+        documentAccessService.requireDocumentAccess(authentication, document);
         if ("FINALIZED".equals(document.getStatus())) {
             redirectAttributes.addFlashAttribute("error",
                     "Document is FINALIZED. Finalized documents cannot be reopened.");
@@ -755,7 +739,7 @@ public class ReviewViewController {
                            final org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
         final Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
-        requireAccess(authentication, document);
+        documentAccessService.requireDocumentAccess(authentication, document);
         if ("FINALIZED".equals(document.getStatus())) {
             redirectAttributes.addFlashAttribute("error",
                     "Document is FINALIZED. Finalized documents cannot be reopened.");
@@ -807,7 +791,7 @@ public class ReviewViewController {
     private void updateStatus(final String documentId, final String status, final Authentication authentication) {
         final Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
-        requireAccess(authentication, document);
+        documentAccessService.requireDocumentAccess(authentication, document);
         final String previous = document.getStatus();
         document.changeStatus(status);
         documentRepository.save(document);

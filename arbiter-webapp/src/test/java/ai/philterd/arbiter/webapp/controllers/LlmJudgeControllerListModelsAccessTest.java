@@ -76,8 +76,14 @@ class LlmJudgeControllerListModelsAccessTest {
         auditLogService = mock(AuditLogService.class);
         llmJudgeDefaultsService = mock(LlmJudgeDefaultsService.class);
         controller = new LlmJudgeController(ollamaInstanceRepository, documentRepository,
-                spanRepository, batchRepository, userGroupsService, auditLogService,
-                llmJudgeDefaultsService, new ObjectMapper());
+                spanRepository, userGroupsService,
+                new ai.philterd.arbiter.service.DocumentAccessService(batchRepository, documentRepository,
+                        new ai.philterd.arbiter.service.BatchAccessService(batchRepository, userGroupsService)),
+                auditLogService, llmJudgeDefaultsService, new ObjectMapper(),
+                // Loopback is default-deny in DataSourceHostAllowList — whitelist it so the
+                // call-time check doesn't short-circuit before reaching the access-gate logic
+                // these tests are exercising.
+                new ai.philterd.arbiter.service.DataSourceHostAllowList("127.0.0.1"));
     }
 
     private static OllamaInstance instance(final String id) {

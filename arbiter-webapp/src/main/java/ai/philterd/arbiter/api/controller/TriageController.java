@@ -16,6 +16,7 @@ import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.SpanRepository;
 import ai.philterd.arbiter.service.ApprovalRuleEvaluator;
+import ai.philterd.arbiter.service.AuthUtils;
 import ai.philterd.arbiter.service.BatchAccessService;
 import ai.philterd.arbiter.service.UserGroupsService;
 import org.springframework.data.domain.Page;
@@ -23,7 +24,6 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -66,6 +66,13 @@ public class TriageController {
 
     private static final Set<String> SORTABLE_FIELDS = Set.of("riskScore", "status", "batchId", "filename", "priority");
 
+    /**
+     * Page size for the admin-side {@code GET /api/v1/batches} listing. Restricted callers
+     * are scoped by group membership and read the matching rows directly, so this cap only
+     * applies when an admin asks for the full list.
+     */
+    private static final int ADMIN_BATCH_LIST_LIMIT = 500;
+
     @GetMapping("/queue")
     public Page<Map<String, Object>> getQueue(
             @RequestParam(defaultValue = "0") final int page,
@@ -86,11 +93,11 @@ public class TriageController {
         final String trimmedFilename = filename == null ? "" : filename.trim();
         final boolean hasFilename = !trimmedFilename.isEmpty();
 
-        final boolean admin = isAdmin(authentication);
+        final boolean admin = AuthUtils.isAdmin(authentication);
         // Non-admins are always restricted to their groups. Admins see everything by default,
         // but can opt in to the same scope via myGroupsOnly=true.
         final boolean restrict = !admin || myGroupsOnly;
-        final Set<String> allowedBatchIds = restrict ? allowedBatchIds(authentication) : null;
+        final Set<String> allowedBatchIds = restrict ? batchAccessService.allowedBatchIds(authentication) : null;
 
         if (restrict && allowedBatchIds.isEmpty()) {
             return new PageImpl<>(List.of(), pageRequest, 0);
@@ -155,16 +162,25 @@ public class TriageController {
     public List<Map<String, String>> getBatches(
             @RequestParam(name = "myGroupsOnly", defaultValue = "false") final boolean myGroupsOnly,
             final Authentication authentication) {
-        final boolean admin = isAdmin(authentication);
+        final boolean admin = AuthUtils.isAdmin(authentication);
         final boolean restrict = !admin || myGroupsOnly;
-        final Set<String> myGroupIds = restrict
-                ? userGroupsService.groupIdsForEmail(authentication == null ? null : authentication.getName())
-                : null;
 
-        return batchRepository.findAll(
-                        PageRequest.of(0, BatchAccessService.BATCH_SCAN_LIMIT, Sort.by("name")))
-                .getContent().stream()
-                .filter(b -> !restrict || (b.getGroupId() != null && myGroupIds.contains(b.getGroupId())))
+        final List<Batch> batches;
+        if (restrict) {
+            // Restricted callers see only batches in their groups. The query is bounded by
+            // group membership, so we don't need a row cap here.
+            final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(
+                    authentication == null ? null : authentication.getName());
+            batches = myGroupIds.isEmpty() ? List.of()
+                    : batchRepository.findByGroupIdIn(myGroupIds);
+        } else {
+            // Admin asking for everything — keep the paginated cap so the response stays
+            // bounded in deployments with very many batches.
+            batches = batchRepository.findAll(
+                    PageRequest.of(0, ADMIN_BATCH_LIST_LIMIT, Sort.by("name"))).getContent();
+        }
+
+        return batches.stream()
                 .sorted(Comparator.comparing(
                         (Batch b) -> b.getName() == null ? "" : b.getName().toLowerCase()))
                 .map(b -> {
@@ -240,15 +256,4 @@ public class TriageController {
         };
     }
 
-    private static boolean isAdmin(final Authentication auth) {
-        if (auth == null) return false;
-        for (GrantedAuthority a : auth.getAuthorities()) {
-            if ("ROLE_ADMIN".equals(a.getAuthority())) return true;
-        }
-        return false;
-    }
-
-    private Set<String> allowedBatchIds(final Authentication auth) {
-        return batchAccessService.allowedBatchIds(auth);
-    }
 }

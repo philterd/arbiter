@@ -58,7 +58,8 @@ class ExportControllerTest {
         batchRepository = mock(BatchRepository.class);
         userGroupsService = TestDoubles.userGroups();
         controller = new ExportController(redactionApiService, spanRepository,
-                documentRepository, batchRepository, userGroupsService);
+                documentRepository,
+                TestDoubles.documentAccess(batchRepository, documentRepository, userGroupsService));
 
         final Document doc = approvedDoc("d1");
         when(documentRepository.findById("d1")).thenReturn(Optional.of(doc));

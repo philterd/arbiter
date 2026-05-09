@@ -88,7 +88,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         ReportingController.class,
         RedactionController.class,
 })
-@Import({SecurityConfig.class, MongoUserDetailsService.class})
+@Import({SecurityConfig.class, MongoUserDetailsService.class,
+        ai.philterd.arbiter.service.BatchAccessService.class,
+        ai.philterd.arbiter.service.DocumentAccessService.class})
 public class AuthorizationIntegrationTest {
 
     @Autowired private MockMvc mockMvc;

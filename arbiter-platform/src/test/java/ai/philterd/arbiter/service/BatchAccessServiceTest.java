@@ -14,19 +14,19 @@ import ai.philterd.arbiter.repository.BatchRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import org.springframework.data.domain.PageImpl;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyCollection;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -41,7 +41,7 @@ class BatchAccessServiceTest {
         batchRepository = mock(BatchRepository.class);
         userGroupsService = mock(UserGroupsService.class);
         service = new BatchAccessService(batchRepository, userGroupsService);
-        when(batchRepository.findAll(any(PageRequest.class))).thenReturn(new PageImpl<>(List.of()));
+        when(batchRepository.findByGroupIdIn(anyCollection())).thenReturn(List.of());
     }
 
     private static Batch batch(final String id, final String groupId) {
@@ -60,9 +60,10 @@ class BatchAccessServiceTest {
 
     @Test
     void returnsOnlyBatchesInUsersGroups() {
+        // The repository query already filters by group; the service just collects ids.
         when(userGroupsService.groupIdsForEmail("alice@x.com")).thenReturn(Set.of("g1"));
-        when(batchRepository.findAll(any(PageRequest.class))).thenReturn(new PageImpl<>(
-                List.of(batch("b1", "g1"), batch("b2", "g2"), batch("b3", "g1"))));
+        when(batchRepository.findByGroupIdIn(Set.of("g1"))).thenReturn(
+                List.of(batch("b1", "g1"), batch("b3", "g1")));
 
         final Set<String> result = service.allowedBatchIds(user("alice@x.com"));
 
@@ -70,10 +71,12 @@ class BatchAccessServiceTest {
     }
 
     @Test
-    void excludesBatchesWithNullGroupId() {
+    void skipsBatchesWithNullId() {
+        // groupId is filtered server-side; the only client-side guard is against null ids
+        // (which the repository wouldn't return in practice, but we defend anyway).
         when(userGroupsService.groupIdsForEmail("alice@x.com")).thenReturn(Set.of("g1"));
-        when(batchRepository.findAll(any(PageRequest.class))).thenReturn(new PageImpl<>(
-                List.of(batch("b1", null), batch("b2", "g1"))));
+        when(batchRepository.findByGroupIdIn(Set.of("g1"))).thenReturn(
+                List.of(batch(null, "g1"), batch("b2", "g1")));
 
         final Set<String> result = service.allowedBatchIds(user("alice@x.com"));
 
@@ -88,7 +91,7 @@ class BatchAccessServiceTest {
 
         assertTrue(result.isEmpty());
         // Short-circuit: repository must not be queried when groups are empty.
-        verify(batchRepository, org.mockito.Mockito.never()).findAll(any(PageRequest.class));
+        verify(batchRepository, never()).findByGroupIdIn(anyCollection());
     }
 
     @Test
@@ -96,27 +99,21 @@ class BatchAccessServiceTest {
         final Set<String> result = service.allowedBatchIds(null);
 
         assertTrue(result.isEmpty());
-        verify(batchRepository, org.mockito.Mockito.never()).findAll(any(PageRequest.class));
+        verify(batchRepository, never()).findByGroupIdIn(anyCollection());
     }
 
-    // ----- pagination cap -----
+    // ----- query shape -----
 
     @Test
-    void usesPagedQueryWithScanLimit() {
-        when(userGroupsService.groupIdsForEmail("alice@x.com")).thenReturn(Set.of("g1"));
+    void queriesByGroupIdInWithUsersGroups() {
+        when(userGroupsService.groupIdsForEmail("alice@x.com")).thenReturn(Set.of("g1", "g2"));
 
         service.allowedBatchIds(user("alice@x.com"));
 
-        final ArgumentCaptor<PageRequest> captor = ArgumentCaptor.forClass(PageRequest.class);
-        verify(batchRepository).findAll(captor.capture());
-        assertEquals(0, captor.getValue().getPageNumber());
-        assertEquals(BatchAccessService.BATCH_SCAN_LIMIT, captor.getValue().getPageSize());
-    }
-
-    @Test
-    void scanLimitIsConsistentAcrossControllers() {
-        // Regression guard: SearchController previously used 500; TriageController used
-        // findAll() with no limit. Both now delegate here and get the same cap.
-        assertEquals(500, BatchAccessService.BATCH_SCAN_LIMIT);
+        @SuppressWarnings("unchecked")
+        final ArgumentCaptor<Collection<String>> captor =
+                ArgumentCaptor.forClass(Collection.class);
+        verify(batchRepository).findByGroupIdIn(captor.capture());
+        assertEquals(Set.of("g1", "g2"), Set.copyOf(captor.getValue()));
     }
 }

@@ -127,7 +127,8 @@ public class SettingsController {
     }
 
     @PostMapping("/mfa/disable")
-    public String mfaDisable(@RequestParam("code") final String code,
+    public String mfaDisable(@RequestParam("currentPassword") final String currentPassword,
+                             @RequestParam("code") final String code,
                              final Authentication authentication,
                              final RedirectAttributes redirectAttributes) {
         final User user = userRepository.findByEmail(authentication.getName()).orElse(null);
@@ -137,6 +138,10 @@ public class SettingsController {
         }
         if (!user.isMfaEnabled()) {
             redirectAttributes.addFlashAttribute("error", "MFA is not currently enabled.");
+            return "redirect:/settings";
+        }
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            redirectAttributes.addFlashAttribute("error", "Current password is incorrect. MFA was not disabled.");
             return "redirect:/settings";
         }
         if (!totpService.verify(user.getTotpSecret(), code)) {
@@ -181,10 +186,16 @@ public class SettingsController {
     }
 
     @PostMapping("/api-key")
-    public String generateApiKey(final Authentication authentication, final RedirectAttributes redirectAttributes) {
+    public String generateApiKey(@RequestParam("currentPassword") final String currentPassword,
+                                 final Authentication authentication,
+                                 final RedirectAttributes redirectAttributes) {
         final User user = userRepository.findByEmail(authentication.getName()).orElse(null);
         if (user == null) {
             redirectAttributes.addFlashAttribute("error", "Account not found.");
+            return "redirect:/settings";
+        }
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            redirectAttributes.addFlashAttribute("error", "Current password is incorrect. API key was not generated.");
             return "redirect:/settings";
         }
         final byte[] bytes = new byte[32];
@@ -198,10 +209,16 @@ public class SettingsController {
     }
 
     @PostMapping("/api-key/revoke")
-    public String revokeApiKey(final Authentication authentication, final RedirectAttributes redirectAttributes) {
+    public String revokeApiKey(@RequestParam("currentPassword") final String currentPassword,
+                               final Authentication authentication,
+                               final RedirectAttributes redirectAttributes) {
         final User user = userRepository.findByEmail(authentication.getName()).orElse(null);
         if (user == null) {
             redirectAttributes.addFlashAttribute("error", "Account not found.");
+            return "redirect:/settings";
+        }
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            redirectAttributes.addFlashAttribute("error", "Current password is incorrect. API key was not revoked.");
             return "redirect:/settings";
         }
         user.setApiKey(null);

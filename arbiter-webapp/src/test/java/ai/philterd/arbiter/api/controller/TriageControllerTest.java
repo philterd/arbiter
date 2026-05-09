@@ -210,14 +210,29 @@ class TriageControllerTest {
 
     @Test
     void getBatchesNonAdminFilteredToGroups() {
-        when(batchRepository.findAll(any(PageRequest.class)))
-                .thenReturn(new PageImpl<>(List.of(batch("b1", "g1", "Mine", 0.25), batch("b2", "g2", "NotMine", 0.25))));
+        // Non-admins now query by group directly — the repository only returns rows whose
+        // groupId is in the caller's group set, so the controller doesn't need to filter
+        // again.
         userGroupsService.withMembership("alice@example.com", Set.of("g1"));
+        when(batchRepository.findByGroupIdIn(Set.of("g1")))
+                .thenReturn(List.of(batch("b1", "g1", "Mine", 0.25)));
 
         final List<Map<String, String>> result = controller.getBatches(false, TestAuth.user("alice@example.com"));
 
         assertEquals(1, result.size());
         assertEquals("Mine", result.get(0).get("name"));
         assertFalse(result.stream().anyMatch(m -> "NotMine".equals(m.get("name"))));
+    }
+
+    @Test
+    void getBatchesNonAdminWithNoGroupsReturnsEmpty() {
+        // Defensive: a non-admin with no group memberships short-circuits without hitting
+        // the repository, so they can't be served any rows.
+        userGroupsService.withMembership("alice@example.com", Set.of());
+
+        final List<Map<String, String>> result = controller.getBatches(false, TestAuth.user("alice@example.com"));
+
+        assertTrue(result.isEmpty());
+        verify(batchRepository, never()).findByGroupIdIn(any());
     }
 }

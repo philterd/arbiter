@@ -13,6 +13,7 @@ import ai.philterd.arbiter.model.Batch;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.Collection;
 import java.util.Optional;
 
 @Repository
@@ -24,4 +25,5 @@ public interface BatchRepository extends MongoRepository<Batch, String> {
     boolean existsByFinalizationPolicyId(String finalizationPolicyId);
     java.util.List<Batch> findByFinalizationPolicyId(String finalizationPolicyId);
     java.util.List<Batch> findByComplianceProfileId(String complianceProfileId);
+    java.util.List<Batch> findByGroupIdIn(Collection<String> groupIds);
 }

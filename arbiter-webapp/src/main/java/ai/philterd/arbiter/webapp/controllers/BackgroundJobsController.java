@@ -13,9 +13,9 @@ import ai.philterd.arbiter.model.BackgroundJob;
 import ai.philterd.arbiter.model.Batch;
 import ai.philterd.arbiter.repository.BackgroundJobRepository;
 import ai.philterd.arbiter.repository.BatchRepository;
+import ai.philterd.arbiter.service.AuthUtils;
 import ai.philterd.arbiter.service.UserGroupsService;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -47,7 +47,7 @@ public class BackgroundJobsController {
     public String list(final Authentication authentication, final Model model) {
         final List<BackgroundJob> all = repository.findAllByOrderByCreatedAtDesc();
         final List<BackgroundJob> visible;
-        if (isAdmin(authentication)) {
+        if (AuthUtils.isAdmin(authentication)) {
             visible = all;
         } else {
             // Resolve each job's batch's groupId in one round-trip and keep only the jobs
@@ -98,11 +98,4 @@ public class BackgroundJobsController {
         return "jobs";
     }
 
-    private static boolean isAdmin(final Authentication auth) {
-        if (auth == null) return false;
-        for (GrantedAuthority a : auth.getAuthorities()) {
-            if ("ROLE_ADMIN".equals(a.getAuthority())) return true;
-        }
-        return false;
-    }
 }

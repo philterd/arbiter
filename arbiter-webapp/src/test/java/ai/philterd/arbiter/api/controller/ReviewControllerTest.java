@@ -57,7 +57,8 @@ class ReviewControllerTest {
         userGroupsService = TestDoubles.userGroups();
         auditLogService = TestDoubles.auditLog();
         controller = new ReviewController(spanRepository, documentRepository,
-                batchRepository, userGroupsService, auditLogService);
+                TestDoubles.documentAccess(batchRepository, documentRepository, userGroupsService),
+                auditLogService);
         // Default stub: a document "d1" the access helper can resolve.
         // Tests that need a different shape override this.
         when(documentRepository.findById("d1")).thenReturn(Optional.of(document("d1", "the original text")));

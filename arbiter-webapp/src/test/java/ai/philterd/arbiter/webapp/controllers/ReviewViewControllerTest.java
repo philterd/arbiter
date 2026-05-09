@@ -107,7 +107,10 @@ class ReviewViewControllerTest {
         finalizationPolicyRepository = mock(FinalizationPolicyRepository.class);
 
         controller = new ReviewViewController(documentRepository, spanRepository, batchRepository,
-                complianceProfileRepository, userGroupsService, auditLogService,
+                complianceProfileRepository, userGroupsService,
+                new ai.philterd.arbiter.service.DocumentAccessService(batchRepository, documentRepository,
+                        new ai.philterd.arbiter.service.BatchAccessService(batchRepository, userGroupsService)),
+                auditLogService,
                 ollamaInstanceRepository, llmJudgeDefaultsService, userSettingsService,
                 userRepository, approvalRuleEvaluator, openSearchIndexService, documentLockService,
                 redactionCertificateService, finalizationPolicyRepository);

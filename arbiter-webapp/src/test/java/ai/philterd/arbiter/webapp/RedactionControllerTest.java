@@ -77,7 +77,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 @WebMvcTest(RedactionController.class)
-@Import({SecurityConfig.class, MongoUserDetailsService.class})
+@Import({SecurityConfig.class, MongoUserDetailsService.class,
+        ai.philterd.arbiter.service.BatchAccessService.class})
 @WithMockUser
 public class RedactionControllerTest {
 

@@ -73,7 +73,9 @@ class BatchControllerTest {
         when(finalizationPolicyRepository.existsById("fp1")).thenReturn(true);
         when(complianceProfileRepository.existsById("cp1")).thenReturn(true);
         controller = new BatchController(batchRepository, documentRepository, groupRepository,
-                userGroupsService, auditLogService, weightSetRepository,
+                userGroupsService,
+                new ai.philterd.arbiter.service.BatchAccessService(batchRepository, userGroupsService),
+                auditLogService, weightSetRepository,
                 philterInstanceRepository, philterDefaultsService, finalizationPolicyRepository,
                 complianceProfileRepository);
     }

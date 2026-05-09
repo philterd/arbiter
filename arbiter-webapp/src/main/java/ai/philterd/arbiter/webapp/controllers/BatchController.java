@@ -32,12 +32,13 @@ import ai.philterd.arbiter.repository.GroupRepository;
 import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import ai.philterd.arbiter.repository.WeightSetRepository;
 import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.service.AuthUtils;
+import ai.philterd.arbiter.service.BatchAccessService;
 import ai.philterd.arbiter.service.PhilterDefaultsService;
 import ai.philterd.arbiter.service.UserGroupsService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -65,6 +66,7 @@ public class BatchController {
     private final DocumentRepository documentRepository;
     private final GroupRepository groupRepository;
     private final UserGroupsService userGroupsService;
+    private final BatchAccessService batchAccessService;
     private final AuditLogService auditLogService;
     private final WeightSetRepository weightSetRepository;
     private final PhilterInstanceRepository philterInstanceRepository;
@@ -76,6 +78,7 @@ public class BatchController {
                            final DocumentRepository documentRepository,
                            final GroupRepository groupRepository,
                            final UserGroupsService userGroupsService,
+                           final BatchAccessService batchAccessService,
                            final AuditLogService auditLogService,
                            final WeightSetRepository weightSetRepository,
                            final PhilterInstanceRepository philterInstanceRepository,
@@ -86,20 +89,13 @@ public class BatchController {
         this.documentRepository = documentRepository;
         this.groupRepository = groupRepository;
         this.userGroupsService = userGroupsService;
+        this.batchAccessService = batchAccessService;
         this.auditLogService = auditLogService;
         this.weightSetRepository = weightSetRepository;
         this.philterInstanceRepository = philterInstanceRepository;
         this.philterDefaultsService = philterDefaultsService;
         this.finalizationPolicyRepository = finalizationPolicyRepository;
         this.complianceProfileRepository = complianceProfileRepository;
-    }
-
-    private static boolean isAdmin(final Authentication auth) {
-        if (auth == null) return false;
-        for (GrantedAuthority a : auth.getAuthorities()) {
-            if ("ROLE_ADMIN".equals(a.getAuthority())) return true;
-        }
-        return false;
     }
 
     private static final Set<String> SORTABLE_FIELDS = Set.of("name", "createdAt", "documentCount");
@@ -112,7 +108,7 @@ public class BatchController {
                        @RequestParam(name = "dir", defaultValue = "desc") final String dir,
                        final Authentication authentication,
                        final Model model) {
-        final boolean admin = isAdmin(authentication);
+        final boolean admin = AuthUtils.isAdmin(authentication);
         final boolean restrict = !admin;
         final Set<String> myGroupIds = restrict
                 ? userGroupsService.groupIdsForEmail(authentication == null ? null : authentication.getName())
@@ -257,7 +253,7 @@ public class BatchController {
                          @RequestParam(value = "exemptionCodeRequired", required = false) Boolean exemptionCodeRequired,
                          Authentication authentication,
                          RedirectAttributes redirectAttributes) {
-        if (!isAdmin(authentication)) {
+        if (!AuthUtils.isAdmin(authentication)) {
             redirectAttributes.addFlashAttribute("error", "Only administrators can create batches.");
             return "redirect:/batches";
         }
@@ -369,7 +365,7 @@ public class BatchController {
                                 @RequestParam(value = "policyName", required = false) final String policyName,
                                 final Authentication authentication,
                                 final RedirectAttributes redirectAttributes) {
-        if (!isAdmin(authentication)) {
+        if (!AuthUtils.isAdmin(authentication)) {
             redirectAttributes.addFlashAttribute("error", "Only administrators can modify batches.");
             return "redirect:/batches";
         }
@@ -410,7 +406,7 @@ public class BatchController {
                               @RequestParam("groupId") final String groupId,
                               final Authentication authentication,
                               final RedirectAttributes redirectAttributes) {
-        if (!isAdmin(authentication)) {
+        if (!AuthUtils.isAdmin(authentication)) {
             redirectAttributes.addFlashAttribute("error", "Only administrators can modify batches.");
             return "redirect:/batches";
         }
@@ -441,7 +437,7 @@ public class BatchController {
                                @RequestParam("domain") final String domain,
                                final Authentication authentication,
                                final RedirectAttributes redirectAttributes) {
-        if (!isAdmin(authentication)) {
+        if (!AuthUtils.isAdmin(authentication)) {
             redirectAttributes.addFlashAttribute("error", "Only administrators can modify batches.");
             return "redirect:/batches";
         }
@@ -477,7 +473,7 @@ public class BatchController {
                           final Model model,
                           final RedirectAttributes redirectAttributes) {
         final Batch batch = batchRepository.findById(batchId).orElse(null);
-        if (batch == null || !canAccessBatch(authentication, batch)) {
+        if (batch == null || !batchAccessService.canAccessBatch(authentication, batch)) {
             redirectAttributes.addFlashAttribute("error", "Batch not found.");
             return "redirect:/batches";
         }
@@ -518,7 +514,7 @@ public class BatchController {
                               @RequestParam(value = "weightSetId", required = false) final String weightSetId,
                               final Authentication authentication,
                               final RedirectAttributes redirectAttributes) {
-        if (!isAdmin(authentication)) {
+        if (!AuthUtils.isAdmin(authentication)) {
             redirectAttributes.addFlashAttribute("error", "Only administrators can modify batches.");
             return "redirect:/batches";
         }
@@ -590,7 +586,7 @@ public class BatchController {
                                  @RequestParam(value = "description", required = false) final String description,
                                  final Authentication authentication,
                                  final RedirectAttributes redirectAttributes) {
-        if (!isAdmin(authentication)) {
+        if (!AuthUtils.isAdmin(authentication)) {
             redirectAttributes.addFlashAttribute("error", "Only administrators can modify batches.");
             return "redirect:/batches";
         }
@@ -669,7 +665,7 @@ public class BatchController {
     public String close(@PathVariable final String batchId,
                         final Authentication authentication,
                         final RedirectAttributes redirectAttributes) {
-        if (!isAdmin(authentication)) {
+        if (!AuthUtils.isAdmin(authentication)) {
             redirectAttributes.addFlashAttribute("error", "Only administrators can close batches.");
             return "redirect:/batches";
         }
@@ -705,10 +701,5 @@ public class BatchController {
 
     private Set<String> userGroupIds(final Authentication auth) {
         return userGroupsService.groupIdsForEmail(auth == null ? null : auth.getName());
-    }
-
-    private boolean canAccessBatch(final Authentication auth, final Batch batch) {
-        if (isAdmin(auth)) return true;
-        return batch.getGroupId() != null && userGroupIds(auth).contains(batch.getGroupId());
     }
 }

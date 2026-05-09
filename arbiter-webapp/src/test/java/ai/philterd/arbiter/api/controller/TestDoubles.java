@@ -10,9 +10,13 @@
 package ai.philterd.arbiter.api.controller;
 
 import ai.philterd.arbiter.repository.AuditLogRepository;
+import ai.philterd.arbiter.repository.BatchRepository;
+import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.GroupRepository;
 import ai.philterd.arbiter.repository.UserRepository;
 import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.service.BatchAccessService;
+import ai.philterd.arbiter.service.DocumentAccessService;
 import ai.philterd.arbiter.service.UserGroupsService;
 
 import java.util.ArrayList;
@@ -35,6 +39,20 @@ final class TestDoubles {
 
     static RecordingAuditLog auditLog() {
         return new RecordingAuditLog();
+    }
+
+    /** Wraps the real BatchAccessService against the supplied repo + groups fake. */
+    static BatchAccessService batchAccess(final BatchRepository batchRepository,
+                                          final UserGroupsService userGroups) {
+        return new BatchAccessService(batchRepository, userGroups);
+    }
+
+    /** Wraps the real DocumentAccessService against the supplied repos + groups fake. */
+    static DocumentAccessService documentAccess(final BatchRepository batchRepository,
+                                                final DocumentRepository documentRepository,
+                                                final UserGroupsService userGroups) {
+        final BatchAccessService batchAccess = batchAccess(batchRepository, userGroups);
+        return new DocumentAccessService(batchRepository, documentRepository, batchAccess);
     }
 
     static final class FakeUserGroups extends UserGroupsService {

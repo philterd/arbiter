@@ -142,13 +142,30 @@ public class AdminController {
     public String edit(@PathVariable final String userId,
                        @RequestParam(value = "admin", defaultValue = "false") final boolean admin,
                        @RequestParam(value = "newPassword", required = false) final String newPassword,
+                       final Authentication authentication,
                        final RedirectAttributes redirectAttributes) {
         final User user = userRepository.findById(userId).orElse(null);
         if (user == null) {
             redirectAttributes.addFlashAttribute("error", "User not found.");
             return "redirect:/admin/users";
         }
+        // Self-edit is refused so admins can't (a) demote themselves out of /admin via this
+        // endpoint and (b) bypass the currentPassword check on /settings/password by resetting
+        // their own hash here. They still manage their own account via /settings.
+        if (authentication != null && user.getEmail() != null
+                && user.getEmail().equals(authentication.getName())) {
+            redirectAttributes.addFlashAttribute("error",
+                    "You cannot edit your own account here. Use Settings to change your password or 2FA.");
+            return "redirect:/admin/users";
+        }
         final boolean wasAdmin = user.getRoles() != null && user.getRoles().contains(Roles.ADMIN);
+        // Last-admin guard: refuse a demotion that would leave the system with zero admins,
+        // which would lock everyone out of the /admin/** surface.
+        if (wasAdmin && !admin && userRepository.countByRolesContaining(Roles.ADMIN) <= 1) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Cannot remove admin from \"" + user.getEmail() + "\": at least one administrator is required.");
+            return "redirect:/admin/users";
+        }
         user.setRoles(rolesFor(admin));
         boolean passwordReset = false;
         if (newPassword != null && !newPassword.isEmpty()) {

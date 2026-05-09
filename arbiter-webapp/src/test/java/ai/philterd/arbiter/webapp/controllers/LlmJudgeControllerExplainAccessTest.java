@@ -71,8 +71,11 @@ class LlmJudgeControllerExplainAccessTest {
         auditLogService = mock(AuditLogService.class);
         llmJudgeDefaultsService = mock(LlmJudgeDefaultsService.class);
         controller = new LlmJudgeController(ollamaInstanceRepository, documentRepository,
-                spanRepository, batchRepository, userGroupsService, auditLogService,
-                llmJudgeDefaultsService, new ObjectMapper());
+                spanRepository, userGroupsService,
+                new ai.philterd.arbiter.service.DocumentAccessService(batchRepository, documentRepository,
+                        new ai.philterd.arbiter.service.BatchAccessService(batchRepository, userGroupsService)),
+                auditLogService, llmJudgeDefaultsService, new ObjectMapper(),
+                new ai.philterd.arbiter.service.DataSourceHostAllowList("127.0.0.1"));
     }
 
     // ----- fixtures -----

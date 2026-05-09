@@ -60,7 +60,8 @@ class IngestionControllerTest {
         settings.setMaxUploadFileSizeBytes(10L * 1024L * 1024L);
         when(generalSettingsService.load()).thenReturn(settings);
         controller = new IngestionController(redactionApiService, documentRepository,
-                batchRepository, userGroupsService, auditLogService, generalSettingsService);
+                batchRepository, TestDoubles.batchAccess(batchRepository, userGroupsService),
+                auditLogService, generalSettingsService);
     }
 
     private static Batch openBatch(final String id, final String groupId, final String name) {

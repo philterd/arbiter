@@ -253,7 +253,8 @@
                                       title="Too many failed sign-in attempts. Auto-unlocks after 15 minutes.">Locked</span>
                             </td>
                             <td class="px-6 py-4 text-sm text-gray-700" colspan="2">
-                                <form th:action="@{/admin/users/{id}/edit(id=${u.id})}" method="post"
+                                <form th:if="${u.email != currentEmail}"
+                                      th:action="@{/admin/users/{id}/edit(id=${u.id})}" method="post"
                                       class="grid grid-cols-1 sm:grid-cols-[auto_minmax(0,1fr)_auto] gap-3 items-center">
                                     <div>
                                         <label class="inline-flex items-center text-sm">
@@ -269,6 +270,9 @@
                                         Save
                                     </button>
                                 </form>
+                                <span th:if="${u.email == currentEmail}" class="text-xs text-gray-500">
+                                    <a th:href="@{/settings}" class="text-blue-600 hover:text-blue-800">Manage your own account in Settings</a>
+                                </span>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <form th:if="${lockedByUserId != null and lockedByUserId[u.id]}"

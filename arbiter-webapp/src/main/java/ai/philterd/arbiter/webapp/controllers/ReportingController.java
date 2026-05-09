@@ -25,9 +25,9 @@ import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import ai.philterd.arbiter.repository.SpanRepository;
+import ai.philterd.arbiter.service.AuthUtils;
 import ai.philterd.arbiter.service.UserGroupsService;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -92,7 +92,7 @@ public class ReportingController {
                        @RequestParam(name = "domain", required = false) final List<String> domain,
                        final Authentication authentication,
                        final Model model) {
-        final boolean admin = isAdmin(authentication);
+        final boolean admin = AuthUtils.isAdmin(authentication);
         final boolean restrict = !admin;
         final Set<String> myGroupIds = restrict
                 ? userGroupsService.groupIdsForEmail(authentication == null ? null : authentication.getName())
@@ -413,11 +413,4 @@ public class ReportingController {
         }
     }
 
-    private static boolean isAdmin(final Authentication auth) {
-        if (auth == null) return false;
-        for (GrantedAuthority a : auth.getAuthorities()) {
-            if ("ROLE_ADMIN".equals(a.getAuthority())) return true;
-        }
-        return false;
-    }
 }

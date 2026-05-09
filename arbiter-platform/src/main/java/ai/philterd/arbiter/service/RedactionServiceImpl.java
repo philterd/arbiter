@@ -41,23 +41,30 @@ public class RedactionServiceImpl implements RedactionService {
     private final PhilterClientFactory philterClientFactory;
     private final PhilterInstanceRepository philterInstanceRepository;
     private final ai.philterd.arbiter.service.SymmetricCipher symmetricCipher;
+    private final DataSourceHostAllowList hostAllowList;
 
     public RedactionServiceImpl(@Qualifier("phileasClient") final PhilterClient phileasClient,
                                 final PhilterClientFactory philterClientFactory,
                                 final PhilterInstanceRepository philterInstanceRepository,
-                                final ai.philterd.arbiter.service.SymmetricCipher symmetricCipher) {
+                                final ai.philterd.arbiter.service.SymmetricCipher symmetricCipher,
+                                final DataSourceHostAllowList hostAllowList) {
         this.phileasClient = phileasClient;
         this.philterClientFactory = philterClientFactory;
         this.philterInstanceRepository = philterInstanceRepository;
         this.symmetricCipher = symmetricCipher;
+        this.hostAllowList = hostAllowList;
     }
 
-    private PhilterClient getClient(final String philterInstanceId) {
+    private PhilterClient getClient(final String philterInstanceId) throws IOException {
         if (philterInstanceId != null && !philterInstanceId.isBlank()) {
             final Optional<PhilterInstance> instance = philterInstanceRepository.findById(philterInstanceId);
             if (instance.isPresent()) {
                 final PhilterInstance pi = instance.get();
-                final String url = baseUrl(pi);
+                // Re-validate at call time: a stored Philter endpoint that was on the
+                // allow-list when it was saved may no longer be (configuration changed,
+                // private-range default-deny tightened, etc.). Refuse rather than make
+                // an outbound call to a now-disallowed host.
+                final String url = requireAllowedBaseUrl(pi);
                 String apiKey = null;
                 try {
                     apiKey = symmetricCipher.decrypt(pi.getEncryptedApiKey());
@@ -82,6 +89,16 @@ public class RedactionServiceImpl implements RedactionService {
             host = "http://" + host;
         }
         return host + ":" + instance.getPort();
+    }
+
+    private String requireAllowedBaseUrl(final PhilterInstance instance) throws IOException {
+        final String url = baseUrl(instance);
+        if (!hostAllowList.isAllowed(url)) {
+            throw new IOException("Philter instance \"" + instance.getName()
+                    + "\" host is not on the data-source allow-list "
+                    + "(arbiter.data-sources.allowed-hosts).");
+        }
+        return url;
     }
 
     @Override

@@ -47,6 +47,7 @@ public class RedactionApiServiceImpl implements RedactionApiService {
     private final BatchRepository batchRepository;
     private final OpenSearchIndexService openSearchIndexService;
     private final SymmetricCipher symmetricCipher;
+    private final DataSourceHostAllowList hostAllowList;
 
     public RedactionApiServiceImpl(@Qualifier("phileasClient") final PhilterClient phileasClient,
                                    final PhilterClientFactory philterClientFactory,
@@ -55,7 +56,8 @@ public class RedactionApiServiceImpl implements RedactionApiService {
                                    final SpanRepository spanRepository,
                                    final BatchRepository batchRepository,
                                    final OpenSearchIndexService openSearchIndexService,
-                                   final SymmetricCipher symmetricCipher) {
+                                   final SymmetricCipher symmetricCipher,
+                                   final DataSourceHostAllowList hostAllowList) {
         this.phileasClient = phileasClient;
         this.philterClientFactory = philterClientFactory;
         this.philterInstanceRepository = philterInstanceRepository;
@@ -64,9 +66,10 @@ public class RedactionApiServiceImpl implements RedactionApiService {
         this.batchRepository = batchRepository;
         this.openSearchIndexService = openSearchIndexService;
         this.symmetricCipher = symmetricCipher;
+        this.hostAllowList = hostAllowList;
     }
 
-    private PhilterClient philterClient(final Batch batch) {
+    private PhilterClient philterClient(final Batch batch) throws IOException {
         final String instanceId = batch == null ? null : batch.getPhilterInstanceId();
         if (instanceId == null || instanceId.isBlank()) {
             log.info("Batch \"{}\" uses Embedded Philter (local Phileas).",
@@ -80,15 +83,18 @@ public class RedactionApiServiceImpl implements RedactionApiService {
             return phileasClient;
         }
         final PhilterInstance pi = instance.get();
+        // Re-validate at call time so a stored endpoint that has fallen off the allow-list
+        // since it was saved is refused before we open a connection.
+        final String url = requireAllowedBaseUrl(pi);
         final String apiKey;
         try {
             apiKey = symmetricCipher.decrypt(pi.getEncryptedApiKey());
         } catch (Exception e) {
             log.warn("Could not decrypt API key for Philter instance \"{}\": {}",
                     pi.getName(), e.getMessage());
-            return philterClientFactory.create(baseUrl(pi));
+            return philterClientFactory.create(url);
         }
-        return philterClientFactory.create(baseUrl(pi), apiKey);
+        return philterClientFactory.create(url, apiKey);
     }
 
     private static String baseUrl(final PhilterInstance instance) {
@@ -98,6 +104,16 @@ public class RedactionApiServiceImpl implements RedactionApiService {
             host = "http://" + host;
         }
         return host + ":" + instance.getPort();
+    }
+
+    private String requireAllowedBaseUrl(final PhilterInstance instance) throws IOException {
+        final String url = baseUrl(instance);
+        if (!hostAllowList.isAllowed(url)) {
+            throw new IOException("Philter instance \"" + instance.getName()
+                    + "\" host is not on the data-source allow-list "
+                    + "(arbiter.data-sources.allowed-hosts).");
+        }
+        return url;
     }
 
     @Override

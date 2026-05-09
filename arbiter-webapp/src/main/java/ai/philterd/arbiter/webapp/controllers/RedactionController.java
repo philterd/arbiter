@@ -41,10 +41,11 @@ import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.GeneralSettingsService;
 import ai.philterd.arbiter.service.OpenSearchIndexService;
 import ai.philterd.arbiter.service.RedactionService;
+import ai.philterd.arbiter.service.AuthUtils;
+import ai.philterd.arbiter.service.BatchAccessService;
 import ai.philterd.arbiter.service.UserGroupsService;
 import ai.philterd.arbiter.service.IngestQueueService;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ByteArrayResource;
@@ -83,6 +84,7 @@ public class RedactionController {
     private final DocumentRepository documentRepository;
     private final SpanRepository spanRepository;
     private final UserGroupsService userGroupsService;
+    private final BatchAccessService batchAccessService;
     private final AuditLogService auditLogService;
     private final OpenSearchIndexService openSearchIndexService;
     private final IngestQueueService ingestQueueService;
@@ -100,6 +102,7 @@ public class RedactionController {
                                final DocumentRepository documentRepository,
                                final SpanRepository spanRepository,
                                final UserGroupsService userGroupsService,
+                               final BatchAccessService batchAccessService,
                                final AuditLogService auditLogService,
                                final OpenSearchIndexService openSearchIndexService,
                                final IngestQueueService ingestQueueService,
@@ -116,6 +119,7 @@ public class RedactionController {
         this.documentRepository = documentRepository;
         this.spanRepository = spanRepository;
         this.userGroupsService = userGroupsService;
+        this.batchAccessService = batchAccessService;
         this.auditLogService = auditLogService;
         this.openSearchIndexService = openSearchIndexService;
         this.ingestQueueService = ingestQueueService;
@@ -129,24 +133,9 @@ public class RedactionController {
         this.elasticsearchIngestJobService = elasticsearchIngestJobService;
     }
 
-    private static boolean isAdmin(final Authentication auth) {
-        if (auth == null) return false;
-        for (GrantedAuthority a : auth.getAuthorities()) {
-            if ("ROLE_ADMIN".equals(a.getAuthority())) return true;
-        }
-        return false;
-    }
-
-    private boolean canAccessBatch(final Authentication auth, final Batch batch) {
-        if (isAdmin(auth)) return true;
-        if (batch == null || batch.getGroupId() == null) return false;
-        final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(auth == null ? null : auth.getName());
-        return myGroupIds.contains(batch.getGroupId());
-    }
-
     @GetMapping("/")
     public String dashboard(final Authentication authentication, final Model model) {
-        final boolean admin = isAdmin(authentication);
+        final boolean admin = AuthUtils.isAdmin(authentication);
         final Set<String> myGroupIds = admin
                 ? Set.of()
                 : userGroupsService.groupIdsForEmail(authentication == null ? null : authentication.getName());
@@ -197,13 +186,13 @@ public class RedactionController {
 
     @GetMapping("/queue")
     public String queue(final Authentication authentication, final Model model) {
-        model.addAttribute("isAdmin", isAdmin(authentication));
+        model.addAttribute("isAdmin", AuthUtils.isAdmin(authentication));
         return "queue";
     }
 
     @GetMapping("/upload")
     public String upload(final Authentication authentication, final Model model) {
-        final boolean admin = isAdmin(authentication);
+        final boolean admin = AuthUtils.isAdmin(authentication);
         final Set<String> myGroupIds = admin
                 ? Set.of()
                 : userGroupsService.groupIdsForEmail(authentication == null ? null : authentication.getName());
@@ -262,7 +251,7 @@ public class RedactionController {
         // system. Match the redirect target to the source type so users land on a useful
         // page after the error (the data-source ingest tabs all live on /upload).
         final Batch batch = batchRepository.findById(batchId).orElse(null);
-        if (batch == null || !canAccessBatch(authentication, batch)) {
+        if (batch == null || !batchAccessService.canAccessBatch(authentication, batch)) {
             redirectAttributes.addFlashAttribute("error",
                     "Selected batch is not available.");
             return "redirect:/upload";
@@ -318,7 +307,7 @@ public class RedactionController {
                          final HttpSession session,
                          final RedirectAttributes redirectAttributes) throws IOException {
         final Batch batch = batchRepository.findById(batchId).orElse(null);
-        if (batch == null || !canAccessBatch(authentication, batch)) {
+        if (batch == null || !batchAccessService.canAccessBatch(authentication, batch)) {
             redirectAttributes.addFlashAttribute("error", "Selected batch no longer exists.");
             return "redirect:/upload";
         }

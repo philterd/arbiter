@@ -237,4 +237,97 @@ class AdminControllerTest {
         assertEquals("User not found.", error(ra));
         verify(auditLogService, never()).log(eq("USER_UNLOCK"), any(), any(), any());
     }
+
+    // ---------- /admin/users/{id}/edit — self-edit and last-admin guards ----------
+
+    private static org.springframework.security.core.Authentication adminAuth(final String email) {
+        return new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                email, null,
+                java.util.Set.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN")));
+    }
+
+    private static User userWith(final String id, final String email, final boolean admin) {
+        final User u = new User();
+        u.setId(id);
+        u.setEmail(email);
+        u.setRoles(admin ? java.util.Set.of("ADMIN") : java.util.Set.of("USER"));
+        return u;
+    }
+
+    @Test
+    void editRefusesSelf() {
+        final User self = userWith("u-self", "admin@x.com", true);
+        when(userRepository.findById("u-self")).thenReturn(Optional.of(self));
+
+        final RedirectAttributes ra = flash();
+        controller.edit("u-self", false, null, adminAuth("admin@x.com"), ra);
+
+        assertNotNull(error(ra));
+        assertTrue(error(ra).toLowerCase().contains("cannot edit your own account"),
+                "expected self-edit refusal, got: " + error(ra));
+        verify(userRepository, never()).save(any());
+        verify(userRepository, never()).countByRolesContaining(anyString());
+        verify(auditLogService, never()).log(eq("USER_UPDATE"), any(), any(), any());
+    }
+
+    @Test
+    void editRefusesDemotingLastAdmin() {
+        // Different admin demoting the only remaining ADMIN — would leave 0 admins.
+        final User target = userWith("u-1", "alice@x.com", true);
+        when(userRepository.findById("u-1")).thenReturn(Optional.of(target));
+        when(userRepository.countByRolesContaining("ADMIN")).thenReturn(1L);
+
+        final RedirectAttributes ra = flash();
+        controller.edit("u-1", false, null, adminAuth("admin@x.com"), ra);
+
+        assertNotNull(error(ra));
+        assertTrue(error(ra).toLowerCase().contains("at least one administrator"),
+                "expected last-admin refusal, got: " + error(ra));
+        verify(userRepository, never()).save(any());
+        verify(auditLogService, never()).log(eq("USER_UPDATE"), any(), any(), any());
+    }
+
+    @Test
+    void editAllowsDemotingWhenAnotherAdminRemains() {
+        final User target = userWith("u-1", "alice@x.com", true);
+        when(userRepository.findById("u-1")).thenReturn(Optional.of(target));
+        when(userRepository.countByRolesContaining("ADMIN")).thenReturn(2L);
+
+        final RedirectAttributes ra = flash();
+        controller.edit("u-1", false, null, adminAuth("admin@x.com"), ra);
+
+        assertNotNull(success(ra));
+        assertFalse(target.getRoles().contains("ADMIN"));
+        verify(userRepository).save(target);
+        verify(auditLogService).log(eq("USER_UPDATE"), eq("User"), eq("u-1"), any());
+    }
+
+    @Test
+    void editAllowsPromotingNonAdminWithoutCheckingAdminCount() {
+        // Promoting USER → ADMIN never reduces the admin pool, so the count check is skipped.
+        final User target = userWith("u-1", "bob@x.com", false);
+        when(userRepository.findById("u-1")).thenReturn(Optional.of(target));
+
+        final RedirectAttributes ra = flash();
+        controller.edit("u-1", true, null, adminAuth("admin@x.com"), ra);
+
+        assertNotNull(success(ra));
+        assertTrue(target.getRoles().contains("ADMIN"));
+        verify(userRepository).save(target);
+        verify(userRepository, never()).countByRolesContaining(anyString());
+    }
+
+    @Test
+    void editAllowsLeavingAdminUnchangedEvenWhenSoleAdmin() {
+        // wasAdmin && admin (no transition) — the count guard only fires on demotion.
+        final User target = userWith("u-1", "alice@x.com", true);
+        when(userRepository.findById("u-1")).thenReturn(Optional.of(target));
+
+        final RedirectAttributes ra = flash();
+        controller.edit("u-1", true, null, adminAuth("admin@x.com"), ra);
+
+        assertNotNull(success(ra));
+        verify(userRepository).save(target);
+        verify(userRepository, never()).countByRolesContaining(anyString());
+    }
 }

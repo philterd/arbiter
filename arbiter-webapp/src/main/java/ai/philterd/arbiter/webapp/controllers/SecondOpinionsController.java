@@ -22,6 +22,7 @@ import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.SpanRepository;
 import ai.philterd.arbiter.service.AuditLogQueryService;
 import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.service.AuthUtils;
 import ai.philterd.arbiter.service.UserGroupsService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,7 +30,6 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.ui.Model;
@@ -91,7 +91,7 @@ public class SecondOpinionsController {
     @GetMapping("/second-opinions")
     public String list(final Authentication authentication, final Model model) {
         final String email = authentication == null ? null : authentication.getName();
-        final boolean admin = isAdmin(authentication);
+        final boolean admin = AuthUtils.isAdmin(authentication);
         final Set<String> myGroupIds = admin
                 ? Set.of()
                 : userGroupsService.groupIdsForEmail(email);
@@ -156,11 +156,11 @@ public class SecondOpinionsController {
             @PathVariable final String id,
             @RequestParam(value = "resolveActors", defaultValue = "false") final boolean resolveActors,
             final Authentication authentication) {
-        if (!isAdmin(authentication)) {
+        if (!AuthUtils.isAdmin(authentication)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "Audit history with span text is restricted to administrators.");
         }
-        if (resolveActors && !isAdmin(authentication)) {
+        if (resolveActors && !AuthUtils.isAdmin(authentication)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "resolveActors requires ROLE_ADMIN.");
         }
@@ -220,7 +220,7 @@ public class SecondOpinionsController {
     public void documentHistoryCsv(@PathVariable final String id,
                                    final Authentication authentication,
                                    final HttpServletResponse response) throws IOException {
-        if (!isAdmin(authentication)) {
+        if (!AuthUtils.isAdmin(authentication)) {
             response.sendError(HttpServletResponse.SC_FORBIDDEN);
             return;
         }
@@ -328,7 +328,7 @@ public class SecondOpinionsController {
             @PathVariable final String id,
             @RequestParam(value = "resolveActors", defaultValue = "false") final boolean resolveActors,
             final Authentication authentication) {
-        if (resolveActors && !isAdmin(authentication)) {
+        if (resolveActors && !AuthUtils.isAdmin(authentication)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "resolveActors requires ROLE_ADMIN.");
         }
@@ -339,7 +339,7 @@ public class SecondOpinionsController {
         final Document document = span.getDocumentId() == null ? null
                 : documentRepository.findById(span.getDocumentId()).orElse(null);
         if (document == null) return List.of();
-        if (!isAdmin(authentication)) {
+        if (!AuthUtils.isAdmin(authentication)) {
             final Batch batch = document.getBatchId() == null ? null
                     : batchRepository.findById(document.getBatchId()).orElse(null);
             if (batch == null || batch.getGroupId() == null) return List.of();
@@ -375,14 +375,6 @@ public class SecondOpinionsController {
             return entry.getUserEmail() == null ? "" : entry.getUserEmail();
         }
         return entry.getUserId() == null ? "" : entry.getUserId();
-    }
-
-    private boolean isAdmin(final Authentication auth) {
-        if (auth == null) return false;
-        for (GrantedAuthority a : auth.getAuthorities()) {
-            if ("ROLE_ADMIN".equals(a.getAuthority())) return true;
-        }
-        return false;
     }
 
 }

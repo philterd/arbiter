@@ -12,12 +12,12 @@ package ai.philterd.arbiter.api.controller;
 import ai.philterd.arbiter.model.Document;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.service.AuthUtils;
 import ai.philterd.arbiter.service.BatchAccessService;
 import ai.philterd.arbiter.service.OpenSearchIndexService;
 import ai.philterd.arbiter.service.OpenSearchIndexService.SearchHit;
 import ai.philterd.arbiter.service.OpenSearchIndexService.SearchResults;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -56,8 +56,8 @@ public class SearchController {
         // Restrict at the OpenSearch query layer for non-admins so the reported `total` and
         // the hit list both exclude foreign documents — an attacker can no longer probe
         // queries to detect the existence of content in batches they can't see.
-        final boolean admin = isAdmin(authentication);
-        final Set<String> allowedBatchIds = admin ? null : allowedBatchIds(authentication);
+        final boolean admin = AuthUtils.isAdmin(authentication);
+        final Set<String> allowedBatchIds = admin ? null : batchAccessService.allowedBatchIds(authentication);
         final SearchResults results = openSearchIndexService.search(query, offset, size, allowedBatchIds);
         if (offset == 0) {
             auditLogService.log("DOCUMENT_SEARCH", "Document", null,
@@ -101,15 +101,4 @@ public class SearchController {
         return out;
     }
 
-    private Set<String> allowedBatchIds(final Authentication auth) {
-        return batchAccessService.allowedBatchIds(auth);
-    }
-
-    private static boolean isAdmin(final Authentication auth) {
-        if (auth == null) return false;
-        for (GrantedAuthority a : auth.getAuthorities()) {
-            if ("ROLE_ADMIN".equals(a.getAuthority())) return true;
-        }
-        return false;
-    }
 }

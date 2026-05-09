@@ -14,12 +14,12 @@ import ai.philterd.arbiter.model.Document;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.service.AuthUtils;
 import ai.philterd.arbiter.service.OpenSearchIndexService;
 import ai.philterd.arbiter.service.OpenSearchIndexService.SearchHit;
 import ai.philterd.arbiter.service.OpenSearchIndexService.SearchResults;
 import ai.philterd.arbiter.service.UserGroupsService;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -74,7 +74,7 @@ public class SearchViewController {
             // Restrict at the OpenSearch layer for non-admins so the reported total and the
             // hit list both exclude documents the caller can't see — see SearchController for
             // the matching API change.
-            final boolean admin = isAdmin(authentication);
+            final boolean admin = AuthUtils.isAdmin(authentication);
             final Set<String> allowedBatchIds = admin ? null : allowedBatchIds(authentication);
             final SearchResults results = openSearchIndexService.search(query, safeOffset, PAGE_SIZE, allowedBatchIds);
             total = results.total();
@@ -164,11 +164,4 @@ public class SearchViewController {
         return dt == null ? "" : dt.format(DT_FMT);
     }
 
-    private static boolean isAdmin(final Authentication auth) {
-        if (auth == null) return false;
-        for (GrantedAuthority a : auth.getAuthorities()) {
-            if ("ROLE_ADMIN".equals(a.getAuthority())) return true;
-        }
-        return false;
-    }
 }

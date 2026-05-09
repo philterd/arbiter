@@ -10,19 +10,16 @@
 package ai.philterd.arbiter.api.controller;
 
 import ai.philterd.arbiter.dto.SpanUpdateRequest;
-import ai.philterd.arbiter.model.Batch;
 import ai.philterd.arbiter.model.Coordinates;
 import ai.philterd.arbiter.model.Document;
 import ai.philterd.arbiter.model.Location;
 import ai.philterd.arbiter.model.PiiTypes;
 import ai.philterd.arbiter.model.Span;
-import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.SpanRepository;
 import ai.philterd.arbiter.service.AuditLogService;
-import ai.philterd.arbiter.service.UserGroupsService;
+import ai.philterd.arbiter.service.DocumentAccessService;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -54,57 +51,17 @@ public class ReviewController {
 
     private final SpanRepository spanRepository;
     private final DocumentRepository documentRepository;
-    private final BatchRepository batchRepository;
-    private final UserGroupsService userGroupsService;
+    private final DocumentAccessService documentAccessService;
     private final AuditLogService auditLogService;
 
     public ReviewController(final SpanRepository spanRepository,
                             final DocumentRepository documentRepository,
-                            final BatchRepository batchRepository,
-                            final UserGroupsService userGroupsService,
+                            final DocumentAccessService documentAccessService,
                             final AuditLogService auditLogService) {
         this.spanRepository = spanRepository;
         this.documentRepository = documentRepository;
-        this.batchRepository = batchRepository;
-        this.userGroupsService = userGroupsService;
+        this.documentAccessService = documentAccessService;
         this.auditLogService = auditLogService;
-    }
-
-    private void requireDocumentAccess(final Authentication auth, final Document document) {
-        if (isAdmin(auth)) return;
-        final Batch batch = document.getBatchId() == null ? null
-                : batchRepository.findById(document.getBatchId()).orElse(null);
-        if (batch == null || batch.getGroupId() == null) {
-            throw new ResponseStatusException(NOT_FOUND, "Document not found.");
-        }
-        final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(
-                auth == null ? null : auth.getName());
-        if (!myGroupIds.contains(batch.getGroupId())) {
-            throw new ResponseStatusException(NOT_FOUND, "Document not found.");
-        }
-    }
-
-    /**
-     * Resolve the document a span belongs to and verify the caller can see it. All three
-     * failure modes — span's parent doc missing, batch missing, caller not in the batch's
-     * group — surface as the same {@code "Span not found."} 404 so an attacker can't tell
-     * a real-but-inaccessible span id from a never-existed id.
-     */
-    private Document loadAccessibleParentForSpan(final Span span, final Authentication auth) {
-        final Document document = documentRepository.findById(span.getDocumentId())
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found."));
-        if (isAdmin(auth)) return document;
-        final Batch batch = document.getBatchId() == null ? null
-                : batchRepository.findById(document.getBatchId()).orElse(null);
-        if (batch == null || batch.getGroupId() == null) {
-            throw new ResponseStatusException(NOT_FOUND, "Span not found.");
-        }
-        final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(
-                auth == null ? null : auth.getName());
-        if (!myGroupIds.contains(batch.getGroupId())) {
-            throw new ResponseStatusException(NOT_FOUND, "Span not found.");
-        }
-        return document;
     }
 
     /**
@@ -127,19 +84,11 @@ public class ReviewController {
         }
     }
 
-    private static boolean isAdmin(final Authentication auth) {
-        if (auth == null) return false;
-        for (GrantedAuthority a : auth.getAuthorities()) {
-            if ("ROLE_ADMIN".equals(a.getAuthority())) return true;
-        }
-        return false;
-    }
-
     @GetMapping("/documents/{id}/spans")
     public List<Span> getSpans(@PathVariable final String id, final Authentication authentication) {
         final Document document = documentRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
-        requireDocumentAccess(authentication, document);
+        documentAccessService.requireDocumentAccess(authentication, document);
         if (document.getOriginalText() == null || document.getOriginalText().isEmpty()) {
             throw new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
                     "Document source has been deleted by the batch's finalization policy "
@@ -172,7 +121,7 @@ public class ReviewController {
         final Document document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND,
                         "Document not found."));
-        requireDocumentAccess(authentication, document);
+        documentAccessService.requireDocumentAccess(authentication, document);
         requireEditable(document);
         final String original = document.getOriginalText() == null ? "" : document.getOriginalText();
         if (end > original.length()) {
@@ -214,7 +163,7 @@ public class ReviewController {
         }
         final Span span = spanRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found."));
-        final Document document = loadAccessibleParentForSpan(span, authentication);
+        final Document document = documentAccessService.loadAccessibleParentForSpan(span, authentication);
         requireEditable(document);
 
         final String actor = authentication == null ? null : authentication.getName();
@@ -278,7 +227,7 @@ public class ReviewController {
     public Map<String, Object> deleteSpan(@PathVariable final String id, final Authentication authentication) {
         final Span span = spanRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found."));
-        final Document document = loadAccessibleParentForSpan(span, authentication);
+        final Document document = documentAccessService.loadAccessibleParentForSpan(span, authentication);
         requireEditable(document);
 
         if (!span.isManuallyCreated()) {
@@ -305,7 +254,7 @@ public class ReviewController {
             throw new ResponseStatusException(BAD_REQUEST, "Source span has no text to match.");
         }
 
-        final Document document = loadAccessibleParentForSpan(source, authentication);
+        final Document document = documentAccessService.loadAccessibleParentForSpan(source, authentication);
         requireEditable(document);
         // Redact All Like This is only meaningful while the source span is still a redaction
         // candidate. If the reviewer refused it or flagged it for a second opinion, the action
@@ -404,7 +353,7 @@ public class ReviewController {
                           final Authentication authentication) {
         final Span span = spanRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found."));
-        final Document document = loadAccessibleParentForSpan(span, authentication);
+        final Document document = documentAccessService.loadAccessibleParentForSpan(span, authentication);
         requireEditable(document);
 
         final String actor = authentication == null ? null : authentication.getName();

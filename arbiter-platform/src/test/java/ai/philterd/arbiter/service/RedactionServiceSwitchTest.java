@@ -57,8 +57,12 @@ public class RedactionServiceSwitchTest {
         final byte[] keyBytes = new byte[32];
         java.util.Arrays.fill(keyBytes, (byte) 0x55);
         final String key = java.util.Base64.getEncoder().encodeToString(keyBytes);
+        // Allow-list permits the "philter" host the test resolves to. Stored Philter
+        // instances are re-checked at call time, so the test fixture must match.
+        final DataSourceHostAllowList hostAllowList = new DataSourceHostAllowList("philter");
         redactionService = new RedactionServiceImpl(phileasClient, philterClientFactory,
-                philterInstanceRepository, new ai.philterd.arbiter.service.SymmetricCipher(key));
+                philterInstanceRepository, new ai.philterd.arbiter.service.SymmetricCipher(key),
+                hostAllowList);
     }
 
     @Test
