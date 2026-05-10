@@ -187,92 +187,29 @@
                 triggers dual approval).
             </p>
 
-            <h3 class="text-lg font-semibold text-gray-900 mb-2">Add a rule set</h3>
-            <div th:if="${#lists.isEmpty(available)}"
-                 class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8 max-w-4xl text-sm text-gray-500">
-                There are no open batches. Open a batch and reload to add a rule set.
-            </div>
-
-            <form th:unless="${#lists.isEmpty(available)}"
-                  th:action="@{/admin/rules}" method="post"
-                  class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-8 max-w-4xl space-y-4">
-                <div>
-                    <label for="addBatchId" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Batch</label>
-                    <select id="addBatchId" name="batchId" required
-                            class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="" disabled selected>Choose a batch…</option>
-                        <option th:each="b : ${available}"
-                                th:value="${b.id}" th:text="${b.name}">batch</option>
-                    </select>
-                </div>
-                <fieldset class="space-y-1.5">
-                    <legend class="text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Conditions (all must hold)</legend>
-                    <th:block th:each="entry : ${ruleLabels}">
-                        <label class="flex items-start text-sm text-gray-700">
-                            <input type="checkbox" name="rule" th:value="${entry.key}" class="mr-2 mt-0.5">
-                            <span th:text="${entry.value}">rule label</span>
-                        </label>
-                        <div th:if="${entry.key == highRiskScoreRule}"
-                             class="ml-6 flex items-center gap-2 text-xs text-gray-600">
-                            <label for="addRiskScoreThreshold" class="font-medium">Threshold</label>
-                            <input id="addRiskScoreThreshold" type="number" name="riskScoreThreshold"
-                                   step="0.01" min="0" max="1"
-                                   th:value="${defaultRiskScoreThreshold}"
-                                   class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <span class="text-gray-500">(0–1; rule fires when risk score is strictly greater)</span>
-                        </div>
-                        <div th:if="${entry.key == rejectedHighConfidenceRule}"
-                             class="ml-6 flex items-center gap-2 text-xs text-gray-600">
-                            <label for="addRejectedConfidenceThreshold" class="font-medium">Confidence threshold</label>
-                            <input id="addRejectedConfidenceThreshold" type="number" name="rejectedConfidenceThreshold"
-                                   step="0.01" min="0" max="1"
-                                   th:value="${defaultRejectedConfidenceThreshold}"
-                                   class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <span class="text-gray-500">(0–1; rule fires when a rejected span's confidence exceeds this)</span>
-                        </div>
-                        <div th:if="${entry.key == inexperiencedReviewerRule}"
-                             class="ml-6 flex items-center gap-2 text-xs text-gray-600">
-                            <label for="addExperiencedReviewerThreshold" class="font-medium">Reviews threshold</label>
-                            <input id="addExperiencedReviewerThreshold" type="number" name="experiencedReviewerThreshold"
-                                   step="1" min="0"
-                                   th:value="${defaultExperiencedReviewerThreshold}"
-                                   class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <span class="text-gray-500">(rule fires when reviewer has performed fewer reviews than this)</span>
-                        </div>
-                        <div th:if="${entry.key == manualSpansThresholdRule}"
-                             class="ml-6 flex items-center gap-2 text-xs text-gray-600">
-                            <label for="addManualSpansThreshold" class="font-medium">Manual redactions &gt;</label>
-                            <input id="addManualSpansThreshold" type="number" name="manualSpansThreshold"
-                                   step="1" min="0"
-                                   th:value="${defaultManualSpansThreshold}"
-                                   class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <span class="text-gray-500">(rule fires when more manually-created spans than this exist)</span>
-                        </div>
-                        <div th:if="${entry.key == classifiedKeywordsRule}"
-                             class="ml-6 flex flex-col gap-1 text-xs text-gray-600">
-                            <label for="addClassifiedKeywords" class="font-medium">Keywords (comma-separated)</label>
-                            <input id="addClassifiedKeywords" type="text" name="classifiedKeywords"
-                                   th:value="${defaultClassifiedKeywords}"
-                                   placeholder="Classified, Proprietary, Secret"
-                                   class="w-full max-w-md rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <span class="text-gray-500">(case-insensitive substring match against the document text)</span>
-                        </div>
-                        <div th:if="${entry.key == dualApprovalSamplingRateRule}"
-                             class="ml-6 flex items-center gap-2 text-xs text-gray-600">
-                            <label for="addDualApprovalSamplingRate" class="font-medium">Sampling rate</label>
-                            <input id="addDualApprovalSamplingRate" type="number" name="dualApprovalSamplingRate"
-                                   step="0.01" min="0" max="1"
-                                   th:value="${defaultDualApprovalSamplingRate}"
-                                   class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <span class="text-gray-500">(0–1; e.g., 0.02 → ~2% of documents are sampled at ingest time)</span>
-                        </div>
-                    </th:block>
-                </fieldset>
-                <button type="submit"
-                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
-                    Add rule set
+            <!-- Add-rule-set lives behind a button — the form itself is a modal at the
+                 bottom of the file. The button is disabled with a hint when there are no
+                 open batches to attach a rule set to. -->
+            <div class="mb-8 flex items-center gap-3">
+                <button th:unless="${#lists.isEmpty(available)}" type="button" id="addRuleSetBtn"
+                        class="inline-flex items-center px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    Add Rule Set
                 </button>
-            </form>
+                <button th:if="${#lists.isEmpty(available)}" type="button" disabled
+                        class="inline-flex items-center px-5 py-2 bg-gray-300 text-white font-medium rounded-lg cursor-not-allowed"
+                        title="No open batches — open a batch first.">
+                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    Add Rule Set
+                </button>
+                <span th:if="${#lists.isEmpty(available)}" class="text-sm text-gray-500">
+                    There are no open batches. Open a batch and reload to add a rule set.
+                </span>
+            </div>
 
             <h3 class="text-lg font-semibold text-gray-900 mb-2">Existing rule sets</h3>
             <div th:if="${#lists.isEmpty(existing)}"
@@ -350,78 +287,24 @@
                                     <span class="font-mono text-gray-700"
                                           th:text="${#numbers.formatDecimal(row.dualApprovalSamplingRate, 1, 2)}">0.02</span>
                                 </p>
-                                <details class="mt-2 text-xs text-gray-500">
-                                    <summary class="cursor-pointer hover:text-gray-700">Edit conditions</summary>
-                                    <form th:action="@{/admin/rules/{batchId}/{ruleSetId}(batchId=${row.batchId},ruleSetId=${row.ruleSetId})}"
-                                          method="post" class="mt-2 space-y-1.5">
-                                        <th:block th:each="entry : ${ruleLabels}">
-                                            <label class="flex items-start text-sm text-gray-700">
-                                                <input type="checkbox" name="rule"
-                                                       th:value="${entry.key}"
-                                                       th:checked="${row.rules.contains(entry.key)}"
-                                                       class="mr-2 mt-0.5">
-                                                <span th:text="${entry.value}">rule label</span>
-                                            </label>
-                                            <div th:if="${entry.key == highRiskScoreRule}"
-                                                 class="ml-6 flex items-center gap-2 text-xs text-gray-600">
-                                                <label class="font-medium">Risk-score threshold</label>
-                                                <input type="number" name="riskScoreThreshold"
-                                                       step="0.01" min="0" max="1"
-                                                       th:value="${row.riskScoreThreshold}"
-                                                       class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                                <span class="text-gray-500">(0–1)</span>
-                                            </div>
-                                            <div th:if="${entry.key == rejectedHighConfidenceRule}"
-                                                 class="ml-6 flex items-center gap-2 text-xs text-gray-600">
-                                                <label class="font-medium">Confidence threshold</label>
-                                                <input type="number" name="rejectedConfidenceThreshold"
-                                                       step="0.01" min="0" max="1"
-                                                       th:value="${row.rejectedConfidenceThreshold}"
-                                                       class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                                <span class="text-gray-500">(0–1)</span>
-                                            </div>
-                                            <div th:if="${entry.key == inexperiencedReviewerRule}"
-                                                 class="ml-6 flex items-center gap-2 text-xs text-gray-600">
-                                                <label class="font-medium">Reviews threshold</label>
-                                                <input type="number" name="experiencedReviewerThreshold"
-                                                       step="1" min="0"
-                                                       th:value="${row.experiencedReviewerThreshold}"
-                                                       class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                                <span class="text-gray-500">(reviews)</span>
-                                            </div>
-                                            <div th:if="${entry.key == manualSpansThresholdRule}"
-                                                 class="ml-6 flex items-center gap-2 text-xs text-gray-600">
-                                                <label class="font-medium">Manual redactions &gt;</label>
-                                                <input type="number" name="manualSpansThreshold"
-                                                       step="1" min="0"
-                                                       th:value="${row.manualSpansThreshold}"
-                                                       class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                                <span class="text-gray-500">(count)</span>
-                                            </div>
-                                            <div th:if="${entry.key == classifiedKeywordsRule}"
-                                                 class="ml-6 flex flex-col gap-1 text-xs text-gray-600">
-                                                <label class="font-medium">Keywords (comma-separated)</label>
-                                                <input type="text" name="classifiedKeywords"
-                                                       th:value="${row.classifiedKeywords}"
-                                                       class="w-full max-w-md rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                                <span class="text-gray-500">(case-insensitive substring match)</span>
-                                            </div>
-                                            <div th:if="${entry.key == dualApprovalSamplingRateRule}"
-                                                 class="ml-6 flex items-center gap-2 text-xs text-gray-600">
-                                                <label class="font-medium">Sampling rate</label>
-                                                <input type="number" name="dualApprovalSamplingRate"
-                                                       step="0.01" min="0" max="1"
-                                                       th:value="${row.dualApprovalSamplingRate}"
-                                                       class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                                <span class="text-gray-500">(0–1)</span>
-                                            </div>
-                                        </th:block>
-                                        <button type="submit"
-                                                class="mt-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-md">
-                                            Save changes
-                                        </button>
-                                    </form>
-                                </details>
+                                <!-- Edit launcher — opens the shared edit modal at the bottom of
+                                     the page. Every relevant property on the rule set is carried via
+                                     data-* attributes so the modal's JS can hydrate the form without
+                                     a server round-trip. -->
+                                <button type="button"
+                                        class="edit-rule-set-btn mt-2 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                                        th:attr="data-batch-id=${row.batchId},
+                                                 data-rule-set-id=${row.ruleSetId},
+                                                 data-batch-name=${row.batchName},
+                                                 data-rules=${#strings.listJoin(row.rules, ',')},
+                                                 data-risk-score-threshold=${row.riskScoreThreshold},
+                                                 data-rejected-confidence-threshold=${row.rejectedConfidenceThreshold},
+                                                 data-experienced-reviewer-threshold=${row.experiencedReviewerThreshold},
+                                                 data-manual-spans-threshold=${row.manualSpansThreshold},
+                                                 data-classified-keywords=${row.classifiedKeywords},
+                                                 data-dual-approval-sampling-rate=${row.dualApprovalSamplingRate}">
+                                    Edit conditions
+                                </button>
                             </td>
                             <td class="px-6 py-4">
                                 <form th:action="@{/admin/rules/{batchId}/{ruleSetId}/delete(batchId=${row.batchId},ruleSetId=${row.ruleSetId})}"
@@ -439,5 +322,293 @@
         <div th:replace="~{fragments/footer :: footer}"></div>
     </div>
 </div>
+
+<!-- Add-rule-set modal. Holds the form that previously lived inline near the top of
+     the page. Field IDs are unchanged so any future JS keying off them stays valid;
+     the form posts to /admin/rules exactly as before. Rendered only when there's at
+     least one open batch to attach a rule set to. -->
+<div th:unless="${#lists.isEmpty(available)}"
+     id="addRuleSetModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900">Add a rule set</h3>
+                <p class="text-xs text-gray-500 mt-0.5">
+                    Attach an additional dual-approval rule set to a batch. Rules within a set are AND-ed;
+                    multiple sets on the same batch are OR-ed.
+                </p>
+            </div>
+            <button type="button" id="addRuleSetCloseX"
+                    class="text-gray-400 hover:text-gray-600 text-xl leading-none px-2"
+                    aria-label="Close">&times;</button>
+        </div>
+        <form th:action="@{/admin/rules}" method="post" class="px-6 py-5 space-y-4">
+            <div>
+                <label for="addBatchId" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Batch</label>
+                <select id="addBatchId" name="batchId" required
+                        class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="" disabled selected>Choose a batch…</option>
+                    <option th:each="b : ${available}"
+                            th:value="${b.id}" th:text="${b.name}">batch</option>
+                </select>
+            </div>
+            <fieldset class="space-y-1.5">
+                <legend class="text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Conditions (all must hold)</legend>
+                <th:block th:each="entry : ${ruleLabels}">
+                    <label class="flex items-start text-sm text-gray-700">
+                        <input type="checkbox" name="rule" th:value="${entry.key}" class="mr-2 mt-0.5">
+                        <span th:text="${entry.value}">rule label</span>
+                    </label>
+                    <div th:if="${entry.key == highRiskScoreRule}"
+                         class="ml-6 flex items-center gap-2 text-xs text-gray-600">
+                        <label for="addRiskScoreThreshold" class="font-medium">Threshold</label>
+                        <input id="addRiskScoreThreshold" type="number" name="riskScoreThreshold"
+                               step="0.01" min="0" max="1"
+                               th:value="${defaultRiskScoreThreshold}"
+                               class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <span class="text-gray-500">(0–1; rule fires when risk score is strictly greater)</span>
+                    </div>
+                    <div th:if="${entry.key == rejectedHighConfidenceRule}"
+                         class="ml-6 flex items-center gap-2 text-xs text-gray-600">
+                        <label for="addRejectedConfidenceThreshold" class="font-medium">Confidence threshold</label>
+                        <input id="addRejectedConfidenceThreshold" type="number" name="rejectedConfidenceThreshold"
+                               step="0.01" min="0" max="1"
+                               th:value="${defaultRejectedConfidenceThreshold}"
+                               class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <span class="text-gray-500">(0–1; rule fires when a rejected span's confidence exceeds this)</span>
+                    </div>
+                    <div th:if="${entry.key == inexperiencedReviewerRule}"
+                         class="ml-6 flex items-center gap-2 text-xs text-gray-600">
+                        <label for="addExperiencedReviewerThreshold" class="font-medium">Reviews threshold</label>
+                        <input id="addExperiencedReviewerThreshold" type="number" name="experiencedReviewerThreshold"
+                               step="1" min="0"
+                               th:value="${defaultExperiencedReviewerThreshold}"
+                               class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <span class="text-gray-500">(rule fires when reviewer has performed fewer reviews than this)</span>
+                    </div>
+                    <div th:if="${entry.key == manualSpansThresholdRule}"
+                         class="ml-6 flex items-center gap-2 text-xs text-gray-600">
+                        <label for="addManualSpansThreshold" class="font-medium">Manual redactions &gt;</label>
+                        <input id="addManualSpansThreshold" type="number" name="manualSpansThreshold"
+                               step="1" min="0"
+                               th:value="${defaultManualSpansThreshold}"
+                               class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <span class="text-gray-500">(rule fires when more manually-created spans than this exist)</span>
+                    </div>
+                    <div th:if="${entry.key == classifiedKeywordsRule}"
+                         class="ml-6 flex flex-col gap-1 text-xs text-gray-600">
+                        <label for="addClassifiedKeywords" class="font-medium">Keywords (comma-separated)</label>
+                        <input id="addClassifiedKeywords" type="text" name="classifiedKeywords"
+                               th:value="${defaultClassifiedKeywords}"
+                               placeholder="Classified, Proprietary, Secret"
+                               class="w-full max-w-md rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <span class="text-gray-500">(case-insensitive substring match against the document text)</span>
+                    </div>
+                    <div th:if="${entry.key == dualApprovalSamplingRateRule}"
+                         class="ml-6 flex items-center gap-2 text-xs text-gray-600">
+                        <label for="addDualApprovalSamplingRate" class="font-medium">Sampling rate</label>
+                        <input id="addDualApprovalSamplingRate" type="number" name="dualApprovalSamplingRate"
+                               step="0.01" min="0" max="1"
+                               th:value="${defaultDualApprovalSamplingRate}"
+                               class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <span class="text-gray-500">(0–1; e.g., 0.02 → ~2% of documents are sampled at ingest time)</span>
+                    </div>
+                </th:block>
+            </fieldset>
+            <div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+                <button type="button" id="addRuleSetCancelBtn"
+                        class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                    Add rule set
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+    // Open/close wiring for the Add Rule Set modal. Trigger and modal are both rendered
+    // only when there's at least one open batch, so the script may not find them on a
+    // page where every batch is closed; guard against missing elements.
+    (function () {
+        const trigger = document.getElementById('addRuleSetBtn');
+        const modal = document.getElementById('addRuleSetModal');
+        if (!trigger || !modal) return;
+        const cancelBtn = document.getElementById('addRuleSetCancelBtn');
+        const closeX = document.getElementById('addRuleSetCloseX');
+        const batchSel = document.getElementById('addBatchId');
+
+        function openModal() {
+            modal.classList.remove('hidden');
+            if (batchSel) batchSel.focus();
+        }
+        function closeModal() { modal.classList.add('hidden'); }
+
+        trigger.addEventListener('click', openModal);
+        if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+        if (closeX) closeX.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+        });
+    })();
+</script>
+
+<!-- Edit-rule-set modal. Single shared dialog driven by per-row Edit buttons that
+     carry every relevant property as data-* attributes. The form's action is
+     rewritten in JS at open time to /admin/rules/{batchId}/{ruleSetId}, the
+     checkboxes are ticked from the comma-separated rule list, and each conditional
+     threshold input is hydrated from its data-* counterpart. -->
+<div id="editRuleSetModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+            <div>
+                <h3 class="text-lg font-semibold text-gray-900">Edit rule set</h3>
+                <p class="text-xs text-gray-500 mt-0.5">
+                    Batch: <span id="editRuleSetBatchName" class="font-medium">batch</span>
+                </p>
+            </div>
+            <button type="button" id="editRuleSetCloseX"
+                    class="text-gray-400 hover:text-gray-600 text-xl leading-none px-2"
+                    aria-label="Close">&times;</button>
+        </div>
+        <form id="editRuleSetForm" method="post" class="px-6 py-5 space-y-4">
+            <fieldset class="space-y-1.5">
+                <legend class="text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Conditions (all must hold)</legend>
+                <th:block th:each="entry : ${ruleLabels}">
+                    <label class="flex items-start text-sm text-gray-700">
+                        <input type="checkbox" name="rule" th:value="${entry.key}"
+                               th:attr="data-rule-key=${entry.key}"
+                               class="edit-rule-checkbox mr-2 mt-0.5">
+                        <span th:text="${entry.value}">rule label</span>
+                    </label>
+                    <div th:if="${entry.key == highRiskScoreRule}"
+                         class="ml-6 flex items-center gap-2 text-xs text-gray-600">
+                        <label class="font-medium">Risk-score threshold</label>
+                        <input id="editRiskScoreThreshold" type="number" name="riskScoreThreshold"
+                               step="0.01" min="0" max="1"
+                               class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <span class="text-gray-500">(0–1)</span>
+                    </div>
+                    <div th:if="${entry.key == rejectedHighConfidenceRule}"
+                         class="ml-6 flex items-center gap-2 text-xs text-gray-600">
+                        <label class="font-medium">Confidence threshold</label>
+                        <input id="editRejectedConfidenceThreshold" type="number" name="rejectedConfidenceThreshold"
+                               step="0.01" min="0" max="1"
+                               class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <span class="text-gray-500">(0–1)</span>
+                    </div>
+                    <div th:if="${entry.key == inexperiencedReviewerRule}"
+                         class="ml-6 flex items-center gap-2 text-xs text-gray-600">
+                        <label class="font-medium">Reviews threshold</label>
+                        <input id="editExperiencedReviewerThreshold" type="number" name="experiencedReviewerThreshold"
+                               step="1" min="0"
+                               class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <span class="text-gray-500">(reviews)</span>
+                    </div>
+                    <div th:if="${entry.key == manualSpansThresholdRule}"
+                         class="ml-6 flex items-center gap-2 text-xs text-gray-600">
+                        <label class="font-medium">Manual redactions &gt;</label>
+                        <input id="editManualSpansThreshold" type="number" name="manualSpansThreshold"
+                               step="1" min="0"
+                               class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <span class="text-gray-500">(count)</span>
+                    </div>
+                    <div th:if="${entry.key == classifiedKeywordsRule}"
+                         class="ml-6 flex flex-col gap-1 text-xs text-gray-600">
+                        <label class="font-medium">Keywords (comma-separated)</label>
+                        <input id="editClassifiedKeywords" type="text" name="classifiedKeywords"
+                               class="w-full max-w-md rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <span class="text-gray-500">(case-insensitive substring match)</span>
+                    </div>
+                    <div th:if="${entry.key == dualApprovalSamplingRateRule}"
+                         class="ml-6 flex items-center gap-2 text-xs text-gray-600">
+                        <label class="font-medium">Sampling rate</label>
+                        <input id="editDualApprovalSamplingRate" type="number" name="dualApprovalSamplingRate"
+                               step="0.01" min="0" max="1"
+                               class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <span class="text-gray-500">(0–1)</span>
+                    </div>
+                </th:block>
+            </fieldset>
+            <div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+                <button type="button" id="editRuleSetCancelBtn"
+                        class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                    Save changes
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    // Wire each per-row Edit Conditions button to the shared edit modal. The button's
+    // data-* attributes carry every property on the rule set so the modal can hydrate
+    // without a server round-trip. The form's action is rewritten at open time to the
+    // correct /admin/rules/{batchId}/{ruleSetId} endpoint.
+    (function () {
+        const modal = document.getElementById('editRuleSetModal');
+        const form = document.getElementById('editRuleSetForm');
+        const nameSpan = document.getElementById('editRuleSetBatchName');
+        const cancelBtn = document.getElementById('editRuleSetCancelBtn');
+        const closeX = document.getElementById('editRuleSetCloseX');
+        const baseUrl = /*[[@{/admin/rules}]]*/ '/admin/rules';
+        if (!modal || !form) return;
+
+        const checkboxes = modal.querySelectorAll('.edit-rule-checkbox');
+        const riskScoreInput = document.getElementById('editRiskScoreThreshold');
+        const rejectedConfInput = document.getElementById('editRejectedConfidenceThreshold');
+        const reviewerInput = document.getElementById('editExperiencedReviewerThreshold');
+        const manualSpansInput = document.getElementById('editManualSpansThreshold');
+        const keywordsInput = document.getElementById('editClassifiedKeywords');
+        const samplingRateInput = document.getElementById('editDualApprovalSamplingRate');
+
+        function openModal(btn) {
+            const d = btn.dataset;
+            form.action = baseUrl + '/' + encodeURIComponent(d.batchId) + '/' + encodeURIComponent(d.ruleSetId);
+            nameSpan.textContent = d.batchName || '';
+            // Tick the checkboxes that match the comma-separated rules list.
+            const selected = new Set((d.rules || '').split(',').map(s => s.trim()).filter(Boolean));
+            checkboxes.forEach(cb => { cb.checked = selected.has(cb.dataset.ruleKey); });
+            // Hydrate every threshold input. A missing or "null" data attr falls back to
+            // a sensible default rather than literally writing "null" into the input.
+            if (riskScoreInput) riskScoreInput.value = numericOr(d.riskScoreThreshold, '0.9');
+            if (rejectedConfInput) rejectedConfInput.value = numericOr(d.rejectedConfidenceThreshold, '0.95');
+            if (reviewerInput) reviewerInput.value = numericOr(d.experiencedReviewerThreshold, '100');
+            if (manualSpansInput) manualSpansInput.value = numericOr(d.manualSpansThreshold, '0');
+            if (keywordsInput) keywordsInput.value = (d.classifiedKeywords && d.classifiedKeywords !== 'null')
+                    ? d.classifiedKeywords : '';
+            if (samplingRateInput) samplingRateInput.value = numericOr(d.dualApprovalSamplingRate, '0.0');
+            modal.classList.remove('hidden');
+        }
+        function closeModal() { modal.classList.add('hidden'); }
+
+        function numericOr(value, fallback) {
+            // Thymeleaf renders a null value as the literal string "null" via th:attr —
+            // treat that as missing so the input doesn't display "null" on first open.
+            if (value == null || value === '' || value === 'null') return fallback;
+            return value;
+        }
+
+        document.querySelectorAll('.edit-rule-set-btn').forEach(btn => {
+            btn.addEventListener('click', () => openModal(btn));
+        });
+        if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+        if (closeX) closeX.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+        });
+    })();
+    /*]]>*/
+</script>
 </body>
 </html>

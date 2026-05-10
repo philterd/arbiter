@@ -52,6 +52,29 @@ sample)" by adding three rule sets to the batch.
 Each document gets one stable random roll for the sampling-rate rule when it
 is first persisted, so the audit-sample decision is consistent across reviews.
 
+## Adding and editing rule sets
+
+Both creating and editing rule sets happen through dialogs on
+**Admin → Approval Rules** so the page itself stays a clean overview of
+what's configured.
+
+- **Add a rule set.** Click **Add Rule Set** at the top of the page. A
+  dialog opens with the same fields as before — pick the batch, tick the
+  rule conditions you want (all conditions tick within a rule set are
+  AND-ed), fill in any threshold values, and click **Add rule set**. If
+  there are no open batches the button is disabled and a hint explains
+  that you need to open a batch first.
+- **Edit an existing rule set.** Click **Edit conditions** on the rule
+  set's row in the **Existing rule sets** table. The same dialog opens,
+  pre-populated with the rule set's current state. Adjust the conditions
+  and thresholds, then click **Save changes** to commit. **Cancel**, the
+  **×**, the backdrop, or **Escape** dismisses the dialog without saving.
+
+These dialogs replace the inline forms that previously expanded inside the
+table — the underlying `/admin/rules` and
+`/admin/rules/{batchId}/{ruleSetId}` POST endpoints are unchanged, so any
+external automation that drives them keeps working without modification.
+
 ## Example configurations
 
 ### 1. Audit sample of every batch

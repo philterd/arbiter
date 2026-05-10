@@ -71,8 +71,9 @@ to Embedded Philter.
 ### Default-instance pre-selection
 
 The "Default Philter instance" setting on **Admin → Philter** controls which
-option is pre-selected in the **Create batch** dropdown. It does not force
-all batches to use that instance — each batch makes its own choice.
+option is pre-selected in the **Create Batch** dialog's Philter dropdown. It
+does not force all batches to use that instance — each batch makes its own
+choice.
 
 ## 2. Create PII redaction policies
 
@@ -129,7 +130,7 @@ to exactly one batch. A batch carries:
 Only administrators can create, modify, or close a batch. To create one:
 
 1. Sign in as an administrator and open **Batches**.
-2. Fill out **Create batch**:
+2. Click **Create Batch** to open the create dialog and fill it out:
     - **Name** and **Group** are required.
     - **Philter** defaults to Embedded Philter (or to the system default if
       one is configured).
@@ -140,7 +141,7 @@ Only administrators can create, modify, or close a batch. To create one:
       more autonomy; higher values send more spans to the reviewer.
     - **Document Threshold** (default `0.25`) — documents whose risk score
       is at or below this value are auto-approved without human review.
-3. Click **Create**.
+3. Click **Create** in the dialog footer.
 
 After creation, anyone with access to the batch can adjust the group,
 thresholds, and weights. The Philter instance and policy can be changed

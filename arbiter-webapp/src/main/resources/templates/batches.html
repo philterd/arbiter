@@ -191,155 +191,30 @@
             <div th:if="${success}" class="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700"
                  th:text="${success}">Success</div>
 
-            <div th:if="${isAdmin}" class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-6 max-w-3xl">
-                <h3 class="text-lg font-semibold text-gray-900 mb-1">Create batch</h3>
-                <p class="text-xs text-gray-500 mb-3">
-                    PII threshold: spans with confidence ≥ threshold are auto-accepted.
-                    Document threshold: documents with risk score ≤ threshold are marked Auto-Approved.
-                </p>
-                <p th:if="${#lists.isEmpty(groups)}" class="mb-3 p-3 rounded-lg bg-yellow-50 border border-yellow-200 text-sm text-yellow-900">
-                    No user groups exist yet. An administrator must create a group before batches can be created.
-                </p>
-                <form th:action="@{/batches}" method="post"
-                      th:if="${!#lists.isEmpty(groups)}"
-                      class="space-y-4">
-                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                        <div>
-                            <label for="newBatchName" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Name</label>
-                            <input id="newBatchName" type="text" name="name" required placeholder="Batch name"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label for="newBatchGroup" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Group</label>
-                            <select id="newBatchGroup" name="groupId" required
-                                    class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="" disabled selected>Select group…</option>
-                                <option th:each="g : ${groups}" th:value="${g.id}" th:text="${g.name}">Group</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="newBatchDomain" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Domain</label>
-                            <select id="newBatchDomain" name="domain" required
-                                    class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="" disabled selected>Select domain…</option>
-                                <option th:each="d : ${domains}" th:value="${d}" th:text="${d}">Domain</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="newBatchPhilter" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Philter</label>
-                            <select id="newBatchPhilter" name="philterInstanceId"
-                                    class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="" th:selected="${defaultPhilterInstanceId == null}">Embedded Philter</option>
-                                <option th:each="p : ${philterInstances}"
-                                        th:value="${p.id}"
-                                        th:text="${p.name}"
-                                        th:selected="${defaultPhilterInstanceId != null and p.id == defaultPhilterInstanceId}">Philter</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label for="newBatchPolicy" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Policy</label>
-                            <select id="newBatchPolicy" name="policyName"
-                                    class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400">
-                                <option value="">— none —</option>
-                            </select>
-                            <p id="newBatchPolicyStatus" class="text-xs text-gray-500 mt-1"></p>
-                        </div>
-                        <div>
-                            <label for="newBatchFinalization" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Batch Finalization Policy</label>
-                            <select id="newBatchFinalization" name="finalizationPolicyId" required
-                                    class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="" disabled selected>Select policy…</option>
-                                <option th:each="fp : ${finalizationPolicies}"
-                                        th:value="${fp.id}" th:text="${fp.name}">policy</option>
-                            </select>
-                            <p th:if="${#lists.isEmpty(finalizationPolicies)}"
-                               class="text-xs text-amber-700 mt-1">
-                                No finalization policies exist —
-                                <a th:href="@{/policies(tab='finalization')}" class="underline">create one</a> before adding a batch.
-                            </p>
-                        </div>
-                        <div>
-                            <label for="newBatchComplianceProfile" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Compliance Profile</label>
-                            <select id="newBatchComplianceProfile" name="complianceProfileId" required
-                                    class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                <option value="" disabled selected>Select profile…</option>
-                                <option th:each="cp : ${complianceProfiles}"
-                                        th:value="${cp.id}" th:text="${cp.name}">profile</option>
-                            </select>
-                            <p th:if="${#lists.isEmpty(complianceProfiles)}"
-                               class="text-xs text-amber-700 mt-1">
-                                No compliance profiles exist —
-                                <a th:href="@{/admin/compliance-profiles}" class="underline">create one</a> before adding a batch.
-                            </p>
-                            <p th:unless="${#lists.isEmpty(complianceProfiles)}"
-                               class="text-xs text-gray-500 mt-1">
-                                Cannot be changed after the batch is created.
-                            </p>
-                        </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Exemption Code</label>
-                            <label class="inline-flex items-start gap-2 text-sm text-gray-700">
-                                <input type="checkbox" name="exemptionCodeRequired" value="true"
-                                       class="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                       checked>
-                                <span>Require an exemption code when accepting a redaction.</span>
-                            </label>
-                            <p class="text-xs text-gray-500 mt-1">
-                                When unchecked, reviewers approve redactions without picking a code
-                                even if the compliance profile defines them.
-                            </p>
-                        </div>
-                        <div class="sm:col-span-2 lg:col-span-2">
-                            <label class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Blind Double Review</label>
-                            <label class="inline-flex items-start gap-2 text-sm text-gray-700">
-                                <input id="newBatchBlindDoubleReview" type="checkbox" name="blindDoubleReviewEnabled" value="true"
-                                       class="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                       onchange="document.getElementById('newBatchBlindDoubleReviewPct').disabled = !this.checked;">
-                                <span>Randomly select a percentage of documents for an independent second review.</span>
-                            </label>
-                            <div class="mt-2 flex items-center gap-2">
-                                <label for="newBatchBlindDoubleReviewPct" class="text-xs text-gray-600">Percentage of documents:</label>
-                                <input id="newBatchBlindDoubleReviewPct" type="number" name="blindDoubleReviewPercentage"
-                                       min="1" max="100" step="1" value="10" disabled
-                                       class="w-20 rounded-lg border border-gray-300 p-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400">
-                                <span class="text-xs text-gray-500">%</span>
-                            </div>
-                            <p class="text-xs text-gray-500 mt-1">
-                                Default 10%. Cannot be changed after the batch is created.
-                            </p>
-                        </div>
-                        <div>
-                            <label for="newBatchPiiThreshold" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">PII Threshold</label>
-                            <input id="newBatchPiiThreshold" type="number" name="confidenceThreshold" step="0.01" min="0" max="1" value="0.8"
-                                   title="PII threshold (0.0–1.0)"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div class="sm:col-span-2 lg:col-span-2">
-                            <label for="newBatchContext" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Context</label>
-                            <input id="newBatchContext" type="text" name="context" value=""
-                                   placeholder="Optional - used for referential integrity"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label for="newBatchDocumentThreshold" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Document Threshold</label>
-                            <input id="newBatchDocumentThreshold" type="number" name="documentThreshold" step="0.01" min="0" max="1" value="0.25"
-                                   title="Document threshold (0.0–1.0)"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                    </div>
-                    <div>
-                        <label for="newBatchDescription" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Description <span class="font-normal normal-case text-gray-400">(optional — instructions for reviewers or other notes)</span></label>
-                        <textarea id="newBatchDescription" name="description" rows="3"
-                                  placeholder="e.g. Review all highlighted names carefully. When in doubt, redact."
-                                  class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-                    </div>
-                    <div class="flex justify-end">
-                        <button type="submit"
-                                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
-                            Create
-                        </button>
-                    </div>
-                </form>
+            <!-- Create batch is admin-only and now lives behind a button — the actual form
+                 is rendered as a modal at the bottom of the page so the page itself stays
+                 free of the long form when reviewers (and admins not currently creating a
+                 batch) are just looking at the list. The button is disabled with a hint when
+                 there are no groups to create against. -->
+            <div th:if="${isAdmin}" class="mb-6 flex items-center gap-3">
+                <button th:if="${!#lists.isEmpty(groups)}" type="button" id="createBatchBtn"
+                        class="inline-flex items-center px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    Create Batch
+                </button>
+                <button th:if="${#lists.isEmpty(groups)}" type="button" disabled
+                        class="inline-flex items-center px-5 py-2 bg-gray-300 text-white font-medium rounded-lg cursor-not-allowed"
+                        title="An administrator must create a user group before batches can be created.">
+                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    Create Batch
+                </button>
+                <span th:if="${#lists.isEmpty(groups)}" class="text-sm text-amber-700">
+                    No user groups exist yet — an administrator must create one before batches can be created.
+                </span>
             </div>
 
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -625,6 +500,172 @@
                 </button>
             </div>
         </form>
+    </div>
+
+    <!-- Create-batch modal. Holds the form that previously lived inline on the page so
+         the page stays uncluttered for everyone who isn't actively creating a batch. The
+         policy-loading JS at the bottom of the file targets the same #newBatch* IDs used
+         here as before, so it continues to work without modification — the form's just
+         in a different visible container now. Admin-only: the modal is rendered only
+         when the caller is admin and at least one group exists. -->
+    <div th:if="${isAdmin and !#lists.isEmpty(groups)}"
+         id="createBatchModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div class="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Create batch</h3>
+                    <p class="text-xs text-gray-500 mt-0.5">
+                        PII threshold: spans with confidence ≥ threshold are auto-accepted.
+                        Document threshold: documents with risk score ≤ threshold are marked Auto-Approved.
+                    </p>
+                </div>
+                <button type="button" id="createBatchCloseX"
+                        class="text-gray-400 hover:text-gray-600 text-xl leading-none px-2"
+                        aria-label="Close">&times;</button>
+            </div>
+            <form th:action="@{/batches}" method="post" class="px-6 py-5 space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div>
+                        <label for="newBatchName" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Name</label>
+                        <input id="newBatchName" type="text" name="name" required placeholder="Batch name"
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="newBatchGroup" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Group</label>
+                        <select id="newBatchGroup" name="groupId" required
+                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="" disabled selected>Select group…</option>
+                            <option th:each="g : ${groups}" th:value="${g.id}" th:text="${g.name}">Group</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="newBatchDomain" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Domain</label>
+                        <select id="newBatchDomain" name="domain" required
+                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="" disabled selected>Select domain…</option>
+                            <option th:each="d : ${domains}" th:value="${d}" th:text="${d}">Domain</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="newBatchPhilter" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Philter</label>
+                        <select id="newBatchPhilter" name="philterInstanceId"
+                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="" th:selected="${defaultPhilterInstanceId == null}">Embedded Philter</option>
+                            <option th:each="p : ${philterInstances}"
+                                    th:value="${p.id}"
+                                    th:text="${p.name}"
+                                    th:selected="${defaultPhilterInstanceId != null and p.id == defaultPhilterInstanceId}">Philter</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="newBatchPolicy" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Policy</label>
+                        <select id="newBatchPolicy" name="policyName"
+                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400">
+                            <option value="">— none —</option>
+                        </select>
+                        <p id="newBatchPolicyStatus" class="text-xs text-gray-500 mt-1"></p>
+                    </div>
+                    <div>
+                        <label for="newBatchFinalization" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Batch Finalization Policy</label>
+                        <select id="newBatchFinalization" name="finalizationPolicyId" required
+                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="" disabled selected>Select policy…</option>
+                            <option th:each="fp : ${finalizationPolicies}"
+                                    th:value="${fp.id}" th:text="${fp.name}">policy</option>
+                        </select>
+                        <p th:if="${#lists.isEmpty(finalizationPolicies)}"
+                           class="text-xs text-amber-700 mt-1">
+                            No finalization policies exist —
+                            <a th:href="@{/policies(tab='finalization')}" class="underline">create one</a> before adding a batch.
+                        </p>
+                    </div>
+                    <div>
+                        <label for="newBatchComplianceProfile" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Compliance Profile</label>
+                        <select id="newBatchComplianceProfile" name="complianceProfileId" required
+                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="" disabled selected>Select profile…</option>
+                            <option th:each="cp : ${complianceProfiles}"
+                                    th:value="${cp.id}" th:text="${cp.name}">profile</option>
+                        </select>
+                        <p th:if="${#lists.isEmpty(complianceProfiles)}"
+                           class="text-xs text-amber-700 mt-1">
+                            No compliance profiles exist —
+                            <a th:href="@{/admin/compliance-profiles}" class="underline">create one</a> before adding a batch.
+                        </p>
+                        <p th:unless="${#lists.isEmpty(complianceProfiles)}"
+                           class="text-xs text-gray-500 mt-1">
+                            Cannot be changed after the batch is created.
+                        </p>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Exemption Code</label>
+                        <label class="inline-flex items-start gap-2 text-sm text-gray-700">
+                            <input type="checkbox" name="exemptionCodeRequired" value="true"
+                                   class="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                   checked>
+                            <span>Require an exemption code when accepting a redaction.</span>
+                        </label>
+                        <p class="text-xs text-gray-500 mt-1">
+                            When unchecked, reviewers approve redactions without picking a code
+                            even if the compliance profile defines them.
+                        </p>
+                    </div>
+                    <div class="sm:col-span-2 lg:col-span-2">
+                        <label class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Blind Double Review</label>
+                        <label class="inline-flex items-start gap-2 text-sm text-gray-700">
+                            <input id="newBatchBlindDoubleReview" type="checkbox" name="blindDoubleReviewEnabled" value="true"
+                                   class="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                   onchange="document.getElementById('newBatchBlindDoubleReviewPct').disabled = !this.checked;">
+                            <span>Randomly select a percentage of documents for an independent second review.</span>
+                        </label>
+                        <div class="mt-2 flex items-center gap-2">
+                            <label for="newBatchBlindDoubleReviewPct" class="text-xs text-gray-600">Percentage of documents:</label>
+                            <input id="newBatchBlindDoubleReviewPct" type="number" name="blindDoubleReviewPercentage"
+                                   min="1" max="100" step="1" value="10" disabled
+                                   class="w-20 rounded-lg border border-gray-300 p-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400">
+                            <span class="text-xs text-gray-500">%</span>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-1">
+                            Default 10%. Cannot be changed after the batch is created.
+                        </p>
+                    </div>
+                    <div>
+                        <label for="newBatchPiiThreshold" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">PII Threshold</label>
+                        <input id="newBatchPiiThreshold" type="number" name="confidenceThreshold" step="0.01" min="0" max="1" value="0.8"
+                               title="PII threshold (0.0–1.0)"
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="sm:col-span-2 lg:col-span-2">
+                        <label for="newBatchContext" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Context</label>
+                        <input id="newBatchContext" type="text" name="context" value=""
+                               placeholder="Optional - used for referential integrity"
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="newBatchDocumentThreshold" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Document Threshold</label>
+                        <input id="newBatchDocumentThreshold" type="number" name="documentThreshold" step="0.01" min="0" max="1" value="0.25"
+                               title="Document threshold (0.0–1.0)"
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                <div>
+                    <label for="newBatchDescription" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Description <span class="font-normal normal-case text-gray-400">(optional — instructions for reviewers or other notes)</span></label>
+                    <textarea id="newBatchDescription" name="description" rows="3"
+                              placeholder="e.g. Review all highlighted names carefully. When in doubt, redact."
+                              class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+                <div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
+                    <button type="button" id="createBatchCancelBtn"
+                            class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
+                        Cancel
+                    </button>
+                    <button type="submit"
+                            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                        Create
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <div id="thresholdsModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
@@ -934,6 +975,35 @@
             });
 
             cancelBtn.addEventListener('click', closeModal);
+            modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+            });
+        })();
+    </script>
+
+    <script>
+        // Create-batch modal: opens on the Create Batch button, closes on Cancel /
+        // backdrop / Escape / X. The trigger and modal are both rendered admin-only,
+        // so the script may not find them (e.g. on a non-admin page render); guard
+        // against missing elements so the rest of the page stays functional.
+        (function () {
+            const trigger = document.getElementById('createBatchBtn');
+            const modal = document.getElementById('createBatchModal');
+            if (!trigger || !modal) return;
+            const cancelBtn = document.getElementById('createBatchCancelBtn');
+            const closeX = document.getElementById('createBatchCloseX');
+            const nameField = document.getElementById('newBatchName');
+
+            function openModal() {
+                modal.classList.remove('hidden');
+                if (nameField) nameField.focus();
+            }
+            function closeModal() { modal.classList.add('hidden'); }
+
+            trigger.addEventListener('click', openModal);
+            if (cancelBtn) cancelBtn.addEventListener('click', closeModal);
+            if (closeX) closeX.addEventListener('click', closeModal);
             modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();

@@ -9,7 +9,8 @@ document in the batch.
 
 ## Create a batch (admin only)
 
-A card at the top of the page lets administrators create a batch. Fill in:
+Click the **Create Batch** button at the top of the page to open the batch
+creation dialog. Fill in:
 
 | Field                | Default | Notes                                                                                      |
 | -------------------- | ------- | ------------------------------------------------------------------------------------------ |
@@ -26,7 +27,12 @@ A card at the top of the page lets administrators create a batch. Fill in:
 | Document Threshold   | `0.25`  | Risk-score ceiling for auto-approving whole documents                                      |
 | Audit Sampling Rate  | `0.10`  | Fraction of would-be auto-approved documents pulled into review                            |
 
-Non-admins do not see the create card. The endpoint refuses non-admin POSTs.
+Click **Create** in the dialog footer to save, or **Cancel** (or press
+**Escape**) to dismiss without saving. The dialog is admin-only — non-admins
+do not see the **Create Batch** button, and the underlying endpoint refuses
+non-admin POSTs as a defense in depth. When no user groups exist yet, the
+button is rendered disabled with a message reminding the operator to create
+a group first.
 
 ## Per-row actions
 

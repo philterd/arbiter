@@ -197,7 +197,9 @@ public class AdminWeightSetController {
                 Map.of("name", trimmedName, "weightCount", updated.size()));
         redirectAttributes.addFlashAttribute("success",
                 "Weight set \"" + trimmedName + "\" saved.");
-        return "redirect:/admin/weights/" + id;
+        // After a successful save, return to the listing — the user is done editing
+        // and the list view shows the persisted change in context with everything else.
+        return "redirect:/admin/weights";
     }
 
     @PostMapping("/{id}/delete")
