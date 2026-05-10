@@ -27,16 +27,16 @@ public class GeneralSettingsService {
 
     private static final Logger log = LoggerFactory.getLogger(GeneralSettingsService.class);
 
+    /** Default index name used when the persisted value is unset (legacy rows). */
+    public static final String DEFAULT_OPENSEARCH_INDEX = "arbiter-documents";
+
     private final GeneralSettingsRepository repository;
     private final int serverPort;
-    private final String opensearchEndpointDefault;
 
     public GeneralSettingsService(final GeneralSettingsRepository repository,
-                                  @Value("${server.port:8080}") final int serverPort,
-                                  @Value("${arbiter.opensearch.endpoint:}") final String opensearchEndpointDefault) {
+                                  @Value("${server.port:8080}") final int serverPort) {
         this.repository = repository;
         this.serverPort = serverPort;
-        this.opensearchEndpointDefault = opensearchEndpointDefault == null ? "" : opensearchEndpointDefault.trim();
     }
 
     public GeneralSettings load() {
@@ -51,8 +51,13 @@ public class GeneralSettingsService {
             settings.setTimezone("UTC");
         }
         if (settings.getOpensearchEndpoint() == null || settings.getOpensearchEndpoint().isBlank()) {
-            settings.setOpensearchEndpoint(opensearchEndpointDefault.isEmpty()
-                    ? "http://localhost:9200" : opensearchEndpointDefault);
+            // The endpoint is configured under Admin → Settings → Full text search.
+            // Apply a sensible default at read time so a brand-new install has something
+            // to populate the form field with on first visit.
+            settings.setOpensearchEndpoint("http://localhost:9200");
+        }
+        if (settings.getOpensearchIndexName() == null || settings.getOpensearchIndexName().isBlank()) {
+            settings.setOpensearchIndexName(DEFAULT_OPENSEARCH_INDEX);
         }
         if (settings.getMaxUploadFileSizeBytes() <= 0) {
             settings.setMaxUploadFileSizeBytes(DEFAULT_MAX_UPLOAD_FILE_SIZE_BYTES);

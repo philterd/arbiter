@@ -106,6 +106,9 @@ class ReviewViewControllerTest {
         redactionCertificateService = mock(RedactionCertificateService.class);
         finalizationPolicyRepository = mock(FinalizationPolicyRepository.class);
 
+        final ai.philterd.arbiter.service.GeneralSettingsService generalSettingsService =
+                mock(ai.philterd.arbiter.service.GeneralSettingsService.class);
+        when(generalSettingsService.load()).thenReturn(new ai.philterd.arbiter.model.GeneralSettings());
         controller = new ReviewViewController(documentRepository, spanRepository, batchRepository,
                 complianceProfileRepository, userGroupsService,
                 new ai.philterd.arbiter.service.DocumentAccessService(batchRepository, documentRepository,
@@ -113,7 +116,7 @@ class ReviewViewControllerTest {
                 auditLogService,
                 ollamaInstanceRepository, llmJudgeDefaultsService, userSettingsService,
                 userRepository, approvalRuleEvaluator, openSearchIndexService, documentLockService,
-                redactionCertificateService, finalizationPolicyRepository);
+                redactionCertificateService, finalizationPolicyRepository, generalSettingsService);
 
         // Certificate generation always returns a stub so the audit-log payload doesn't NPE.
         final RedactionCertificate cert = new RedactionCertificate();

@@ -22,8 +22,10 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 
@@ -49,14 +51,17 @@ public class OpenSearchIndexService {
 
     /**
      * Best-effort index of the document's full text. Failures are logged but not propagated —
-     * an unreachable OpenSearch should not block ingestion.
+     * an unreachable OpenSearch should not block ingestion. Skipped when the full-text
+     * search feature is turned off in {@code GeneralSettings}.
      */
     public void indexDocument(final Document document) {
         if (document == null || document.getId() == null) return;
+        if (!isFullTextSearchEnabled()) return;
         final String endpoint = endpoint();
         if (endpoint == null) return;
+        final String index = indexName();
 
-        final String url = endpoint + "/" + INDEX + "/_doc/"
+        final String url = endpoint + "/" + index + "/_doc/"
                 + java.net.URLEncoder.encode(document.getId(), java.nio.charset.StandardCharsets.UTF_8);
         try {
             final ObjectNode body = objectMapper.createObjectNode();
@@ -66,12 +71,13 @@ public class OpenSearchIndexService {
             body.put("status", document.getStatus() == null ? "" : document.getStatus());
             body.put("originalText", document.getOriginalText() == null ? "" : document.getOriginalText());
 
-            final HttpRequest req = HttpRequest.newBuilder()
+            final HttpRequest req = applyAuth(HttpRequest.newBuilder()
                     .uri(URI.create(url))
                     .timeout(REQUEST_TIMEOUT)
                     .header("Content-Type", "application/json")
-                    .PUT(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
+                    .PUT(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body))))
                     .build();
+            // (auth and configurable index name applied via applyAuth() and indexName())
             final HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() / 100 != 2) {
                 log.warn("OpenSearch indexing returned HTTP {} for document {} ({}): {}",
@@ -112,13 +118,14 @@ public class OpenSearchIndexService {
                                 final java.util.Collection<String> allowedBatchIds) {
         final SearchResults empty = new SearchResults(0, Math.max(0, from), Math.max(1, size), List.of());
         if (query == null || query.isBlank()) return empty;
+        if (!isFullTextSearchEnabled()) return empty;
         if (allowedBatchIds != null && allowedBatchIds.isEmpty()) return empty;
         final String endpoint = endpoint();
         if (endpoint == null) return empty;
 
         final int safeFrom = Math.max(0, from);
         final int safeSize = Math.max(1, Math.min(100, size));
-        final String url = endpoint + "/" + INDEX + "/_search";
+        final String url = endpoint + "/" + indexName() + "/_search";
         try {
             final ObjectNode body = objectMapper.createObjectNode();
             body.put("from", safeFrom);
@@ -165,11 +172,11 @@ public class OpenSearchIndexService {
             highlight.set("post_tags", objectMapper.createArrayNode().add(closeTag));
             body.set("highlight", highlight);
 
-            final HttpRequest req = HttpRequest.newBuilder()
+            final HttpRequest req = applyAuth(HttpRequest.newBuilder()
                     .uri(URI.create(url))
                     .timeout(REQUEST_TIMEOUT)
                     .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
+                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body))))
                     .build();
             final HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() == 404) {
@@ -216,11 +223,12 @@ public class OpenSearchIndexService {
     public SearchResults findSimilar(final String documentId, final String batchId, final int size) {
         final SearchResults empty = new SearchResults(0, 0, size, List.of());
         if (documentId == null || documentId.isBlank()) return empty;
+        if (!isFullTextSearchEnabled()) return empty;
         final String endpoint = endpoint();
         if (endpoint == null) return empty;
 
         final int safeSize = Math.max(1, Math.min(20, size));
-        final String url = endpoint + "/" + INDEX + "/_search";
+        final String url = endpoint + "/" + indexName() + "/_search";
         try {
             final ObjectNode mlt = objectMapper.createObjectNode();
             final ArrayNode fields = objectMapper.createArrayNode();
@@ -247,11 +255,11 @@ public class OpenSearchIndexService {
             body.put("size", safeSize);
             body.set("query", objectMapper.createObjectNode().set("bool", boolQuery));
 
-            final HttpRequest req = HttpRequest.newBuilder()
+            final HttpRequest req = applyAuth(HttpRequest.newBuilder()
                     .uri(URI.create(url))
                     .timeout(REQUEST_TIMEOUT)
                     .header("Content-Type", "application/json")
-                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body)))
+                    .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body))))
                     .build();
             final HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() == 404) return empty;
@@ -291,6 +299,59 @@ public class OpenSearchIndexService {
             log.warn("Could not load OpenSearch endpoint setting: {}", e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Resolved index name from current settings, falling back to the legacy default
+     * if the persisted value is somehow blank.
+     */
+    private String indexName() {
+        try {
+            final String name = generalSettingsService.load().getOpensearchIndexName();
+            if (name == null || name.isBlank()) return INDEX;
+            return name;
+        } catch (Exception e) {
+            return INDEX;
+        }
+    }
+
+    /**
+     * True iff the admin Settings page has full-text search enabled. Lets the runtime
+     * indexer and search paths skip OpenSearch entirely when the feature is off, so an
+     * unconfigured deployment doesn't keep emitting warning logs trying to reach a
+     * cluster that isn't there.
+     */
+    private boolean isFullTextSearchEnabled() {
+        try {
+            return generalSettingsService.load().isFullTextSearchEnabled();
+        } catch (Exception e) {
+            // Defensive: treat any settings-load failure as "feature off" so we don't
+            // flap traffic at OpenSearch with bad configuration. The audit-log entry
+            // produced when the admin saves the form is the operator signal.
+            return false;
+        }
+    }
+
+    /**
+     * Apply the optional HTTP basic-auth header to an outbound request when the admin
+     * configured a username and password on the Settings page. The password is decrypted
+     * from its at-rest form by the {@code GeneralSettings} encryption callbacks before
+     * the call to {@code load()} returns, so the value here is the cleartext credential.
+     */
+    private HttpRequest.Builder applyAuth(final HttpRequest.Builder b) {
+        try {
+            final var settings = generalSettingsService.load();
+            final String user = settings.getOpensearchUsername();
+            final String pass = settings.getOpensearchPassword();
+            if (user != null && !user.isBlank() && pass != null) {
+                final String token = Base64.getEncoder().encodeToString(
+                        (user + ":" + pass).getBytes(StandardCharsets.UTF_8));
+                b.header("Authorization", "Basic " + token);
+            }
+        } catch (Exception e) {
+            log.debug("Could not apply OpenSearch auth header: {}", e.getMessage());
+        }
+        return b;
     }
 
     private static String truncate(final String s) {

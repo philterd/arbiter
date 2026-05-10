@@ -10,7 +10,10 @@ services:
       - "8080:8080"
     environment:
       - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/arbiter
-      - ARBITER_OPENSEARCH_ENDPOINT=http://opensearch:9200
+      # The OpenSearch endpoint used for full-text search is now configured
+      # under Admin → Settings → Full text search; the compose stack still
+      # ships an OpenSearch container so the default http://opensearch:9200
+      # works the moment an admin clicks Save.
       - ARBITER_CRYPTO_SECRET=${ARBITER_CRYPTO_SECRET:?Set ARBITER_CRYPTO_SECRET in .env}
       - ARBITER_DEMO_DATA_ENABLED=false
       - SPRING_SESSION_STORE_TYPE=none

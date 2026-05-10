@@ -71,7 +71,7 @@
                 </svg>
                 Background Jobs
                 </a>
-                <a th:href="@{/search}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                <a th:if="${fullTextSearchEnabled}" th:href="@{/search}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"></path>
                     </svg>
@@ -227,21 +227,82 @@
             </div>
 
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-3xl mb-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-1">OpenSearch endpoint</h3>
+                <h3 class="text-lg font-semibold text-gray-900 mb-1">Full text search</h3>
                 <p class="text-sm text-gray-600 mb-4">
-                    Base URL of the OpenSearch cluster Arbiter connects to. Include the
-                    scheme (<code>http://</code> or <code>https://</code>) and the port.
-                    Defaults to <code>http://localhost:9200</code>.
+                    Indexes each ingested document into OpenSearch so reviewers can search
+                    documents by their text. When enabled, Arbiter writes the document text
+                    to the configured index on every ingest and serves the
+                    <a th:href="@{/search}" class="text-blue-600 underline">Search</a> page
+                    from that index. The same index also powers the
+                    <strong>Find similar documents</strong> button on the document review
+                    page, which surfaces other documents in the same batch with related
+                    text.
                 </p>
 
-                <form th:action="@{/admin/general/opensearch-endpoint}" method="post" class="space-y-4">
+                <form id="ftsForm" th:action="@{/admin/general/full-text-search}" method="post" class="space-y-4">
+                    <label class="inline-flex items-start gap-2 text-sm text-gray-700">
+                        <input id="fullTextSearchEnabled" type="checkbox" name="fullTextSearchEnabled" value="true"
+                               class="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                               th:checked="${settings.fullTextSearchEnabled}">
+                        <span>Enable full text search</span>
+                    </label>
+                    <p class="text-xs text-gray-500 -mt-2">
+                        Default: enabled. Disabling stops new ingests from writing to OpenSearch and
+                        leaves the Search page empty.
+                    </p>
+
                     <div>
                         <label for="opensearchEndpoint" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Endpoint</label>
                         <input id="opensearchEndpoint" name="opensearchEndpoint" type="url" required
-                               th:value="${settings.opensearchEndpoint}"
+                               th:value="${ftsPendingEndpoint != null ? ftsPendingEndpoint : settings.opensearchEndpoint}"
                                placeholder="http://localhost:9200"
                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <p class="text-xs text-gray-500 mt-1">
+                            Base URL of the OpenSearch cluster. Include the scheme and port.
+                        </p>
                     </div>
+
+                    <div>
+                        <label for="opensearchIndexName" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Index name</label>
+                        <input id="opensearchIndexName" name="opensearchIndexName" type="text" required
+                               th:value="${ftsPendingIndexName != null ? ftsPendingIndexName : settings.opensearchIndexName}"
+                               placeholder="arbiter-documents"
+                               pattern="[a-z0-9][a-z0-9\-_+]*"
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <p class="text-xs text-gray-500 mt-1">
+                            Lower-case letters, digits, '-', '_', '+'. Created on save if it does not exist.
+                        </p>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label for="opensearchUsername" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Username (optional)</label>
+                            <input id="opensearchUsername" name="opensearchUsername" type="text"
+                                   th:value="${ftsPendingUsername != null ? ftsPendingUsername : settings.opensearchUsername}"
+                                   autocomplete="off"
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="opensearchPassword" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Password (optional)</label>
+                            <input id="opensearchPassword" name="opensearchPassword" type="password"
+                                   autocomplete="new-password"
+                                   placeholder="(unchanged)"
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <label class="inline-flex items-start gap-2 text-xs text-gray-600 mt-2">
+                                <input type="checkbox" name="clearOpensearchPassword" value="true"
+                                       class="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                       th:checked="${ftsPendingClearPassword != null and ftsPendingClearPassword}">
+                                <span>Clear stored password</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <p class="text-xs text-gray-500">
+                        Leave the password blank to keep the existing one. The password is encrypted
+                        at rest with AES-GCM (the same scheme as data-source credentials and Philter
+                        API keys).
+                    </p>
+
                     <div class="flex justify-end">
                         <button type="submit"
                                 class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
@@ -249,6 +310,53 @@
                         </button>
                     </div>
                 </form>
+
+                <!-- Mapping mismatch dialog: rendered when the previous save attempt found
+                     an existing index with a non-canonical mapping. The operator picks
+                     between continuing with the existing mapping (settings get saved as
+                     submitted) or cancelling. The diff is a plain side-by-side text view —
+                     OpenSearch mappings are JSON, so an in-line <pre> is enough. -->
+                <div th:if="${ftsMismatch}" class="mt-6 border-2 border-amber-400 bg-amber-50 rounded-lg p-5">
+                    <h4 class="text-base font-semibold text-amber-900 mb-1">Index mapping does not match</h4>
+                    <p class="text-sm text-amber-900 mb-4" th:text="${ftsMismatchMessage}">message</p>
+                    <details class="mb-4">
+                        <summary class="cursor-pointer text-sm font-medium text-amber-900">Show mapping comparison</summary>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+                            <div>
+                                <p class="text-xs uppercase tracking-wide font-medium text-gray-600 mb-1">Existing mapping</p>
+                                <pre class="text-xs font-mono bg-white p-3 rounded border border-gray-200 overflow-x-auto" th:text="${ftsExistingMapping}"></pre>
+                            </div>
+                            <div>
+                                <p class="text-xs uppercase tracking-wide font-medium text-gray-600 mb-1">Expected mapping</p>
+                                <pre class="text-xs font-mono bg-white p-3 rounded border border-gray-200 overflow-x-auto" th:text="${ftsExpectedMapping}"></pre>
+                            </div>
+                        </div>
+                    </details>
+                    <p class="text-sm text-amber-900 mb-3">
+                        Continue with the existing index? Search may still work but documents that
+                        relied on the canonical mapping (e.g. <code>originalText</code> as a
+                        full-text field) may not surface as expected.
+                    </p>
+                    <div class="flex items-center gap-2">
+                        <form th:action="@{/admin/general/full-text-search/confirm}" method="post" class="inline">
+                            <input type="hidden" name="fullTextSearchEnabled" value="true"
+                                   th:value="${ftsPendingEnabled} ? 'true' : 'false'">
+                            <input type="hidden" name="opensearchEndpoint" th:value="${ftsPendingEndpoint}">
+                            <input type="hidden" name="opensearchIndexName" th:value="${ftsPendingIndexName}">
+                            <input type="hidden" name="opensearchUsername" th:value="${ftsPendingUsername}">
+                            <input type="hidden" name="clearOpensearchPassword"
+                                   th:value="${ftsPendingClearPassword} ? 'true' : 'false'">
+                            <button type="submit"
+                                    class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg">
+                                Continue with existing index
+                            </button>
+                        </form>
+                        <a th:href="@{/admin/general}"
+                           class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
+                            Cancel
+                        </a>
+                    </div>
+                </div>
             </div>
 
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-3xl mb-6">

@@ -17,7 +17,6 @@ full reference. The settings most operators need to set are:
 | ----------------------------------------- | ------------------------------------------------------ |
 | `spring.data.mongodb.uri`                 | Connection URI for MongoDB                             |
 | `spring.data.mongodb.database`            | Database name (default: `arbiter`)                     |
-| `arbiter.opensearch.endpoint`             | OpenSearch base URL (default `http://localhost:9200`)  |
 | `arbiter.crypto.secret`                   | **Required.** Base64-encoded 32 random bytes used as the AES-256 key for encrypting Philter API keys and data-source credentials at rest. Generate with `openssl rand -base64 32`. Arbiter refuses to start if this is unset, not valid base64, or doesn't decode to exactly 32 bytes. |
 | `arbiter.ingest-queue.poll-millis`        | Worker poll interval (default `5000`)                  |
 | `arbiter.demo-data.enabled`               | Load sample files at startup if collections are empty  |
@@ -27,6 +26,13 @@ External Philter instances are added under **Admin → Philter** at runtime;
 each instance can carry an optional API key (encrypted at rest with the
 `arbiter.crypto.secret` above and sent as `Authorization: Bearer …` on every
 outbound call).
+
+The OpenSearch cluster used to power the full-text search index is
+configured at runtime under **Admin → Settings → Full text search** —
+the section accepts the endpoint, optional basic-auth username and
+password, and the index name. There is no longer an environment
+variable for the OpenSearch endpoint; an admin must save the form once
+on first startup so the values are written to the database.
 
 ## First run
 

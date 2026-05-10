@@ -50,6 +50,14 @@ public class SymmetricCipher {
     private static final int KEY_BYTES = 32;
     private static final String TRANSFORM = "AES/GCM/NoPadding";
 
+    /**
+     * Marker prefix on PII-bearing fields that have been encrypted at rest. Stored on the
+     * value itself so the read path can transparently distinguish a ciphertext blob from
+     * a legacy plaintext value written before encryption was switched on. The {@code v1}
+     * version segment leaves room for a future re-keying or algorithm upgrade.
+     */
+    public static final String FIELD_PREFIX = "enc:v1:";
+
     private final SecretKey key;
     private final SecureRandom random = new SecureRandom();
 
@@ -94,6 +102,41 @@ public class SymmetricCipher {
         } catch (Exception e) {
             throw new IllegalStateException("Decryption failed", e);
         }
+    }
+
+    /**
+     * Encrypt a free-form PII-bearing field for at-rest storage. The output carries a
+     * {@link #FIELD_PREFIX} marker so {@link #decryptField(String)} can distinguish a
+     * value written by the encrypted path from a legacy plaintext value written before
+     * field encryption was turned on. Returns the input unchanged when it is null or
+     * empty (an empty value carries no PII to protect, and serializing it as ciphertext
+     * just makes the database harder to reason about). Idempotent for already-encrypted
+     * input — the prefix is detected and the value is returned as-is, so a stray re-save
+     * of an already-loaded entity does not double-encrypt the field.
+     */
+    public String encryptField(final String plaintext) {
+        if (plaintext == null) return null;
+        if (plaintext.isEmpty()) return plaintext;
+        if (plaintext.startsWith(FIELD_PREFIX)) {
+            // Already encrypted — defensive against an entity being saved twice without
+            // an intervening load (the AfterSaveCallback restores plaintext but a misuse
+            // pattern that bypasses the callbacks must still not corrupt the value).
+            return plaintext;
+        }
+        return FIELD_PREFIX + encrypt(plaintext);
+    }
+
+    /**
+     * Decrypt a field value previously written with {@link #encryptField(String)}. Values
+     * without the {@link #FIELD_PREFIX} marker are returned as-is so legacy plaintext rows
+     * (and the empty / null cases) keep working transparently. This is what makes the
+     * roll-out backwards compatible: existing data continues to read correctly while
+     * newly-written rows are encrypted.
+     */
+    public String decryptField(final String stored) {
+        if (stored == null) return null;
+        if (!stored.startsWith(FIELD_PREFIX)) return stored;
+        return decrypt(stored.substring(FIELD_PREFIX.length()));
     }
 
 }

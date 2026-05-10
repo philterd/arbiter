@@ -17,6 +17,7 @@ package ai.philterd.arbiter.webapp.controllers;
 
 import ai.philterd.arbiter.model.GeneralSettings;
 import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.service.FullTextSearchIndexManager;
 import ai.philterd.arbiter.service.GeneralSettingsService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -38,11 +39,14 @@ public class AdminGeneralController {
 
     private final GeneralSettingsService generalSettingsService;
     private final AuditLogService auditLogService;
+    private final FullTextSearchIndexManager indexManager;
 
     public AdminGeneralController(final GeneralSettingsService generalSettingsService,
-                                  final AuditLogService auditLogService) {
+                                  final AuditLogService auditLogService,
+                                  final FullTextSearchIndexManager indexManager) {
         this.generalSettingsService = generalSettingsService;
         this.auditLogService = auditLogService;
+        this.indexManager = indexManager;
     }
 
     @GetMapping
@@ -86,38 +90,223 @@ public class AdminGeneralController {
         return "redirect:/admin/general";
     }
 
-    @PostMapping("/opensearch-endpoint")
-    public String saveOpensearchEndpoint(@RequestParam("opensearchEndpoint") final String opensearchEndpoint,
-                                         final RedirectAttributes redirectAttributes) {
-        String trimmed = opensearchEndpoint == null ? "" : opensearchEndpoint.trim();
-        if (trimmed.isEmpty()) {
-            redirectAttributes.addFlashAttribute("error", "OpenSearch endpoint is required.");
+    /**
+     * Save the Full Text Search settings — the master enabled flag, OpenSearch endpoint,
+     * optional basic-auth username + password, and index name. After validation the
+     * controller probes the cluster (via {@link FullTextSearchIndexManager#ensureIndex}):
+     *
+     * <ul>
+     *   <li>If the index does not exist, it is created with the canonical mapping and the
+     *       settings are saved.</li>
+     *   <li>If the index exists with the canonical mapping, the settings are saved.</li>
+     *   <li>If the index exists but its mapping <strong>differs</strong>, the settings are
+     *       NOT saved yet — the form is re-rendered with a side-by-side mapping diff and a
+     *       "Continue with existing index" / "Cancel" prompt. {@link #confirmFullTextSearch}
+     *       is the follow-up endpoint when the operator chooses to continue.</li>
+     *   <li>If OpenSearch is unreachable or the feature is being turned off, the settings
+     *       are saved without an index probe — turning the feature off should never depend
+     *       on the cluster being live.</li>
+     * </ul>
+     *
+     * Password handling follows the data-source pattern: blank input keeps whatever was
+     * stored before; a non-blank value replaces it. {@code clearOpensearchPassword=true}
+     * wipes the stored value back to null.
+     */
+    @PostMapping("/full-text-search")
+    public String saveFullTextSearch(
+            @RequestParam(value = "fullTextSearchEnabled", required = false) final Boolean fullTextSearchEnabled,
+            @RequestParam("opensearchEndpoint") final String opensearchEndpoint,
+            @RequestParam("opensearchIndexName") final String opensearchIndexName,
+            @RequestParam(value = "opensearchUsername", required = false) final String opensearchUsername,
+            @RequestParam(value = "opensearchPassword", required = false) final String opensearchPassword,
+            @RequestParam(value = "clearOpensearchPassword", required = false) final Boolean clearOpensearchPassword,
+            final RedirectAttributes redirectAttributes) {
+
+        final boolean enabled = fullTextSearchEnabled != null && fullTextSearchEnabled;
+        final FtsFormResult parsed = parseFtsForm(opensearchEndpoint, opensearchIndexName,
+                opensearchUsername, opensearchPassword, clearOpensearchPassword);
+        if (parsed.error() != null) {
+            redirectAttributes.addFlashAttribute("error", parsed.error());
             return "redirect:/admin/general";
-        }
-        if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
-            redirectAttributes.addFlashAttribute("error", "OpenSearch endpoint must start with http:// or https://.");
-            return "redirect:/admin/general";
-        }
-        try {
-            URI.create(trimmed);
-        } catch (IllegalArgumentException e) {
-            redirectAttributes.addFlashAttribute("error", "OpenSearch endpoint is not a valid URI: " + e.getMessage());
-            return "redirect:/admin/general";
-        }
-        if (trimmed.endsWith("/")) {
-            trimmed = trimmed.substring(0, trimmed.length() - 1);
         }
 
         final GeneralSettings settings = generalSettingsService.load();
-        final String previous = settings.getOpensearchEndpoint();
-        settings.setOpensearchEndpoint(trimmed);
+        final String resolvedPassword = resolvePassword(settings, parsed);
+
+        // When the feature is being turned off, skip the OpenSearch probe entirely. An
+        // operator turning indexing off should never have to wait for a (possibly down)
+        // cluster — that's why they're turning it off.
+        if (!enabled) {
+            return persist(settings, enabled, parsed, resolvedPassword, redirectAttributes,
+                    "Full text search disabled.");
+        }
+
+        final FullTextSearchIndexManager.Result probe = indexManager.ensureIndex(
+                parsed.endpoint(), parsed.indexName(), parsed.username(), resolvedPassword);
+        switch (probe.outcome()) {
+            case CREATED, ALREADY_MATCHES -> {
+                return persist(settings, enabled, parsed, resolvedPassword, redirectAttributes,
+                        probe.message());
+            }
+            case MAPPING_MISMATCH -> {
+                // Don't save yet — round-trip the form values back to the page so the
+                // operator can confirm or cancel. The existing/expected mappings drive
+                // the side-by-side diff in the modal.
+                redirectAttributes.addFlashAttribute("ftsMismatch", true);
+                redirectAttributes.addFlashAttribute("ftsMismatchMessage", probe.message());
+                redirectAttributes.addFlashAttribute("ftsExistingMapping", probe.existingMappingJson());
+                redirectAttributes.addFlashAttribute("ftsExpectedMapping", probe.expectedMappingJson());
+                redirectAttributes.addFlashAttribute("ftsPendingEnabled", enabled);
+                redirectAttributes.addFlashAttribute("ftsPendingEndpoint", parsed.endpoint());
+                redirectAttributes.addFlashAttribute("ftsPendingIndexName", parsed.indexName());
+                redirectAttributes.addFlashAttribute("ftsPendingUsername",
+                        parsed.username() == null ? "" : parsed.username());
+                // We do NOT round-trip the password — the form must require the operator
+                // to retype it on confirm if they want to change it. Otherwise a stray
+                // confirm with no typed password would silently keep whatever was stored.
+                redirectAttributes.addFlashAttribute("ftsPendingClearPassword",
+                        parsed.clearPassword());
+                return "redirect:/admin/general";
+            }
+            case UNREACHABLE -> {
+                redirectAttributes.addFlashAttribute("error",
+                        "Could not reach OpenSearch — settings not saved. " + probe.message());
+                return "redirect:/admin/general";
+            }
+            default -> {
+                redirectAttributes.addFlashAttribute("error",
+                        "OpenSearch returned an error — settings not saved. " + probe.message());
+                return "redirect:/admin/general";
+            }
+        }
+    }
+
+    /**
+     * Confirm-and-save companion of {@link #saveFullTextSearch}. Reached from the mapping
+     * mismatch modal when the operator chooses "Continue with existing index". The
+     * settings are written without a second probe — the operator has explicitly accepted
+     * the divergent shape, and re-probing here would just race against another possible
+     * mismatch reading.
+     */
+    @PostMapping("/full-text-search/confirm")
+    public String confirmFullTextSearch(
+            @RequestParam(value = "fullTextSearchEnabled", required = false) final Boolean fullTextSearchEnabled,
+            @RequestParam("opensearchEndpoint") final String opensearchEndpoint,
+            @RequestParam("opensearchIndexName") final String opensearchIndexName,
+            @RequestParam(value = "opensearchUsername", required = false) final String opensearchUsername,
+            @RequestParam(value = "opensearchPassword", required = false) final String opensearchPassword,
+            @RequestParam(value = "clearOpensearchPassword", required = false) final Boolean clearOpensearchPassword,
+            final RedirectAttributes redirectAttributes) {
+        final boolean enabled = fullTextSearchEnabled != null && fullTextSearchEnabled;
+        final FtsFormResult parsed = parseFtsForm(opensearchEndpoint, opensearchIndexName,
+                opensearchUsername, opensearchPassword, clearOpensearchPassword);
+        if (parsed.error() != null) {
+            redirectAttributes.addFlashAttribute("error", parsed.error());
+            return "redirect:/admin/general";
+        }
+        final GeneralSettings settings = generalSettingsService.load();
+        final String resolvedPassword = resolvePassword(settings, parsed);
+        return persist(settings, enabled, parsed, resolvedPassword, redirectAttributes,
+                "Full text search settings saved (using existing index with non-canonical mapping).");
+    }
+
+    private String persist(final GeneralSettings settings, final boolean enabled,
+                           final FtsFormResult parsed, final String resolvedPassword,
+                           final RedirectAttributes redirectAttributes, final String successMessage) {
+        final boolean previousEnabled = settings.isFullTextSearchEnabled();
+        final String previousEndpoint = settings.getOpensearchEndpoint();
+        final String previousIndex = settings.getOpensearchIndexName();
+        final String previousUsername = settings.getOpensearchUsername();
+        final boolean hadPassword = settings.getOpensearchPassword() != null
+                && !settings.getOpensearchPassword().isBlank();
+
+        settings.setFullTextSearchEnabled(enabled);
+        settings.setOpensearchEndpoint(parsed.endpoint());
+        settings.setOpensearchIndexName(parsed.indexName());
+        settings.setOpensearchUsername(parsed.username());
+        settings.setOpensearchPassword(resolvedPassword);
         generalSettingsService.save(settings);
 
         auditLogService.log("GENERAL_SETTINGS_CHANGE", "Settings", GeneralSettings.SINGLETON_ID,
-                Map.of("previousOpensearchEndpoint", previous == null ? "" : previous,
-                        "opensearchEndpoint", trimmed));
-        redirectAttributes.addFlashAttribute("success", "OpenSearch endpoint saved.");
+                Map.of(
+                        "previousFullTextSearchEnabled", previousEnabled,
+                        "fullTextSearchEnabled", enabled,
+                        "previousOpensearchEndpoint", previousEndpoint == null ? "" : previousEndpoint,
+                        "opensearchEndpoint", parsed.endpoint(),
+                        "previousOpensearchIndexName", previousIndex == null ? "" : previousIndex,
+                        "opensearchIndexName", parsed.indexName(),
+                        "previousOpensearchUsername", previousUsername == null ? "" : previousUsername,
+                        "opensearchUsername", parsed.username() == null ? "" : parsed.username(),
+                        "passwordChanged", parsed.passwordChanged(hadPassword),
+                        "passwordCleared", parsed.clearPassword()));
+
+        redirectAttributes.addFlashAttribute("success", successMessage);
         return "redirect:/admin/general";
+    }
+
+    /** Parse + validate the FTS form once for both the save and confirm endpoints. */
+    private static FtsFormResult parseFtsForm(final String endpointRaw, final String indexNameRaw,
+                                              final String usernameRaw, final String passwordRaw,
+                                              final Boolean clearPasswordRaw) {
+        String endpoint = endpointRaw == null ? "" : endpointRaw.trim();
+        if (endpoint.isEmpty()) {
+            return FtsFormResult.error("OpenSearch endpoint is required.");
+        }
+        if (!endpoint.startsWith("http://") && !endpoint.startsWith("https://")) {
+            return FtsFormResult.error("OpenSearch endpoint must start with http:// or https://.");
+        }
+        try {
+            URI.create(endpoint);
+        } catch (IllegalArgumentException e) {
+            return FtsFormResult.error("OpenSearch endpoint is not a valid URI: " + e.getMessage());
+        }
+        if (endpoint.endsWith("/")) {
+            endpoint = endpoint.substring(0, endpoint.length() - 1);
+        }
+        final String indexName = indexNameRaw == null ? "" : indexNameRaw.trim();
+        if (indexName.isEmpty()) {
+            return FtsFormResult.error("Index name is required.");
+        }
+        // OpenSearch index names: lower-case, no spaces, no special chars except - _ +
+        // (the cluster will reject invalid names with a 400 anyway, but a fast client-side
+        // check produces a friendlier error message).
+        if (!indexName.matches("[a-z0-9][a-z0-9\\-_+]*")) {
+            return FtsFormResult.error("Index name must be lower-case and contain only "
+                    + "letters, digits, '-', '_', or '+'. Received: " + indexName);
+        }
+        final String username = usernameRaw == null || usernameRaw.isBlank() ? null : usernameRaw.trim();
+        final String password = passwordRaw == null ? null : passwordRaw;
+        final boolean clear = clearPasswordRaw != null && clearPasswordRaw;
+        return new FtsFormResult(endpoint, indexName, username, password, clear, null);
+    }
+
+    /**
+     * Resolve the password to persist given the form's clear-checkbox + new-password
+     * combination. Mirrors the convention used by the data-source admin pages.
+     */
+    private static String resolvePassword(final GeneralSettings settings, final FtsFormResult parsed) {
+        if (parsed.clearPassword()) return null;
+        if (parsed.password() != null && !parsed.password().isBlank()) return parsed.password();
+        return settings.getOpensearchPassword();
+    }
+
+    /**
+     * Parsed FTS form values plus a validation error string. Either {@code error} is
+     * non-null (and the rest of the fields are unspecified) or every other field is
+     * populated.
+     */
+    private record FtsFormResult(String endpoint, String indexName, String username,
+                                 String password, boolean clearPassword, String error) {
+        static FtsFormResult error(final String message) {
+            return new FtsFormResult(null, null, null, null, false, message);
+        }
+        boolean passwordChanged(final boolean hadPasswordBefore) {
+            // Either the operator typed a new value, or they ticked the clear checkbox.
+            // Otherwise the stored password is unchanged.
+            return clearPassword
+                    ? hadPasswordBefore
+                    : (password != null && !password.isBlank());
+        }
     }
 
     @PostMapping("/max-upload-mb")

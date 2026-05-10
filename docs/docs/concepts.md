@@ -224,15 +224,20 @@ admins can deliver messages programmatically via the inbox service.
 
 ## Search
 
-Every document is indexed in **OpenSearch** at ingest time with its filename,
-batch, status, and full original text. The **Search** page (sidebar) and the
-`GET /api/v1/search` endpoint run a full-text match query against the
-`arbiter-documents` index. Search results that fall outside the caller's group
-visibility return as `restricted: true` with content fields nulled — so the
-caller knows a result exists without seeing what it is.
+Full text search is the optional capability that indexes every ingested
+document in **OpenSearch** so reviewers can search by content. When enabled,
+every document goes into the configured index at ingest time with its
+filename, batch, status, and full original text. The **Search** page in the
+sidebar and the `GET /api/v1/search` endpoint run a full-text match query
+against that index. Results outside the caller's group visibility return as
+`restricted: true` with content fields nulled — so the caller knows a result
+exists without seeing what it is.
 
-The OpenSearch endpoint is configured under **Admin → General**
-(default `http://localhost:9200`).
+The feature is **enabled by default** but its connection details (endpoint,
+optional basic-auth credentials, index name) are configured at runtime under
+**Admin → Settings → Full text search**. The full configuration, mapping
+bootstrap, and what changes when the feature is turned off are documented
+on the [Full text search](admin/full-text-search.md) admin page.
 
 ## Audit log
 

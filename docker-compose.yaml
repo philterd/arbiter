@@ -9,7 +9,6 @@ services:
       - "8080:8080"
     environment:
       - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/arbiter
-      - ARBITER_OPENSEARCH_ENDPOINT=http://opensearch:9200
       - SPRING_DATA_REDIS_HOST=valkey
       - SPRING_DATA_REDIS_PORT=6379
       - SPRING_SESSION_STORE_TYPE=redis
@@ -139,11 +138,7 @@ services:
     networks:
       - arbiter
 
-  # S3-compatible object storage for the demo S3 data source. The DemoDataSourceLoader
-  # registers a "Demo MinIO (S3-compatible)" data source that points at this service.
-  # Default root credentials are minioadmin / minioadmin — fine for the demo, but
-  # change them for any non-demo deployment (and update the loader's @Value defaults
-  # to match, or supply ARBITER_DEMO_DATA_MINIO_ACCESS_KEY / _SECRET_KEY env vars).
+  # S3-compatible object storage for the demo S3 data source.
   minio:
     image: minio/minio:latest
     container_name: arbiter-minio
@@ -164,10 +159,7 @@ services:
       - arbiter
 
   # One-shot bootstrap that waits for MinIO to become ready, creates the
-  # "arbiter-demo" bucket, and seeds it with the bundled sample files. Exits 0
-  # when done; Docker keeps the exited container around so the work isn't redone
-  # on subsequent `docker compose up` calls (the bucket already exists, mc cp
-  # is idempotent for the file overwrite path).
+  # "arbiter-demo" bucket, and seeds it with the bundled sample files.
   minio-init:
     image: minio/mc:latest
     container_name: arbiter-minio-init

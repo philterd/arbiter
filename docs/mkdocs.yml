@@ -39,6 +39,7 @@ nav:
       - Destinations: admin/destinations.md
       - Audit log: admin/audit-log.md
       - Reports: admin/reports.md
+      - Full text search: admin/full-text-search.md
       - Notifications: admin/notifications.md
       - Security: admin/security.md
   - Reference:

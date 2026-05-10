@@ -210,6 +210,74 @@ Mongo documents. Local-directory sources have no credentials at all — files
 are read with the application's process identity. See
 [Data sources](admin/data-sources.md) for the per-type field list.
 
+## PII at rest in MongoDB
+
+Document text and the individual PII spans detected inside it are **encrypted
+on disk** in the MongoDB collections that hold them. The encryption uses the
+same AES-GCM construction described above for Philter API keys, with the same
+key (`arbiter.crypto.secret`) — there is no separate per-collection key.
+
+The fields encrypted at rest are:
+
+| Collection         | Field            | What it carries                                                       |
+|--------------------|------------------|-----------------------------------------------------------------------|
+| `documents`        | `originalText`   | Source document text being redacted — the raw PII.                    |
+| `documents`        | `redactedText`   | Rendered redacted output persisted at finalize time.                  |
+| `documents`        | `failureMessage` | Error messages may quote spans of the source document.                |
+| `spans`            | `text`           | The literal PII string detected by Philter (e.g. `alice@example.com`).|
+| `document_comments`| `text`           | Reviewer-supplied free text that may reference PII.                   |
+
+Other fields on these documents (status, timestamps, source attribution,
+hashes, lock metadata, span coordinates, reviewer attribution) are stored
+unchanged. Encrypting only the body fields keeps the database queryable for
+status filters, joins, and audits.
+
+### How the encryption is applied
+
+Encryption and decryption happen at the persistence layer through Spring Data
+Mongo lifecycle callbacks — application code reads and writes plaintext on
+the in-memory entity, and the callbacks transparently encrypt before save and
+decrypt after load. The on-disk form of an encrypted field carries an
+`enc:v1:` prefix marker followed by the base64-encoded ciphertext (12-byte
+random IV concatenated with the GCM ciphertext + 16-byte auth tag), e.g.
+`enc:v1:bXlJVi4uLg==`.
+
+### Backwards compatibility
+
+The marker prefix lets the read path tell encrypted values from values that
+predate the rollout. Any field without the prefix is returned to the
+application as-is, so a database that was populated before this feature was
+turned on continues to read normally. The first save of any such row
+re-writes the affected field as ciphertext. There is no offline migration —
+encryption rolls forward as documents are touched.
+
+### What is **not** encrypted
+
+The following fields are **not** part of the at-rest encryption boundary:
+
+- **Span location** (`location.characterStart`, `location.characterEnd`,
+  page, coordinates). The offsets reveal the position of redactions inside
+  the document but contain no PII themselves; keeping them queryable lets
+  the review UI render the highlighted regions without an extra decrypt.
+- **Reviewer attribution** (`statusChangedBy`, `userEmail`, `approvedBy`,
+  audit-log actors). An admin investigation needs these in plaintext to
+  attribute decisions; they are not PII for our purposes.
+- **OpenSearch search index**. When OpenSearch indexing is configured the
+  document content is also written to OpenSearch — that store is **outside**
+  the at-rest encryption boundary documented here. If your deployment
+  indexes documents into OpenSearch, configure encryption-at-rest on the
+  OpenSearch cluster as well; the application does not double-encrypt
+  payloads sent over the indexing path.
+
+### Key management
+
+The same `arbiter.crypto.secret` that protects credentials and API keys also
+protects PII at rest. Losing the key means **losing access to every
+encrypted field** — back it up at the same operational tier as your database
+backups. Rotating the key requires re-encrypting every existing row; this is
+intentionally out-of-band today (no UI affordance) so that a sloppy rotation
+does not leave half the corpus unreadable.
+
 ## Document content integrity
 
 Every document Arbiter ingests — whether through the web upload form or

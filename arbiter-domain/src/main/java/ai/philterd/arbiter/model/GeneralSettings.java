@@ -24,6 +24,27 @@ public class GeneralSettings {
     private String timezone;
     private String opensearchEndpoint;
     /**
+     * Master switch for the full-text search index. When {@code true} (the default for
+     * legacy rows — see field initializer below), Arbiter writes each document's text
+     * to OpenSearch on ingest and serves the search page from that index. When
+     * {@code false}, ingest skips the indexing call and the search page surfaces an
+     * informational message.
+     */
+    private boolean fullTextSearchEnabled = true;
+    /** Optional HTTP basic-auth username for the full-text search OpenSearch cluster. */
+    private String opensearchUsername;
+    /**
+     * Optional HTTP basic-auth password. Encrypted at rest by the
+     * {@code SymmetricCipher} field-encryption callbacks (the value carries the
+     * {@code enc:v1:} marker after a save and is decrypted transparently on read).
+     */
+    private String opensearchPassword;
+    /**
+     * Index name used for the full-text search. Defaults to {@code arbiter-documents}
+     * applied at read time when the persisted value is unset.
+     */
+    private String opensearchIndexName;
+    /**
      * Maximum size of a single uploaded document, in bytes. Enforced by the upload and ingest
      * endpoints regardless of which path is used. {@code 0} means unset (the service default
      * applies on read).
@@ -66,6 +87,26 @@ public class GeneralSettings {
 
     public String getOpensearchEndpoint() { return opensearchEndpoint; }
     public void setOpensearchEndpoint(final String opensearchEndpoint) { this.opensearchEndpoint = opensearchEndpoint; }
+
+    public boolean isFullTextSearchEnabled() { return fullTextSearchEnabled; }
+    public void setFullTextSearchEnabled(final boolean fullTextSearchEnabled) {
+        this.fullTextSearchEnabled = fullTextSearchEnabled;
+    }
+
+    public String getOpensearchUsername() { return opensearchUsername; }
+    public void setOpensearchUsername(final String opensearchUsername) {
+        this.opensearchUsername = opensearchUsername;
+    }
+
+    public String getOpensearchPassword() { return opensearchPassword; }
+    public void setOpensearchPassword(final String opensearchPassword) {
+        this.opensearchPassword = opensearchPassword;
+    }
+
+    public String getOpensearchIndexName() { return opensearchIndexName; }
+    public void setOpensearchIndexName(final String opensearchIndexName) {
+        this.opensearchIndexName = opensearchIndexName;
+    }
 
     public long getMaxUploadFileSizeBytes() { return maxUploadFileSizeBytes; }
     public void setMaxUploadFileSizeBytes(final long maxUploadFileSizeBytes) {

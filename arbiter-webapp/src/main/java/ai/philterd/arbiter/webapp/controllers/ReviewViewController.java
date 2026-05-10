@@ -98,6 +98,7 @@ public class ReviewViewController {
     private final ai.philterd.arbiter.service.DocumentLockService documentLockService;
     private final RedactionCertificateService redactionCertificateService;
     private final FinalizationPolicyRepository finalizationPolicyRepository;
+    private final ai.philterd.arbiter.service.GeneralSettingsService generalSettingsService;
 
     public ReviewViewController(final DocumentRepository documentRepository,
                                 final SpanRepository spanRepository,
@@ -114,7 +115,8 @@ public class ReviewViewController {
                                 final OpenSearchIndexService openSearchIndexService,
                                 final ai.philterd.arbiter.service.DocumentLockService documentLockService,
                                 final RedactionCertificateService redactionCertificateService,
-                                final FinalizationPolicyRepository finalizationPolicyRepository) {
+                                final FinalizationPolicyRepository finalizationPolicyRepository,
+                                final ai.philterd.arbiter.service.GeneralSettingsService generalSettingsService) {
         this.documentRepository = documentRepository;
         this.spanRepository = spanRepository;
         this.batchRepository = batchRepository;
@@ -131,6 +133,7 @@ public class ReviewViewController {
         this.documentLockService = documentLockService;
         this.redactionCertificateService = redactionCertificateService;
         this.finalizationPolicyRepository = finalizationPolicyRepository;
+        this.generalSettingsService = generalSettingsService;
     }
 
 
@@ -265,6 +268,9 @@ public class ReviewViewController {
         model.addAttribute("prevDocumentId", prevDocumentId);
         model.addAttribute("nextDocumentId", nextDocumentId);
         model.addAttribute("currentUserEmail", authentication == null ? "" : authentication.getName());
+        // Drives the Find similar documents button on the review page. When full-text
+        // search is disabled the button (and its modal wiring) are not rendered.
+        model.addAttribute("fullTextSearchEnabled", isFullTextSearchEnabled());
 
         // Worst-case approvals required (queue-display semantics): doesn't depend on
         // who the eventual reviewer will be, so reviewers see the same number whether
@@ -846,6 +852,20 @@ public class ReviewViewController {
         final String firstReviewer = candidate.getFirstReviewer();
         if (firstReviewer == null || firstReviewer.isBlank()) return false;
         return currentEmail != null && !firstReviewer.equalsIgnoreCase(currentEmail);
+    }
+
+    /**
+     * Reads the master full-text search flag from settings, defaulting to {@code false}
+     * defensively if the settings load fails. Used to suppress UI affordances that depend
+     * on OpenSearch when the feature is off so reviewers don't get a button that produces
+     * empty results.
+     */
+    private boolean isFullTextSearchEnabled() {
+        try {
+            return generalSettingsService.load().isFullTextSearchEnabled();
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private static boolean isAcceptedOrRejected(final String status) {

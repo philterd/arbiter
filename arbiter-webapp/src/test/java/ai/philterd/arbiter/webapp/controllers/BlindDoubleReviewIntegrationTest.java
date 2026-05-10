@@ -96,6 +96,12 @@ class BlindDoubleReviewIntegrationTest {
     private BatchRepository batchRepository;
     private UserSettingsService userSettingsService;
     private ApprovalRuleEvaluator approvalRuleEvaluator;
+    /**
+     * Lives at the class level so individual tests can flip its return value before
+     * exercising the controller — used by the FTS-gate tests to verify the model
+     * attribute follows the persisted flag.
+     */
+    private ai.philterd.arbiter.service.GeneralSettingsService generalSettingsService;
 
     private ReviewViewController reviewController;
     private TriageController triageController;
@@ -263,6 +269,63 @@ class BlindDoubleReviewIntegrationTest {
         reviewController.review("d-first", bob(), bobModel);
         assertEquals("d-mid", bobModel.getAttribute("nextDocumentId"),
                 "A reviewer who did NOT do the first review must still see the document in their navigation.");
+    }
+
+    // ---------- review page: full-text search gate on the Find similar button ----------
+
+    @Test
+    void reviewPageExposesFullTextSearchEnabledFlagAsTrueByDefault() {
+        // The default GeneralSettings has fullTextSearchEnabled = true; the controller
+        // must surface that as a model attribute so the template can render the
+        // Find similar documents button.
+        final Document d = baseDocument("d-fts-on", "alpha bravo");
+        documents.put(d.getId(), d);
+        spansByDocument.put(d.getId(), new ArrayList<>());
+
+        final org.springframework.ui.ConcurrentModel model = new org.springframework.ui.ConcurrentModel();
+        reviewController.review("d-fts-on", alice(), model);
+
+        assertEquals(true, model.getAttribute("fullTextSearchEnabled"),
+                "When the master flag is on, the review page must expose fullTextSearchEnabled=true.");
+    }
+
+    @Test
+    void reviewPageHidesFindSimilarWhenFullTextSearchDisabled() {
+        // Flip the persisted flag off and exercise the GET. The model attribute must drop
+        // to false so the template hides the button (and its modal + script wiring).
+        final ai.philterd.arbiter.model.GeneralSettings disabled = new ai.philterd.arbiter.model.GeneralSettings();
+        disabled.setFullTextSearchEnabled(false);
+        when(generalSettingsService.load()).thenReturn(disabled);
+
+        final Document d = baseDocument("d-fts-off", "alpha bravo");
+        documents.put(d.getId(), d);
+        spansByDocument.put(d.getId(), new ArrayList<>());
+
+        final org.springframework.ui.ConcurrentModel model = new org.springframework.ui.ConcurrentModel();
+        reviewController.review("d-fts-off", alice(), model);
+
+        assertEquals(false, model.getAttribute("fullTextSearchEnabled"),
+                "When the master flag is off, the review page must expose fullTextSearchEnabled=false "
+                        + "so the Find similar documents button is not rendered.");
+    }
+
+    @Test
+    void reviewPageDefaultsFullTextSearchToFalseWhenSettingsLoadThrows() {
+        // Defensive: if the settings service throws (e.g. transient Mongo failure during a
+        // page render) the controller must default the flag to false rather than show a
+        // button that would lead to a broken modal — better to hide a working feature for
+        // a moment than to render a broken affordance.
+        when(generalSettingsService.load())
+                .thenThrow(new RuntimeException("Mongo briefly unreachable"));
+
+        final Document d = baseDocument("d-fts-throw", "alpha bravo");
+        documents.put(d.getId(), d);
+        spansByDocument.put(d.getId(), new ArrayList<>());
+
+        final org.springframework.ui.ConcurrentModel model = new org.springframework.ui.ConcurrentModel();
+        reviewController.review("d-fts-throw", alice(), model);
+
+        assertEquals(false, model.getAttribute("fullTextSearchEnabled"));
     }
 
     // ---------- negative & edge cases on the queue filter ----------
@@ -588,12 +651,14 @@ class BlindDoubleReviewIntegrationTest {
         final FinalizationPolicyRepository finalizationPolicyRepository = mock(FinalizationPolicyRepository.class);
         final AuditLogService auditLogService = mock(AuditLogService.class);
 
+        generalSettingsService = mock(ai.philterd.arbiter.service.GeneralSettingsService.class);
+        when(generalSettingsService.load()).thenReturn(new ai.philterd.arbiter.model.GeneralSettings());
         return new ReviewViewController(
                 documentRepository, spanRepository, batchRepository, complianceProfileRepository,
                 userGroupsService, documentAccessService, auditLogService,
                 ollamaInstanceRepository, llmJudgeDefaultsService, userSettingsService, userRepository,
                 approvalRuleEvaluator, openSearchIndexService, documentLockService,
-                redactionCertificateService, finalizationPolicyRepository);
+                redactionCertificateService, finalizationPolicyRepository, generalSettingsService);
     }
 
     private TriageController buildTriageController() {
