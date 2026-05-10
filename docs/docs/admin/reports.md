@@ -1,20 +1,177 @@
 # Reports
 
-The Reports page lives at `/reporting` and is open to admins and auditors.
-It is a read-only summary of activity over a chosen date range across every
-batch the caller can see.
+The Reports page lives at `/reporting` and is open to **administrators and
+auditors**. It is a read-only summary of activity across every batch the
+caller can see, scoped to a date range you choose.
 
-This page documents the reports that depend on
-[Blind Double Review](batches.md#blind-double-review). The other charts and
-tables on the page (status counts, span edit rates, per-domain aggregates,
-per-reviewer activity) are self-describing and not duplicated here.
+The page is broken into the sections below, in render order.
+
+## Filters
+
+### Date range
+
+A row at the top of the page sets the time window. Both **Start date** and
+**End date** are required. The default range is the last 30 days; the
+**Last 30 days** button resets to that default.
+
+The date range filters documents by their **created-at** timestamp. The
+window is inclusive of both endpoints: documents created any time on the
+end date are included. Documents with no timestamp (legacy data created
+before the field existed) are kept in totals so they aren't silently
+dropped.
+
+A status line on the right of the filter bar echoes the active range
+("Showing documents created from … to …").
+
+### Domain
+
+The page also accepts an optional **`domain`** query parameter — repeat it
+to pick more than one domain (e.g. `?domain=Healthcare&domain=Legal`).
+There is no UI control for it; set it on the URL when you want to compare
+a single domain or a small subset against the rest of the deployment. With
+no parameter the page covers every domain.
+
+### Visibility scope
+
+Administrators see every batch, document, span, and audit entry across the
+whole deployment. Auditors see the same global scope read-only —
+[Roles and permissions](../reference/roles.md#what-an-auditor-can-do)
+covers the boundary.
+
+Reviewers (the `USER` role) cannot reach the Reports page; the link does
+not appear in their sidebar and the URL is rejected at the security
+filter.
+
+## Top KPI cards
+
+A row of four high-level counters across the top of the page:
+
+| Tile             | What it counts                                                                      |
+|------------------|-------------------------------------------------------------------------------------|
+| **Batches**      | Total visible batches in the date range. Sub-line splits open vs. closed.           |
+| **Documents**    | Total documents across those batches.                                               |
+| **Needs review** | Documents in `REVIEW_REQUIRED` or `AUDIT_REQUIRED` status (yellow highlight).       |
+| **Auto-approved**| Documents whose risk score is at or below their batch's Document Threshold and that haven't been explicitly approved or rejected (emerald highlight). |
+
+## Span KPI cards
+
+A second row of four counters focused on spans (the individual PII
+detections inside documents):
+
+| Tile               | What it counts                                                                      |
+|--------------------|-------------------------------------------------------------------------------------|
+| **Spans accepted** | PII detections approved by a reviewer.                                              |
+| **Spans rejected** | False positives or incorrect detections rejected by a reviewer.                     |
+| **Manually created**| Spans the redactor missed and a reviewer added by hand.                            |
+| **Edit rate**      | `manual ÷ (accepted + rejected + manual)`. The fraction of decisions that required a manual addition. Higher numbers mean the redactor is missing PII the reviewers have to backfill. |
+
+## Documents by status
+
+Two cards side by side:
+
+- **Documents by status** — a count for every known status
+  (`PENDING`, `REVIEW_REQUIRED`, `AUDIT_REQUIRED`, `AUTO_APPROVED`,
+  `APPROVED`, `REJECTED`, `FAILED`, `FINALIZED`) along with a pie chart.
+  Status pills use the same colors as the rest of the UI: green for
+  approved, red for rejected/failed, yellow/amber for documents that need
+  attention, blue for `PENDING`.
+- **Average risk score** — the mean risk score across every document in
+  the current scope. Range is `0.000` (no risk) to `1.000` (clamped
+  maximum). See [Risk score](../reference/risk-score.md) for the formula.
+
+## Per domain
+
+Aggregated by the **Domain** field on each batch (one row per domain
+value, plus a `(none)` row for batches with no domain set):
+
+| Column     | Meaning                                                                       |
+|------------|-------------------------------------------------------------------------------|
+| Domain     | The domain string.                                                            |
+| Batches    | Number of batches in this domain in scope.                                    |
+| Docs       | Total documents in those batches.                                             |
+| Accepted   | Spans accepted by reviewers across those batches.                             |
+| Rejected   | Spans rejected.                                                               |
+| Manual     | Spans manually added by reviewers.                                            |
+| Edit rate  | `manual ÷ (accepted + rejected + manual)` for the domain. Edit rate is colored amber at 10% and red at 20% to flag domains where the redactor leans on reviewers more than expected. |
+
+Sorted by edit rate descending so problem domains float to the top.
+
+## Reviews per user
+
+Approvals and rejections each user recorded **in the selected date
+range**, derived from the audit log:
+
+| Column         | Meaning                                                                      |
+|----------------|------------------------------------------------------------------------------|
+| User           | The user's email (or `(unknown)` for legacy entries with no actor).          |
+| Approvals      | `DOCUMENT_APPROVAL` events the user produced.                                |
+| Rejections     | `DOCUMENT_STATUS_CHANGE` events the user produced where the new status was `REJECTED`. |
+| Total reviews  | Approvals + Rejections.                                                       |
+
+Sorted by total decisions, highest first. Users who took no action in the
+range are not listed.
+
+## Per Philter / Policy
+
+Aggregated across all batches sharing a Philter instance and policy
+combination. The same shape as the per-domain table:
+
+| Column     | Meaning                                                                       |
+|------------|-------------------------------------------------------------------------------|
+| Philter    | Friendly name of the Philter instance (or `Embedded Philter` when no external Philter is configured). |
+| Policy     | Phileas policy name on that Philter, or `(no policy)`.                       |
+| Batches    | Batches in scope using this combination.                                     |
+| Docs       | Documents in those batches.                                                  |
+| Accepted   | Spans accepted by reviewers.                                                 |
+| Rejected   | Spans rejected.                                                              |
+| Manual     | Spans manually added.                                                        |
+| Edit rate  | Same as per-domain. Same color thresholds.                                   |
+
+Sorted by edit rate descending. High edit rate flags policies that are
+either letting too much through or false-positiving so reviewers are doing
+extra manual work — a candidate to retune the policy or the per-PII-type
+weights on the batch.
+
+## Documents by batch and priority
+
+Document counts grouped by **batch** and **priority** (High / Normal /
+Low), broken out by status. Sorted by batch name, then by priority
+highest-first.
+
+| Column           | Meaning                                                                          |
+|------------------|----------------------------------------------------------------------------------|
+| Batch            | Batch name.                                                                      |
+| Priority         | `High` (red), `Normal` (gray), or `Low` (blue) — see [Priority](../user-guide/queue.md#priority-column). |
+| Total            | Total documents in this (batch, priority) cell.                                  |
+| One column per status | Count for each of `PENDING`, `REVIEW_REQUIRED`, `AUDIT_REQUIRED`, `AUTO_APPROVED`, `APPROVED`, `REJECTED`, `FAILED`, `FINALIZED`. Zero counts are dimmed. |
+| Not yet approved | `PENDING` + `REVIEW_REQUIRED` + `AUDIT_REQUIRED` — documents that still need a human decision. Highlighted amber when non-zero. |
+
+Use the **Not yet approved** column to see, for example, how many
+High-priority documents in a batch still need a reviewer.
+
+## Per-batch breakdown
+
+The bottom-of-page comprehensive table — one row per batch in scope:
+
+| Column           | Meaning                                                                          |
+|------------------|----------------------------------------------------------------------------------|
+| Batch            | Batch name. A `Closed` pill appears when the batch has been closed.              |
+| Philter / Policy | The Philter instance and policy this batch uses.                                 |
+| Docs             | Document count.                                                                  |
+| Accepted         | Spans accepted by reviewers.                                                     |
+| Rejected         | Spans rejected.                                                                  |
+| Manual           | Spans manually added.                                                            |
+| Edit rate        | `manual ÷ (accepted + rejected + manual)`. Color thresholds as above.            |
+| Auto-approved    | Documents auto-approved (below the document threshold and never user-decided).   |
+| Avg risk         | Mean risk score across this batch's documents.                                   |
+
+Sorted by document count descending, with a name tie-break.
 
 ## Inter-Annotator Agreement (IAA)
 
-The **Inter-Annotator Agreement (IAA)** card sits at the bottom of the
-Reports page. It is rendered for every batch that has
-[Blind Double Review](batches.md#blind-double-review) enabled. Batches that
-do not have the feature turned on are not listed.
+The bottom card on the page, rendered for every batch that has
+[Blind Double Review](batches.md#blind-double-review) enabled. Batches
+that do not have the feature turned on are not listed.
 
 For each such batch the report shows:
 
