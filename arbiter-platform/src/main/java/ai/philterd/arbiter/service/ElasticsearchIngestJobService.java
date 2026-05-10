@@ -355,8 +355,11 @@ public class ElasticsearchIngestJobService {
         final HttpResponse<String> resp = httpClient.send(reqBuilder.build(),
                 HttpResponse.BodyHandlers.ofString());
         if (resp.statusCode() / 100 != 2) {
+            // Do not include resp.body() — it carries partial search hits with raw
+            // originalText for the documents this job was about to ingest, and the
+            // exception bubbles up to a log site. Status + length is the safe surrogate.
             throw new IllegalStateException("Elasticsearch returned HTTP " + resp.statusCode()
-                    + (resp.body() == null || resp.body().isEmpty() ? "" : ": " + resp.body()));
+                    + " (body length " + (resp.body() == null ? 0 : resp.body().length()) + ")");
         }
         return objectMapper.readTree(resp.body());
     }

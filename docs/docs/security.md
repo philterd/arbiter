@@ -278,6 +278,36 @@ backups. Rotating the key requires re-encrypting every existing row; this is
 intentionally out-of-band today (no UI affordance) so that a sloppy rotation
 does not leave half the corpus unreadable.
 
+## PII never appears in application logs
+
+Arbiter's logging policy is that **document content is never written to a log
+file or to standard out**, regardless of log level. The fields covered are
+the same ones encrypted at rest in MongoDB:
+
+- Document `originalText` (the source text being redacted) and
+  `redactedText` (the rendered output).
+- Document `failureMessage` text.
+- Span `text` (the literal PII string detected).
+- Comment `text`.
+- User-supplied search queries (a reviewer searching for an email or phone
+  number must not pin that string in the log file).
+
+Network call sites that interact with stores carrying this content
+(OpenSearch indexing, OpenSearch search, OpenSearch `more_like_this`,
+OpenSearch and Elasticsearch ingest) deliberately log only metadata —
+status code, body length, document id, batch id, error class — when they
+fail. Response bodies and query strings are summarised by length, never
+echoed verbatim. Exceptions thrown from those layers carry the same
+metadata-only message so a downstream `log.warn(..., e.getMessage())` does
+not regress this contract.
+
+If a richer dump is needed for diagnosis, read the **OpenSearch /
+Elasticsearch cluster's own logs** rather than Arbiter's — those stores
+have their own access controls and are part of the same security boundary
+documented above. The bootstrap admin notice on first start is the only
+deliberate write to standard out, and it carries no document PII — just
+the configured admin email and a generated initial password.
+
 ## Document content integrity
 
 Every document Arbiter ingests — whether through the web upload form or

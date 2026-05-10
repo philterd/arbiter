@@ -80,8 +80,13 @@ public class OpenSearchIndexService {
             // (auth and configurable index name applied via applyAuth() and indexName())
             final HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() / 100 != 2) {
-                log.warn("OpenSearch indexing returned HTTP {} for document {} ({}): {}",
-                        resp.statusCode(), document.getId(), url, truncate(resp.body()));
+                // Do not log resp.body() — a non-2xx index response from OpenSearch echoes
+                // parts of the request payload, which carries the document's PII-bearing
+                // originalText. Body length is enough for an operator to tell a parse error
+                // (a few bytes) from a quota / mapping error (a longer JSON envelope).
+                log.warn("OpenSearch indexing returned HTTP {} for document {} ({}); body length {}",
+                        resp.statusCode(), document.getId(), url,
+                        resp.body() == null ? 0 : resp.body().length());
             }
         } catch (Exception e) {
             log.warn("OpenSearch indexing failed for document {} at {}: {}",
@@ -184,8 +189,14 @@ public class OpenSearchIndexService {
                 return new SearchResults(0, safeFrom, safeSize, List.of());
             }
             if (resp.statusCode() / 100 != 2) {
-                log.warn("OpenSearch search returned HTTP {} for query '{}': {}",
-                        resp.statusCode(), query, truncate(resp.body()));
+                // Never log the raw query — users routinely search for PII (an email
+                // address, a phone number, a partial name) and that string would land
+                // in the log file. Never log the response body either — it contains
+                // matched document originalText snippets. A length + status is enough
+                // for triage; the OpenSearch cluster's own logs carry the full payload.
+                log.warn("OpenSearch search returned HTTP {} (query length {}, response length {})",
+                        resp.statusCode(), query.length(),
+                        resp.body() == null ? 0 : resp.body().length());
                 return empty;
             }
             final JsonNode root = objectMapper.readTree(resp.body());
@@ -210,7 +221,9 @@ public class OpenSearchIndexService {
             }
             return new SearchResults(total, safeFrom, safeSize, List.copyOf(hits));
         } catch (Exception e) {
-            log.warn("OpenSearch search failed for query '{}' at {}: {}", query, url, e.getMessage());
+            // Same reasoning as the non-2xx branch above — log only metadata.
+            log.warn("OpenSearch search failed at {} (query length {}): {}",
+                    url, query.length(), e.getMessage());
             return empty;
         }
     }
@@ -264,8 +277,11 @@ public class OpenSearchIndexService {
             final HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() == 404) return empty;
             if (resp.statusCode() / 100 != 2) {
-                log.warn("OpenSearch findSimilar returned HTTP {} for document {}: {}",
-                        resp.statusCode(), documentId, truncate(resp.body()));
+                // The findSimilar response body contains matched documents' originalText
+                // snippets — never log it. Length is enough for triage.
+                log.warn("OpenSearch findSimilar returned HTTP {} for document {}; body length {}",
+                        resp.statusCode(), documentId,
+                        resp.body() == null ? 0 : resp.body().length());
                 return empty;
             }
             final JsonNode root = objectMapper.readTree(resp.body());
@@ -352,11 +368,6 @@ public class OpenSearchIndexService {
             log.debug("Could not apply OpenSearch auth header: {}", e.getMessage());
         }
         return b;
-    }
-
-    private static String truncate(final String s) {
-        if (s == null) return "";
-        return s.length() <= 200 ? s : s.substring(0, 200) + "…";
     }
 
     /**

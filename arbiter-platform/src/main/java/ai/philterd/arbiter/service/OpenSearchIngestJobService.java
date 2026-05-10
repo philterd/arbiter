@@ -389,8 +389,13 @@ public class OpenSearchIngestJobService {
         final HttpResponse<String> resp = httpClient.send(reqBuilder.build(),
                 HttpResponse.BodyHandlers.ofString());
         if (resp.statusCode() / 100 != 2) {
+            // Do not include resp.body() in the exception message: it can carry partial
+            // search hits (with raw originalText) for the documents this job was about
+            // to ingest, and the exception is then logged by the caller's failure path.
+            // Status code + body length is the safe surrogate; an operator who needs the
+            // full body can read it from the OpenSearch cluster's own logs.
             throw new IllegalStateException("OpenSearch returned HTTP " + resp.statusCode()
-                    + (resp.body() == null || resp.body().isEmpty() ? "" : ": " + resp.body()));
+                    + " (body length " + (resp.body() == null ? 0 : resp.body().length()) + ")");
         }
         return objectMapper.readTree(resp.body());
     }
