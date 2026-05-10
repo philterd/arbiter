@@ -27,12 +27,14 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.mockito.ArgumentCaptor;
 import org.springframework.web.servlet.mvc.support.RedirectAttributesModelMap;
 
 import java.util.Optional;
 import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -237,6 +239,115 @@ class BatchControllerTest {
         assertNull(error(ra));
         assertEquals("Batch \"Sample\" created.", success(ra));
         verify(batchRepository).save(any(Batch.class));
+    }
+
+    // ---------- create with Blind Double Review parameters ----------
+
+    @Test
+    void createDefaultsBlindDoubleReviewDisabledWhenCheckboxAbsent() {
+        when(groupRepository.existsById("g1")).thenReturn(true);
+        when(batchRepository.findByName("Sample")).thenReturn(Optional.empty());
+
+        final RedirectAttributes ra = flash();
+        final String view = controller.create("Sample", null, null, null, "g1", "", null,
+                "Healthcare", "", "fp1", "cp1", null, /*blindEnabled*/ null, /*blindPct*/ null, admin(), ra);
+        assertEquals("redirect:/batches", view);
+        assertNull(error(ra));
+
+        final ArgumentCaptor<Batch> saved = ArgumentCaptor.forClass(Batch.class);
+        verify(batchRepository).save(saved.capture());
+        assertFalse(saved.getValue().isBlindDoubleReviewEnabled(),
+                "Missing blindDoubleReviewEnabled checkbox must default to false.");
+        assertEquals(10, saved.getValue().getBlindDoubleReviewPercentage(),
+                "When the feature is disabled, the model default percentage (10) is preserved.");
+    }
+
+    @Test
+    void createUsesPercentageOnlyWhenFeatureIsEnabled() {
+        // Even if a percentage is sent, an unchecked checkbox means the feature is off and
+        // the stored percentage is the model default — the submitted value is ignored.
+        when(groupRepository.existsById("g1")).thenReturn(true);
+        when(batchRepository.findByName("Sample")).thenReturn(Optional.empty());
+
+        controller.create("Sample", null, null, null, "g1", "", null, "Healthcare", "",
+                "fp1", "cp1", null, /*blindEnabled*/ null, /*blindPct*/ 75, admin(), flash());
+
+        final ArgumentCaptor<Batch> saved = ArgumentCaptor.forClass(Batch.class);
+        verify(batchRepository).save(saved.capture());
+        assertFalse(saved.getValue().isBlindDoubleReviewEnabled());
+        assertEquals(10, saved.getValue().getBlindDoubleReviewPercentage(),
+                "A percentage submitted alongside an unchecked checkbox must be ignored.");
+    }
+
+    @Test
+    void createPersistsExplicitPercentageWhenFeatureIsEnabled() {
+        when(groupRepository.existsById("g1")).thenReturn(true);
+        when(batchRepository.findByName("Sample")).thenReturn(Optional.empty());
+
+        controller.create("Sample", null, null, null, "g1", "", null, "Healthcare", "",
+                "fp1", "cp1", null, /*blindEnabled*/ true, /*blindPct*/ 25, admin(), flash());
+
+        final ArgumentCaptor<Batch> saved = ArgumentCaptor.forClass(Batch.class);
+        verify(batchRepository).save(saved.capture());
+        assertTrue(saved.getValue().isBlindDoubleReviewEnabled());
+        assertEquals(25, saved.getValue().getBlindDoubleReviewPercentage());
+    }
+
+    @Test
+    void createDefaultsToTenPercentWhenEnabledWithoutValue() {
+        // The HTML checkbox can submit on without an explicit percentage if the input were
+        // disabled in markup; the controller must fall back to 10% rather than refuse.
+        when(groupRepository.existsById("g1")).thenReturn(true);
+        when(batchRepository.findByName("Sample")).thenReturn(Optional.empty());
+
+        controller.create("Sample", null, null, null, "g1", "", null, "Healthcare", "",
+                "fp1", "cp1", null, /*blindEnabled*/ true, /*blindPct*/ null, admin(), flash());
+
+        final ArgumentCaptor<Batch> saved = ArgumentCaptor.forClass(Batch.class);
+        verify(batchRepository).save(saved.capture());
+        assertTrue(saved.getValue().isBlindDoubleReviewEnabled());
+        assertEquals(10, saved.getValue().getBlindDoubleReviewPercentage(),
+                "Default percentage when the feature is enabled but no explicit value is supplied is 10.");
+    }
+
+    @Test
+    void createRejectsBlindDoubleReviewPercentageBelowOne() {
+        when(groupRepository.existsById("g1")).thenReturn(true);
+        when(batchRepository.findByName("Sample")).thenReturn(Optional.empty());
+
+        final RedirectAttributes ra = flash();
+        controller.create("Sample", null, null, null, "g1", "", null, "Healthcare", "",
+                "fp1", "cp1", null, /*blindEnabled*/ true, /*blindPct*/ 0, admin(), ra);
+        assertNotNull(error(ra));
+        assertTrue(error(ra).contains("between 1 and 100"),
+                "Zero is not a valid percentage; expected user-facing error mentioning the range.");
+        verify(batchRepository, never()).save(any());
+    }
+
+    @Test
+    void createRejectsBlindDoubleReviewPercentageAbove100() {
+        when(groupRepository.existsById("g1")).thenReturn(true);
+        when(batchRepository.findByName("Sample")).thenReturn(Optional.empty());
+
+        final RedirectAttributes ra = flash();
+        controller.create("Sample", null, null, null, "g1", "", null, "Healthcare", "",
+                "fp1", "cp1", null, /*blindEnabled*/ true, /*blindPct*/ 101, admin(), ra);
+        assertNotNull(error(ra));
+        assertTrue(error(ra).contains("between 1 and 100"));
+        verify(batchRepository, never()).save(any());
+    }
+
+    @Test
+    void createRejectsNegativeBlindDoubleReviewPercentage() {
+        when(groupRepository.existsById("g1")).thenReturn(true);
+        when(batchRepository.findByName("Sample")).thenReturn(Optional.empty());
+
+        final RedirectAttributes ra = flash();
+        controller.create("Sample", null, null, null, "g1", "", null, "Healthcare", "",
+                "fp1", "cp1", null, /*blindEnabled*/ true, /*blindPct*/ -5, admin(), ra);
+        assertNotNull(error(ra));
+        assertTrue(error(ra).contains("between 1 and 100"));
+        verify(batchRepository, never()).save(any());
     }
 
     // ---------- changePhilter ----------

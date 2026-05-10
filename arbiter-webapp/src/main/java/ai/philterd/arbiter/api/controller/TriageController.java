@@ -184,7 +184,10 @@ public class TriageController {
     /**
      * Decide whether a document should appear on the review queue for the given user.
      * APPROVED / REJECTED documents stay hidden unless they were selected for blind
-     * double review AND the current user did not perform the first review.
+     * double review, the current user did not perform the first review, and the second
+     * review has not yet been completed. Once a second reviewer has reviewed the
+     * document the blind double review pass is finished and the document drops out of
+     * every reviewer's queue.
      */
     private static boolean isVisibleForBlindDoubleReview(final Document doc, final String currentEmail) {
         final String status = doc.getStatus();
@@ -192,6 +195,10 @@ public class TriageController {
             return true;
         }
         if (!doc.isDoubleReview()) {
+            return false;
+        }
+        final String secondReviewer = doc.getSecondReviewer();
+        if (secondReviewer != null && !secondReviewer.isBlank()) {
             return false;
         }
         final String firstReviewer = doc.getFirstReviewer();

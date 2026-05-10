@@ -816,7 +816,11 @@ public class ReviewViewController {
         if (index < 0) return null;
         for (int i = index + direction; i >= 0 && i < siblings.size(); i += direction) {
             final Document candidate = siblings.get(i);
-            if (skipCompleted && isAcceptedOrRejected(candidate.getStatus())) continue;
+            if (skipCompleted
+                    && isAcceptedOrRejected(candidate.getStatus())
+                    && !awaitingBlindSecondReviewBy(candidate, currentEmail)) {
+                continue;
+            }
             // Blind double review: skip documents the current user already first-reviewed.
             // The second pass must come from a different reviewer.
             if (candidate.isDoubleReview()
@@ -828,6 +832,20 @@ public class ReviewViewController {
             return candidate.getId();
         }
         return null;
+    }
+
+    /**
+     * True when a terminally-statused candidate is still awaiting a blind second review
+     * by the current user. Used to override {@link UserSettings#isSkipCompletedInReview()}
+     * so a second reviewer is paged to the documents that need their attention even
+     * though the document is technically APPROVED or REJECTED from the first pass.
+     */
+    private static boolean awaitingBlindSecondReviewBy(final Document candidate, final String currentEmail) {
+        if (!candidate.isDoubleReview()) return false;
+        if (candidate.getSecondReviewer() != null && !candidate.getSecondReviewer().isBlank()) return false;
+        final String firstReviewer = candidate.getFirstReviewer();
+        if (firstReviewer == null || firstReviewer.isBlank()) return false;
+        return currentEmail != null && !firstReviewer.equalsIgnoreCase(currentEmail);
     }
 
     private static boolean isAcceptedOrRejected(final String status) {
