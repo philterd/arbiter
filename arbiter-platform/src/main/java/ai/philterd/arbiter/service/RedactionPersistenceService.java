@@ -62,6 +62,17 @@ public class RedactionPersistenceService {
             document.setDualApprovalSamplingRoll(
                     java.util.concurrent.ThreadLocalRandom.current().nextDouble());
         }
+        // Blind Double Review selection: when the parent batch has the feature enabled, draw
+        // an independent Bernoulli sample with the configured percentage. Set at most once —
+        // re-runs of redaction on the same document keep the original decision so the cohort
+        // of double-review documents is stable for the lifetime of the batch.
+        if (batch.isBlindDoubleReviewEnabled() && !document.isDoubleReview()) {
+            final int pct = batch.getBlindDoubleReviewPercentage();
+            final double p = Math.max(0, Math.min(100, pct)) / 100.0;
+            if (java.util.concurrent.ThreadLocalRandom.current().nextDouble() < p) {
+                document.setDoubleReview(true);
+            }
+        }
 
         final List<Span> spans = new ArrayList<>();
         if (!redactions.isEmpty()) {

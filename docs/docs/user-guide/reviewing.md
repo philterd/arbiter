@@ -52,6 +52,13 @@ sort. The counter only appears while the current document is itself
 pending — once you accept or reject it, it leaves the pending list and the
 counter is hidden.
 
+In batches with
+[Blind Double Review](../admin/batches.md#blind-double-review) enabled,
+**Previous** and **Next** also skip any document flagged for double review
+whose first review was performed by you. This keeps the second review
+blind — you are never paged into a document you have already reviewed,
+even if it is otherwise eligible for the queue.
+
 It also has Approve / Reject / Unapprove buttons. These set the *document's*
 status:
 

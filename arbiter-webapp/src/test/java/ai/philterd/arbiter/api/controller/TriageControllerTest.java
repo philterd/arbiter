@@ -205,6 +205,11 @@ class TriageControllerTest {
         final Document below = doc("d1", "b1", "REVIEW_REQUIRED", 0.10);
         final Document above = doc("d2", "b1", "REVIEW_REQUIRED", 0.50);
         final Document approved = doc("d3", "b1", "APPROVED", 0.05); // user-decided wins
+        // The Blind Double Review filter normally hides APPROVED rows from the queue;
+        // mark this row as a double-review case with another reviewer so it passes the
+        // filter and we can keep verifying the autoApproved derivation on it.
+        approved.setDoubleReview(true);
+        approved.setFirstReviewer("other-reviewer@example.com");
         when(documentRepository.findByStatusNotIn(any(), any(PageRequest.class)))
                 .thenReturn(new PageImpl<>(List.of(below, above, approved), PageRequest.of(0, 10), 3));
         when(batchRepository.findAllById(any()))

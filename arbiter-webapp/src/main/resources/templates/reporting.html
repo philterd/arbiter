@@ -169,7 +169,7 @@
         <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8">
             <div class="flex items-center justify-between mb-6">
-                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Reports</h2><a href="/docs/concepts/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
+                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Reports</h2><a href="/docs/admin/reports/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
             </div>
 
             <!-- Date range filter -->
@@ -519,6 +519,56 @@
                                 th:text="${row.autoApproved}">0</td>
                             <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right"
                                 th:text="${#numbers.formatDecimal(row.avgRiskScore, 1, 3)}">0.000</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Inter-Annotator Agreement (Cohen's Kappa) — only renders rows for batches
+                 with Blind Double Review enabled. The score is at the token level: each
+                 word is labeled PII or O for each reviewer, then Cohen's Kappa is computed
+                 across the pooled token decisions for every double-reviewed document in
+                 the batch. >= 0.8 → green (substantial agreement); 0.6–0.79 → amber;
+                 < 0.6 → red (a major training gap or ambiguous redaction policy). -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mt-8">
+                <div class="px-6 py-4 border-b border-gray-100">
+                    <h3 class="text-base font-semibold text-gray-900">Inter-Annotator Agreement (IAA)</h3>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Cohen's Kappa at the token level for batches with Blind Double Review enabled.
+                        Each whitespace-delimited word is labeled PII (covered by an approved span) or O,
+                        and a single kappa is pooled across every double-reviewed document in the batch.
+                    </p>
+                </div>
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                title="Documents with completed first and second reviews">Documents</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                title="Total tokens compared across all double-reviewed documents">Tokens</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Cohen's Kappa</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        <tr th:if="${#lists.isEmpty(iaaRows)}">
+                            <td colspan="4" class="px-6 py-8 text-center text-sm text-gray-500">
+                                No batches with Blind Double Review enabled in the current scope.
+                            </td>
+                        </tr>
+                        <tr th:each="r : ${iaaRows}" class="hover:bg-gray-50">
+                            <td class="px-6 py-3 text-sm font-medium text-gray-900" th:text="${r.batchName}">batch</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right" th:text="${r.doubleReviewedDocs}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right" th:text="${r.totalTokens}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-right">
+                                <span th:if="${r.kappa == null}" class="text-gray-400 italic">— not enough data —</span>
+                                <span th:if="${r.kappa != null}"
+                                      class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
+                                      th:classappend="${r.kappa >= 0.8} ? 'bg-green-100 text-green-800'
+                                                       : (${r.kappa >= 0.6} ? 'bg-amber-100 text-amber-800'
+                                                       : 'bg-red-100 text-red-800')"
+                                      th:text="${#numbers.formatDecimal(r.kappa, 1, 3)}">0.000</span>
+                            </td>
                         </tr>
                     </tbody>
                 </table>

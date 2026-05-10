@@ -152,7 +152,19 @@ public class TriageController {
             documents = documentRepository.findByStatusNotIn(INGEST_QUEUE_STATUSES, pageRequest);
         }
 
-        final Set<String> batchIds = documents.stream()
+        // Blind Double Review filter: APPROVED / REJECTED documents stay out of the
+        // review queue unless the document was selected for a blind second review and
+        // the current user is NOT the one who did the first review. Applied to the page
+        // contents post-query. Pagination links keep the original totalElements so the
+        // navigation footer stays consistent; the visible rows on a page may be fewer
+        // than the page size when the filter takes effect, which is acceptable here.
+        final String currentEmail = authentication == null ? null : authentication.getName();
+        final List<Document> visible = documents.getContent().stream()
+                .filter(doc -> isVisibleForBlindDoubleReview(doc, currentEmail))
+                .toList();
+        final Page<Document> filteredPage = new PageImpl<>(visible, pageRequest, documents.getTotalElements());
+
+        final Set<String> batchIds = filteredPage.stream()
                 .map(Document::getBatchId)
                 .filter(id -> id != null && !id.isBlank())
                 .collect(Collectors.toSet());
@@ -166,7 +178,27 @@ public class TriageController {
             batchesById.put(b.getId(), b);
         }
 
-        return documents.map(toRow(batchNames, batchDocumentThresholds, batchesById));
+        return filteredPage.map(toRow(batchNames, batchDocumentThresholds, batchesById));
+    }
+
+    /**
+     * Decide whether a document should appear on the review queue for the given user.
+     * APPROVED / REJECTED documents stay hidden unless they were selected for blind
+     * double review AND the current user did not perform the first review.
+     */
+    private static boolean isVisibleForBlindDoubleReview(final Document doc, final String currentEmail) {
+        final String status = doc.getStatus();
+        if (!"APPROVED".equals(status) && !"REJECTED".equals(status)) {
+            return true;
+        }
+        if (!doc.isDoubleReview()) {
+            return false;
+        }
+        final String firstReviewer = doc.getFirstReviewer();
+        if (firstReviewer == null || firstReviewer.isBlank()) {
+            return false;
+        }
+        return currentEmail != null && !firstReviewer.equalsIgnoreCase(currentEmail);
     }
 
     @GetMapping("/batches")

@@ -403,7 +403,106 @@ public class ReportingController {
                 .thenComparing(r -> ((String) r.get("email")).toLowerCase()));
         model.addAttribute("reviewerRows", reviewerRows);
         model.addAttribute("selectedDomains", Collections.unmodifiableSet(selectedDomains));
+
+        // Inter-Annotator Agreement (Cohen's Kappa) — only for batches with Blind Double
+        // Review enabled. Score is computed at the token level: each whitespace-delimited
+        // word is labeled "PII" if it sits inside any approved span the reviewer left,
+        // else "O". Per-batch counts are pooled across every double-reviewed document
+        // that has snapshots for both reviewers, then a single kappa is computed per batch.
+        final List<Map<String, Object>> iaaRows = new ArrayList<>();
+        for (Batch batch : batches) {
+            if (!batch.isBlindDoubleReviewEnabled()) continue;
+            final List<Document> batchDocs = documentRepository.findByBatchId(batch.getId());
+            long bothPii = 0, firstPiiOnly = 0, secondPiiOnly = 0, bothO = 0;
+            long doubleReviewedDocs = 0;
+            for (Document d : batchDocs) {
+                if (!d.isDoubleReview()) continue;
+                if (d.getFirstReviewSpans() == null || d.getSecondReviewSpans() == null) continue;
+                final String text = d.getOriginalText();
+                if (text == null || text.isEmpty()) continue;
+                doubleReviewedDocs++;
+                final long[] counts = tokenLabelCounts(text, d.getFirstReviewSpans(), d.getSecondReviewSpans());
+                bothPii += counts[0];
+                firstPiiOnly += counts[1];
+                secondPiiOnly += counts[2];
+                bothO += counts[3];
+            }
+            final long totalTokens = bothPii + firstPiiOnly + secondPiiOnly + bothO;
+            final Map<String, Object> row = new LinkedHashMap<>();
+            row.put("batchId", batch.getId());
+            row.put("batchName", batch.getName() == null ? "" : batch.getName());
+            row.put("doubleReviewedDocs", doubleReviewedDocs);
+            row.put("totalTokens", totalTokens);
+            if (totalTokens == 0) {
+                row.put("kappa", null);
+            } else {
+                row.put("kappa", cohenKappa(bothPii, firstPiiOnly, secondPiiOnly, bothO));
+            }
+            iaaRows.add(row);
+        }
+        iaaRows.sort(Comparator.comparing(r -> ((String) r.get("batchName")).toLowerCase()));
+        model.addAttribute("iaaRows", iaaRows);
         return "reporting";
+    }
+
+    /**
+     * Tokenize the document text on whitespace and tally token-level PII/O agreement counts
+     * between the first reviewer's span set and the second reviewer's span set. A token is
+     * "PII" if any character of it lies inside an approved span — partial overlap counts as
+     * PII to be conservative for compliance use.
+     *
+     * @return a 4-element array {@code [bothPii, firstPiiOnly, secondPiiOnly, bothO]}.
+     */
+    private static long[] tokenLabelCounts(final String text,
+                                           final List<int[]> firstSpans,
+                                           final List<int[]> secondSpans) {
+        long bothPii = 0, firstOnly = 0, secondOnly = 0, bothO = 0;
+        int i = 0;
+        final int n = text.length();
+        while (i < n) {
+            while (i < n && Character.isWhitespace(text.charAt(i))) i++;
+            if (i >= n) break;
+            int j = i;
+            while (j < n && !Character.isWhitespace(text.charAt(j))) j++;
+            final boolean firstPii = anyOverlap(firstSpans, i, j);
+            final boolean secondPii = anyOverlap(secondSpans, i, j);
+            if (firstPii && secondPii) bothPii++;
+            else if (firstPii) firstOnly++;
+            else if (secondPii) secondOnly++;
+            else bothO++;
+            i = j;
+        }
+        return new long[]{bothPii, firstOnly, secondOnly, bothO};
+    }
+
+    private static boolean anyOverlap(final List<int[]> spans, final int start, final int end) {
+        if (spans == null) return false;
+        for (int[] s : spans) {
+            if (s == null || s.length < 2) continue;
+            if (s[0] < end && s[1] > start) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Cohen's Kappa for a 2x2 confusion matrix between two annotators.
+     * Returns 1.0 when both annotators perfectly agree on a single class (a degenerate
+     * case where the standard formula evaluates to 0/0); the convention reflects that
+     * unanimous agreement is maximal agreement.
+     */
+    private static double cohenKappa(final long a, final long b, final long c, final long d) {
+        final long n = a + b + c + d;
+        if (n == 0) return 0.0;
+        final double po = (double) (a + d) / (double) n;
+        final double pPiiAnnotator1 = (double) (a + b) / (double) n;
+        final double pPiiAnnotator2 = (double) (a + c) / (double) n;
+        final double pOAnnotator1 = (double) (c + d) / (double) n;
+        final double pOAnnotator2 = (double) (b + d) / (double) n;
+        final double pe = pPiiAnnotator1 * pPiiAnnotator2 + pOAnnotator1 * pOAnnotator2;
+        if (Math.abs(1.0 - pe) < 1e-12) {
+            return po >= 1.0 ? 1.0 : 0.0;
+        }
+        return (po - pe) / (1.0 - pe);
     }
 
     private static LocalDate parseDateOr(final String value, final LocalDate fallback) {

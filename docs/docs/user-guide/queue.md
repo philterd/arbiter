@@ -70,6 +70,26 @@ batch dropdown to match the new scope.
 The checkbox state isn't persisted across pages — it resets to "checked" each
 time you load the queue.
 
+## Blind Double Review
+
+Documents in batches with
+[Blind Double Review](../admin/batches.md#blind-double-review) follow a
+slightly modified visibility rule:
+
+- A document with status `APPROVED` or `REJECTED` normally drops out of the
+  review queue. For documents flagged for blind double review it stays
+  visible — but only to reviewers who **did not** perform the first review.
+  The first reviewer no longer sees it; another reviewer in the same group
+  sees it as an outstanding item until they (or someone else) provide the
+  second review.
+- The **Previous** and **Next** buttons on the review page also skip
+  double-review documents whose first review was performed by you, so you
+  are never paged into a document you have already reviewed.
+
+This implements the "blind" part of blind double review: the second
+reviewer reviews the same document independently, without the system ever
+asking the first reviewer to look at it again.
+
 ## Audit Log popup
 
 Each row has an **Audit Log** button that opens a modal with the full

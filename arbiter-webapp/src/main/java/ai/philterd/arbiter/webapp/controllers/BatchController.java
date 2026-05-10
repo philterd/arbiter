@@ -189,6 +189,8 @@ public class BatchController {
             row.put("complianceProfileId", batch.getComplianceProfileId());
             row.put("complianceProfileName", batch.getComplianceProfileId() == null
                     ? null : complianceProfileNamesById.get(batch.getComplianceProfileId()));
+            row.put("blindDoubleReviewEnabled", batch.isBlindDoubleReviewEnabled());
+            row.put("blindDoubleReviewPercentage", batch.getBlindDoubleReviewPercentage());
             row.put("closed", batch.isClosed());
             row.put("closedAt", batch.getClosedAt());
             String firstUnreviewedId = null;
@@ -278,6 +280,8 @@ public class BatchController {
                          @RequestParam(value = "finalizationPolicyId", required = false) String finalizationPolicyId,
                          @RequestParam(value = "complianceProfileId", required = false) String complianceProfileId,
                          @RequestParam(value = "exemptionCodeRequired", required = false) Boolean exemptionCodeRequired,
+                         @RequestParam(value = "blindDoubleReviewEnabled", required = false) Boolean blindDoubleReviewEnabled,
+                         @RequestParam(value = "blindDoubleReviewPercentage", required = false) Integer blindDoubleReviewPercentage,
                          Authentication authentication,
                          RedirectAttributes redirectAttributes) {
         // Admins can create in any group; team leads can only create in groups they
@@ -366,6 +370,19 @@ public class BatchController {
         // Form checkboxes only submit a value when checked; an unchecked box arrives as null,
         // which we interpret as "exemption code not required". Default for missing field is true.
         batch.setExemptionCodeRequired(exemptionCodeRequired != null && exemptionCodeRequired);
+        // Blind Double Review: write-once at create time. Percentage is clamped to 1..100;
+        // when the feature is disabled the stored percentage is the model default (10).
+        final boolean blindEnabled = blindDoubleReviewEnabled != null && blindDoubleReviewEnabled;
+        batch.setBlindDoubleReviewEnabled(blindEnabled);
+        if (blindEnabled) {
+            final int pct = blindDoubleReviewPercentage == null ? 10 : blindDoubleReviewPercentage;
+            if (pct < 1 || pct > 100) {
+                redirectAttributes.addFlashAttribute("error",
+                        "Blind Double Review percentage must be between 1 and 100.");
+                return "redirect:/batches";
+            }
+            batch.setBlindDoubleReviewPercentage(pct);
+        }
         if (normalizedPii != null) {
             batch.setConfidenceThreshold(normalizedPii);
         }
@@ -380,16 +397,20 @@ public class BatchController {
                     "A batch named \"" + trimmed + "\" already exists.");
             return "redirect:/batches";
         }
-        auditLogService.log("BATCH_CREATE", "Batch", batch.getId(),
-                Map.of("name", trimmed, "groupId", groupId,
-                        "philterInstanceId", trimmedPhilterId.isEmpty() ? "embedded" : trimmedPhilterId,
-                        "policyName", trimmedPolicy,
-                        "domain", trimmedDomain,
-                        "contextLength", batch.getContext().length(),
-                        "confidenceThreshold", batch.getConfidenceThreshold(),
-                        "documentThreshold", batch.getDocumentThreshold(),
-                        "complianceProfileId", trimmedComplianceId,
-                        "exemptionCodeRequired", batch.isExemptionCodeRequired()));
+        final Map<String, Object> auditDetails = new LinkedHashMap<>();
+        auditDetails.put("name", trimmed);
+        auditDetails.put("groupId", groupId);
+        auditDetails.put("philterInstanceId", trimmedPhilterId.isEmpty() ? "embedded" : trimmedPhilterId);
+        auditDetails.put("policyName", trimmedPolicy);
+        auditDetails.put("domain", trimmedDomain);
+        auditDetails.put("contextLength", batch.getContext().length());
+        auditDetails.put("confidenceThreshold", batch.getConfidenceThreshold());
+        auditDetails.put("documentThreshold", batch.getDocumentThreshold());
+        auditDetails.put("complianceProfileId", trimmedComplianceId);
+        auditDetails.put("exemptionCodeRequired", batch.isExemptionCodeRequired());
+        auditDetails.put("blindDoubleReviewEnabled", batch.isBlindDoubleReviewEnabled());
+        auditDetails.put("blindDoubleReviewPercentage", batch.getBlindDoubleReviewPercentage());
+        auditLogService.log("BATCH_CREATE", "Batch", batch.getId(), auditDetails);
         redirectAttributes.addFlashAttribute("success", "Batch \"" + trimmed + "\" created.");
         return "redirect:/batches";
     }

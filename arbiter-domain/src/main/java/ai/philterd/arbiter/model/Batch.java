@@ -64,6 +64,14 @@ public class Batch {
      * Defaults to {@code true} so existing behaviour is preserved.
      */
     private boolean exemptionCodeRequired = true;
+    /**
+     * When {@code true}, a random sample of documents in this batch are flagged for a blind
+     * second review. The sampled fraction is {@link #blindDoubleReviewPercentage} (0..100).
+     * Both fields are write-once: they may be set when the batch is created and are never
+     * mutable afterwards.
+     */
+    private boolean blindDoubleReviewEnabled;
+    private int blindDoubleReviewPercentage = 10;
     private boolean closed;
     private LocalDateTime closedAt;
     private String closedBy;
@@ -264,6 +272,22 @@ public class Batch {
     public boolean isExemptionCodeRequired() { return exemptionCodeRequired; }
     public void setExemptionCodeRequired(final boolean exemptionCodeRequired) {
         this.exemptionCodeRequired = exemptionCodeRequired;
+    }
+
+    public boolean isBlindDoubleReviewEnabled() {
+        return blindDoubleReviewEnabled;
+    }
+
+    public void setBlindDoubleReviewEnabled(final boolean blindDoubleReviewEnabled) {
+        this.blindDoubleReviewEnabled = blindDoubleReviewEnabled;
+    }
+
+    public int getBlindDoubleReviewPercentage() {
+        return blindDoubleReviewPercentage;
+    }
+
+    public void setBlindDoubleReviewPercentage(final int blindDoubleReviewPercentage) {
+        this.blindDoubleReviewPercentage = blindDoubleReviewPercentage;
     }
 
     public boolean isClosed() {

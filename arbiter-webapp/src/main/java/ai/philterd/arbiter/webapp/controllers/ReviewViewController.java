@@ -229,10 +229,10 @@ public class ReviewViewController {
             defaultExplainModel = null;
         }
 
-        final UserSettings settings = userSettingsService.loadForEmail(
-                authentication == null ? null : authentication.getName());
-        final String prevDocumentId = findSiblingId(document, settings, -1);
-        final String nextDocumentId = findSiblingId(document, settings, 1);
+        final String currentEmail = authentication == null ? null : authentication.getName();
+        final UserSettings settings = userSettingsService.loadForEmail(currentEmail);
+        final String prevDocumentId = findSiblingId(document, settings, -1, currentEmail);
+        final String nextDocumentId = findSiblingId(document, settings, 1, currentEmail);
 
         // "Document X of Y" counter: Y = pending (not approved/rejected) docs in the batch,
         // X = 1-based position of the current doc within that sorted pending set.
@@ -642,6 +642,21 @@ public class ReviewViewController {
 
         // Record this approval.
         document.getApprovedBy().add(email == null ? "" : email);
+        // Stamp the first-ever reviewer so the blind-double-review filter can identify
+        // who is disqualified from the second pass. Set once and never overwritten.
+        // Capture each reviewer's approved-span snapshot so the IAA report can compute
+        // Cohen's Kappa between the first and second reviewer's labels.
+        if (document.getFirstReviewer() == null && email != null) {
+            document.setFirstReviewer(email);
+            document.setFirstReviewSpans(approvedSpanRanges(spans));
+        } else if (document.isDoubleReview()
+                && email != null
+                && document.getFirstReviewer() != null
+                && !email.equalsIgnoreCase(document.getFirstReviewer())
+                && document.getSecondReviewer() == null) {
+            document.setSecondReviewer(email);
+            document.setSecondReviewSpans(approvedSpanRanges(spans));
+        }
         final int acquired = document.getApprovedBy().size();
 
         final String previous = document.getStatus();
@@ -675,7 +690,7 @@ public class ReviewViewController {
 
         final UserSettings settings = userSettingsService.loadForEmail(email);
         if (settings.isAdvanceToNextOnApprove()) {
-            final String nextId = findSiblingId(document, settings, 1);
+            final String nextId = findSiblingId(document, settings, 1, email);
             if (nextId != null) return "redirect:/review/" + nextId;
         }
         return "redirect:/";
@@ -688,6 +703,26 @@ public class ReviewViewController {
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
         documentAccessService.requireDocumentAccess(authentication, preReject);
         final String previous = preReject.getStatus();
+        // Stamp the first-ever reviewer (set once) so the blind-double-review filter
+        // can identify who is disqualified from the second pass. Capture each reviewer's
+        // approved-span snapshot so the IAA report can compute Cohen's Kappa.
+        boolean snapshotMutated = false;
+        if (preReject.getFirstReviewer() == null && email != null) {
+            preReject.setFirstReviewer(email);
+            preReject.setFirstReviewSpans(approvedSpanRanges(spanRepository.findByDocumentId(documentId)));
+            snapshotMutated = true;
+        } else if (preReject.isDoubleReview()
+                && email != null
+                && preReject.getFirstReviewer() != null
+                && !email.equalsIgnoreCase(preReject.getFirstReviewer())
+                && preReject.getSecondReviewer() == null) {
+            preReject.setSecondReviewer(email);
+            preReject.setSecondReviewSpans(approvedSpanRanges(spanRepository.findByDocumentId(documentId)));
+            snapshotMutated = true;
+        }
+        if (snapshotMutated) {
+            documentRepository.save(preReject);
+        }
         updateStatus(documentId, "REJECTED", authentication);
         auditLogService.log("DOCUMENT_REJECT", "Document", documentId,
                 Map.of("previous", previous == null ? "" : previous,
@@ -700,7 +735,7 @@ public class ReviewViewController {
         if (settings.isAdvanceToNextOnApprove()) {
             final Document document = documentRepository.findById(documentId).orElse(null);
             if (document != null) {
-                final String nextId = findSiblingId(document, settings, 1);
+                final String nextId = findSiblingId(document, settings, 1, email);
                 if (nextId != null) return "redirect:/review/" + nextId;
             }
         }
@@ -765,7 +800,8 @@ public class ReviewViewController {
         documentRepository.save(document);
     }
 
-    private String findSiblingId(final Document document, final UserSettings settings, final int direction) {
+    private String findSiblingId(final Document document, final UserSettings settings, final int direction,
+                                 final String currentEmail) {
         if (document.getBatchId() == null) return null;
         final boolean skipCompleted = settings != null && settings.isSkipCompletedInReview();
         final List<Document> siblings = documentRepository.findByBatchId(document.getBatchId());
@@ -781,6 +817,14 @@ public class ReviewViewController {
         for (int i = index + direction; i >= 0 && i < siblings.size(); i += direction) {
             final Document candidate = siblings.get(i);
             if (skipCompleted && isAcceptedOrRejected(candidate.getStatus())) continue;
+            // Blind double review: skip documents the current user already first-reviewed.
+            // The second pass must come from a different reviewer.
+            if (candidate.isDoubleReview()
+                    && candidate.getFirstReviewer() != null
+                    && currentEmail != null
+                    && candidate.getFirstReviewer().equalsIgnoreCase(currentEmail)) {
+                continue;
+            }
             return candidate.getId();
         }
         return null;
@@ -788,6 +832,22 @@ public class ReviewViewController {
 
     private static boolean isAcceptedOrRejected(final String status) {
         return "APPROVED".equals(status) || "AUTO_APPROVED".equals(status) || "REJECTED".equals(status);
+    }
+
+    /**
+     * Project the APPROVED spans on a document into {@code [start, end]} character ranges.
+     * Used to snapshot a reviewer's effective PII labels at the moment they completed their
+     * review so the Inter-Annotator Agreement (Cohen's Kappa) report can compare each reviewer.
+     */
+    private static java.util.List<int[]> approvedSpanRanges(final List<Span> spans) {
+        if (spans == null || spans.isEmpty()) return new java.util.ArrayList<>();
+        final java.util.List<int[]> ranges = new java.util.ArrayList<>();
+        for (Span s : spans) {
+            if (!"APPROVED".equals(s.getStatus())) continue;
+            if (s.getLocation() == null) continue;
+            ranges.add(new int[]{s.getLocation().characterStart(), s.getLocation().characterEnd()});
+        }
+        return ranges;
     }
 
     private void updateStatus(final String documentId, final String status, final Authentication authentication) {

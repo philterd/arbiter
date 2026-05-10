@@ -83,11 +83,67 @@ public class Document {
     /** 1 = Low, 2 = Normal, 3 = High. Defaults to Normal (2). */
     private int priority = 2;
 
+    /**
+     * Set at ingest time when the parent batch has Blind Double Review enabled and this document
+     * was randomly drawn into the sample. Persisted so the same document keeps the same selection
+     * decision across reads. Stays {@code false} for batches with the feature disabled or for
+     * documents that were not selected.
+     */
+    private boolean doubleReview;
+
+    /**
+     * Email of the reviewer whose approval or rejection first transitioned the document out of
+     * {@code REVIEW_REQUIRED} / {@code AUDIT_REQUIRED}. Set once and never overwritten so the
+     * blind-double-review filter can identify which user is disqualified from the second pass.
+     * {@code null} for documents that have not yet been reviewed.
+     */
+    private String firstReviewer;
+
+    /**
+     * Snapshot of approved PII span ranges (each entry is {@code [start, end]} in document
+     * character offsets) at the moment the first reviewer completed their review. Captured for
+     * blind-double-review documents so an Inter-Annotator Agreement (Cohen's Kappa) report can
+     * compare each reviewer's view independently.
+     */
+    private java.util.List<int[]> firstReviewSpans;
+
+    /**
+     * Email of the second reviewer (the one who provided the blind double review). Distinct from
+     * {@link #firstReviewer}; set the first time a different reviewer reviews a double-review-
+     * flagged document.
+     */
+    private String secondReviewer;
+
+    /**
+     * Snapshot of approved PII span ranges captured at the moment the second reviewer completed
+     * their review. Pairs with {@link #firstReviewSpans}.
+     */
+    private java.util.List<int[]> secondReviewSpans;
+
     public Document() {
     }
 
     public int getPriority() { return priority; }
     public void setPriority(final int priority) { this.priority = priority; }
+
+    public boolean isDoubleReview() { return doubleReview; }
+    public void setDoubleReview(final boolean doubleReview) { this.doubleReview = doubleReview; }
+
+    public String getFirstReviewer() { return firstReviewer; }
+    public void setFirstReviewer(final String firstReviewer) { this.firstReviewer = firstReviewer; }
+
+    public java.util.List<int[]> getFirstReviewSpans() { return firstReviewSpans; }
+    public void setFirstReviewSpans(final java.util.List<int[]> firstReviewSpans) {
+        this.firstReviewSpans = firstReviewSpans;
+    }
+
+    public String getSecondReviewer() { return secondReviewer; }
+    public void setSecondReviewer(final String secondReviewer) { this.secondReviewer = secondReviewer; }
+
+    public java.util.List<int[]> getSecondReviewSpans() { return secondReviewSpans; }
+    public void setSecondReviewSpans(final java.util.List<int[]> secondReviewSpans) {
+        this.secondReviewSpans = secondReviewSpans;
+    }
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
