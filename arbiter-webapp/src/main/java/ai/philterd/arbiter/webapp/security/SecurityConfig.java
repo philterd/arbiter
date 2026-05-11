@@ -114,6 +114,12 @@ public class SecurityConfig {
                         .requestMatchers("/login", "/mfa", "/invitations/**",
                                 "/css/**", "/js/**", "/images/**", "/webjars/**", "/docs/**", "/error").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        // Admin → Tools hosts destructive maintenance actions (today: data
+                        // import job cleanup). Auditors are read-only and shouldn't even see
+                        // the page, so this path is admin-only for both GETs and writes —
+                        // listed BEFORE the auditor-readable adminScopedPaths matcher so the
+                        // tighter rule wins.
+                        .requestMatchers("/admin/tools", "/admin/tools/**").hasRole("ADMIN")
                         // Reads on admin-scoped paths: admins and auditors. Auditors are a
                         // global read role — they see the same cross-group data admins see
                         // (audit log, queue, batches, reports) but never mutate state.

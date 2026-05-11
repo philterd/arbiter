@@ -43,6 +43,7 @@ import ai.philterd.arbiter.webapp.controllers.AdminGroupController;
 import ai.philterd.arbiter.webapp.controllers.AdminNotificationsController;
 import ai.philterd.arbiter.webapp.controllers.AdminOllamaController;
 import ai.philterd.arbiter.webapp.controllers.AdminPhilterController;
+import ai.philterd.arbiter.webapp.controllers.AdminToolsController;
 import ai.philterd.arbiter.webapp.controllers.AdminWeightSetController;
 import ai.philterd.arbiter.webapp.controllers.AuditLogAdminController;
 import ai.philterd.arbiter.webapp.controllers.BatchController;
@@ -59,6 +60,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -81,6 +83,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         AdminNotificationsController.class,
         AdminOllamaController.class,
         AdminPhilterController.class,
+        AdminToolsController.class,
         AdminWeightSetController.class,
         AuditLogAdminController.class,
         BatchController.class,
@@ -387,5 +390,88 @@ public class AuthorizationIntegrationTest {
                         .param("groupId", "g1"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/batches"));
+    }
+
+    // ---------------------------------------------------------------------
+    // Admin → Tools page is admin-only on both GET and POST. Unlike the rest of
+    // /admin/** (where AUDITOR has read access), the Tools page only hosts
+    // destructive maintenance actions, so AUDITORs are forbidden from even
+    // viewing it. The SecurityConfig matcher for /admin/tools/** is the only
+    // authoritative gate — there's no @PreAuthorize on the controller. These
+    // tests pin that gate so a future refactor can't silently relax it.
+    // ---------------------------------------------------------------------
+
+    @Test
+    void anonymousCannotReachAdminToolsPage() throws Exception {
+        final int status = mockMvc.perform(get("/admin/tools"))
+                .andReturn().getResponse().getStatus();
+        assertTrue(status == 401 || (status >= 300 && status < 400),
+                "anonymous request should be 401 or redirect, was " + status);
+    }
+
+    @Test
+    void userRoleForbiddenFromAdminToolsPage() throws Exception {
+        mockMvc.perform(get("/admin/tools").with(user("u").roles("USER")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void auditorRoleForbiddenFromAdminToolsPage() throws Exception {
+        // AUDITOR has read access to /admin/general, /admin/audit, /admin/users,
+        // etc. but NOT to /admin/tools — the Tools page hosts destructive
+        // actions only, so auditors shouldn't see it.
+        mockMvc.perform(get("/admin/tools").with(user("a").roles("AUDITOR")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminRoleCanReachAdminToolsPage() throws Exception {
+        mockMvc.perform(get("/admin/tools").with(user("a").roles("ADMIN")))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void anonymousCannotPostCleanupDataImports() throws Exception {
+        final int status = mockMvc.perform(post("/admin/tools/cleanup-data-imports").with(csrf()))
+                .andReturn().getResponse().getStatus();
+        assertTrue(status == 401 || (status >= 300 && status < 400),
+                "anonymous POST should be 401 or redirect, was " + status);
+    }
+
+    @Test
+    void userRoleForbiddenFromCleanupDataImports() throws Exception {
+        mockMvc.perform(post("/admin/tools/cleanup-data-imports")
+                        .with(user("u").roles("USER")).with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void auditorRoleForbiddenFromCleanupDataImports() throws Exception {
+        // AUDITOR can normally read admin pages; making sure a forged POST to the
+        // cleanup endpoint with a valid AUDITOR session still 403s. The default
+        // /admin/** matcher would already forbid POSTs from AUDITOR (read-only
+        // role), but pinning this with an explicit test means a refactor that
+        // splits the matchers can't accidentally drop the guarantee.
+        mockMvc.perform(post("/admin/tools/cleanup-data-imports")
+                        .with(user("a").roles("AUDITOR")).with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminRoleCanPostCleanupDataImports() throws Exception {
+        // Sanity check: a valid admin POST passes the framework gate and reaches
+        // the controller, which redirects back to /admin/tools.
+        mockMvc.perform(post("/admin/tools/cleanup-data-imports")
+                        .with(user("a").roles("ADMIN")).with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/admin/tools"));
+    }
+
+    @Test
+    void postCleanupWithoutCsrfRejectedEvenForAdmin() throws Exception {
+        // Belt-and-suspenders: even an admin POST is rejected (403) when the CSRF
+        // token is missing, matching the pattern enforced on every other UI POST.
+        mockMvc.perform(post("/admin/tools/cleanup-data-imports").with(user("a").roles("ADMIN")))
+                .andExpect(status().isForbidden());
     }
 }

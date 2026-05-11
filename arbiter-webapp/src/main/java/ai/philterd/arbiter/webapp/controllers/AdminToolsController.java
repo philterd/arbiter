@@ -19,7 +19,6 @@ import ai.philterd.arbiter.model.BackgroundJob;
 import ai.philterd.arbiter.repository.BackgroundJobRepository;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.DataImportLogService;
-import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,10 +35,13 @@ import java.util.stream.Collectors;
  * Admin "Tools" tab — destructive maintenance actions that don't belong on the
  * data-source/destination/notifications pages. Right now this hosts a single tool
  * for wiping the per-job data-import history and log entries.
+ *
+ * <p>Access control is enforced at the URL level in
+ * {@code SecurityConfig} (ADMIN only, both GET and POST) so auditors never see the
+ * page and a forged POST is rejected before this controller runs.
  */
 @Controller
 @RequestMapping("/admin/tools")
-@PreAuthorize("hasRole('ADMIN')")
 public class AdminToolsController {
 
     private static final List<String> DATA_IMPORT_TYPES = List.of(
