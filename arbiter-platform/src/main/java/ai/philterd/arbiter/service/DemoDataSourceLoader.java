@@ -274,7 +274,7 @@ public class DemoDataSourceLoader implements ApplicationRunner {
         ds.setEndpoint(minioEndpoint);
         ds.setBucketName(minioBucket);
         // Bucket-key prefix the minio-init container drops sample files under.
-        ds.setBucketKey("");
+        ds.setBucketKey("arbiter-demo/");
         ds.setFilenameGlob("*.txt");
         try {
             ds.setEncryptedAccessKey(cipher.encrypt(minioAccessKey));

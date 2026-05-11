@@ -67,6 +67,7 @@ public class LocalDirectoryIngestJobService {
     private final IngestQueueService ingestQueueService;
     private final InboxService inboxService;
     private final AuditLogService auditLogService;
+    private final DataImportLogService importLogService;
 
     public LocalDirectoryIngestJobService(final BackgroundJobRepository jobRepository,
                                           final LocalDirectoryDataSourceRepository dataSourceRepository,
@@ -74,7 +75,8 @@ public class LocalDirectoryIngestJobService {
                                           final DocumentRepository documentRepository,
                                           final IngestQueueService ingestQueueService,
                                           final InboxService inboxService,
-                                          final AuditLogService auditLogService) {
+                                          final AuditLogService auditLogService,
+                                          final DataImportLogService importLogService) {
         this.jobRepository = jobRepository;
         this.dataSourceRepository = dataSourceRepository;
         this.batchRepository = batchRepository;
@@ -82,6 +84,7 @@ public class LocalDirectoryIngestJobService {
         this.ingestQueueService = ingestQueueService;
         this.inboxService = inboxService;
         this.auditLogService = auditLogService;
+        this.importLogService = importLogService;
     }
 
     /**
@@ -209,6 +212,7 @@ public class LocalDirectoryIngestJobService {
 
                 if (documentRepository.existsBySourceIndexAndSourceDocId(sourceIndex, relative)) {
                     recordSkipped(job, batch, filename, sourceIndex, relative);
+                    importLogService.skipped(job.getId(), filename, relative);
                     continue;
                 }
 
@@ -231,11 +235,13 @@ public class LocalDirectoryIngestJobService {
                     documentRepository.save(doc);
                     auditDocumentImport(job, doc, "SUCCESS");
                     bumpProcessed(job);
+                    importLogService.success(job.getId(), filename, relative);
                 } catch (Exception e) {
                     final String reason = "Failed to read or enqueue \"" + relative + "\": "
                             + e.getMessage();
                     log.warn("Job {}: {}", job.getId(), reason, e);
                     bumpFailed(job, reason);
+                    importLogService.failed(job.getId(), filename, relative, e.getMessage());
                 }
             }
             finish(job, BackgroundJob.STATUS_COMPLETED, null);

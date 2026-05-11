@@ -193,6 +193,7 @@
                 <a th:href="@{/admin/llm-judge}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">LLM-as-a-Judge</a>
                 <a th:href="@{/admin/philter}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Philter</a>
                 <a th:href="@{/admin/security}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Security</a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/tools}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Tools</a>
             </nav>
 
             <div th:if="${error}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"

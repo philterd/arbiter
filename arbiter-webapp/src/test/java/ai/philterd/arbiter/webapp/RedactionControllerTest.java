@@ -124,6 +124,9 @@ public class RedactionControllerTest {
     private ai.philterd.arbiter.repository.BackgroundJobRepository backgroundJobRepository;
 
     @MockBean
+    private ai.philterd.arbiter.repository.DataImportLogEntryRepository dataImportLogEntryRepository;
+
+    @MockBean
     private ai.philterd.arbiter.repository.ElasticsearchDataSourceRepository elasticsearchDataSourceRepository;
 
     @MockBean
@@ -211,6 +214,12 @@ public class RedactionControllerTest {
 
     @MockBean
     private ai.philterd.arbiter.service.ElasticsearchIngestJobService elasticsearchIngestJobService;
+
+    @MockBean
+    private ai.philterd.arbiter.service.LocalDirectoryIngestJobService localDirectoryIngestJobService;
+
+    @MockBean
+    private ai.philterd.arbiter.service.S3IngestJobService s3IngestJobService;
 
     /**
      * A non-admin reviewer with no group membership submits an OpenSearch ingest pointed at a

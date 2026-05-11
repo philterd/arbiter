@@ -45,6 +45,7 @@ class DataImportDispatcherTest {
     private OpenSearchIngestJobService osService;
     private ElasticsearchIngestJobService esService;
     private LocalDirectoryIngestJobService localService;
+    private S3IngestJobService s3Service;
     private GeneralSettingsService settingsService;
     private DataImportDispatcher dispatcher;
 
@@ -55,11 +56,12 @@ class DataImportDispatcherTest {
         osService = mock(OpenSearchIngestJobService.class);
         esService = mock(ElasticsearchIngestJobService.class);
         localService = mock(LocalDirectoryIngestJobService.class);
+        s3Service = mock(S3IngestJobService.class);
         settingsService = mock(GeneralSettingsService.class);
         // Default: limit = 5 unless a test overrides.
         when(settingsService.load()).thenReturn(settingsWithLimit(5));
         dispatcher = new DataImportDispatcher(jobRepository, mongoOperations,
-                osService, esService, localService, settingsService);
+                osService, esService, localService, s3Service, settingsService);
     }
 
     private static GeneralSettings settingsWithLimit(final int limit) {

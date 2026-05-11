@@ -11,14 +11,19 @@ package ai.philterd.arbiter.webapp.controllers;
 
 import ai.philterd.arbiter.model.BackgroundJob;
 import ai.philterd.arbiter.model.Batch;
+import ai.philterd.arbiter.model.DataImportLogEntry;
 import ai.philterd.arbiter.repository.BackgroundJobRepository;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.service.AuthUtils;
+import ai.philterd.arbiter.service.BatchAccessService;
+import ai.philterd.arbiter.service.DataImportLogService;
 import ai.philterd.arbiter.service.UserGroupsService;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
@@ -44,13 +49,63 @@ public class BackgroundJobsController {
     private final BackgroundJobRepository repository;
     private final BatchRepository batchRepository;
     private final UserGroupsService userGroupsService;
+    private final BatchAccessService batchAccessService;
+    private final DataImportLogService importLogService;
 
     public BackgroundJobsController(final BackgroundJobRepository repository,
                                     final BatchRepository batchRepository,
-                                    final UserGroupsService userGroupsService) {
+                                    final UserGroupsService userGroupsService,
+                                    final BatchAccessService batchAccessService,
+                                    final DataImportLogService importLogService) {
         this.repository = repository;
         this.batchRepository = batchRepository;
         this.userGroupsService = userGroupsService;
+        this.batchAccessService = batchAccessService;
+        this.importLogService = importLogService;
+    }
+
+    /**
+     * JSON endpoint that backs the "Log" button on each data-import row of the
+     * Background Jobs page. Returns one page of per-file outcomes recorded by
+     * {@link DataImportLogService} while the job ran. Access is scoped: callers
+     * who can't see the job's batch get a 404 (no row leakage).
+     *
+     * <p>Response shape: {@code { items: [...], page, size, totalItems, totalPages }}.
+     * {@code page} is zero-based; the service clamps {@code size} to a sane range.
+     */
+    @GetMapping("/api/v1/jobs/{jobId}/log")
+    @org.springframework.web.bind.annotation.ResponseBody
+    public ResponseEntity<java.util.Map<String, Object>> jobLog(
+            @PathVariable final String jobId,
+            @org.springframework.web.bind.annotation.RequestParam(value = "page", defaultValue = "0") final int page,
+            @org.springframework.web.bind.annotation.RequestParam(value = "size", defaultValue = "10") final int size,
+            final Authentication authentication) {
+        final BackgroundJob job = repository.findById(jobId).orElse(null);
+        if (job == null) return ResponseEntity.notFound().build();
+        final Batch batch = job.getBatchId() == null ? null
+                : batchRepository.findById(job.getBatchId()).orElse(null);
+        if (!batchAccessService.canAccessBatch(authentication, batch)) {
+            return ResponseEntity.notFound().build();
+        }
+        final org.springframework.data.domain.Page<DataImportLogEntry> pageResult =
+                importLogService.forJob(jobId, page, size);
+        final java.util.List<java.util.Map<String, Object>> rows = new ArrayList<>();
+        for (DataImportLogEntry e : pageResult.getContent()) {
+            final java.util.Map<String, Object> row = new LinkedHashMap<>();
+            row.put("timestamp", e.getTimestamp() == null ? "" : e.getTimestamp().toString());
+            row.put("filename", e.getFilename() == null ? "" : e.getFilename());
+            row.put("sourceDocId", e.getSourceDocId() == null ? "" : e.getSourceDocId());
+            row.put("outcome", e.getOutcome() == null ? "" : e.getOutcome());
+            row.put("message", e.getMessage() == null ? "" : e.getMessage());
+            rows.add(row);
+        }
+        final java.util.Map<String, Object> body = new LinkedHashMap<>();
+        body.put("items", rows);
+        body.put("page", pageResult.getNumber());
+        body.put("size", pageResult.getSize());
+        body.put("totalItems", pageResult.getTotalElements());
+        body.put("totalPages", pageResult.getTotalPages());
+        return ResponseEntity.ok(body);
     }
 
     @GetMapping("/jobs")

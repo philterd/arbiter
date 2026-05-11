@@ -97,6 +97,7 @@ public class RedactionController {
     private final ai.philterd.arbiter.service.OpenSearchIngestJobService openSearchIngestJobService;
     private final ai.philterd.arbiter.service.ElasticsearchIngestJobService elasticsearchIngestJobService;
     private final ai.philterd.arbiter.service.LocalDirectoryIngestJobService localDirectoryIngestJobService;
+    private final ai.philterd.arbiter.service.S3IngestJobService s3IngestJobService;
 
     public RedactionController(final RedactionService redactionService,
                                final BatchRepository batchRepository,
@@ -115,7 +116,8 @@ public class RedactionController {
                                final LocalDirectoryDataSourceRepository localDataSourceRepository,
                                final ai.philterd.arbiter.service.OpenSearchIngestJobService openSearchIngestJobService,
                                final ai.philterd.arbiter.service.ElasticsearchIngestJobService elasticsearchIngestJobService,
-                               final ai.philterd.arbiter.service.LocalDirectoryIngestJobService localDirectoryIngestJobService) {
+                               final ai.philterd.arbiter.service.LocalDirectoryIngestJobService localDirectoryIngestJobService,
+                               final ai.philterd.arbiter.service.S3IngestJobService s3IngestJobService) {
         this.redactionService = redactionService;
         this.batchRepository = batchRepository;
         this.documentRepository = documentRepository;
@@ -134,6 +136,7 @@ public class RedactionController {
         this.openSearchIngestJobService = openSearchIngestJobService;
         this.elasticsearchIngestJobService = elasticsearchIngestJobService;
         this.localDirectoryIngestJobService = localDirectoryIngestJobService;
+        this.s3IngestJobService = s3IngestJobService;
     }
 
     @GetMapping("/")
@@ -307,15 +310,23 @@ public class RedactionController {
             }
             return "redirect:/jobs";
         }
-        // TODO: Implement S3 and RDB ingest. The admin UI lets operators configure data
-        // sources of these two types (with credential encryption and JDBC URL validation);
-        // the upload page lists them in tabs; the test buttons exercise the connection
-        // path. But selecting one and clicking ingest lands here and does nothing. Each
-        // needs an Ingest-Job service modeled on LocalDirectoryIngestJobService /
-        // OpenSearchIngestJobService — background-job row, paginated read, dedupe placeholder
-        // Documents — plus a JdbcUrlValidator-gated JDBC connect site for RDB.
+        if ("s3".equals(sourceType)) {
+            final String email = authentication == null ? null : authentication.getName();
+            final ai.philterd.arbiter.model.BackgroundJob job =
+                    s3IngestJobService.start(dataSourceId, batchId, priority, email);
+            if (ai.philterd.arbiter.model.BackgroundJob.STATUS_FAILED.equals(job.getStatus())) {
+                redirectAttributes.addFlashAttribute("error",
+                        "Could not start S3 ingest: " + job.getErrorMessage());
+            } else {
+                redirectAttributes.addFlashAttribute("success",
+                        "S3 ingest started. Watch its progress on the Background Jobs page.");
+            }
+            return "redirect:/jobs";
+        }
+        // TODO: Implement RDB ingest. The admin UI lets operators configure RDB sources
+        // (with JDBC URL validation and credential encryption) and the test button
+        // exercises the connection path, but the ingest itself isn't wired up yet.
         final String label = switch (sourceType == null ? "" : sourceType) {
-            case "s3" -> "Amazon S3";
             case "rdb" -> "relational database";
             default -> "data source";
         };

@@ -110,6 +110,7 @@ public class AuthorizationIntegrationTest {
     @MockBean private OllamaInstanceRepository ollamaInstanceRepository;
     @MockBean private OpenSearchDataSourceRepository openSearchDataSourceRepository;
     @MockBean private ai.philterd.arbiter.repository.BackgroundJobRepository backgroundJobRepository;
+    @MockBean private ai.philterd.arbiter.repository.DataImportLogEntryRepository dataImportLogEntryRepository;
     @MockBean private ai.philterd.arbiter.repository.ElasticsearchDataSourceRepository elasticsearchDataSourceRepository;
     @MockBean private S3DataSourceRepository s3DataSourceRepository;
     @MockBean private RelationalDbDataSourceRepository relationalDbDataSourceRepository;

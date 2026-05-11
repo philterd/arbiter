@@ -42,6 +42,7 @@ nav:
       - Full text search: admin/full-text-search.md
       - Notifications: admin/notifications.md
       - Security: admin/security.md
+      - Tools: admin/tools.md
   - Reference:
       - Risk score: reference/risk-score.md
       - PII types: reference/pii-types.md

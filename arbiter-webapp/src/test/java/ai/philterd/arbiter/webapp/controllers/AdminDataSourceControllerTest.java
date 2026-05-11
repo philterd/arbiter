@@ -277,6 +277,118 @@ class AdminDataSourceControllerTest {
         verify(s3Repository, never()).deleteById(anyString());
     }
 
+    @Test
+    void s3EditHappyPathUpdatesFieldsAndKeepsCredentialsWhenBlank() {
+        final S3DataSource existing = new S3DataSource();
+        existing.setId("e1");
+        existing.setName("archive");
+        existing.setEndpoint("http://old:9000");
+        existing.setBucketName("old-bucket");
+        existing.setBucketKey("old/");
+        existing.setFilenameGlob("*.txt");
+        existing.setEncryptedAccessKey("enc:AKIA-old");
+        existing.setEncryptedSecretKey("enc:secret-old");
+        when(s3Repository.findById("e1")).thenReturn(Optional.of(existing));
+        final RedirectAttributes ra = flash();
+
+        controller.editS3("e1", "http://new:9000", "new-bucket", "new/", "**/*.pdf",
+                "", "", false, ra);
+
+        final ArgumentCaptor<S3DataSource> saved = ArgumentCaptor.forClass(S3DataSource.class);
+        verify(s3Repository).save(saved.capture());
+        assertEquals("http://new:9000", saved.getValue().getEndpoint());
+        assertEquals("new-bucket", saved.getValue().getBucketName());
+        assertEquals("new/", saved.getValue().getBucketKey());
+        assertEquals("**/*.pdf", saved.getValue().getFilenameGlob());
+        // Blank credentials + clearCredentials=false must preserve existing keys.
+        assertEquals("enc:AKIA-old", saved.getValue().getEncryptedAccessKey());
+        assertEquals("enc:secret-old", saved.getValue().getEncryptedSecretKey());
+    }
+
+    @Test
+    void s3EditEmptyEndpointFallsBackToNullForAwsDefault() {
+        final S3DataSource existing = new S3DataSource();
+        existing.setId("e1");
+        existing.setName("archive");
+        existing.setEndpoint("http://minio:9000");
+        existing.setBucketName("b");
+        existing.setBucketKey("k/");
+        existing.setFilenameGlob("*.txt");
+        when(s3Repository.findById("e1")).thenReturn(Optional.of(existing));
+        final RedirectAttributes ra = flash();
+
+        controller.editS3("e1", "  ", "b", "k/", "*.txt", "", "", false, ra);
+
+        final ArgumentCaptor<S3DataSource> saved = ArgumentCaptor.forClass(S3DataSource.class);
+        verify(s3Repository).save(saved.capture());
+        assertNull(saved.getValue().getEndpoint());
+    }
+
+    @Test
+    void s3EditNonEmptyCredentialsReplaceStoredOnes() {
+        final S3DataSource existing = new S3DataSource();
+        existing.setId("e1");
+        existing.setName("archive");
+        existing.setBucketName("b");
+        existing.setBucketKey("k/");
+        existing.setFilenameGlob("*.txt");
+        existing.setEncryptedAccessKey("enc:old-ak");
+        existing.setEncryptedSecretKey("enc:old-sk");
+        when(s3Repository.findById("e1")).thenReturn(Optional.of(existing));
+        final RedirectAttributes ra = flash();
+
+        controller.editS3("e1", null, "b", "k/", "*.txt", "AKIA-new", "secret-new", false, ra);
+
+        final ArgumentCaptor<S3DataSource> saved = ArgumentCaptor.forClass(S3DataSource.class);
+        verify(s3Repository).save(saved.capture());
+        assertEquals("enc:AKIA-new", saved.getValue().getEncryptedAccessKey());
+        assertEquals("enc:secret-new", saved.getValue().getEncryptedSecretKey());
+    }
+
+    @Test
+    void s3EditClearCredentialsWipesBothEvenWhenFieldsAreBlank() {
+        final S3DataSource existing = new S3DataSource();
+        existing.setId("e1");
+        existing.setName("archive");
+        existing.setBucketName("b");
+        existing.setBucketKey("k/");
+        existing.setFilenameGlob("*.txt");
+        existing.setEncryptedAccessKey("enc:old");
+        existing.setEncryptedSecretKey("enc:old");
+        when(s3Repository.findById("e1")).thenReturn(Optional.of(existing));
+        final RedirectAttributes ra = flash();
+
+        controller.editS3("e1", null, "b", "k/", "*.txt", "", "", true, ra);
+
+        final ArgumentCaptor<S3DataSource> saved = ArgumentCaptor.forClass(S3DataSource.class);
+        verify(s3Repository).save(saved.capture());
+        assertNull(saved.getValue().getEncryptedAccessKey());
+        assertNull(saved.getValue().getEncryptedSecretKey());
+    }
+
+    @Test
+    void s3EditRejectsMismatchedCredentialPair() {
+        final S3DataSource existing = new S3DataSource();
+        existing.setId("e1");
+        existing.setName("archive");
+        when(s3Repository.findById("e1")).thenReturn(Optional.of(existing));
+        final RedirectAttributes ra = flash();
+
+        controller.editS3("e1", null, "b", "k/", "*.txt", "AKIA", "", false, ra);
+
+        assertEquals("Provide both Access key and Secret key, or leave both blank.", error(ra));
+        verify(s3Repository, never()).save(any());
+    }
+
+    @Test
+    void s3EditMissingIdReturnsError() {
+        when(s3Repository.findById("ghost")).thenReturn(Optional.empty());
+        final RedirectAttributes ra = flash();
+        controller.editS3("ghost", null, "b", "k/", "*.txt", "", "", false, ra);
+        assertEquals("S3 data source not found.", error(ra));
+        verify(s3Repository, never()).save(any());
+    }
+
     // ====================================================================
     // Relational Database
     // ====================================================================

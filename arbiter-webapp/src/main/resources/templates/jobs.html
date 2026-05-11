@@ -316,6 +316,17 @@
                                                  data-skipped=${j.skippedDocuments}">
                                     Details
                                 </button>
+                                <!-- Log button: only rendered for data-import jobs (the only type
+                                     that produces per-file entries). Clicking fetches the log
+                                     from /api/v1/jobs/{id}/log and renders it in a modal. -->
+                                <button th:if="${j.category == 'DATA_IMPORT'}"
+                                        type="button"
+                                        class="job-log-btn ml-3 text-blue-600 hover:text-blue-800 font-medium"
+                                        th:attr="data-job-id=${j.id},
+                                                 data-job-label=${(j.sourceName != null ? j.sourceName : '—')
+                                                                  + ' → ' + (j.batchName != null ? j.batchName : '—')}">
+                                    Log
+                                </button>
                             </td>
                         </tr>
                     </tbody>
@@ -429,6 +440,189 @@
                 if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
             });
         })();
+    </script>
+
+    <!-- Job log modal — populated by an AJAX fetch of /api/v1/jobs/{id}/log when
+         the user clicks Log on a data-import row. Renders one row per file with the
+         outcome (SUCCESS / SKIPPED / FAILED), filename, source-side id, and any
+         failure reason. The endpoint is access-scoped so non-admin reviewers see
+         404 for jobs whose batch they can't access. -->
+    <div id="jobLogModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div class="px-6 py-4 border-b border-gray-200 flex items-start justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Import log</h3>
+                    <p id="jobLogLabel" class="text-xs text-gray-500 mt-0.5">Job</p>
+                </div>
+                <button type="button" id="jobLogCloseX"
+                        class="text-gray-400 hover:text-gray-700 text-xl leading-none px-2"
+                        aria-label="Close">&times;</button>
+            </div>
+            <div class="px-6 py-5">
+                <div id="jobLogStatus" class="text-sm text-gray-500 mb-3">Loading…</div>
+                <div id="jobLogTableWrapper" class="hidden">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Outcome</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Detail</th>
+                            </tr>
+                        </thead>
+                        <tbody id="jobLogTableBody" class="divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="px-6 py-3 border-t border-gray-100 flex items-center justify-between gap-3">
+                <div id="jobLogPager" class="flex items-center gap-2 text-sm text-gray-600 hidden">
+                    <button type="button" id="jobLogPrev"
+                            class="px-3 py-1.5 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
+                        Previous
+                    </button>
+                    <span id="jobLogPageInfo" class="text-xs text-gray-500">Page 1 of 1</span>
+                    <button type="button" id="jobLogNext"
+                            class="px-3 py-1.5 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
+                        Next
+                    </button>
+                </div>
+                <button type="button" id="jobLogCloseBtn"
+                        class="ml-auto px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        (function () {
+            const PAGE_SIZE = 10;
+            const modal = document.getElementById('jobLogModal');
+            const labelEl = document.getElementById('jobLogLabel');
+            const statusEl = document.getElementById('jobLogStatus');
+            const tableWrapper = document.getElementById('jobLogTableWrapper');
+            const tbody = document.getElementById('jobLogTableBody');
+            const pager = document.getElementById('jobLogPager');
+            const prevBtn = document.getElementById('jobLogPrev');
+            const nextBtn = document.getElementById('jobLogNext');
+            const pageInfo = document.getElementById('jobLogPageInfo');
+
+            // Active job + current page kept on closure so Previous/Next don't need
+            // to walk the table state.
+            let currentJobId = null;
+            let currentPage = 0;
+
+            function openModal() { modal.classList.remove('hidden'); }
+            function closeModal() { modal.classList.add('hidden'); }
+
+            function escapeHtml(s) {
+                if (s == null) return '';
+                return String(s)
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            }
+
+            function outcomeBadge(outcome) {
+                const o = String(outcome || '').toUpperCase();
+                const cls = o === 'SUCCESS' ? 'bg-green-100 text-green-800'
+                          : o === 'SKIPPED' ? 'bg-yellow-100 text-yellow-800'
+                          : o === 'FAILED'  ? 'bg-red-100 text-red-800'
+                          :                   'bg-gray-100 text-gray-700';
+                return '<span class="inline-flex px-2 text-xs leading-5 font-semibold rounded-full '
+                        + cls + '">' + escapeHtml(o) + '</span>';
+            }
+
+            async function loadPage(jobId, page) {
+                tableWrapper.classList.add('hidden');
+                tbody.innerHTML = '';
+                statusEl.textContent = 'Loading…';
+                statusEl.classList.remove('hidden', 'text-red-700');
+                pager.classList.add('hidden');
+                try {
+                    const url = '/api/v1/jobs/' + encodeURIComponent(jobId) + '/log'
+                            + '?page=' + page + '&size=' + PAGE_SIZE;
+                    const resp = await fetch(url, { headers: { Accept: 'application/json' } });
+                    if (resp.status === 404) {
+                        statusEl.textContent = 'Job not found or you do not have access to it.';
+                        return;
+                    }
+                    if (!resp.ok) {
+                        statusEl.textContent = 'Failed to load log: HTTP ' + resp.status;
+                        statusEl.classList.add('text-red-700');
+                        return;
+                    }
+                    const body = await resp.json();
+                    const items = (body && Array.isArray(body.items)) ? body.items : [];
+                    const totalItems = (body && typeof body.totalItems === 'number') ? body.totalItems : items.length;
+                    const totalPages = (body && typeof body.totalPages === 'number') ? body.totalPages : 1;
+                    if (totalItems === 0) {
+                        statusEl.textContent = 'No log entries yet — the job may not have started, '
+                                + 'or it may be an older job from before per-file logging was added.';
+                        return;
+                    }
+                    statusEl.classList.add('hidden');
+                    tableWrapper.classList.remove('hidden');
+                    tbody.innerHTML = items.map(function (r) {
+                        return '<tr class="hover:bg-gray-50">'
+                            + '<td class="px-3 py-2 whitespace-nowrap text-xs text-gray-500 font-mono">'
+                                + escapeHtml(r.timestamp) + '</td>'
+                            + '<td class="px-3 py-2 text-sm text-gray-900">'
+                                + '<div class="font-medium">' + escapeHtml(r.filename) + '</div>'
+                                + (r.sourceDocId ? '<div class="text-xs text-gray-500 font-mono">'
+                                    + escapeHtml(r.sourceDocId) + '</div>' : '')
+                                + '</td>'
+                            + '<td class="px-3 py-2 whitespace-nowrap">' + outcomeBadge(r.outcome) + '</td>'
+                            + '<td class="px-3 py-2 text-sm text-gray-700">' + escapeHtml(r.message) + '</td>'
+                            + '</tr>';
+                    }).join('');
+                    // Show the pager only when there's more than one page — a single
+                    // page of results doesn't need stepping controls.
+                    if (totalPages > 1) {
+                        pager.classList.remove('hidden');
+                        pageInfo.textContent = 'Page ' + (page + 1) + ' of ' + totalPages
+                                + ' (' + totalItems + ' entries)';
+                        prevBtn.disabled = page <= 0;
+                        nextBtn.disabled = page >= totalPages - 1;
+                    }
+                } catch (err) {
+                    statusEl.textContent = 'Failed to load log: ' + err.message;
+                    statusEl.classList.add('text-red-700');
+                }
+            }
+
+            function openLog(jobId, label) {
+                currentJobId = jobId;
+                currentPage = 0;
+                labelEl.textContent = label || ('Job ' + jobId);
+                openModal();
+                loadPage(jobId, 0);
+            }
+
+            prevBtn.addEventListener('click', function () {
+                if (currentJobId == null || currentPage <= 0) return;
+                currentPage -= 1;
+                loadPage(currentJobId, currentPage);
+            });
+            nextBtn.addEventListener('click', function () {
+                if (currentJobId == null) return;
+                currentPage += 1;
+                loadPage(currentJobId, currentPage);
+            });
+
+            document.querySelectorAll('.job-log-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    openLog(btn.dataset.jobId, btn.dataset.jobLabel);
+                });
+            });
+            document.getElementById('jobLogCloseX').addEventListener('click', closeModal);
+            document.getElementById('jobLogCloseBtn').addEventListener('click', closeModal);
+            modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+            });
+        })();
+        /*]]>*/
     </script>
 </body>
 </html>

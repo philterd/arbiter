@@ -17,7 +17,7 @@
 <html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <head>
     <meta charset="UTF-8">
-    <title>Arbiter - General</title>
+    <title>Arbiter - Tools</title>
     <script th:src="@{/js/tailwind.js}"></script>
 </head>
 <body class="bg-gray-50">
@@ -186,14 +186,14 @@
                 <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Admin</h2><a href="/docs/reference/configuration/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
             </div>
             <nav class="flex border-b border-gray-200 mb-6 text-sm">
-                <a th:href="@{/admin/general}" class="px-4 py-2 text-blue-700 font-medium border-b-2 border-blue-600">General</a>
+                <a th:href="@{/admin/general}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">General</a>
                 <a th:href="@{/admin/users}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Users</a>
                 <a th:href="@{/admin/groups}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Groups</a>
                 <a th:href="@{/admin/notifications}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Notifications</a>
                 <a th:href="@{/admin/llm-judge}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">LLM-as-a-Judge</a>
                 <a th:href="@{/admin/philter}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Philter</a>
                 <a th:href="@{/admin/security}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Security</a>
-                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/tools}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Tools</a>
+                <a th:href="@{/admin/tools}" class="px-4 py-2 text-blue-700 font-medium border-b-2 border-blue-600">Tools</a>
             </nav>
 
             <div th:if="${error}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
@@ -202,253 +202,87 @@
                  th:text="${success}">Success</div>
 
             <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-3xl mb-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-1">Arbiter URL</h3>
+                <h3 class="text-lg font-semibold text-gray-900 mb-1">Clean up data import jobs</h3>
                 <p class="text-sm text-gray-600 mb-4">
-                    The base URL where this Arbiter instance is reachable. It is used in
-                    outbound notifications (such as new-user welcome emails) so links
-                    point back here. Include the scheme (<code>http://</code> or
-                    <code>https://</code>) and the port if non-standard.
+                    Removes completed and failed rows from the Data Import Jobs table and their
+                    associated per-file log entries from the database. Pending and running
+                    jobs are left in place so an in-flight import is never deleted out from
+                    under the worker. This does not delete documents that were already
+                    ingested.
                 </p>
-
-                <form th:action="@{/admin/general/url}" method="post" class="space-y-4">
-                    <div>
-                        <label for="arbiterUrl" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">URL</label>
-                        <input id="arbiterUrl" name="arbiterUrl" type="url" required
-                               th:value="${settings.arbiterUrl}"
-                               placeholder="http://192.168.1.20:8080"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div class="flex justify-end">
-                        <button type="submit"
-                                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
-                            Save
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-3xl mb-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-1">Full text search</h3>
-                <p class="text-sm text-gray-600 mb-4">
-                    Indexes each ingested document into OpenSearch so reviewers can search
-                    documents by their text. When enabled, Arbiter writes the document text
-                    to the configured index on every ingest and serves the
-                    <a th:href="@{/search}" class="text-blue-600 underline">Search</a> page
-                    from that index. The same index also powers the
-                    <strong>Find similar documents</strong> button on the document review
-                    page, which surfaces other documents in the same batch with related
-                    text.
-                </p>
-
-                <form id="ftsForm" th:action="@{/admin/general/full-text-search}" method="post" class="space-y-4">
-                    <label class="inline-flex items-start gap-2 text-sm text-gray-700">
-                        <input id="fullTextSearchEnabled" type="checkbox" name="fullTextSearchEnabled" value="true"
-                               class="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                               th:checked="${settings.fullTextSearchEnabled}">
-                        <span>Enable full text search</span>
-                    </label>
-                    <p class="text-xs text-gray-500 -mt-2">
-                        Default: enabled. Disabling stops new ingests from writing to OpenSearch and
-                        leaves the Search page empty.
-                    </p>
-
-                    <div>
-                        <label for="opensearchEndpoint" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Endpoint</label>
-                        <input id="opensearchEndpoint" name="opensearchEndpoint" type="url" required
-                               th:value="${ftsPendingEndpoint != null ? ftsPendingEndpoint : settings.opensearchEndpoint}"
-                               placeholder="http://localhost:9200"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <p class="text-xs text-gray-500 mt-1">
-                            Base URL of the OpenSearch cluster. Include the scheme and port.
-                        </p>
-                    </div>
-
-                    <div>
-                        <label for="opensearchIndexName" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Index name</label>
-                        <input id="opensearchIndexName" name="opensearchIndexName" type="text" required
-                               th:value="${ftsPendingIndexName != null ? ftsPendingIndexName : settings.opensearchIndexName}"
-                               placeholder="arbiter-documents"
-                               pattern="[a-z0-9][a-z0-9\-_+]*"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <p class="text-xs text-gray-500 mt-1">
-                            Lower-case letters, digits, '-', '_', '+'. Created on save if it does not exist.
-                        </p>
-                    </div>
-
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <label for="opensearchUsername" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Username (optional)</label>
-                            <input id="opensearchUsername" name="opensearchUsername" type="text"
-                                   th:value="${ftsPendingUsername != null ? ftsPendingUsername : settings.opensearchUsername}"
-                                   autocomplete="off"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label for="opensearchPassword" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Password (optional)</label>
-                            <input id="opensearchPassword" name="opensearchPassword" type="password"
-                                   autocomplete="new-password"
-                                   placeholder="(unchanged)"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <label class="inline-flex items-start gap-2 text-xs text-gray-600 mt-2">
-                                <input type="checkbox" name="clearOpensearchPassword" value="true"
-                                       class="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                       th:checked="${ftsPendingClearPassword != null and ftsPendingClearPassword}">
-                                <span>Clear stored password</span>
-                            </label>
-                        </div>
-                    </div>
-
-                    <p class="text-xs text-gray-500">
-                        Leave the password blank to keep the existing one. The password is encrypted
-                        at rest with AES-GCM (the same scheme as data-source credentials and Philter
-                        API keys).
-                    </p>
-
-                    <div class="flex justify-end">
-                        <button type="submit"
-                                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
-                            Save
-                        </button>
-                    </div>
-                </form>
-
-                <!-- Mapping mismatch dialog: rendered when the previous save attempt found
-                     an existing index with a non-canonical mapping. The operator picks
-                     between continuing with the existing mapping (settings get saved as
-                     submitted) or cancelling. The diff is a plain side-by-side text view —
-                     OpenSearch mappings are JSON, so an in-line <pre> is enough. -->
-                <div th:if="${ftsMismatch}" class="mt-6 border-2 border-amber-400 bg-amber-50 rounded-lg p-5">
-                    <h4 class="text-base font-semibold text-amber-900 mb-1">Index mapping does not match</h4>
-                    <p class="text-sm text-amber-900 mb-4" th:text="${ftsMismatchMessage}">message</p>
-                    <details class="mb-4">
-                        <summary class="cursor-pointer text-sm font-medium text-amber-900">Show mapping comparison</summary>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
-                            <div>
-                                <p class="text-xs uppercase tracking-wide font-medium text-gray-600 mb-1">Existing mapping</p>
-                                <pre class="text-xs font-mono bg-white p-3 rounded border border-gray-200 overflow-x-auto" th:text="${ftsExistingMapping}"></pre>
-                            </div>
-                            <div>
-                                <p class="text-xs uppercase tracking-wide font-medium text-gray-600 mb-1">Expected mapping</p>
-                                <pre class="text-xs font-mono bg-white p-3 rounded border border-gray-200 overflow-x-auto" th:text="${ftsExpectedMapping}"></pre>
-                            </div>
-                        </div>
-                    </details>
-                    <p class="text-sm text-amber-900 mb-3">
-                        Continue with the existing index? Search may still work but documents that
-                        relied on the canonical mapping (e.g. <code>originalText</code> as a
-                        full-text field) may not surface as expected.
-                    </p>
-                    <div class="flex items-center gap-2">
-                        <form th:action="@{/admin/general/full-text-search/confirm}" method="post" class="inline">
-                            <input type="hidden" name="fullTextSearchEnabled" value="true"
-                                   th:value="${ftsPendingEnabled} ? 'true' : 'false'">
-                            <input type="hidden" name="opensearchEndpoint" th:value="${ftsPendingEndpoint}">
-                            <input type="hidden" name="opensearchIndexName" th:value="${ftsPendingIndexName}">
-                            <input type="hidden" name="opensearchUsername" th:value="${ftsPendingUsername}">
-                            <input type="hidden" name="clearOpensearchPassword"
-                                   th:value="${ftsPendingClearPassword} ? 'true' : 'false'">
-                            <button type="submit"
-                                    class="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium rounded-lg">
-                                Continue with existing index
-                            </button>
-                        </form>
-                        <a th:href="@{/admin/general}"
-                           class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
-                            Cancel
-                        </a>
-                    </div>
-                </div>
-            </div>
-
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-3xl mb-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-1">Max upload file size</h3>
-                <p class="text-sm text-gray-600 mb-4">
-                    Upper bound (in megabytes) on a single document submitted via the web upload
-                    form or the <code>POST /api/v1/ingest</code> endpoint. Larger uploads are
-                    rejected before they reach the redactor.
-                </p>
-
-                <form th:action="@{/admin/general/max-upload-mb}" method="post" class="space-y-4">
-                    <div>
-                        <label for="maxUploadMb" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Megabytes</label>
-                        <input id="maxUploadMb" name="maxUploadMb" type="number" required
-                               step="0.1" min="0.1"
-                               th:value="${#numbers.formatDecimal(settings.maxUploadFileSizeBytes / 1048576.0, 1, 2)}"
-                               class="block w-full max-w-xs rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <p class="text-xs text-gray-500 mt-1">
-                            Default is 10 MB. Effective ceiling is the framework limit
-                            (<code>spring.servlet.multipart.max-file-size</code>); raise that
-                            property if you need a higher value than 100 MB.
-                        </p>
-                    </div>
-                    <div class="flex justify-end">
-                        <button type="submit"
-                                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
-                            Save
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-3xl mb-6">
-                <h3 class="text-lg font-semibold text-gray-900 mb-1">Max concurrent data imports</h3>
-                <p class="text-sm text-gray-600 mb-4">
-                    Caps how many data-import jobs (OpenSearch, Elasticsearch, …) can run
-                    at the same time across the whole deployment. Additional jobs queue
-                    as <code>PENDING</code> and run when a slot frees up. Per-batch
-                    serialisation is independent and always enforced.
-                </p>
-
-                <form th:action="@{/admin/general/max-concurrent-data-imports}" method="post" class="space-y-4">
-                    <div>
-                        <label for="maxConcurrentDataImports" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
-                            Concurrent jobs
-                        </label>
-                        <select id="maxConcurrentDataImports" name="maxConcurrentDataImports" required
-                                class="block w-full max-w-xs rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option th:each="n : ${#numbers.sequence(1, 10)}"
-                                    th:value="${n}" th:text="${n}"
-                                    th:selected="${n == settings.maxConcurrentDataImports}">1</option>
-                        </select>
-                        <p class="text-xs text-gray-500 mt-1">Default is 1.</p>
-                    </div>
-                    <div class="flex justify-end">
-                        <button type="submit"
-                                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
-                            Save
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-3xl">
-                <h3 class="text-lg font-semibold text-gray-900 mb-1">Timezone</h3>
-                <p class="text-sm text-gray-600 mb-4">
-                    All timestamps shown in the UI are converted to this timezone.
-                </p>
-
-                <form th:action="@{/admin/general/timezone}" method="post" class="space-y-4">
-                    <div>
-                        <label for="timezone" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Timezone</label>
-                        <select id="timezone" name="timezone" required
-                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option th:each="tz : ${timezones}"
-                                    th:value="${tz}"
-                                    th:text="${tz}"
-                                    th:selected="${tz == settings.timezone}">UTC</option>
-                        </select>
-                    </div>
-                    <div class="flex justify-end">
-                        <button type="submit"
-                                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
-                            Save
-                        </button>
-                    </div>
+                <form id="cleanupForm" th:action="@{/admin/tools/cleanup-data-imports}" method="post">
+                    <button type="button" id="cleanupBtn"
+                            class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg transition duration-200">
+                        Clean up data import jobs
+                    </button>
                 </form>
             </div>
         </main>
         <div th:replace="~{fragments/footer :: footer}"></div>
         </div>
     </div>
+
+    <!-- In-page confirm dialog. We use a styled modal instead of window.confirm so
+         the destructive action gets the same visual weight as the rest of the admin
+         UI (and so the warning text can be formatted properly). -->
+    <div id="cleanupConfirmModal"
+         class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-md">
+            <div class="px-5 py-4 border-b border-gray-200 flex items-center gap-3">
+                <span class="inline-flex items-center justify-center w-9 h-9 rounded-full bg-red-100 text-red-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+                    </svg>
+                </span>
+                <h3 class="text-lg font-semibold text-gray-900">Clean up data import jobs?</h3>
+            </div>
+            <div class="px-5 py-4 text-sm text-gray-700 space-y-2">
+                <p>
+                    This removes all <strong>completed</strong> and <strong>failed</strong>
+                    data import job rows along with their per-file log entries.
+                </p>
+                <p>
+                    Pending and running jobs are left in place. Documents that have
+                    already been ingested are not affected.
+                </p>
+            </div>
+            <div class="px-5 py-4 border-t border-gray-200 flex items-center justify-end gap-2">
+                <button type="button" id="cleanupCancel"
+                        class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
+                    Cancel
+                </button>
+                <button type="button" id="cleanupConfirm"
+                        class="px-5 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-lg">
+                    Clean up
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        (function () {
+            const btn = document.getElementById('cleanupBtn');
+            const form = document.getElementById('cleanupForm');
+            const modal = document.getElementById('cleanupConfirmModal');
+            const cancelBtn = document.getElementById('cleanupCancel');
+            const confirmBtn = document.getElementById('cleanupConfirm');
+            if (!btn || !form || !modal) return;
+
+            function open() { modal.classList.remove('hidden'); }
+            function close() { modal.classList.add('hidden'); }
+
+            btn.addEventListener('click', open);
+            cancelBtn.addEventListener('click', close);
+            modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
+            });
+            confirmBtn.addEventListener('click', function () {
+                close();
+                form.submit();
+            });
+        })();
+    </script>
 </body>
 </html>

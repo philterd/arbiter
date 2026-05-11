@@ -32,4 +32,16 @@ public interface BackgroundJobRepository extends MongoRepository<BackgroundJob, 
     /** Used by the dispatcher to find queue candidates oldest-first. */
     List<BackgroundJob> findByStatusAndTypeInOrderByCreatedAtAsc(String status,
                                                                  Collection<String> types);
+
+    /**
+     * Admin Tools cleanup looks up terminal jobs (status in COMPLETED/FAILED) for
+     * the given import types so it can wipe their log entries before deleting the
+     * job rows themselves. Anything still PENDING or RUNNING is intentionally not
+     * matched so an in-flight import isn't ripped out from under the worker.
+     */
+    List<BackgroundJob> findByTypeInAndStatusIn(Collection<String> types,
+                                                 Collection<String> statuses);
+
+    /** Bulk-delete variant of {@link #findByTypeInAndStatusIn}, used after log cleanup. */
+    long deleteByTypeInAndStatusIn(Collection<String> types, Collection<String> statuses);
 }

@@ -62,7 +62,8 @@ class ElasticsearchIngestJobServiceTest {
                 .thenAnswer(inv -> inv.getArgument(0));
         service = new ElasticsearchIngestJobService(jobRepository, dataSourceRepository,
                 batchRepository, documentRepository, ingestQueueService, new ObjectMapper(), cipher,
-                inboxService, new DataSourceHostAllowList(""), mock(AuditLogService.class));
+                inboxService, new DataSourceHostAllowList(""), mock(AuditLogService.class),
+                mock(DataImportLogService.class));
     }
 
     @Test
@@ -97,7 +98,8 @@ class ElasticsearchIngestJobServiceTest {
         final ElasticsearchIngestJobService restrictedService = new ElasticsearchIngestJobService(
                 jobRepository, dataSourceRepository, batchRepository, documentRepository,
                 ingestQueueService, new ObjectMapper(), cipher, inboxService,
-                new DataSourceHostAllowList("elastic.internal"), mock(AuditLogService.class));
+                new DataSourceHostAllowList("elastic.internal"), mock(AuditLogService.class),
+                mock(DataImportLogService.class));
 
         final ElasticsearchDataSource src = new ElasticsearchDataSource();
         src.setId("src-1");

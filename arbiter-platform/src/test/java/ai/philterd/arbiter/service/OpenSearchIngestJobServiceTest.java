@@ -61,7 +61,8 @@ class OpenSearchIngestJobServiceTest {
                 .thenAnswer(inv -> inv.getArgument(0));
         service = new OpenSearchIngestJobService(jobRepository, dataSourceRepository,
                 batchRepository, documentRepository, ingestQueueService, new ObjectMapper(), cipher,
-                inboxService, new DataSourceHostAllowList(""), mock(AuditLogService.class));
+                inboxService, new DataSourceHostAllowList(""), mock(AuditLogService.class),
+                mock(DataImportLogService.class));
     }
 
     // ---------- start() ----------
@@ -180,7 +181,8 @@ class OpenSearchIngestJobServiceTest {
         final OpenSearchIngestJobService restrictedService = new OpenSearchIngestJobService(
                 jobRepository, dataSourceRepository, batchRepository, documentRepository,
                 ingestQueueService, new ObjectMapper(), cipher, inboxService,
-                new DataSourceHostAllowList("opensearch.internal"), mock(AuditLogService.class));
+                new DataSourceHostAllowList("opensearch.internal"), mock(AuditLogService.class),
+                mock(DataImportLogService.class));
 
         final OpenSearchDataSource src = new OpenSearchDataSource();
         src.setId("src-1");

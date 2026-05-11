@@ -712,6 +712,87 @@ public class AdminDataSourceController {
         return "redirect:/admin/data-sources";
     }
 
+    @PostMapping("/s3/{id}/edit")
+    public String editS3(@PathVariable final String id,
+                         @RequestParam(value = "endpoint", required = false) final String endpoint,
+                         @RequestParam("bucketName") final String bucketName,
+                         @RequestParam("bucketKey") final String bucketKey,
+                         @RequestParam("filenameGlob") final String filenameGlob,
+                         @RequestParam(value = "accessKey", required = false) final String accessKey,
+                         @RequestParam(value = "secretKey", required = false) final String secretKey,
+                         @RequestParam(value = "clearCredentials", defaultValue = "false") final boolean clearCredentials,
+                         final RedirectAttributes redirectAttributes) {
+        final S3DataSource source = s3Repository.findById(id).orElse(null);
+        if (source == null) {
+            redirectAttributes.addFlashAttribute("error", "S3 data source not found.");
+            return "redirect:/admin/data-sources";
+        }
+        final String trimmedEndpoint = endpoint == null ? "" : endpoint.trim();
+        final String trimmedBucket = bucketName == null ? "" : bucketName.trim();
+        final String trimmedKey = bucketKey == null ? "" : bucketKey.trim();
+        final String trimmedGlob = filenameGlob == null ? "" : filenameGlob.trim();
+        // Credentials are not trimmed — AWS keys can technically contain whitespace, so
+        // store exactly what the operator typed.
+        final String rawAccessKey = accessKey == null ? "" : accessKey;
+        final String rawSecretKey = secretKey == null ? "" : secretKey;
+
+        if (trimmedBucket.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Bucket name is required.");
+            return "redirect:/admin/data-sources";
+        }
+        if (trimmedKey.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Bucket key is required.");
+            return "redirect:/admin/data-sources";
+        }
+        if (trimmedGlob.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "Filename glob is required.");
+            return "redirect:/admin/data-sources";
+        }
+        // Mismatched pair almost always indicates a typo or an incomplete edit; refuse
+        // rather than silently store half a credential.
+        if (rawAccessKey.isEmpty() != rawSecretKey.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Provide both Access key and Secret key, or leave both blank.");
+            return "redirect:/admin/data-sources";
+        }
+
+        // Credentials are tri-state, mirroring the OpenSearch password flow:
+        //  - clearCredentials=true wipes both stored keys (fall back to ambient AWS creds).
+        //  - non-empty pair replaces them.
+        //  - blank pair (and clearCredentials=false) leaves existing keys intact so admins
+        //    can adjust bucket/key/glob without re-typing the secret.
+        final boolean credentialsChanged;
+        if (clearCredentials) {
+            source.setEncryptedAccessKey(null);
+            source.setEncryptedSecretKey(null);
+            credentialsChanged = true;
+        } else if (!rawAccessKey.isEmpty()) {
+            source.setEncryptedAccessKey(cipher.encrypt(rawAccessKey));
+            source.setEncryptedSecretKey(cipher.encrypt(rawSecretKey));
+            credentialsChanged = true;
+        } else {
+            credentialsChanged = false;
+        }
+
+        source.setEndpoint(trimmedEndpoint.isEmpty() ? null : trimmedEndpoint);
+        source.setBucketName(trimmedBucket);
+        source.setBucketKey(trimmedKey);
+        source.setFilenameGlob(trimmedGlob);
+        s3Repository.save(source);
+
+        auditLogService.log("S3_DATASOURCE_UPDATE", "S3DataSource", source.getId(),
+                Map.of("name", source.getName() == null ? "" : source.getName(),
+                        "endpoint", source.getEndpoint() == null ? "" : source.getEndpoint(),
+                        "bucketName", trimmedBucket,
+                        "bucketKey", trimmedKey,
+                        "filenameGlob", trimmedGlob,
+                        "credentialsChanged", credentialsChanged,
+                        "credentialsSet", source.getEncryptedAccessKey() != null));
+        redirectAttributes.addFlashAttribute("success",
+                "S3 data source \"" + source.getName() + "\" updated.");
+        return "redirect:/admin/data-sources";
+    }
+
     @PostMapping("/rdb")
     public String createRdb(@RequestParam("name") final String name,
                             @RequestParam("jdbcUrl") final String jdbcUrl,

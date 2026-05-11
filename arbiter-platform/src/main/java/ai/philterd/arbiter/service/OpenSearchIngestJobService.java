@@ -62,6 +62,7 @@ public class OpenSearchIngestJobService {
     private final InboxService inboxService;
     private final DataSourceHostAllowList hostAllowList;
     private final AuditLogService auditLogService;
+    private final DataImportLogService importLogService;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(10))
             .build();
@@ -75,7 +76,8 @@ public class OpenSearchIngestJobService {
                                       final SymmetricCipher cipher,
                                       final InboxService inboxService,
                                       final DataSourceHostAllowList hostAllowList,
-                                      final AuditLogService auditLogService) {
+                                      final AuditLogService auditLogService,
+                                      final DataImportLogService importLogService) {
         this.jobRepository = jobRepository;
         this.dataSourceRepository = dataSourceRepository;
         this.batchRepository = batchRepository;
@@ -86,6 +88,7 @@ public class OpenSearchIngestJobService {
         this.inboxService = inboxService;
         this.hostAllowList = hostAllowList;
         this.auditLogService = auditLogService;
+        this.importLogService = importLogService;
     }
 
     /**
@@ -265,6 +268,7 @@ public class OpenSearchIngestJobService {
                 final String reason = "Hit " + hitId + " has no '" + textField + "' field in _source.";
                 log.warn("Job {}: {}", job.getId(), reason);
                 bumpFailed(job, reason);
+                importLogService.failed(job.getId(), hitId, hitId, reason);
                 continue;
             }
             final String text = textNode.isTextual() ? textNode.asText() : textNode.toString();
@@ -280,6 +284,7 @@ public class OpenSearchIngestJobService {
             if (!sourceDocIdValue.isEmpty()
                     && documentRepository.existsBySourceIndexAndSourceDocId(hitIndex, sourceDocIdValue)) {
                 recordSkipped(job, batch, filename, hitIndex, sourceDocIdValue, sourceUrl, "OPENSEARCH");
+                importLogService.skipped(job.getId(), filename, sourceDocIdValue);
                 continue;
             }
 
@@ -294,10 +299,12 @@ public class OpenSearchIngestJobService {
                 documentRepository.save(doc);
                 auditDocumentImport(job, doc, "SUCCESS");
                 bumpProcessed(job);
+                importLogService.success(job.getId(), filename, sourceDocIdValue);
             } catch (Exception e) {
                 final String reason = "Failed to enqueue hit " + hitId + ": " + e.getMessage();
                 log.warn("Job {}: {}", job.getId(), reason, e);
                 bumpFailed(job, reason);
+                importLogService.failed(job.getId(), filename, sourceDocIdValue, e.getMessage());
             }
         }
     }

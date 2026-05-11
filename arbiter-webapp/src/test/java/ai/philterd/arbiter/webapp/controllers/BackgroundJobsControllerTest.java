@@ -47,7 +47,9 @@ class BackgroundJobsControllerTest {
         jobRepository = mock(BackgroundJobRepository.class);
         batchRepository = mock(BatchRepository.class);
         userGroupsService = mock(UserGroupsService.class);
-        controller = new BackgroundJobsController(jobRepository, batchRepository, userGroupsService);
+        controller = new BackgroundJobsController(jobRepository, batchRepository, userGroupsService,
+                mock(ai.philterd.arbiter.service.BatchAccessService.class),
+                mock(ai.philterd.arbiter.service.DataImportLogService.class));
     }
 
     private static Authentication admin() {
