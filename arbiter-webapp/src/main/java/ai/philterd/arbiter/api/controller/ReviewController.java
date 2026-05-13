@@ -99,7 +99,8 @@ public class ReviewController {
 
     public record CreateSpanRequest(String type, Integer start, Integer end) {}
 
-    @PostMapping("/documents/{documentId}/spans")
+    @PostMapping(value = "/documents/{documentId}/spans",
+            consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     public Span createSpan(@PathVariable final String documentId,
                            @RequestBody final CreateSpanRequest request,
                            final Authentication authentication) {
@@ -154,7 +155,8 @@ public class ReviewController {
         return saved;
     }
 
-    @PatchMapping("/spans/{id}")
+    @PatchMapping(value = "/spans/{id}",
+            consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     public Span updateSpan(@PathVariable final String id,
                            @RequestBody final SpanUpdateRequest request,
                            final Authentication authentication) {

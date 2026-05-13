@@ -167,6 +167,26 @@ in-app docs at `/docs/` or browse them in the repo at
 - **For engineers** working on Arbiter itself: see
   [`DEVELOPER.md`](DEVELOPER.md) for the build/test/architecture guide.
 
+## Related Philterd open source projects
+
+Arbiter is part of a wider family of open source data-privacy tools from
+Philterd. If Arbiter's review workflow is one piece of your pipeline, the
+following projects may cover the rest. The full catalog lives at
+<https://www.philterd.ai/open-source-software/>.
+
+- **[Phield](https://www.philterd.ai/open-source-software/)** — continuous
+  monitoring sentinel that tracks PII flow across your systems and alerts
+  on suspicious data activity spikes.
+- **[Phinder](https://www.philterd.ai/open-source-software/)** —
+  high-speed discovery tool that scans files to pinpoint exactly where
+  sensitive information lives in your systems.
+- **[Philter Scope](https://www.philterd.ai/open-source-software/)** —
+  standalone audit tool that measures redaction effectiveness using
+  precision and recall metrics against reference datasets.
+- **[Philter Diffuse](https://www.philterd.ai/open-source-software/)** —
+  privacy-first analytics platform that applies differential privacy to
+  preserve aggregate patterns while protecting individual records.
+
 ## License
 
 Apache License 2.0. See [`LICENSE`](LICENSE).

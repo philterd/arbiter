@@ -180,5 +180,64 @@ class LoginAttemptServiceTest {
         // Lock the formal contract: 5 failures, 15-minute window.
         assertEquals(5, LoginAttemptService.MAX_FAILURES);
         assertEquals(Duration.ofMinutes(15), LoginAttemptService.LOCK_DURATION);
+        // Per-email aggregate cap: 50 failures, 1-hour window.
+        assertEquals(50, LoginAttemptService.EMAIL_MAX_FAILURES);
+        assertEquals(Duration.ofHours(1), LoginAttemptService.EMAIL_LOCK_DURATION);
+    }
+
+    // ---------- per-email aggregate (distributed-attack defense) ----------
+
+    @Test
+    void distributedFailuresAcrossManyIpsEventuallyLockEmailGlobally() {
+        // Simulate an attacker rotating source IPs to stay under the (email, ip) threshold.
+        // Use 4 failures per IP — below MAX_FAILURES — so no individual pair ever locks,
+        // but the per-email aggregate still trips at EMAIL_MAX_FAILURES.
+        final int perIp = LoginAttemptService.MAX_FAILURES - 1;
+        final int ipsNeeded = (LoginAttemptService.EMAIL_MAX_FAILURES + perIp - 1) / perIp;
+        for (int i = 0; i < ipsNeeded; i++) {
+            final String ip = "10.0.0." + i;
+            for (int j = 0; j < perIp; j++) {
+                svc.onFailure("alice@x.com", ip);
+            }
+            // No individual (email, ip) pair ever crossed MAX_FAILURES.
+            assertFalse(svc.isLocked("alice@x.com", ip) && svc.isEmailLocked("alice@x.com") == false,
+                    "per-(email,ip) lock must not fire below MAX_FAILURES");
+        }
+        // A fresh IP that has never tried before is still blocked by the global cap.
+        assertTrue(svc.isLocked("alice@x.com", "203.0.113.99"));
+        assertTrue(svc.isEmailLocked("alice@x.com"));
+    }
+
+    @Test
+    void emailGlobalLockExpiresAfterEmailLockDuration() {
+        for (int i = 0; i < LoginAttemptService.EMAIL_MAX_FAILURES; i++) {
+            svc.onFailure("alice@x.com", "10.0.0." + i);
+        }
+        assertTrue(svc.isLocked("alice@x.com", "203.0.113.99"));
+        advance(LoginAttemptService.EMAIL_LOCK_DURATION.plusSeconds(1));
+        assertFalse(svc.isLocked("alice@x.com", "203.0.113.99"));
+        assertFalse(svc.isEmailLocked("alice@x.com"));
+    }
+
+    @Test
+    void successClearsEmailAggregate() {
+        for (int i = 0; i < LoginAttemptService.EMAIL_MAX_FAILURES - 1; i++) {
+            svc.onFailure("alice@x.com", "10.0.0." + i);
+        }
+        svc.onSuccess("alice@x.com", "10.0.0.1");
+        // After a successful login, one more failure must NOT immediately trip the global cap.
+        svc.onFailure("alice@x.com", "203.0.113.99");
+        assertFalse(svc.isLocked("alice@x.com", "203.0.113.99"));
+    }
+
+    @Test
+    void adminUnlockClearsEmailAggregate() {
+        for (int i = 0; i < LoginAttemptService.EMAIL_MAX_FAILURES; i++) {
+            svc.onFailure("alice@x.com", "10.0.0." + i);
+        }
+        assertTrue(svc.isEmailLocked("alice@x.com"));
+        svc.unlock("alice@x.com");
+        assertFalse(svc.isEmailLocked("alice@x.com"));
+        assertFalse(svc.isLocked("alice@x.com", "203.0.113.99"));
     }
 }

@@ -57,7 +57,8 @@ public class IngestionController {
         this.generalSettingsService = generalSettingsService;
     }
 
-    @PostMapping("/ingest")
+    @PostMapping(value = "/ingest",
+            consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> ingest(@Valid @RequestBody final IngestRequest request, final Authentication authentication) {
 
         final Batch batch = batchRepository.findById(request.batchId()).orElse(null);

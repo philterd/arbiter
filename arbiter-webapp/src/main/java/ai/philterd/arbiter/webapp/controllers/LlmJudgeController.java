@@ -154,7 +154,8 @@ public class LlmJudgeController {
 
     public record ExplainRequest(String instanceId, String model) {}
 
-    @PostMapping("/documents/{documentId}/explain")
+    @PostMapping(value = "/documents/{documentId}/explain",
+            consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     public Map<String, Object> explain(@PathVariable final String documentId,
                                        @RequestBody final ExplainRequest request,
                                        final Authentication authentication) {

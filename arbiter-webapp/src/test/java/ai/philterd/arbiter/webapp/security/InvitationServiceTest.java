@@ -19,9 +19,12 @@ import ai.philterd.arbiter.webapp.security.InvitationService.RedemptionStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.lang.reflect.Method;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.HashMap;
@@ -267,5 +270,85 @@ class InvitationServiceTest {
         final String h2 = InvitationService.sha256("abc");
         assertEquals(h1, h2);
         assertNotEquals(h1, InvitationService.sha256("abd"));
+    }
+
+    // ---------- index annotation on tokenHash (defends the redemption-lookup index) ----------
+
+    @Test
+    void tokenHashFieldIsIndexedUniqueAndSparse() throws NoSuchFieldException {
+        // Reflection guard against a future refactor accidentally dropping the index.
+        // Without it, findByTokenHash falls back to a full collection scan and the
+        // timing-channel-vs-collection-size concern (#15) returns.
+        final java.lang.reflect.Field field =
+                ai.philterd.arbiter.model.Invitation.class.getDeclaredField("tokenHash");
+        final org.springframework.data.mongodb.core.index.Indexed indexed =
+                field.getAnnotation(org.springframework.data.mongodb.core.index.Indexed.class);
+        assertNotNull(indexed, "Invitation.tokenHash must carry @Indexed");
+        assertTrue(indexed.unique(), "Invitation.tokenHash @Indexed must be unique");
+        assertTrue(indexed.sparse(), "Invitation.tokenHash @Indexed must be sparse");
+    }
+
+    // ---------- scheduled cleanup ----------
+
+    @Test
+    void pruneOldInvitationsDelegatesToRepositoryWithThirtyDayCutoff() {
+        when(invitationRepository.deleteByConsumedAtBeforeOrExpiresAtBefore(any(), any()))
+                .thenReturn(0L);
+        final Instant before = now.get();
+
+        service.pruneOldInvitations();
+
+        // Cutoff = now - 30 days, passed for both the consumedAt and expiresAt clauses.
+        final ArgumentCaptor<Instant> consumedCutoff = ArgumentCaptor.forClass(Instant.class);
+        final ArgumentCaptor<Instant> expiredCutoff = ArgumentCaptor.forClass(Instant.class);
+        verify(invitationRepository).deleteByConsumedAtBeforeOrExpiresAtBefore(
+                consumedCutoff.capture(), expiredCutoff.capture());
+        assertEquals(before.minus(Duration.ofDays(30)), consumedCutoff.getValue());
+        assertEquals(before.minus(Duration.ofDays(30)), expiredCutoff.getValue());
+        assertEquals(InvitationService.CLEANUP_RETENTION, Duration.ofDays(30),
+                "the documented retention contract is 30 days");
+    }
+
+    @Test
+    void pruneOldInvitationsCutoffShiftsWithTheClock() {
+        // Drive the clock forward; the cutoff must track it. Confirms we read the clock
+        // at call time rather than capturing it at construction time.
+        when(invitationRepository.deleteByConsumedAtBeforeOrExpiresAtBefore(any(), any()))
+                .thenReturn(0L);
+        advance(Duration.ofDays(10));
+        final Instant expected = now.get().minus(Duration.ofDays(30));
+
+        service.pruneOldInvitations();
+
+        final ArgumentCaptor<Instant> consumedCutoff = ArgumentCaptor.forClass(Instant.class);
+        verify(invitationRepository).deleteByConsumedAtBeforeOrExpiresAtBefore(
+                consumedCutoff.capture(), any());
+        assertEquals(expected, consumedCutoff.getValue());
+    }
+
+    @Test
+    void pruneOldInvitationsIsAnnotatedScheduled() throws NoSuchMethodException {
+        // The harness wires @Scheduled at the bean level; this test asserts the method
+        // itself carries the annotation so a future refactor (renaming or removing the
+        // method, dropping the annotation, moving to another class) trips here rather
+        // than silently disabling the sweep in production.
+        final Method m = InvitationService.class.getDeclaredMethod("pruneOldInvitations");
+        final Scheduled scheduled = m.getAnnotation(Scheduled.class);
+        assertNotNull(scheduled, "pruneOldInvitations must be @Scheduled");
+        assertFalse(scheduled.fixedDelayString().isBlank(),
+                "@Scheduled must specify a fixedDelayString so it actually runs periodically");
+    }
+
+    @Test
+    void pruneOldInvitationsToleratesEmptyResult() {
+        // Empty-collection path: must not throw, must not log noise. Just a smoke test
+        // that the zero-removed branch works.
+        when(invitationRepository.deleteByConsumedAtBeforeOrExpiresAtBefore(any(), any()))
+                .thenReturn(0L);
+
+        service.pruneOldInvitations();
+
+        verify(invitationRepository, times(1))
+                .deleteByConsumedAtBeforeOrExpiresAtBefore(any(), any());
     }
 }

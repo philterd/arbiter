@@ -78,7 +78,8 @@ public class CommentController {
                 .toList();
     }
 
-    @PostMapping("/documents/{id}/comments")
+    @PostMapping(value = "/documents/{id}/comments",
+            consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
     public Map<String, Object> add(@PathVariable final String id,
                                    @RequestBody final CommentRequest body,
                                    final Authentication authentication) {

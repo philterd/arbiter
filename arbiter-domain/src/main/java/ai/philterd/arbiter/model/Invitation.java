@@ -45,7 +45,14 @@ public class Invitation {
      * SHA-256 hash of the public token. Comparing the request-supplied token against this
      * (after a constant-time check) lets us validate without the plaintext token ever
      * touching the database.
+     *
+     * <p>Indexed unique+sparse so redemption is an O(log n) lookup rather than a full
+     * collection scan. The 32-byte random token means enumeration is infeasible regardless,
+     * but the timing channel from the linear scan widens with collection size — the index
+     * keeps it flat. Sparse so the (theoretically) null-token row never collides on the
+     * unique constraint.
      */
+    @Indexed(unique = true, sparse = true)
     private String tokenHash;
 
     @Indexed(unique = true, sparse = true)

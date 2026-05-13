@@ -17,6 +17,7 @@ import ai.philterd.arbiter.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -49,6 +50,14 @@ public class InvitationService {
     private static final Logger log = LoggerFactory.getLogger(InvitationService.class);
 
     public static final Duration DEFAULT_TTL = Duration.ofDays(7);
+
+    /**
+     * Retention for consumed-or-expired invitation rows. Rows past this age are swept
+     * by {@link #pruneOldInvitations()}. Long enough that an auditor reviewing recent
+     * admin activity still sees the redemption row, short enough that the collection
+     * doesn't grow without bound.
+     */
+    public static final Duration CLEANUP_RETENTION = Duration.ofDays(30);
 
     /** 32 bytes of randomness, base64url-encoded — 43 ASCII chars, opaque to the recipient. */
     private static final int TOKEN_BYTES = 32;
@@ -161,6 +170,24 @@ public class InvitationService {
         invitationRepository.save(invite);
         log.info("Redeemed invitation for {} (admin={})", invite.getEmail(), invite.isAdmin());
         return RedemptionStatus.OK;
+    }
+
+    /**
+     * Sweep invitations that are either consumed or expired and older than
+     * {@link #CLEANUP_RETENTION}. Runs once a day; the cadence matters less than the
+     * fact that it runs at all — the goal is to keep the collection bounded so the
+     * token-hash index stays small and the redemption lookup stays fast.
+     */
+    @Scheduled(fixedDelayString = "${arbiter.invitations.cleanup-millis:86400000}",
+            initialDelayString = "${arbiter.invitations.cleanup-initial-delay-millis:60000}")
+    public void pruneOldInvitations() {
+        final Instant cutoff = clock.instant().minus(CLEANUP_RETENTION);
+        final long removed = invitationRepository
+                .deleteByConsumedAtBeforeOrExpiresAtBefore(cutoff, cutoff);
+        if (removed > 0) {
+            log.info("Pruned {} consumed-or-expired invitations older than {}",
+                    removed, CLEANUP_RETENTION);
+        }
     }
 
     private String randomToken() {
