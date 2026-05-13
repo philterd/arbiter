@@ -21,6 +21,7 @@ import ai.philterd.arbiter.repository.ComplianceProfileRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.SpanRepository;
 import ai.philterd.arbiter.service.AuditLogQueryService;
+import ai.philterd.arbiter.util.Csv;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.AuthUtils;
 import ai.philterd.arbiter.service.UserGroupsService;
@@ -277,17 +278,17 @@ public class SecondOpinionsController {
                         }
                     }
                 }
-                w.write(csvField(entry.getTimestamp() == null ? "" : entry.getTimestamp().toString()));
+                w.write(Csv.escapeField(entry.getTimestamp() == null ? "" : entry.getTimestamp().toString()));
                 w.write(',');
-                w.write(csvField(entry.getUserEmail()));
+                w.write(Csv.escapeField(entry.getUserEmail()));
                 w.write(',');
-                w.write(csvField(entry.getAction()));
+                w.write(Csv.escapeField(entry.getAction()));
                 w.write(',');
-                w.write(csvField(entry.getResourceType()));
+                w.write(Csv.escapeField(entry.getResourceType()));
                 w.write(',');
-                w.write(csvField(entry.getResourceId()));
+                w.write(Csv.escapeField(entry.getResourceId()));
                 w.write(',');
-                w.write(csvField(spanType));
+                w.write(Csv.escapeField(spanType));
                 w.write(',');
                 w.write(charStart);
                 w.write(',');
@@ -295,7 +296,7 @@ public class SecondOpinionsController {
                 w.write(',');
                 w.write(page);
                 w.write(',');
-                w.write(csvField(detailsAsJson(entry.getDetails())));
+                w.write(Csv.escapeField(detailsAsJson(entry.getDetails())));
                 w.write('\n');
             }
         }
@@ -308,16 +309,6 @@ public class SecondOpinionsController {
         } catch (JsonProcessingException e) {
             return "";
         }
-    }
-
-    private static String csvField(final String value) {
-        if (value == null) return "";
-        final boolean needsQuoting = value.indexOf(',') >= 0
-                || value.indexOf('"') >= 0
-                || value.indexOf('\n') >= 0
-                || value.indexOf('\r') >= 0;
-        if (!needsQuoting) return value;
-        return "\"" + value.replace("\"", "\"\"") + "\"";
     }
 
     /**

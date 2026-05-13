@@ -413,26 +413,6 @@ public class AdminDataSourceController {
         return s.length() <= max ? s : s.substring(0, max) + "…";
     }
 
-    private static final java.util.regex.Pattern DANGEROUS_SQL_PATTERN =
-            java.util.regex.Pattern.compile("\\b(DELETE|TRUNCATE|DROP)\\b",
-                    java.util.regex.Pattern.CASE_INSENSITIVE);
-
-    /**
-     * Return the set of mutation keywords (DELETE, TRUNCATE, DROP) found as whole words in the
-     * supplied SQL, in upper case and de-duplicated. Whole-word matching avoids false positives
-     * on column names like {@code dropoff_count} or {@code deleted_at}. Used to refuse
-     * read-write SQL on relational data sources at create time.
-     */
-    private static List<String> dangerousSqlKeywords(final String sql) {
-        if (sql == null || sql.isEmpty()) return List.of();
-        final java.util.LinkedHashSet<String> matches = new java.util.LinkedHashSet<>();
-        final java.util.regex.Matcher m = DANGEROUS_SQL_PATTERN.matcher(sql);
-        while (m.find()) {
-            matches.add(m.group(1).toUpperCase(java.util.Locale.ROOT));
-        }
-        return new ArrayList<>(matches);
-    }
-
     // Elasticsearch ----------------------------------------------------------
     //
     // Behaves identically to OpenSearch: same query/_search/hits/_source dialect, same
@@ -822,10 +802,16 @@ public class AdminDataSourceController {
         // gated against that list. See JdbcUrlValidator for the full rule set.
         final ai.philterd.arbiter.service.JdbcUrlValidator.Result urlCheck =
                 jdbcUrlValidator.validate(trimmedUrl);
+        // Strip any embedded user:pass@ from the URL *before* it touches the audit
+        // log. The validator above refuses URLs with embedded credentials outright,
+        // but the rejection event itself would otherwise persist the password (the
+        // audit row was the leak vector — see finding #13). The strip is a no-op for
+        // well-formed URLs without userinfo, so it's safe to apply unconditionally.
+        final String safeUrl = ai.philterd.arbiter.service.JdbcUrlValidator.stripUserInfo(trimmedUrl);
         if (!urlCheck.ok()) {
             auditLogService.log("RDB_DANGEROUS_JDBC_URL_BLOCKED", "RelationalDbDataSource", null,
                     Map.of("name", trimmedName,
-                            "jdbcUrl", trimmedUrl,
+                            "jdbcUrl", safeUrl,
                             "reason", urlCheck.error() == null ? "" : urlCheck.error()));
             redirectAttributes.addFlashAttribute("error", urlCheck.error());
             return "redirect:/admin/data-sources";
@@ -834,19 +820,20 @@ public class AdminDataSourceController {
             redirectAttributes.addFlashAttribute("error", "SQL query is required.");
             return "redirect:/admin/data-sources";
         }
-        final List<String> dangerous = dangerousSqlKeywords(trimmedSql);
-        if (!dangerous.isEmpty()) {
-            // Refuse to save a data source whose SQL could mutate or remove data on the
-            // remote system. Audit the attempt with the matched keywords so admins can
-            // investigate intent without re-storing the offending SQL twice.
+        // Read-only allow-list: only SELECT and WITH … SELECT are permitted; any
+        // mutation keyword (INSERT/UPDATE/MERGE/EXEC/CALL/…), multi-statement input,
+        // or dollar-quoted block is refused before persistence. The audit row keeps
+        // the offending SQL for forensic review without round-tripping through the
+        // saved data source.
+        final ai.philterd.arbiter.service.SqlReadOnlyValidator.Result sqlCheck =
+                ai.philterd.arbiter.service.SqlReadOnlyValidator.validate(trimmedSql);
+        if (!sqlCheck.ok()) {
             auditLogService.log("RDB_DANGEROUS_SQL_BLOCKED", "RelationalDbDataSource", null,
                     Map.of("name", trimmedName,
-                            "jdbcUrl", trimmedUrl,
-                            "keywords", dangerous,
+                            "jdbcUrl", safeUrl,
+                            "reason", sqlCheck.error() == null ? "" : sqlCheck.error(),
                             "sqlQuery", trimmedSql));
-            redirectAttributes.addFlashAttribute("error",
-                    "SQL query contains disallowed keyword(s) " + String.join(", ", dangerous)
-                            + ". Data sources must use read-only queries.");
+            redirectAttributes.addFlashAttribute("error", sqlCheck.error());
             return "redirect:/admin/data-sources";
         }
         // A username without a password (or vice versa) is almost always a typo.
@@ -882,7 +869,7 @@ public class AdminDataSourceController {
 
         auditLogService.log("RDB_DATASOURCE_CREATE", "RelationalDbDataSource", source.getId(),
                 Map.of("name", trimmedName,
-                        "jdbcUrl", trimmedUrl,
+                        "jdbcUrl", safeUrl,
                         "sqlQuery", trimmedSql,
                         "credentialsSet", source.getEncryptedUsername() != null));
         redirectAttributes.addFlashAttribute("success",

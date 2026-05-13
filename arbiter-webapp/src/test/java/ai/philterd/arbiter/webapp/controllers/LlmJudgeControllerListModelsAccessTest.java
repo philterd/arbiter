@@ -127,58 +127,87 @@ class LlmJudgeControllerListModelsAccessTest {
         final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> controller.listModels("ghost", admin()));
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
-        // Post-condition: defaults were never even consulted because the instance lookup
-        // happens first.
+        // Admins skip the defaults check entirely; the access gate short-circuits on
+        // isAdmin and the missing-instance lookup is what produces the 404.
         verify(llmJudgeDefaultsService, never()).load();
     }
 
-    // ---------- forbidden cases ----------
+    // ---------- rejected cases (#11: uniform 404 across every reject path) ----------
 
     @Test
-    void nonAdminWithNoGroupsIsForbidden() {
-        when(ollamaInstanceRepository.findById("inst-1")).thenReturn(Optional.of(instance("inst-1")));
+    void nonAdminWithNoGroupsGets404() {
+        // Pre-fix this was 403 "Not authorized." Now it's the same uniform 404
+        // "Ollama instance not found." that a real lookup miss returns, so a
+        // probing reviewer can't tell which arbitrary ids correspond to real rows.
         when(userGroupsService.groupIdsForEmail(any())).thenReturn(Set.of());
 
         final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> controller.listModels("inst-1", user("stranded@x.com")));
-        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
-        // Defaults are not even loaded — no group membership is the first failure.
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertEquals("Ollama instance not found.", ex.getReason());
+        // The instance lookup never even runs — the access check fires on the bare id.
+        verify(ollamaInstanceRepository, never()).findById(any());
         verify(llmJudgeDefaultsService, never()).load();
     }
 
     @Test
-    void nonAdminCallingForNonDefaultInstanceIsForbidden() {
-        when(ollamaInstanceRepository.findById("inst-other"))
-                .thenReturn(Optional.of(instance("inst-other")));
+    void nonAdminCallingForNonDefaultInstanceGets404() {
         when(userGroupsService.groupIdsForEmail(any())).thenReturn(Set.of("g1"));
         when(llmJudgeDefaultsService.load())
                 .thenReturn(defaults("inst-explain", "inst-second"));
 
         final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> controller.listModels("inst-other", user("alice@x.com")));
-        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertEquals("Ollama instance not found.", ex.getReason());
+        // Instance lookup never runs — access fails on the bare id alone, so a
+        // reviewer can't tell a real instance from an invented one.
+        verify(ollamaInstanceRepository, never()).findById(any());
     }
 
     @Test
-    void anonymousIsForbidden() {
-        // An anonymous identity might still reach the API filter chain in odd configs;
-        // the gate must reject it just as it does a "logged in but stranded" user.
-        when(ollamaInstanceRepository.findById("inst-1")).thenReturn(Optional.of(instance("inst-1")));
+    void anonymousGets404() {
         when(userGroupsService.groupIdsForEmail(any())).thenReturn(Set.of());
 
         final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> controller.listModels("inst-1", anonymous()));
-        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertEquals("Ollama instance not found.", ex.getReason());
     }
 
     @Test
-    void nullAuthIsForbidden() {
-        when(ollamaInstanceRepository.findById("inst-1")).thenReturn(Optional.of(instance("inst-1")));
+    void nullAuthGets404() {
         when(userGroupsService.groupIdsForEmail(any())).thenReturn(Set.of());
 
         final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> controller.listModels("inst-1", null));
-        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertEquals("Ollama instance not found.", ex.getReason());
+    }
+
+    // ---------- indistinguishability (the #11 contract itself) ----------
+
+    @Test
+    void missAndAccessDeniedHaveByteIdenticalResponse() {
+        // Probe A: bare-id access check fires first because the caller isn't admin and
+        // hasn't been wired into a default — never reaches findById.
+        when(userGroupsService.groupIdsForEmail(any())).thenReturn(Set.of("g1"));
+        when(llmJudgeDefaultsService.load())
+                .thenReturn(defaults("inst-explain", "inst-second"));
+        final ResponseStatusException denied = assertThrows(ResponseStatusException.class,
+                () -> controller.listModels("inst-other", user("alice@x.com")));
+
+        // Probe B: same caller but they happen to ask for an instance that IS a default
+        // — access check passes, findById returns empty, lookup-miss 404 fires.
+        when(ollamaInstanceRepository.findById("inst-explain")).thenReturn(Optional.empty());
+        final ResponseStatusException missing = assertThrows(ResponseStatusException.class,
+                () -> controller.listModels("inst-explain", user("alice@x.com")));
+
+        assertEquals(denied.getStatusCode(), missing.getStatusCode(),
+                "miss vs access-denied returned different status codes — leaks existence");
+        assertEquals(denied.getReason(), missing.getReason(),
+                "miss vs access-denied bodies differ — leaks existence");
+        assertEquals("Ollama instance not found.", denied.getReason());
     }
 
     // ---------- allowed cases ----------
@@ -224,5 +253,21 @@ class LlmJudgeControllerListModelsAccessTest {
         final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> controller.listModels("inst-second", user("alice@x.com")));
         assertEquals(HttpStatus.BAD_GATEWAY, ex.getStatusCode());
+    }
+
+    @Test
+    void badGatewayBodyDoesNotEchoInstanceName() {
+        // The pre-fix shape returned 'Could not reach Ollama instance "ollama-inst-arbitrary": …'
+        // — even to an admin, that string can leak the name of a private instance back
+        // through XSS-stolen-session and similar chains. After #11, the body is the
+        // single generic string and the operator gets the URL + error from the log line.
+        when(ollamaInstanceRepository.findById("inst-arbitrary"))
+                .thenReturn(Optional.of(instance("inst-arbitrary")));
+
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.listModels("inst-arbitrary", admin()));
+        assertEquals(HttpStatus.BAD_GATEWAY, ex.getStatusCode());
+        assertEquals("Ollama instance unavailable.", ex.getReason(),
+                "BAD_GATEWAY body must be the generic message — no instance-name echo");
     }
 }

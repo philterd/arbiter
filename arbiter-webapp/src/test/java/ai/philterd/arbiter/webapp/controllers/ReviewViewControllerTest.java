@@ -118,6 +118,16 @@ class ReviewViewControllerTest {
                 userRepository, approvalRuleEvaluator, openSearchIndexService, documentLockService,
                 redactionCertificateService, finalizationPolicyRepository, generalSettingsService);
 
+        // Default lock-acquire behavior: succeed by routing the request through the
+        // mocked DocumentRepository so the returned doc carries the test's stubbed
+        // state. Specific tests override this for the lock-lost scenarios.
+        org.mockito.Mockito.when(documentLockService.acquire(org.mockito.ArgumentMatchers.anyString(),
+                        org.mockito.ArgumentMatchers.anyString()))
+                .thenAnswer(inv -> {
+                    final String id = inv.getArgument(0);
+                    return documentRepository.findById(id).orElse(null);
+                });
+
         // Certificate generation always returns a stub so the audit-log payload doesn't NPE.
         final RedactionCertificate cert = new RedactionCertificate();
         cert.setId("cert-1");
@@ -520,6 +530,118 @@ class ReviewViewControllerTest {
 
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
         assertEquals("Document not found.", ex.getReason());
+    }
+
+    // ---------- approve()/reject() lock + version contract (fix #3) ----------
+
+    private Document reviewableDoc(final String id) {
+        final Document d = approvedDoc(id, "b1", "hello world");
+        d.setStatus("REVIEW_REQUIRED");
+        d.setBatchId("b1");
+        when(documentRepository.findById(id)).thenReturn(Optional.of(d));
+        // Approval rules + batch stubs default to "single approval, batch loadable".
+        final ai.philterd.arbiter.model.Batch b = new ai.philterd.arbiter.model.Batch();
+        b.setId("b1");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
+        when(approvalRuleEvaluator.dualApprovalRequired(any(), any(), any(), any()))
+                .thenReturn(false);
+        when(spanRepository.findByDocumentId(id)).thenReturn(java.util.List.of());
+        return d;
+    }
+
+    @Test
+    void approveRefusesWhenLockHeldByAnotherReviewer() {
+        // The default setUp() stub makes acquire() succeed. Override it for this test
+        // to simulate Bob trying to approve while Alice still holds the lock.
+        reviewableDoc("d1");
+        when(documentLockService.acquire(eq("d1"), eq("admin@x.com"))).thenReturn(null);
+
+        final RedirectAttributes ra = flash();
+        final String view = controller.approve("d1", admin(), ra);
+
+        assertEquals("redirect:/review/d1", view);
+        assertNotNull(error(ra));
+        assertTrue(error(ra).toLowerCase().contains("another reviewer"),
+                "expected lock-lost error, got: " + error(ra));
+        // The approval was never recorded — no save, no audit, no review-count bump.
+        verify(documentRepository, never()).save(any(Document.class));
+        verify(auditLogService, never()).log(eq("DOCUMENT_APPROVAL"), any(), any(), any());
+    }
+
+    @Test
+    void rejectRefusesWhenLockHeldByAnotherReviewer() {
+        reviewableDoc("d1");
+        when(documentLockService.acquire(eq("d1"), eq("admin@x.com"))).thenReturn(null);
+
+        final RedirectAttributes ra = flash();
+        final String view = controller.reject("d1", admin(), ra);
+
+        assertEquals("redirect:/review/d1", view);
+        assertNotNull(error(ra));
+        assertTrue(error(ra).toLowerCase().contains("another reviewer"));
+        verify(documentRepository, never()).save(any(Document.class));
+        verify(auditLogService, never()).log(eq("DOCUMENT_REJECT"), any(), any(), any());
+    }
+
+    @Test
+    void approveSurfacesOptimisticLockingFailureAsLockLost() {
+        // Acquire succeeds (the pessimistic lock), but the actual save throws
+        // OptimisticLockingFailureException because another reviewer's save sneaked
+        // in across a lock-expiry boundary. The mutation must be refused, not
+        // silently retried with stale state.
+        final Document d = reviewableDoc("d1");
+        when(documentRepository.save(any(Document.class)))
+                .thenThrow(new org.springframework.dao.OptimisticLockingFailureException("stale version"));
+
+        final RedirectAttributes ra = flash();
+        final String view = controller.approve("d1", admin(), ra);
+
+        assertEquals("redirect:/review/d1", view);
+        assertNotNull(error(ra));
+        assertTrue(error(ra).toLowerCase().contains("another reviewer"),
+                "expected stale-version error, got: " + error(ra));
+        // No audit row written when the save was refused.
+        verify(auditLogService, never()).log(eq("DOCUMENT_APPROVAL"), any(), any(), any());
+    }
+
+    @Test
+    void rejectSurfacesOptimisticLockingFailureAsLockLost() {
+        reviewableDoc("d1");
+        when(documentRepository.save(any(Document.class)))
+                .thenThrow(new org.springframework.dao.OptimisticLockingFailureException("stale version"));
+
+        final RedirectAttributes ra = flash();
+        final String view = controller.reject("d1", admin(), ra);
+
+        assertEquals("redirect:/review/d1", view);
+        assertNotNull(error(ra));
+        assertTrue(error(ra).toLowerCase().contains("another reviewer"));
+        verify(auditLogService, never()).log(eq("DOCUMENT_REJECT"), any(), any(), any());
+    }
+
+    @Test
+    void approveAcquiresAndReleasesLockOnHappyPath() {
+        // Pin the lifecycle: lock acquired before mutation, released after save +
+        // audit. Both the pessimistic-lock and audit-row writes happen — proof the
+        // happy path still flows.
+        reviewableDoc("d1");
+        // The advance-to-next setting feeds into the post-save redirect logic; default
+        // to a real (no-advance) UserSettings so we don't NPE chasing a sibling doc.
+        when(userSettingsService.loadForEmail(org.mockito.ArgumentMatchers.anyString()))
+                .thenReturn(new ai.philterd.arbiter.model.UserSettings());
+
+        final RedirectAttributes ra = flash();
+        controller.approve("d1", admin(), ra);
+
+        final org.mockito.InOrder order = org.mockito.Mockito.inOrder(
+                documentLockService, documentRepository, auditLogService);
+        // Contract: acquire → save → release → audit. Release happens immediately
+        // after the save so the lock is freed even on the audit-write path, and
+        // the audit row captures the post-release state.
+        order.verify(documentLockService).acquire(eq("d1"), eq("admin@x.com"));
+        order.verify(documentRepository).save(any(Document.class));
+        order.verify(documentLockService).release(eq("d1"), eq("admin@x.com"));
+        order.verify(auditLogService).log(eq("DOCUMENT_APPROVAL"), any(), eq("d1"), any());
     }
 
     @SuppressWarnings("unchecked")

@@ -55,6 +55,7 @@ public class AdminController {
     private final UserNotificationService userNotificationService;
     private final LoginAttemptService loginAttemptService;
     private final InvitationService invitationService;
+    private final ai.philterd.arbiter.repository.InvitationRepository invitationRepository;
 
     public AdminController(final UserRepository userRepository,
                            final PasswordEncoder passwordEncoder,
@@ -62,7 +63,8 @@ public class AdminController {
                            final NotificationSettingsService notificationSettingsService,
                            final UserNotificationService userNotificationService,
                            final LoginAttemptService loginAttemptService,
-                           final InvitationService invitationService) {
+                           final InvitationService invitationService,
+                           final ai.philterd.arbiter.repository.InvitationRepository invitationRepository) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.auditLogService = auditLogService;
@@ -70,6 +72,7 @@ public class AdminController {
         this.userNotificationService = userNotificationService;
         this.loginAttemptService = loginAttemptService;
         this.invitationService = invitationService;
+        this.invitationRepository = invitationRepository;
     }
 
     @GetMapping("/users")
@@ -121,7 +124,14 @@ public class AdminController {
             redirectAttributes.addFlashAttribute("error", "\"" + trimmed + "\" is not a valid email address.");
             return "redirect:/admin/users";
         }
-        if (userRepository.findByEmail(trimmed).isPresent()) {
+        // The "already taken" check covers both an existing User row AND any pending
+        // invitation. Without the latter, admin A could probe whether admin B has
+        // already invited a given email (different success/error messages would tell)
+        // and a re-issue would silently supersede B's emailed link, leaving the
+        // recipient with a dead URL and no notice to B.
+        if (userRepository.findByEmail(trimmed).isPresent()
+                || invitationRepository.findByEmail(trimmed)
+                        .filter(inv -> inv.getConsumedAt() == null).isPresent()) {
             redirectAttributes.addFlashAttribute("error", "Email \"" + trimmed + "\" is already taken.");
             return "redirect:/admin/users";
         }

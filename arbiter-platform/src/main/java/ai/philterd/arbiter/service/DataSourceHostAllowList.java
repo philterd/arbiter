@@ -64,11 +64,16 @@ import java.util.Locale;
  *   <li>Allow-list set, host doesn't match → rejected.</li>
  * </ul>
  *
- * <p><strong>Master switch.</strong> An admin can disable the allow-list entirely from
- * Admin → Security ({@link GeneralSettings#isHostAllowListEnabled()}). When disabled,
- * {@link #isAllowed(String)} returns {@code true} for every well-formed URL — the
- * private-range and pattern checks are skipped. This is documented as not recommended
- * because it re-opens the SSRF surface those checks are designed to close.
+ * <p><strong>Public-host master switch.</strong> An admin can relax the pattern check
+ * for <em>public</em> hosts from Admin → Security ({@link
+ * GeneralSettings#isHostAllowListEnabled()}). When disabled, any well-formed public
+ * host is accepted regardless of the configured patterns. The toggle <strong>does not
+ * disable the private-range backstop</strong>: loopback, link-local (including the
+ * cloud-metadata-service literal 169.254.169.254), RFC-1918, IPv6 ULA, and any-local
+ * addresses are always refused unless their host appears explicitly in the
+ * {@code arbiter.data-sources.allowed-hosts} list. The escape hatch widens
+ * acceptance for the public Internet; it cannot be used to open a door to internal
+ * services like cloud metadata, MongoDB on loopback, or intranet HTTP endpoints.
  */
 @Component
 public class DataSourceHostAllowList {
@@ -147,21 +152,22 @@ public class DataSourceHostAllowList {
         if (host == null || host.isBlank()) return false;
         final String h = host.toLowerCase(Locale.ROOT);
 
-        // Master switch: when an admin has turned the allow-list off via
-        // Admin → Security, accept any well-formed host regardless of the
-        // configured patterns or the private-range default-deny. This is the
-        // documented not-recommended escape hatch for deployments that need to
-        // reach hosts the operator can't easily enumerate up front.
-        if (!isEnabledByAdmin()) {
-            return true;
-        }
-
-        // Private/loopback/link-local: blocked unconditionally unless explicitly whitelisted.
+        // Private/loopback/link-local addresses are blocked at *all* times — the admin
+        // toggle never widens this rule. Only an explicit allow-list entry can admit an
+        // internal host. This closes the cloud-metadata / loopback / RFC-1918 SSRF path
+        // even when an operator has turned the public-host check off.
         if (isPrivateAddress(host)) {
             return !patterns.isEmpty() && matchesPatterns(h);
         }
 
-        // Public addresses: allowed when no allow-list is configured; otherwise must match.
+        // Public host with the admin toggle off: accept regardless of pattern config.
+        // This is the documented escape hatch — it widens *public* acceptance only.
+        if (!isEnabledByAdmin()) {
+            return true;
+        }
+
+        // Public host with the admin toggle on: allowed when no allow-list is
+        // configured; otherwise must match a pattern.
         return patterns.isEmpty() || matchesPatterns(h);
     }
 
@@ -192,15 +198,42 @@ public class DataSourceHostAllowList {
     }
 
     /**
-     * Returns {@code true} if the host resolves to a loopback, site-local (RFC-1918), or
-     * link-local address. Numeric IP literals are parsed without a DNS lookup; hostnames
-     * are resolved via the JVM. If the hostname cannot be resolved, {@code false} is
-     * returned — an unresolvable host cannot be connected to anyway.
+     * Returns {@code true} if the host resolves to an address the JVM (or this method)
+     * recognizes as private. Covers:
+     *
+     * <ul>
+     *   <li><strong>Loopback</strong> — 127.0.0.0/8, ::1</li>
+     *   <li><strong>Link-local</strong> — 169.254.0.0/16 (incl. cloud-metadata
+     *       169.254.169.254), fe80::/10</li>
+     *   <li><strong>Site-local (RFC-1918)</strong> — 10.0.0.0/8, 172.16.0.0/12,
+     *       192.168.0.0/16, plus IPv6 fec0::/10 (deprecated but still flagged by Java)</li>
+     *   <li><strong>Any-local</strong> — 0.0.0.0, :: (alias for "any local interface"
+     *       in many HTTP clients, which collapses to loopback)</li>
+     *   <li><strong>IPv6 unique local (ULA)</strong> — fc00::/7. Java's
+     *       {@link InetAddress#isSiteLocalAddress()} predates RFC 4193 and does not
+     *       flag this range, so we check the leading byte manually.</li>
+     * </ul>
+     *
+     * <p>Numeric IP literals are parsed without a DNS lookup; hostnames are resolved
+     * via the JVM. If the hostname cannot be resolved, {@code false} is returned — an
+     * unresolvable host cannot be connected to anyway.
      */
     private static boolean isPrivateAddress(final String host) {
         try {
             final InetAddress addr = InetAddress.getByName(host);
-            return addr.isLoopbackAddress() || addr.isSiteLocalAddress() || addr.isLinkLocalAddress();
+            if (addr.isLoopbackAddress()
+                    || addr.isSiteLocalAddress()
+                    || addr.isLinkLocalAddress()
+                    || addr.isAnyLocalAddress()) {
+                return true;
+            }
+            // IPv6 ULA (fc00::/7) — Java doesn't flag these via isSiteLocalAddress.
+            final byte[] bytes = addr.getAddress();
+            if (bytes.length == 16) {
+                final int leading = bytes[0] & 0xff;
+                if ((leading & 0xfe) == 0xfc) return true;
+            }
+            return false;
         } catch (UnknownHostException e) {
             return false;
         }

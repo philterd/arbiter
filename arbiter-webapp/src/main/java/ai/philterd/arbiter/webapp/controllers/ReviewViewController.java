@@ -594,21 +594,35 @@ public class ReviewViewController {
     public String approve(@PathVariable final String documentId,
                           final Authentication authentication,
                           final org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
-        final Document document = documentRepository.findById(documentId)
+        final Document preLoad = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
-        documentAccessService.requireDocumentAccess(authentication, document);
+        documentAccessService.requireDocumentAccess(authentication, preLoad);
 
         final String email = authentication == null ? null : authentication.getName();
+
+        // Pessimistic lock — claim exclusive access for this reviewer before mutating.
+        // Without this, two reviewers in the same group could race: each load the doc,
+        // each append to approvedBy, and the second save clobbers the first. Combined
+        // with the @Version field on Document, the lost-update race is closed at both
+        // layers (UI-lock to refuse the second mutation, optimistic-lock to catch any
+        // race the pessimistic check might miss across lock-expiry boundaries).
+        final Document document = email == null ? null
+                : documentLockService.acquire(documentId, email);
+        if (document == null) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Another reviewer is currently editing this document. Refresh the page and try again.");
+            return "redirect:/review/" + documentId;
+        }
+
         final Batch batch = document.getBatchId() == null ? null
                 : batchRepository.findById(document.getBatchId()).orElse(null);
         final List<Span> spans = spanRepository.findByDocumentId(documentId);
-        final User reviewer = email == null ? null
-                : userRepository.findByEmail(email).orElse(null);
+        final User reviewer = userRepository.findByEmail(email).orElse(null);
 
         // Disallow the same user from approving twice — a second approval must come from
         // a different reviewer. This guard runs even when the doc currently only requires
         // a single approval, so a user can't pre-emptively double-approve.
-        if (email != null && document.getApprovedBy().contains(email)) {
+        if (document.getApprovedBy().contains(email)) {
             redirectAttributes.addFlashAttribute("error",
                     "You have already approved this document. A different reviewer must give the next approval.");
             return "redirect:/review/" + documentId;
@@ -647,16 +661,15 @@ public class ReviewViewController {
                 ? 2 : 1;
 
         // Record this approval.
-        document.getApprovedBy().add(email == null ? "" : email);
+        document.getApprovedBy().add(email);
         // Stamp the first-ever reviewer so the blind-double-review filter can identify
         // who is disqualified from the second pass. Set once and never overwritten.
         // Capture each reviewer's approved-span snapshot so the IAA report can compute
         // Cohen's Kappa between the first and second reviewer's labels.
-        if (document.getFirstReviewer() == null && email != null) {
+        if (document.getFirstReviewer() == null) {
             document.setFirstReviewer(email);
             document.setFirstReviewSpans(approvedSpanRanges(spans));
         } else if (document.isDoubleReview()
-                && email != null
                 && document.getFirstReviewer() != null
                 && !email.equalsIgnoreCase(document.getFirstReviewer())
                 && document.getSecondReviewer() == null) {
@@ -672,11 +685,18 @@ public class ReviewViewController {
             // Stay in REVIEW_REQUIRED so the doc remains visible to other reviewers.
             document.changeStatus("REVIEW_REQUIRED");
         }
-        documentRepository.save(document);
-        incrementReviewCount(reviewer);
-        if (email != null) {
-            documentLockService.release(documentId, email);
+        try {
+            documentRepository.save(document);
+        } catch (org.springframework.dao.OptimisticLockingFailureException e) {
+            // Stale-version write — another reviewer's save sneaked in between our
+            // lock acquisition and our own save (possible across a lock-expiry boundary).
+            // Refuse the mutation rather than silently dropping their work.
+            redirectAttributes.addFlashAttribute("error",
+                    "Another reviewer's change was saved while you were reviewing. Refresh the page and try again.");
+            return "redirect:/review/" + documentId;
         }
+        incrementReviewCount(reviewer);
+        documentLockService.release(documentId, email);
         auditLogService.log("DOCUMENT_APPROVAL", "Document", documentId,
                 Map.of(
                         "previous", previous == null ? "" : previous,
@@ -703,47 +723,58 @@ public class ReviewViewController {
     }
 
     @PostMapping("/review/{documentId}/reject")
-    public String reject(@PathVariable final String documentId, final Authentication authentication) {
+    public String reject(@PathVariable final String documentId,
+                         final Authentication authentication,
+                         final org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
         final String email = authentication == null ? null : authentication.getName();
         final Document preReject = documentRepository.findById(documentId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
         documentAccessService.requireDocumentAccess(authentication, preReject);
-        final String previous = preReject.getStatus();
+
+        // Same pessimistic-lock + optimistic-lock contract as approve(). If the lock
+        // is held by another reviewer we refuse the mutation rather than racing.
+        final Document document = email == null ? null
+                : documentLockService.acquire(documentId, email);
+        if (document == null) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Another reviewer is currently editing this document. Refresh the page and try again.");
+            return "redirect:/review/" + documentId;
+        }
+
+        final String previous = document.getStatus();
         // Stamp the first-ever reviewer (set once) so the blind-double-review filter
         // can identify who is disqualified from the second pass. Capture each reviewer's
         // approved-span snapshot so the IAA report can compute Cohen's Kappa.
-        boolean snapshotMutated = false;
-        if (preReject.getFirstReviewer() == null && email != null) {
-            preReject.setFirstReviewer(email);
-            preReject.setFirstReviewSpans(approvedSpanRanges(spanRepository.findByDocumentId(documentId)));
-            snapshotMutated = true;
-        } else if (preReject.isDoubleReview()
-                && email != null
-                && preReject.getFirstReviewer() != null
-                && !email.equalsIgnoreCase(preReject.getFirstReviewer())
-                && preReject.getSecondReviewer() == null) {
-            preReject.setSecondReviewer(email);
-            preReject.setSecondReviewSpans(approvedSpanRanges(spanRepository.findByDocumentId(documentId)));
-            snapshotMutated = true;
+        if (document.getFirstReviewer() == null) {
+            document.setFirstReviewer(email);
+            document.setFirstReviewSpans(approvedSpanRanges(spanRepository.findByDocumentId(documentId)));
+        } else if (document.isDoubleReview()
+                && !email.equalsIgnoreCase(document.getFirstReviewer())
+                && document.getSecondReviewer() == null) {
+            document.setSecondReviewer(email);
+            document.setSecondReviewSpans(approvedSpanRanges(spanRepository.findByDocumentId(documentId)));
         }
-        if (snapshotMutated) {
-            documentRepository.save(preReject);
+        document.changeStatus("REJECTED");
+        try {
+            documentRepository.save(document);
+        } catch (org.springframework.dao.OptimisticLockingFailureException e) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Another reviewer's change was saved while you were reviewing. Refresh the page and try again.");
+            return "redirect:/review/" + documentId;
         }
-        updateStatus(documentId, "REJECTED", authentication);
+        auditLogService.log("DOCUMENT_STATUS_CHANGE", "Document", documentId,
+                Map.of("previous", previous == null ? "" : previous,
+                        "current", "REJECTED",
+                        "actor", email));
         auditLogService.log("DOCUMENT_REJECT", "Document", documentId,
                 Map.of("previous", previous == null ? "" : previous,
-                        "rejectedBy", email == null ? "" : email));
+                        "rejectedBy", email));
         incrementReviewCountByEmail(email);
-        if (email != null) {
-            documentLockService.release(documentId, email);
-        }
+        documentLockService.release(documentId, email);
         final UserSettings settings = userSettingsService.loadForEmail(email);
         if (settings.isAdvanceToNextOnApprove()) {
-            final Document document = documentRepository.findById(documentId).orElse(null);
-            if (document != null) {
-                final String nextId = findSiblingId(document, settings, 1, email);
-                if (nextId != null) return "redirect:/review/" + nextId;
-            }
+            final String nextId = findSiblingId(document, settings, 1, email);
+            if (nextId != null) return "redirect:/review/" + nextId;
         }
         return "redirect:/queue";
     }

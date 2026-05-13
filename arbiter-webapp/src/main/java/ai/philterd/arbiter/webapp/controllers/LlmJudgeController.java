@@ -105,9 +105,14 @@ public class LlmJudgeController {
     @GetMapping("/ollama/{instanceId}/models")
     public Map<String, Object> listModels(@PathVariable final String instanceId,
                                           final Authentication authentication) {
+        // Run the role/default check *before* loading the instance from Mongo so a
+        // reviewer probing arbitrary ids gets the same uniform 404 whether the id
+        // exists or not. The previous shape returned 404 on miss but 403 on
+        // access-denied, letting a reviewer enumerate every registered Ollama
+        // instance by status code alone.
+        requireListModelsAccess(authentication, instanceId);
         final OllamaInstance instance = ollamaInstanceRepository.findById(instanceId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Ollama instance not found."));
-        requireListModelsAccess(authentication, instance);
         final String base = requireAllowedBaseUrl(instance);
         try {
             final HttpRequest req = HttpRequest.newBuilder()
@@ -117,8 +122,7 @@ public class LlmJudgeController {
                     .build();
             final HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() / 100 != 2) {
-                throw new ResponseStatusException(BAD_GATEWAY,
-                        "Ollama returned HTTP " + resp.statusCode() + " from /api/tags");
+                throw new ResponseStatusException(BAD_GATEWAY, "Ollama instance unavailable.");
             }
             final JsonNode root = objectMapper.readTree(resp.body());
             final List<String> names = new ArrayList<>();
@@ -140,9 +144,11 @@ public class LlmJudgeController {
         } catch (ResponseStatusException e) {
             throw e;
         } catch (Exception e) {
+            // The upstream-error log line keeps the URL + reason for operators; the
+            // response body is generic so it doesn't echo the instance name back to
+            // an authorized-but-probing caller (the audit case from finding #11).
             log.warn("Failed to list models from {}: {}", base, e.getMessage());
-            throw new ResponseStatusException(BAD_GATEWAY,
-                    "Could not reach Ollama instance \"" + instance.getName() + "\": " + e.getMessage());
+            throw new ResponseStatusException(BAD_GATEWAY, "Ollama instance unavailable.");
         }
     }
 
@@ -163,9 +169,12 @@ public class LlmJudgeController {
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
         documentAccessService.requireDocumentAccess(authentication, document);
 
+        // Same indistinguishability rule as listModels: refuse access against the bare
+        // id before the DB lookup so a probing caller can't tell which arbitrary ids
+        // resolve to real rows.
+        requireListModelsAccess(authentication, request.instanceId());
         final OllamaInstance instance = ollamaInstanceRepository.findById(request.instanceId())
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Ollama instance not found."));
-        requireListModelsAccess(authentication, instance);
         // Reject before auditing — a disallowed-host attempt isn't "PII sent to LLM" since
         // no PII actually leaves the process.
         final String base = requireAllowedBaseUrl(instance);
@@ -196,7 +205,7 @@ public class LlmJudgeController {
             final HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() / 100 != 2) {
                 throw new ResponseStatusException(BAD_GATEWAY,
-                        "Ollama returned HTTP " + resp.statusCode() + " from /api/generate");
+                        "Ollama instance unavailable.");
             }
             final JsonNode root = objectMapper.readTree(resp.body());
             final String response = root.path("response").asText("");
@@ -211,7 +220,7 @@ public class LlmJudgeController {
         } catch (Exception e) {
             log.warn("Failed to call Ollama at {}: {}", base, e.getMessage());
             throw new ResponseStatusException(BAD_GATEWAY,
-                    "Could not reach Ollama instance \"" + instance.getName() + "\": " + e.getMessage());
+                    "Ollama instance unavailable.");
         }
     }
 
@@ -271,7 +280,7 @@ public class LlmJudgeController {
             final HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() / 100 != 2) {
                 throw new ResponseStatusException(BAD_GATEWAY,
-                        "Ollama returned HTTP " + resp.statusCode() + " from /api/generate");
+                        "Ollama instance unavailable.");
             }
             final JsonNode root = objectMapper.readTree(resp.body());
             final String response = root.path("response").asText("");
@@ -288,7 +297,7 @@ public class LlmJudgeController {
         } catch (Exception e) {
             log.warn("Failed to call Ollama at {}: {}", base, e.getMessage());
             throw new ResponseStatusException(BAD_GATEWAY,
-                    "Could not reach Ollama instance \"" + instance.getName() + "\": " + e.getMessage());
+                    "Ollama instance unavailable.");
         }
     }
 
@@ -302,7 +311,7 @@ public class LlmJudgeController {
             final HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
             if (resp.statusCode() / 100 != 2) {
                 throw new ResponseStatusException(BAD_GATEWAY,
-                        "Ollama returned HTTP " + resp.statusCode() + " from /api/tags");
+                        "Ollama instance unavailable.");
             }
             final JsonNode models = objectMapper.readTree(resp.body()).get("models");
             if (models == null || !models.isArray() || models.isEmpty()) {
@@ -325,7 +334,7 @@ public class LlmJudgeController {
         } catch (Exception e) {
             log.warn("Failed to query models from {}: {}", base, e.getMessage());
             throw new ResponseStatusException(BAD_GATEWAY,
-                    "Could not reach Ollama instance \"" + instance.getName() + "\": " + e.getMessage());
+                    "Ollama instance unavailable.");
         }
     }
 
@@ -367,10 +376,11 @@ public class LlmJudgeController {
     private String requireAllowedBaseUrl(final OllamaInstance instance) {
         final String url = baseUrl(instance);
         if (!hostAllowList.isAllowed(url)) {
-            throw new ResponseStatusException(BAD_GATEWAY,
-                    "Ollama instance \"" + instance.getName()
-                            + "\" host is not on the data-source allow-list "
-                            + "(arbiter.data-sources.allowed-hosts).");
+            // Don't echo the instance name in the response body — same finding-#11
+            // reasoning. The operator gets the full host + URL in the warning log.
+            log.warn("Ollama instance \"{}\" host {} is not on the data-source allow-list",
+                    instance.getName(), url);
+            throw new ResponseStatusException(BAD_GATEWAY, "Ollama instance unavailable.");
         }
         return url;
     }
@@ -418,29 +428,33 @@ public class LlmJudgeController {
      *       (no batches they can see) are rejected outright.
      * </ul>
      */
-    private void requireListModelsAccess(final Authentication auth, final OllamaInstance instance) {
+    private void requireListModelsAccess(final Authentication auth, final String requestedInstanceId) {
         if (AuthUtils.isAdmin(auth)) return;
+
+        // Every reject path below throws the same uniform 404 "Ollama instance not
+        // found." that the bare lookup miss returns — finding #11. A probing reviewer
+        // cannot distinguish "instance doesn't exist", "I'm not in any group", and
+        // "instance exists but isn't a configured default" by status code or body.
+        final ResponseStatusException notFound = new ResponseStatusException(
+                NOT_FOUND, "Ollama instance not found.");
 
         // Reviewer must have at least one accessible batch — that proves they're an active
         // user, not a stranded account or API key with no real role in the system.
         final Set<String> myGroupIds = userGroupsService.groupIdsForEmail(
                 auth == null ? null : auth.getName());
         if (myGroupIds.isEmpty()) {
-            throw new ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN,
-                    "Not authorized.");
+            throw notFound;
         }
 
         // The instance must be a configured LLM-as-a-Judge default. Reviewers cannot probe
         // arbitrary Ollama URLs the admin happened to register but isn't actively using.
         final ai.philterd.arbiter.model.LlmJudgeDefaults defaults = llmJudgeDefaultsService.load();
-        final String requested = instance.getId();
-        final boolean isExplainDefault = requested != null
-                && requested.equals(defaults.getExplainInstanceId());
-        final boolean isSecondOpinionDefault = requested != null
-                && requested.equals(defaults.getSecondOpinionInstanceId());
+        final boolean isExplainDefault = requestedInstanceId != null
+                && requestedInstanceId.equals(defaults.getExplainInstanceId());
+        final boolean isSecondOpinionDefault = requestedInstanceId != null
+                && requestedInstanceId.equals(defaults.getSecondOpinionInstanceId());
         if (!isExplainDefault && !isSecondOpinionDefault) {
-            throw new ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN,
-                    "Not authorized.");
+            throw notFound;
         }
     }
 

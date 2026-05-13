@@ -10,6 +10,7 @@
 package ai.philterd.arbiter.model;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Version;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -19,6 +20,21 @@ public class Document {
 
     @Id
     private String id;
+
+    /**
+     * Optimistic-locking version. Auto-managed by Spring Data Mongo on every
+     * {@code repository.save(...)} — incremented after a successful write, checked on
+     * the next write. A stale {@code version} (because another thread saved in between)
+     * raises {@code OptimisticLockingFailureException} and the in-memory mutation is
+     * refused. Combined with the pessimistic lock in {@link
+     * ai.philterd.arbiter.service.DocumentLockService}, this prevents the
+     * lost-update race where two reviewers race {@code approve} / {@code reject} and
+     * the second {@code save} clobbers the first reviewer's {@code approvedBy} entry.
+     * Null on freshly-built entities — Spring sets it to 0 on the first save.
+     */
+    @Version
+    private Long version;
+
     private String batchId;
     private String filename;
     private String storagePath;
@@ -174,6 +190,9 @@ public class Document {
     public void setId(final String id) {
         this.id = id;
     }
+
+    public Long getVersion() { return version; }
+    public void setVersion(final Long version) { this.version = version; }
 
     public String getBatchId() {
         return batchId;

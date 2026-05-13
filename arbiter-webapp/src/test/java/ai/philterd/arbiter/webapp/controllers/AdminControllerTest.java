@@ -49,6 +49,7 @@ class AdminControllerTest {
     private UserNotificationService userNotificationService;
     private LoginAttemptService loginAttemptService;
     private InvitationService invitationService;
+    private ai.philterd.arbiter.repository.InvitationRepository invitationRepository;
     private AdminController controller;
 
     @BeforeEach
@@ -61,9 +62,13 @@ class AdminControllerTest {
         userNotificationService = mock(UserNotificationService.class);
         loginAttemptService = new LoginAttemptService();
         invitationService = mock(InvitationService.class);
+        invitationRepository = mock(ai.philterd.arbiter.repository.InvitationRepository.class);
+        // Default: no pending invitations for any email. Tests that exercise the
+        // "pending invitation supersedes" path override this explicitly.
+        when(invitationRepository.findByEmail(anyString())).thenReturn(Optional.empty());
         controller = new AdminController(userRepository, passwordEncoder, auditLogService,
                 notificationSettingsService, userNotificationService,
-                loginAttemptService, invitationService);
+                loginAttemptService, invitationService, invitationRepository);
     }
 
     private static RedirectAttributes flash() { return new RedirectAttributesModelMap(); }
@@ -125,6 +130,68 @@ class AdminControllerTest {
         controller.create("A@b.com", false, null, ra);
         assertEquals("Email \"a@b.com\" is already taken.", error(ra));
         verify(invitationService, never()).issue(anyString(), anyBoolean(), anySet());
+    }
+
+    @Test
+    void rejectsEmailWithOutstandingPendingInvitation() {
+        // Admin B has already invited the recipient — the invitation row is pending
+        // (consumedAt is null). Admin A's re-issue must be refused with the same
+        // generic "Email is already taken." that an existing User row produces.
+        // Two doors close here at once: A can't enumerate which addresses B has
+        // already invited (oracle), and B's emailed link isn't silently superseded
+        // (loss of UX).
+        when(userRepository.findByEmail("a@b.com")).thenReturn(Optional.empty());
+        final ai.philterd.arbiter.model.Invitation pending = new ai.philterd.arbiter.model.Invitation();
+        pending.setId("inv-existing");
+        pending.setEmail("a@b.com");
+        pending.setConsumedAt(null);
+        when(invitationRepository.findByEmail("a@b.com")).thenReturn(Optional.of(pending));
+
+        final RedirectAttributes ra = flash();
+        controller.create("a@b.com", false, null, ra);
+
+        assertEquals("Email \"a@b.com\" is already taken.", error(ra),
+                "pending-invitation rejection must use the same body as a real duplicate");
+        // No new invitation issued — B's pending row stays the live token.
+        verify(invitationService, never()).issue(anyString(), anyBoolean(), anySet());
+        verify(userNotificationService, never())
+                .sendInvitation(anyString(), anyString());
+        verify(auditLogService, never())
+                .log(org.mockito.ArgumentMatchers.eq("USER_INVITATION_ISSUED"),
+                        any(), any(), any());
+    }
+
+    @Test
+    void consumedInvitationDoesNotBlockNewCreate() {
+        // A consumed invitation row stays in the collection for audit-trail purposes;
+        // it must not block a fresh create for the same email (e.g. the user was later
+        // deleted and is being re-invited). The check only blocks *pending* invitations.
+        when(userRepository.findByEmail("a@b.com")).thenReturn(Optional.empty());
+        final ai.philterd.arbiter.model.Invitation consumed = new ai.philterd.arbiter.model.Invitation();
+        consumed.setId("inv-old");
+        consumed.setEmail("a@b.com");
+        consumed.setConsumedAt(java.time.Instant.parse("2026-01-01T00:00:00Z"));
+        when(invitationRepository.findByEmail("a@b.com")).thenReturn(Optional.of(consumed));
+
+        final ai.philterd.arbiter.model.NotificationSettings settings =
+                new ai.philterd.arbiter.model.NotificationSettings();
+        settings.setEnabled(true);
+        when(notificationSettingsService.load()).thenReturn(settings);
+        final ai.philterd.arbiter.model.Invitation issued = new ai.philterd.arbiter.model.Invitation();
+        issued.setId("inv-new");
+        when(invitationService.issue(eq("a@b.com"), eq(false), anySet()))
+                .thenReturn(new InvitationService.IssuedInvitation(issued, "fresh-token"));
+        when(userNotificationService.buildInvitationLink(eq("fresh-token")))
+                .thenReturn("https://arbiter/invitations/fresh-token");
+        when(userNotificationService.sendInvitation(anyString(), anyString())).thenReturn(true);
+
+        final RedirectAttributes ra = flash();
+        controller.create("a@b.com", false, null, ra);
+
+        verify(invitationService).issue(eq("a@b.com"), eq(false), anySet());
+        verify(userNotificationService).sendInvitation(eq("a@b.com"),
+                eq("https://arbiter/invitations/fresh-token"));
+        assertNotNull(success(ra));
     }
 
     @Test

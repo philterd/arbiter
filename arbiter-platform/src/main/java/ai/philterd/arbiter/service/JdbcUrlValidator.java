@@ -63,7 +63,7 @@ public class JdbcUrlValidator {
     /**
      * Substrings that, if present anywhere in the JDBC URL (case-insensitive), are
      * grounds for refusal. These are well-known driver-specific levers used in JDBC
-     * RCE chains:
+     * RCE / exfiltration chains:
      *
      * <ul>
      *   <li>{@code init=} — H2 runs the SQL on connect.</li>
@@ -75,6 +75,19 @@ public class JdbcUrlValidator {
      *       past second-order injection chains.</li>
      *   <li>{@code script=}, {@code runscript=} — H2 / HSQLDB equivalents of {@code init=}.</li>
      *   <li>{@code restoreFrom=} — Derby connect-time DB restore from filesystem path.</li>
+     *   <li>{@code queryinterceptors} — MySQL Connector/J pre-8.0.20 loads an arbitrary
+     *       class on connect; the canonical RCE gadget for that driver.</li>
+     *   <li>{@code propertiestransform} — MySQL SnakeYAML deserialization gadget.</li>
+     *   <li>{@code allowpublickeyretrieval} — MySQL forces server-pubkey fetch over
+     *       plaintext, opening a MITM vector even when the server requires SHA256
+     *       authentication.</li>
+     *   <li>{@code currentschema} — PostgreSQL: small SQLi surface when the driver
+     *       interpolates the value into a {@code SET search_path} on connect.</li>
+     *   <li>{@code databasemetadatacachettl} — driver-side cache used in a few
+     *       second-order injection chains; not needed for read-only ingest.</li>
+     *   <li>{@code logger=}, {@code logfile=} — MySQL / older PostgreSQL drivers that
+     *       could be pointed at a file the JVM has write access to (audit-log
+     *       smearing / file-write primitive).</li>
      * </ul>
      */
     public static final List<String> DANGEROUS_PARAMS = List.of(
@@ -86,7 +99,15 @@ public class JdbcUrlValidator {
             "allowmultiqueries",
             "script=",
             "runscript=",
-            "restorefrom=");
+            "restorefrom=",
+            "queryinterceptors",
+            "statementinterceptors",
+            "propertiestransform",
+            "allowpublickeyretrieval",
+            "currentschema",
+            "databasemetadatacachettl",
+            "logger=",
+            "logfile=");
 
     /**
      * After the {@code jdbc:<driver>:} prefix, this pattern matches the host portion of
@@ -131,6 +152,63 @@ public class JdbcUrlValidator {
     }
 
     /**
+     * Strip the {@code user[:pass]@} segment out of a JDBC URL so the stripped value
+     * can be persisted in audit logs without leaking the password. Operators sometimes
+     * paste credential-bearing URLs into the connection field; the validator refuses
+     * them outright (see {@link #validate(String)}), but the rejection event is itself
+     * audited and must not retain the secret. The transformation is also a no-op for
+     * URLs that have no userinfo or are not parseable as URIs, so it is safe to apply
+     * unconditionally before logging.
+     *
+     * <p>Examples:
+     * <pre>
+     *   jdbc:postgresql://user:secret@host:5432/db  →  jdbc:postgresql://host:5432/db
+     *   jdbc:mysql://host:3306/db                   →  jdbc:mysql://host:3306/db
+     *   jdbc:oracle:thin:@host:1521:sid              →  jdbc:oracle:thin:@host:1521:sid
+     * </pre>
+     */
+    public static String stripUserInfo(final String jdbcUrl) {
+        if (jdbcUrl == null) return null;
+        final String trimmed = jdbcUrl.trim();
+        if (!trimmed.toLowerCase(Locale.ROOT).startsWith("jdbc:")) return trimmed;
+        final java.net.URI uri;
+        try {
+            uri = java.net.URI.create(trimmed.substring(5));
+        } catch (Exception e) {
+            return trimmed;
+        }
+        final String authority = uri.getRawAuthority();
+        if (authority == null) return trimmed;       // opaque URI (e.g. oracle:thin:@...)
+        final int at = authority.indexOf('@');
+        if (at < 0) return trimmed;                  // no userinfo present
+        // Rebuild from raw parts so the path/query/fragment formatting is preserved
+        // verbatim (incl. characters like ';' that SQL Server uses for parameters,
+        // and IPv6 brackets that URI.getHost() would otherwise drop).
+        final String hostPort = authority.substring(at + 1);
+        final StringBuilder sb = new StringBuilder("jdbc:")
+                .append(uri.getScheme()).append("://").append(hostPort);
+        if (uri.getRawPath() != null) sb.append(uri.getRawPath());
+        if (uri.getRawQuery() != null) sb.append('?').append(uri.getRawQuery());
+        if (uri.getRawFragment() != null) sb.append('#').append(uri.getRawFragment());
+        return sb.toString();
+    }
+
+    private static boolean hasUserInfo(final String jdbcUrl) {
+        // Detection mirrors stripUserInfo's authority-based logic — any URI whose
+        // raw authority contains '@' carries userinfo.
+        if (jdbcUrl == null) return false;
+        final String trimmed = jdbcUrl.trim();
+        if (!trimmed.toLowerCase(Locale.ROOT).startsWith("jdbc:")) return false;
+        try {
+            final String authority =
+                    java.net.URI.create(trimmed.substring(5)).getRawAuthority();
+            return authority != null && authority.indexOf('@') >= 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /**
      * Inspect a JDBC URL and return whether it is acceptable. The checks run in order so
      * the error returned is the most specific one applicable.
      */
@@ -159,6 +237,15 @@ public class JdbcUrlValidator {
         if (!allowedDrivers.contains(driver)) {
             return Result.rejected("JDBC driver \"" + driver + "\" is not on the allow-list. "
                     + "Permitted drivers: " + String.join(", ", allowedDrivers) + ".");
+        }
+
+        // Refuse URLs that carry embedded credentials (user[:pass]@host). Persisting
+        // such a URL — even to mark it rejected — would leak the password into every
+        // place the saved JDBC URL is logged. Admins should use the Username and
+        // Password fields, which flow through SymmetricCipher.encryptField at rest.
+        if (hasUserInfo(url)) {
+            return Result.rejected("JDBC URL must not contain embedded credentials "
+                    + "(\"user:password@host\"). Use the Username and Password fields instead.");
         }
 
         for (String bad : DANGEROUS_PARAMS) {

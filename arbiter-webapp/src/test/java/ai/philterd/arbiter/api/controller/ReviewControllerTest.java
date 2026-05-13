@@ -233,6 +233,45 @@ class ReviewControllerTest {
     }
 
     @Test
+    void redactAllLikeAccessCheckRunsBeforeEmptyTextCheck() {
+        // Regression for the F4-ordering bug: an empty-text span used to throw 400
+        // *before* the access helper ran. A non-admin probing a real-but-inaccessible
+        // span would therefore see 400 while a missing-span probe got 404, letting
+        // them enumerate span ids by status code. After the fix, both probes return
+        // the same uniform 404 "Span not found." — same body, same status.
+        final Span source = span("s1", "d1", "ssn", "APPROVED", 0, 0, "");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(source));
+        seedGroupedDocument();
+        userGroupsService.withMembership("alice@example.com", java.util.Set.of("g2"));
+
+        // Path A: real span, caller can't see its document.
+        final ResponseStatusException accessDenied = assertThrows(ResponseStatusException.class,
+                () -> controller.redactAllLike("s1", TestAuth.user("alice@example.com")));
+
+        // Path B: span doesn't exist at all.
+        when(spanRepository.findById("ghost-span")).thenReturn(Optional.empty());
+        final ResponseStatusException missing = assertThrows(ResponseStatusException.class,
+                () -> controller.redactAllLike("ghost-span", TestAuth.user("alice@example.com")));
+
+        assertEquals(HttpStatus.NOT_FOUND, accessDenied.getStatusCode(),
+                "access-denied must produce 404, not the pre-fix 400 from empty-text");
+        assertEquals(HttpStatus.NOT_FOUND, missing.getStatusCode());
+        assertEquals(missing.getReason(), accessDenied.getReason(),
+                "miss vs access-denied bodies must be byte-identical");
+        assertEquals("Span not found.", accessDenied.getReason(),
+                "access-denied body must be the generic span-not-found message");
+        // Defence-in-depth: neither reason should mention the span id or "empty"
+        // (the pre-fix 400 body said 'Source span has no text to match.' — that
+        // string would leak existence of the span row to a probing caller).
+        assertTrue(accessDenied.getReason() == null
+                        || !accessDenied.getReason().toLowerCase().contains("no text to match"),
+                "access-denied body leaked 'no text to match': " + accessDenied.getReason());
+        assertTrue(accessDenied.getReason() == null
+                        || !accessDenied.getReason().contains("s1"),
+                "access-denied body leaked the span id: " + accessDenied.getReason());
+    }
+
+    @Test
     void redactAllLikeReturnsZerosWhenDocumentTextEmpty() {
         final Span source = span("s1", "d1", "ssn", "APPROVED", 0, 5, "hello");
         final Document doc = document("d1", "");

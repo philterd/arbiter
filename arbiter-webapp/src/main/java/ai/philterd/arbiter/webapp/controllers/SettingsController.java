@@ -20,6 +20,7 @@ import ai.philterd.arbiter.model.UserSettings;
 import ai.philterd.arbiter.repository.UserRepository;
 import ai.philterd.arbiter.service.ApiKeyHashingService;
 import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.service.SymmetricCipher;
 import ai.philterd.arbiter.service.UserSettingsService;
 import ai.philterd.arbiter.webapp.security.TotpService;
 import jakarta.servlet.http.HttpSession;
@@ -48,19 +49,22 @@ public class SettingsController {
     private final UserSettingsService userSettingsService;
     private final TotpService totpService;
     private final ApiKeyHashingService apiKeyHashingService;
+    private final SymmetricCipher cipher;
 
     public SettingsController(final UserRepository userRepository,
                               final PasswordEncoder passwordEncoder,
                               final AuditLogService auditLogService,
                               final UserSettingsService userSettingsService,
                               final TotpService totpService,
-                              final ApiKeyHashingService apiKeyHashingService) {
+                              final ApiKeyHashingService apiKeyHashingService,
+                              final SymmetricCipher cipher) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.auditLogService = auditLogService;
         this.userSettingsService = userSettingsService;
         this.totpService = totpService;
         this.apiKeyHashingService = apiKeyHashingService;
+        this.cipher = cipher;
     }
 
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -86,9 +90,20 @@ public class SettingsController {
     @GetMapping("/mfa/setup")
     public String mfaSetup(final Authentication authentication,
                            final HttpSession session,
-                           final Model model) {
+                           final Model model,
+                           final RedirectAttributes redirectAttributes) {
         final User user = userRepository.findByEmail(authentication.getName()).orElse(null);
         if (user == null) return "redirect:/settings";
+        // A session-hijacker on an already-MFA-enabled account could otherwise re-enroll
+        // their own secret here, silently rebinding the second factor to a device they
+        // control. Force a Disable → Re-enable round trip (Disable already requires the
+        // current password and a TOTP code) so taking over the second factor demands the
+        // attacker know the password, not just hold the session cookie.
+        if (user.isMfaEnabled()) {
+            redirectAttributes.addFlashAttribute("error",
+                    "MFA is already enabled. Disable it first if you want to re-enroll a new device.");
+            return "redirect:/settings";
+        }
 
         final String secret = totpService.generateSecret();
         session.setAttribute(TOTP_SETUP_SECRET, secret);
@@ -98,7 +113,8 @@ public class SettingsController {
     }
 
     @PostMapping("/mfa/enable")
-    public String mfaEnable(@RequestParam("code") final String code,
+    public String mfaEnable(@RequestParam("currentPassword") final String currentPassword,
+                            @RequestParam("code") final String code,
                             @RequestParam(value = "required", defaultValue = "false") final boolean required,
                             final Authentication authentication,
                             final HttpSession session,
@@ -108,16 +124,43 @@ public class SettingsController {
             redirectAttributes.addFlashAttribute("error", "Account not found.");
             return "redirect:/settings";
         }
+        // Defence-in-depth against the same takeover the setup-page guard prevents — if
+        // the attacker raced a setup that started before MFA was enabled, refuse to
+        // overwrite the existing secret without going through Disable first.
+        if (user.isMfaEnabled()) {
+            redirectAttributes.addFlashAttribute("error",
+                    "MFA is already enabled. Disable it first if you want to re-enroll a new device.");
+            return "redirect:/settings";
+        }
+        // Re-authenticate the holder of the session before we trust them with a new MFA
+        // device. Without this, anyone who steals a session cookie can rebind the second
+        // factor to their authenticator and lock the legitimate user out — inverting the
+        // MFA threat model. The setup secret in session stays put on a wrong password so
+        // the user can retry without rescanning the QR.
+        final String redirectOnFailure = required
+                ? "redirect:/settings/mfa/setup?required=true"
+                : "redirect:/settings/mfa/setup";
+        if (currentPassword == null
+                || !passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Current password is incorrect. MFA was not enabled.");
+            return redirectOnFailure;
+        }
         final String secret = (String) session.getAttribute(TOTP_SETUP_SECRET);
         if (secret == null) {
             redirectAttributes.addFlashAttribute("error", "Setup session expired. Please try again.");
-            return required ? "redirect:/settings/mfa/setup?required=true" : "redirect:/settings/mfa/setup";
+            return redirectOnFailure;
         }
         if (!totpService.verify(secret, code)) {
             redirectAttributes.addFlashAttribute("error", "Invalid code. Please scan the QR code again and try once more.");
-            return required ? "redirect:/settings/mfa/setup?required=true" : "redirect:/settings/mfa/setup";
+            return redirectOnFailure;
         }
-        user.setTotpSecret(secret);
+        // Encrypt the TOTP shared secret at rest. A DB compromise (leaked backup,
+        // admin-readable export, misconfigured Mongo) would otherwise hand the
+        // attacker enough to compute the victim's current TOTP and bypass their
+        // second factor permanently. encryptField is idempotent against the
+        // FIELD_PREFIX marker so a re-save of a loaded user does not double-encrypt.
+        user.setTotpSecret(cipher.encryptField(secret));
         user.setMfaEnabled(true);
         userRepository.save(user);
         session.removeAttribute(TOTP_SETUP_SECRET);
@@ -144,7 +187,10 @@ public class SettingsController {
             redirectAttributes.addFlashAttribute("error", "Current password is incorrect. MFA was not disabled.");
             return "redirect:/settings";
         }
-        if (!totpService.verify(user.getTotpSecret(), code)) {
+        // Decrypt the stored secret before verifying. decryptField passes legacy
+        // plaintext rows through unchanged so accounts whose MFA was set up before
+        // this change keep working until the user next disables/re-enables.
+        if (!totpService.verify(cipher.decryptField(user.getTotpSecret()), code)) {
             redirectAttributes.addFlashAttribute("error", "Invalid code. MFA was not disabled.");
             return "redirect:/settings";
         }

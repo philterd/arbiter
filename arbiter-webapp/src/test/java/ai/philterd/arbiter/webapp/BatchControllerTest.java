@@ -354,8 +354,9 @@ class BatchControllerTest {
 
     @Test
     void changePhilterRefusesNonLead() {
-        // A USER who isn't a lead of the batch's group is refused. The refusal is the
-        // team-lead message, not the prior admin-only message.
+        // A USER who isn't a lead of the batch's group is refused. To avoid leaking
+        // existence to a probing caller, the refusal uses the same generic
+        // "Batch not found." message as a real lookup miss.
         final Batch b = new Batch();
         b.setId("b1");
         b.setGroupId("g1");
@@ -364,9 +365,7 @@ class BatchControllerTest {
 
         final RedirectAttributes ra = flash();
         controller.changePhilter("b1", "p", null, user(), ra);
-        assertNotNull(error(ra));
-        assertTrue(error(ra).contains("team lead"),
-                "expected lead-required refusal, got: " + error(ra));
+        assertEquals("Batch not found.", error(ra));
         verify(batchRepository, never()).save(any());
     }
 
@@ -462,6 +461,8 @@ class BatchControllerTest {
 
     @Test
     void closeRefusesNonLead() {
+        // Same generic body as a real lookup miss — see BatchControllerExistenceLeakTest
+        // for the cross-endpoint indistinguishability contract this preserves.
         final Batch b = new Batch();
         b.setId("b1");
         b.setGroupId("g1");
@@ -470,9 +471,7 @@ class BatchControllerTest {
 
         final RedirectAttributes ra = flash();
         controller.close("b1", user(), ra);
-        assertNotNull(error(ra));
-        assertTrue(error(ra).contains("team lead"),
-                "expected team-lead refusal, got: " + error(ra));
+        assertEquals("Batch not found.", error(ra));
         verify(batchRepository, never()).save(any());
     }
 

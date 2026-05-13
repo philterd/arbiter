@@ -421,14 +421,13 @@ public class BatchController {
                                 @RequestParam(value = "policyName", required = false) final String policyName,
                                 final Authentication authentication,
                                 final RedirectAttributes redirectAttributes) {
+        // Collapse lookup-miss and access-denied into a single response shape so a
+        // non-admin/non-lead can't enumerate batch ids by reading the error message.
+        // The audit log still records who tried to act on which id; the user-facing
+        // body is intentionally uniform.
         final Batch batch = batchRepository.findById(batchId).orElse(null);
-        if (batch == null) {
+        if (batch == null || !batchAccessService.canLeadBatch(authentication, batch)) {
             redirectAttributes.addFlashAttribute("error", "Batch not found.");
-            return "redirect:/batches";
-        }
-        if (!batchAccessService.canLeadBatch(authentication, batch)) {
-            redirectAttributes.addFlashAttribute("error",
-                    "Only administrators or the batch's team lead can modify batches.");
             return "redirect:/batches";
         }
         final String trimmed = philterInstanceId == null ? "" : philterInstanceId.trim();
@@ -499,13 +498,8 @@ public class BatchController {
                                final Authentication authentication,
                                final RedirectAttributes redirectAttributes) {
         final Batch batch = batchRepository.findById(batchId).orElse(null);
-        if (batch == null) {
+        if (batch == null || !batchAccessService.canLeadBatch(authentication, batch)) {
             redirectAttributes.addFlashAttribute("error", "Batch not found.");
-            return "redirect:/batches";
-        }
-        if (!batchAccessService.canLeadBatch(authentication, batch)) {
-            redirectAttributes.addFlashAttribute("error",
-                    "Only administrators or the batch's team lead can modify batches.");
             return "redirect:/batches";
         }
         final String trimmed = domain == null ? "" : domain.trim();
@@ -577,13 +571,8 @@ public class BatchController {
                               final Authentication authentication,
                               final RedirectAttributes redirectAttributes) {
         final Batch batch = batchRepository.findById(batchId).orElse(null);
-        if (batch == null) {
+        if (batch == null || !batchAccessService.canLeadBatch(authentication, batch)) {
             redirectAttributes.addFlashAttribute("error", "Batch not found.");
-            return "redirect:/batches";
-        }
-        if (!batchAccessService.canLeadBatch(authentication, batch)) {
-            redirectAttributes.addFlashAttribute("error",
-                    "Only administrators or the batch's team lead can modify batches.");
             return "redirect:/batches";
         }
 
@@ -650,13 +639,8 @@ public class BatchController {
                                  final Authentication authentication,
                                  final RedirectAttributes redirectAttributes) {
         final Batch batch = batchRepository.findById(batchId).orElse(null);
-        if (batch == null) {
+        if (batch == null || !batchAccessService.canLeadBatch(authentication, batch)) {
             redirectAttributes.addFlashAttribute("error", "Batch not found.");
-            return "redirect:/batches";
-        }
-        if (!batchAccessService.canLeadBatch(authentication, batch)) {
-            redirectAttributes.addFlashAttribute("error",
-                    "Only administrators or the batch's team lead can modify batches.");
             return "redirect:/batches";
         }
         final Double normalizedPii = normalizeThreshold(confidenceThreshold);
@@ -730,13 +714,8 @@ public class BatchController {
                         final Authentication authentication,
                         final RedirectAttributes redirectAttributes) {
         final Batch batch = batchRepository.findById(batchId).orElse(null);
-        if (batch == null) {
+        if (batch == null || !batchAccessService.canLeadBatch(authentication, batch)) {
             redirectAttributes.addFlashAttribute("error", "Batch not found.");
-            return "redirect:/batches";
-        }
-        if (!batchAccessService.canLeadBatch(authentication, batch)) {
-            redirectAttributes.addFlashAttribute("error",
-                    "Only administrators or the batch's team lead can close batches.");
             return "redirect:/batches";
         }
         if (batch.isClosed()) {
@@ -779,13 +758,8 @@ public class BatchController {
                          final Authentication authentication,
                          final RedirectAttributes redirectAttributes) {
         final Batch batch = batchRepository.findById(batchId).orElse(null);
-        if (batch == null) {
+        if (batch == null || !batchAccessService.canLeadBatch(authentication, batch)) {
             redirectAttributes.addFlashAttribute("error", "Batch not found.");
-            return "redirect:/batches";
-        }
-        if (!batchAccessService.canLeadBatch(authentication, batch)) {
-            redirectAttributes.addFlashAttribute("error",
-                    "Only administrators or the batch's team lead can export batches.");
             return "redirect:/batches";
         }
         // The destination select carries values like "LOCAL:abcd123" so a single

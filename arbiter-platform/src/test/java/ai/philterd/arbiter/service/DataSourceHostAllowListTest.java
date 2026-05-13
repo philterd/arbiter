@@ -227,15 +227,19 @@ class DataSourceHostAllowListTest {
     }
 
     @Test
-    void masterSwitchOffPermitsPrivateRangeHost() {
-        // The default-deny on RFC-1918 / loopback is itself part of the allow-list
-        // — when the master switch is off, private addresses also pass. This is
-        // the SSRF re-opening the docs warn about, so it has to be explicit.
+    void masterSwitchOffStillBlocksPrivateRangeHosts() {
+        // The toggle is a *public-host* escape hatch, not a global kill switch.
+        // Loopback, link-local (incl. cloud metadata), and RFC-1918 are still
+        // refused when the toggle is off — otherwise an admin flipping the
+        // switch silently re-opens the SSRF path the allow-list closes.
         final DataSourceHostAllowList list = listWithToggle("", false);
-        assertTrue(list.isAllowed("http://127.0.0.1:9200"),
-                "master switch off should bypass the private-range default-deny");
-        assertTrue(list.isAllowed("http://10.0.0.5:9200"));
-        assertTrue(list.isAllowed("http://192.168.1.10:9200"));
+        assertFalse(list.isAllowed("http://127.0.0.1:9200"),
+                "loopback must remain blocked when the master switch is off");
+        assertFalse(list.isAllowed("http://10.0.0.5:9200"),
+                "RFC-1918 must remain blocked when the master switch is off");
+        assertFalse(list.isAllowed("http://192.168.1.10:9200"));
+        assertFalse(list.isAllowed("http://169.254.169.254/latest/meta-data/"),
+                "cloud-metadata IP must remain blocked when the master switch is off");
     }
 
     @Test

@@ -60,8 +60,15 @@ class MfaControllerLockoutTest {
         userRepository = mock(UserRepository.class);
         securityContextRepository = mock(SecurityContextRepository.class);
         loginAttemptService = new LoginAttemptService();
+        // The controller decrypts user.getTotpSecret() before verifying. A mock cipher
+        // whose decryptField is a pass-through keeps the legacy-plaintext test fixture
+        // (`"SECRET"`) working without touching the test's TotpService.verify mocking.
+        final ai.philterd.arbiter.service.SymmetricCipher cipher =
+                mock(ai.philterd.arbiter.service.SymmetricCipher.class);
+        when(cipher.decryptField(org.mockito.ArgumentMatchers.anyString()))
+                .thenAnswer(inv -> inv.getArgument(0));
         controller = new MfaController(totpService, userRepository,
-                securityContextRepository, loginAttemptService);
+                securityContextRepository, loginAttemptService, cipher);
 
         final User u = new User();
         u.setEmail("alice@x.com");

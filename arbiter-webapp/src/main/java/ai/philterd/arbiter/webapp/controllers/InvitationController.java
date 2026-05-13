@@ -44,26 +44,27 @@ public class InvitationController {
         this.auditLogService = auditLogService;
     }
 
+    /**
+     * Single user-facing rejection message for every state the redemption page treats
+     * as "this link won't work for you anymore" — whether the token was never valid,
+     * has already been consumed, or has aged out. Combining the three avoids a token-
+     * state oracle that, with 32 random-byte tokens, would have low practical risk but
+     * still tells a probing caller which exact category their guess fell into.
+     */
+    private static final String INVITATION_INVALID =
+            "This invitation link is no longer valid. Ask your administrator to send a new one.";
+
     @GetMapping("/{token}")
     public String show(@PathVariable final String token, final Model model) {
         final Optional<Invitation> opt = invitationService.findByToken(token);
-        if (opt.isEmpty()) {
-            model.addAttribute("error",
-                    "This invitation link is invalid. Ask your administrator to send a new one.");
+        if (opt.isEmpty()
+                || opt.get().getConsumedAt() != null
+                || (opt.get().getExpiresAt() != null
+                        && !java.time.Instant.now().isBefore(opt.get().getExpiresAt()))) {
+            model.addAttribute("error", INVITATION_INVALID);
             return "invitation-error";
         }
         final Invitation invite = opt.get();
-        if (invite.getConsumedAt() != null) {
-            model.addAttribute("error",
-                    "This invitation has already been redeemed. Sign in with the password you set.");
-            return "invitation-error";
-        }
-        if (invite.getExpiresAt() != null
-                && !java.time.Instant.now().isBefore(invite.getExpiresAt())) {
-            model.addAttribute("error",
-                    "This invitation has expired. Ask your administrator to send a new one.");
-            return "invitation-error";
-        }
         model.addAttribute("token", token);
         model.addAttribute("email", invite.getEmail());
         return "invitation";
@@ -102,20 +103,17 @@ public class InvitationController {
                         "Your password is set. You can sign in now.");
                 return "redirect:/login?invited";
             case INVALID_TOKEN:
-                model.addAttribute("error",
-                        "This invitation link is invalid. Ask your administrator to send a new one.");
-                return "invitation-error";
             case ALREADY_REDEEMED:
-                model.addAttribute("error",
-                        "This invitation has already been redeemed. Sign in with the password you set.");
-                return "invitation-error";
             case EXPIRED:
-                model.addAttribute("error",
-                        "This invitation has expired. Ask your administrator to send a new one.");
-                return "invitation-error";
             case EMAIL_ALREADY_TAKEN:
-                model.addAttribute("error",
-                        "An account already exists for that email. Use the sign-in page instead.");
+                // Same uniform error for every "this link can't redeem" state.
+                // EMAIL_ALREADY_TAKEN folds in here because telling the recipient
+                // "an account already exists for that email" is itself an
+                // enumeration oracle: a phished/leaked invitation link plus this
+                // message confirms the email is registered. The recipient who
+                // legitimately holds the token still has the email in their
+                // mailbox and can use the sign-in link from this error page.
+                model.addAttribute("error", INVITATION_INVALID);
                 return "invitation-error";
             case WEAK_PASSWORD:
             default:

@@ -142,7 +142,11 @@ class LlmJudgeControllerExplainAccessTest {
 
         final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> controller.explain("doc1", req("inst-rogue"), user("alice@x.com")));
-        assertEquals(HttpStatus.FORBIDDEN, ex.getStatusCode());
+        // Post-#11: access-denied on the instance gate returns the same uniform 404
+        // "Ollama instance not found." as a lookup miss, so a reviewer with document
+        // access can't enumerate registered Ollama instances by status code.
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+        assertEquals("Ollama instance not found.", ex.getReason());
     }
 
     @Test

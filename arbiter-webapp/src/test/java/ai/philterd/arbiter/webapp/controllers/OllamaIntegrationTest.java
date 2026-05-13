@@ -171,8 +171,10 @@ class OllamaIntegrationTest {
         final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> controller.listModels("inst-mock", admin()));
         assertEquals(HttpStatus.BAD_GATEWAY, ex.getStatusCode());
-        assertTrue(ex.getReason().contains("HTTP 500"),
-                "BAD_GATEWAY reason should preserve the upstream status code; got: " + ex.getReason());
+        // Body is the single generic message — the upstream status code lives in the
+        // operator log line instead, so the response doesn't echo Ollama internals back
+        // to whatever holds the session (fix #11).
+        assertEquals("Ollama instance unavailable.", ex.getReason());
     }
 
     @Test
@@ -182,7 +184,7 @@ class OllamaIntegrationTest {
         final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
                 () -> controller.listModels("inst-mock", admin()));
         assertEquals(HttpStatus.BAD_GATEWAY, ex.getStatusCode());
-        assertTrue(ex.getReason().contains("Could not reach"));
+        assertEquals("Ollama instance unavailable.", ex.getReason());
     }
 
     @Test

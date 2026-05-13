@@ -11,6 +11,7 @@ package ai.philterd.arbiter.webapp.controllers;
 
 import ai.philterd.arbiter.model.User;
 import ai.philterd.arbiter.repository.UserRepository;
+import ai.philterd.arbiter.service.SymmetricCipher;
 import ai.philterd.arbiter.webapp.security.LoginAttemptService;
 import ai.philterd.arbiter.webapp.security.MfaAuthenticationSuccessHandler;
 import ai.philterd.arbiter.webapp.security.TotpService;
@@ -37,17 +38,20 @@ public class MfaController {
     private final UserRepository userRepository;
     private final SecurityContextRepository securityContextRepository;
     private final LoginAttemptService loginAttemptService;
+    private final SymmetricCipher cipher;
     private final SecurityContextHolderStrategy securityContextHolderStrategy =
             SecurityContextHolder.getContextHolderStrategy();
 
     public MfaController(final TotpService totpService,
                          final UserRepository userRepository,
                          final SecurityContextRepository securityContextRepository,
-                         final LoginAttemptService loginAttemptService) {
+                         final LoginAttemptService loginAttemptService,
+                         final SymmetricCipher cipher) {
         this.totpService = totpService;
         this.userRepository = userRepository;
         this.securityContextRepository = securityContextRepository;
         this.loginAttemptService = loginAttemptService;
+        this.cipher = cipher;
     }
 
     @GetMapping
@@ -86,7 +90,11 @@ public class MfaController {
         }
 
         final User user = userRepository.findByEmail(email).orElse(null);
-        if (user == null || !totpService.verify(user.getTotpSecret(), code)) {
+        // Decrypt the at-rest TOTP secret before verifying. decryptField is a
+        // no-op for legacy plaintext rows, so accounts whose MFA was set up
+        // before the encryption roll-out keep working until they re-enroll.
+        if (user == null
+                || !totpService.verify(cipher.decryptField(user.getTotpSecret()), code)) {
             loginAttemptService.onFailure(email, ip);
             // If this last failure pushed us over the threshold, drop the pending session
             // so the attacker can't keep the form open and continue.

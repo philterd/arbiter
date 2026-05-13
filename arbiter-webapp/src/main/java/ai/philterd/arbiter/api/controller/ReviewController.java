@@ -256,13 +256,18 @@ public class ReviewController {
         final Span source = spanRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found."));
 
+        // Access check runs *before* any other validation so a non-admin can't
+        // distinguish "real but inaccessible span" from "no such span" by reading the
+        // status code: an empty-text span used to give 400 while a missing id gave 404.
+        // Now both surface as the same uniform "Span not found." 404 — see fix #4 for
+        // the cross-controller contract this restores.
+        final Document document = documentAccessService.loadAccessibleParentForSpan(source, authentication);
+        requireEditable(document);
+
         final String needle = source.getText();
         if (needle == null || needle.isEmpty()) {
             throw new ResponseStatusException(BAD_REQUEST, "Source span has no text to match.");
         }
-
-        final Document document = documentAccessService.loadAccessibleParentForSpan(source, authentication);
-        requireEditable(document);
         // Redact All Like This is only meaningful while the source span is still a redaction
         // candidate. If the reviewer refused it or flagged it for a second opinion, the action
         // is disabled — propagating the source's redaction across the document doesn't make

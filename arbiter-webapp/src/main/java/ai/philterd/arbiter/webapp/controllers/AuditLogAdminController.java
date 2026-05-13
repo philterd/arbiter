@@ -17,6 +17,7 @@ package ai.philterd.arbiter.webapp.controllers;
 
 import ai.philterd.arbiter.model.AuditLog;
 import ai.philterd.arbiter.service.AuditLogQueryService;
+import ai.philterd.arbiter.util.Csv;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
@@ -169,23 +170,23 @@ public class AuditLogAdminController {
     private void writeCsv(final Writer w, final List<AuditLog> entries) throws IOException {
         w.write("timestamp,userEmail,userId,action,resourceType,resourceId,outcome,ipAddress,details\n");
         for (AuditLog e : entries) {
-            w.write(csvField(e.getTimestamp() == null ? "" : e.getTimestamp().toString()));
+            w.write(Csv.escapeField(e.getTimestamp() == null ? "" : e.getTimestamp().toString()));
             w.write(',');
-            w.write(csvField(e.getUserEmail()));
+            w.write(Csv.escapeField(e.getUserEmail()));
             w.write(',');
-            w.write(csvField(e.getUserId()));
+            w.write(Csv.escapeField(e.getUserId()));
             w.write(',');
-            w.write(csvField(e.getAction()));
+            w.write(Csv.escapeField(e.getAction()));
             w.write(',');
-            w.write(csvField(e.getResourceType()));
+            w.write(Csv.escapeField(e.getResourceType()));
             w.write(',');
-            w.write(csvField(e.getResourceId()));
+            w.write(Csv.escapeField(e.getResourceId()));
             w.write(',');
-            w.write(csvField(e.getOutcome()));
+            w.write(Csv.escapeField(e.getOutcome()));
             w.write(',');
-            w.write(csvField(e.getIpAddress()));
+            w.write(Csv.escapeField(e.getIpAddress()));
             w.write(',');
-            w.write(csvField(detailsAsJson(e.getDetails())));
+            w.write(Csv.escapeField(detailsAsJson(e.getDetails())));
             w.write('\n');
         }
     }
@@ -197,16 +198,6 @@ public class AuditLogAdminController {
         } catch (JsonProcessingException e) {
             return "";
         }
-    }
-
-    private static String csvField(final String value) {
-        if (value == null) return "";
-        final boolean needsQuoting = value.indexOf(',') >= 0
-                || value.indexOf('"') >= 0
-                || value.indexOf('\n') >= 0
-                || value.indexOf('\r') >= 0;
-        if (!needsQuoting) return value;
-        return "\"" + value.replace("\"", "\"\"") + "\"";
     }
 
     private static Instant parseInstant(final String raw, final String fieldName) {

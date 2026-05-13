@@ -28,9 +28,11 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.servlet.mvc.support.RedirectAttributesModelMap;
 
+import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -443,6 +445,82 @@ class AdminDataSourceControllerTest {
         final RedirectAttributes ra = flash();
         controller.createRdb("n", "jdbc:postgresql://host:5432/db", "SELECT 1", "alice", "", ra);
         assertEquals("Provide both Username and Password, or leave both blank.", error(ra));
+    }
+
+    @Test
+    void rdbCreateRefusesUrlWithEmbeddedCredentialsAndStripsThemFromAuditLog() {
+        // Finding #13 — the canonical leak case. The validator refuses the URL,
+        // and the RDB_DANGEROUS_JDBC_URL_BLOCKED audit row must NOT carry the
+        // password into the audit collection.
+        final RedirectAttributes ra = flash();
+        controller.createRdb("warehouse",
+                "jdbc:postgresql://alice:s3cret@host:5432/db",
+                "SELECT 1", null, null, ra);
+
+        assertNotNull(error(ra));
+        assertTrue(error(ra).toLowerCase().contains("embedded credentials"));
+        verify(rdbRepository, never()).save(any());
+
+        @SuppressWarnings("unchecked")
+        final ArgumentCaptor<Map<String, Object>> details =
+                ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService).log(eq("RDB_DANGEROUS_JDBC_URL_BLOCKED"),
+                eq("RelationalDbDataSource"),
+                org.mockito.ArgumentMatchers.isNull(String.class),
+                details.capture());
+
+        final Object loggedUrl = details.getValue().get("jdbcUrl");
+        assertEquals("jdbc:postgresql://host:5432/db", loggedUrl,
+                "audit log must strip the user:password@ segment");
+        assertFalse(loggedUrl.toString().contains("s3cret"),
+                "audit log leaked the password: " + loggedUrl);
+        assertFalse(loggedUrl.toString().contains("alice"),
+                "audit log leaked the username: " + loggedUrl);
+    }
+
+    @Test
+    void rdbCreateHappyPathAuditLogStripsUserInfo() {
+        // Defense in depth: even on the happy create path (where the URL did NOT
+        // carry credentials, because the validator refused otherwise), the audit
+        // entry runs the same stripUserInfo so a future code path that bypasses
+        // the validator can't leak.
+        when(rdbRepository.findFirstByNameIgnoreCase("warehouse")).thenReturn(Optional.empty());
+        final RedirectAttributes ra = flash();
+        controller.createRdb("warehouse", "jdbc:postgresql://host:5432/db",
+                "SELECT id, body FROM documents", "alice", "secret", ra);
+
+        @SuppressWarnings("unchecked")
+        final ArgumentCaptor<Map<String, Object>> details =
+                ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService).log(eq("RDB_DATASOURCE_CREATE"),
+                eq("RelationalDbDataSource"),
+                anyString(),
+                details.capture());
+
+        assertEquals("jdbc:postgresql://host:5432/db", details.getValue().get("jdbcUrl"));
+    }
+
+    @Test
+    void rdbCreateBlockedSqlAuditLogAlsoStripsUserInfo() {
+        // The dangerous-SQL rejection path also logs the URL. If a URL somehow has
+        // userinfo (e.g. an upstream code path that bypasses the JDBC validator),
+        // the dangerous-SQL audit row must still strip. Confirms the strip is
+        // wired into every audit-write site in createRdb, not just the JDBC one.
+        // The validator runs before the SQL check, so to exercise this path I
+        // pass a URL that the validator accepts but then has a DELETE in the SQL.
+        final RedirectAttributes ra = flash();
+        controller.createRdb("evil", "jdbc:postgresql://host:5432/db",
+                "DELETE FROM documents", null, null, ra);
+
+        @SuppressWarnings("unchecked")
+        final ArgumentCaptor<Map<String, Object>> details =
+                ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService).log(eq("RDB_DANGEROUS_SQL_BLOCKED"),
+                eq("RelationalDbDataSource"),
+                org.mockito.ArgumentMatchers.isNull(String.class),
+                details.capture());
+
+        assertEquals("jdbc:postgresql://host:5432/db", details.getValue().get("jdbcUrl"));
     }
 
     @Test

@@ -191,7 +191,7 @@ class BlindDoubleReviewIntegrationTest {
         final Document doc = doubleReviewDoc("d2", "alpha bravo", List.of(
                 approvedSpan("s3", "d2", 0, 5)));
 
-        reviewController.reject(doc.getId(), alice());
+        reviewController.reject(doc.getId(), alice(), flash());
 
         assertEquals("REJECTED", doc.getStatus());
         assertEquals("alice@x.com", doc.getFirstReviewer(),
@@ -201,7 +201,7 @@ class BlindDoubleReviewIntegrationTest {
         assertEquals(1, doc.getFirstReviewSpans().size());
 
         // Bob then performs the second pass via reject (he disagrees).
-        reviewController.reject(doc.getId(), bob());
+        reviewController.reject(doc.getId(), bob(), flash());
         assertEquals("bob@x.com", doc.getSecondReviewer());
         assertNotNull(doc.getSecondReviewSpans());
     }
@@ -417,7 +417,7 @@ class BlindDoubleReviewIntegrationTest {
         final Document doc = doubleReviewDoc("d-rej", "alpha bravo", List.of(
                 approvedSpan("s5", "d-rej", 0, 5)));
 
-        reviewController.reject(doc.getId(), alice());
+        reviewController.reject(doc.getId(), alice(), flash());
 
         assertEquals("REJECTED", doc.getStatus());
         final List<Map<String, Object>> bobQueue = queueRowsFor(bob());
@@ -499,12 +499,12 @@ class BlindDoubleReviewIntegrationTest {
         final Document doc = doubleReviewDoc("d-double-reject", "alpha bravo", List.of(
                 approvedSpan("s9", "d-double-reject", 0, 5)));
 
-        reviewController.reject(doc.getId(), alice());
+        reviewController.reject(doc.getId(), alice(), flash());
         assertEquals("REJECTED", doc.getStatus());
         assertEquals("alice@x.com", doc.getFirstReviewer());
         assertNull(doc.getSecondReviewer());
 
-        reviewController.reject(doc.getId(), bob());
+        reviewController.reject(doc.getId(), bob(), flash());
         assertEquals("REJECTED", doc.getStatus());
         assertEquals("bob@x.com", doc.getSecondReviewer());
         assertNotNull(doc.getSecondReviewSpans());
@@ -643,6 +643,11 @@ class BlindDoubleReviewIntegrationTest {
         when(userRepository.findByEmail(anyString())).thenReturn(Optional.empty());
         final OpenSearchIndexService openSearchIndexService = mock(OpenSearchIndexService.class);
         final DocumentLockService documentLockService = mock(DocumentLockService.class);
+        // Default-acquire stub: lookup the doc by id from the in-memory fake repo and
+        // return it. The approve/reject flow now requires a lock; this mirrors the
+        // legacy implicit "always-acquire" behavior these tests were written against.
+        when(documentLockService.acquire(anyString(), anyString()))
+                .thenAnswer(inv -> documents.get(inv.getArgument(0, String.class)));
         final RedactionCertificateService redactionCertificateService = mock(RedactionCertificateService.class);
         final RedactionCertificate cert = new RedactionCertificate();
         cert.setId("cert");
