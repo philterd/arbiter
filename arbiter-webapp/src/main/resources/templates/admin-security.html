@@ -12,7 +12,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Arbiter - Security</title>
-    <script th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -285,7 +285,7 @@
                 </div>
             </div>
 
-            <script th:if="${not #lists.isEmpty(usersWithoutMfa)}">
+            <script th:nonce="${cspNonce}" th:if="${not #lists.isEmpty(usersWithoutMfa)}">
                 (function () {
                     const modal = document.getElementById('usersWithoutMfaModal');
                     const openBtn = document.getElementById('usersWithoutMfaBtn');

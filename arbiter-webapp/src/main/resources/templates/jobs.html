@@ -18,7 +18,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Arbiter - Background Jobs</title>
-    <script th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
     <meta http-equiv="refresh" content="10">
 </head>
 <body class="bg-gray-50">
@@ -399,7 +399,7 @@
         </div>
     </div>
 
-    <script>
+    <script th:nonce="${cspNonce}">
         (function () {
             const modal = document.getElementById('jobDetailsModal');
             if (!modal) return;
@@ -494,7 +494,7 @@
         </div>
     </div>
 
-    <script th:inline="javascript">
+    <script th:nonce="${cspNonce}" th:inline="javascript">
         /*<![CDATA[*/
         (function () {
             const PAGE_SIZE = 10;

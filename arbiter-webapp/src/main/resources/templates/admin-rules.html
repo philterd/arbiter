@@ -6,7 +6,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Arbiter - Approval Rules</title>
-    <script th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
 </head>
 <body class="bg-gray-50">
 <div class="flex min-h-screen">
@@ -429,7 +429,7 @@
     </div>
 </div>
 
-<script>
+<script th:nonce="${cspNonce}">
     // Open/close wiring for the Add Rule Set modal. Trigger and modal are both rendered
     // only when there's at least one open batch, so the script may not find them on a
     // page where every batch is closed; guard against missing elements.
@@ -548,7 +548,7 @@
     </div>
 </div>
 
-<script th:inline="javascript">
+<script th:nonce="${cspNonce}" th:inline="javascript">
     /*<![CDATA[*/
     // Wire each per-row Edit Conditions button to the shared edit modal. The button's
     // data-* attributes carry every property on the rule set so the modal can hydrate

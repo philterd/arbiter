@@ -65,6 +65,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -473,5 +474,117 @@ public class AuthorizationIntegrationTest {
         // token is missing, matching the pattern enforced on every other UI POST.
         mockMvc.perform(post("/admin/tools/cleanup-data-imports").with(user("a").roles("ADMIN")))
                 .andExpect(status().isForbidden());
+    }
+
+    // ---------------------------------------------------------------------
+    // Defence-in-depth response headers (finding #8)
+    // ---------------------------------------------------------------------
+
+    @Test
+    void securityHeadersPresentOnEveryResponse() throws Exception {
+        // A regression dropping these headers — or relaxing the CSP — opens the
+        // PII UI to XSS / clickjacking / downgrade attacks. We assert against
+        // /login (a permitAll endpoint) so the test doesn't need authentication;
+        // the .headers(...) chain in SecurityConfig applies to every path.
+        //
+        // .secure(true) tells MockMvc the request is over TLS, matching the
+        // production model (TLS-terminating reverse proxy + forward-headers).
+        // Spring's default HSTS writer suppresses the header on plain HTTP.
+        mockMvc.perform(get("/login").secure(true))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Security-Policy",
+                        org.hamcrest.Matchers.allOf(
+                                org.hamcrest.Matchers.containsString("default-src 'self'"),
+                                // script-src now uses a per-request nonce + 'strict-dynamic'
+                                // (R2-F1). Plain 'self' alone would refuse the inline
+                                // <script> blocks in review.html / queue.html and force
+                                // operators to add 'unsafe-inline', defeating the policy.
+                                org.hamcrest.Matchers.matchesRegex(
+                                        "(?s).*script-src 'self' 'nonce-[A-Za-z0-9_-]+' 'strict-dynamic'.*"),
+                                org.hamcrest.Matchers.containsString("object-src 'none'"),
+                                org.hamcrest.Matchers.containsString("frame-ancestors 'none'"),
+                                org.hamcrest.Matchers.containsString("form-action 'self'"),
+                                org.hamcrest.Matchers.containsString("base-uri 'self'"))))
+                .andExpect(header().string("Strict-Transport-Security",
+                        org.hamcrest.Matchers.allOf(
+                                org.hamcrest.Matchers.containsString("max-age=31536000"),
+                                org.hamcrest.Matchers.containsString("includeSubDomains"),
+                                org.hamcrest.Matchers.containsString("preload"))))
+                .andExpect(header().string("Referrer-Policy", "no-referrer"))
+                .andExpect(header().string("Permissions-Policy",
+                        org.hamcrest.Matchers.allOf(
+                                org.hamcrest.Matchers.containsString("geolocation=()"),
+                                org.hamcrest.Matchers.containsString("camera=()"),
+                                org.hamcrest.Matchers.containsString("microphone=()"))))
+                // Spring defaults we rely on staying in place:
+                .andExpect(header().string("X-Content-Type-Options", "nosniff"))
+                .andExpect(header().string("X-Frame-Options", "DENY"));
+    }
+
+    @Test
+    void securityHeadersPresentOnApiResponsesToo() throws Exception {
+        // Confirms the headers chain applies to the API namespace as well —
+        // without it, a 401 response body served from /api/v1/** would lack
+        // the defence-in-depth headers and any future regression printing
+        // request data into the error response would be unprotected.
+        mockMvc.perform(get("/api/v1/policies").secure(true))
+                .andExpect(status().isUnauthorized())
+                .andExpect(header().exists("Content-Security-Policy"))
+                .andExpect(header().exists("Strict-Transport-Security"))
+                .andExpect(header().exists("Referrer-Policy"))
+                .andExpect(header().exists("Permissions-Policy"));
+    }
+
+    // ---------------------------------------------------------------------
+    // Swagger / OpenAPI gating (R2-F2)
+    // ---------------------------------------------------------------------
+
+    @Test
+    void anonymousIsRejectedFromOpenApiAndSwaggerUi() throws Exception {
+        // Pre-R2-F2 these were permitAll() — anyone reachable at the URL could
+        // enumerate the entire admin endpoint surface and DTO shapes.
+        for (String path : new String[]{
+                "/v3/api-docs", "/v3/api-docs/swagger-config",
+                "/swagger-ui/index.html", "/swagger-ui.html"}) {
+            mockMvc.perform(get(path)).andExpect(notOk());
+        }
+    }
+
+    @Test
+    void nonAdminUserIsForbiddenFromOpenApiAndSwaggerUi() throws Exception {
+        // ROLE_USER reviewers — even authenticated — must not enumerate the API
+        // surface. The OpenAPI doc is admin-only.
+        for (String path : new String[]{"/v3/api-docs", "/swagger-ui/index.html"}) {
+            mockMvc.perform(get(path).with(user("u").roles("USER")))
+                    .andExpect(status().isForbidden());
+        }
+    }
+
+    @Test
+    void cspNonceVariesPerRequest() throws Exception {
+        // R2-F1: a static nonce would let an attacker who captures one response
+        // pre-compute an injection payload for any subsequent request. Each
+        // request must mint a fresh nonce. We extract the nonce from two
+        // back-to-back responses and assert they differ.
+        final java.util.regex.Pattern nonceRegex =
+                java.util.regex.Pattern.compile("'nonce-([A-Za-z0-9_-]+)'");
+        final String cspA = mockMvc.perform(get("/login").secure(true))
+                .andReturn().getResponse().getHeader("Content-Security-Policy");
+        final String cspB = mockMvc.perform(get("/login").secure(true))
+                .andReturn().getResponse().getHeader("Content-Security-Policy");
+        org.junit.jupiter.api.Assertions.assertNotNull(cspA, "first CSP must be set");
+        org.junit.jupiter.api.Assertions.assertNotNull(cspB, "second CSP must be set");
+
+        final java.util.regex.Matcher mA = nonceRegex.matcher(cspA);
+        final java.util.regex.Matcher mB = nonceRegex.matcher(cspB);
+        org.junit.jupiter.api.Assertions.assertTrue(mA.find(), "first CSP missing nonce: " + cspA);
+        org.junit.jupiter.api.Assertions.assertTrue(mB.find(), "second CSP missing nonce: " + cspB);
+        org.junit.jupiter.api.Assertions.assertNotEquals(mA.group(1), mB.group(1),
+                "nonces must vary per request — a static value defeats the protection");
+        // CSP3 minimum entropy is 128 bits = 22 base64url chars without padding.
+        // Allow some slack in either direction in case the encoder leaves padding;
+        // strictly we mint 16 bytes so length should be exactly 22.
+        org.junit.jupiter.api.Assertions.assertTrue(mA.group(1).length() >= 16,
+                "nonce too short to provide 128 bits of entropy: " + mA.group(1));
     }
 }

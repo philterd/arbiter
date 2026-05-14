@@ -99,6 +99,16 @@ public class InvitationService {
         if (trimmed.isEmpty()) {
             throw new IllegalArgumentException("Email is required.");
         }
+        // Defence-in-depth against log/audit forgery: refuse control characters
+        // here too, so a caller that bypasses AdminController.isValidEmail can't
+        // smuggle \n into the persisted invitation row and surface it through
+        // the redemption-success log line further down.
+        for (int i = 0; i < trimmed.length(); i++) {
+            final char c = trimmed.charAt(i);
+            if (c < 0x20 || c == 0x7F) {
+                throw new IllegalArgumentException("Email contains a control character.");
+            }
+        }
         // Drop any prior pending row for this email so the new token is the only one valid.
         invitationRepository.findByEmail(trimmed).ifPresent(prev -> invitationRepository.deleteById(prev.getId()));
 

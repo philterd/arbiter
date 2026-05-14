@@ -77,7 +77,10 @@ final class TestDoubles {
         final List<Entry> entries = new ArrayList<>();
 
         RecordingAuditLog() {
-            super(mock(AuditLogRepository.class), mock(UserRepository.class));
+            // 32-byte all-zero key — fine for tests; the audit hash isn't asserted
+            // through this test double, only the log() calls are recorded.
+            super(mock(AuditLogRepository.class), mock(UserRepository.class),
+                    "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=");
         }
 
         @Override

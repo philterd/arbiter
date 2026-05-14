@@ -193,6 +193,64 @@ public class JdbcUrlValidator {
         return sb.toString();
     }
 
+    /**
+     * MySQL/MariaDB sub-protocols that take comma-separated host lists. URLs of
+     * the form {@code jdbc:mysql:loadbalance://h1,h2/db} parse as opaque URIs
+     * (no authority), so the plain comma-in-authority check below misses them
+     * — they need an explicit sub-protocol refusal.
+     */
+    private static final Set<String> MYSQL_MULTI_HOST_SUBPROTOCOLS =
+            Set.of("loadbalance", "replication", "sequential");
+
+    /**
+     * Detect any JDBC URL that carries more than one host. Three forms are
+     * refused (each defeats the single-host allow-list in different ways):
+     *
+     * <ol>
+     *     <li>Comma-in-authority: {@code jdbc:mysql://h1,h2/db},
+     *         {@code jdbc:postgresql://h1,h2/db}. Caught by the authority check.</li>
+     *     <li>Sub-protocol failover: {@code jdbc:mysql:loadbalance://h1,h2/db},
+     *         {@code jdbc:mysql:replication://master,replica/db}. The URI parser
+     *         sees these as opaque (because the colon after {@code mysql} is in
+     *         scheme position), so the authority check misses them — caught by
+     *         an explicit sub-protocol scan.</li>
+     *     <li>MySQL key-value authority: {@code jdbc:mysql://address=(host=h1)(host=h2)/db}.
+     *         Two {@code (host=…)} key tokens in the authority — caught by a
+     *         simple substring search.</li>
+     * </ol>
+     */
+    private static boolean hasMultiHostAuthority(final String jdbcUrl) {
+        if (jdbcUrl == null) return false;
+        final String trimmed = jdbcUrl.trim();
+        final String lower = trimmed.toLowerCase(Locale.ROOT);
+        if (!lower.startsWith("jdbc:")) return false;
+
+        // 2) Sub-protocol failover (jdbc:mysql:loadbalance://… etc).
+        for (String sub : MYSQL_MULTI_HOST_SUBPROTOCOLS) {
+            if (lower.startsWith("jdbc:mysql:" + sub + ":")
+                    || lower.startsWith("jdbc:mariadb:" + sub + ":")) {
+                return true;
+            }
+        }
+
+        // 3) MySQL key-value authority. Two or more (host= occurrences means a
+        //    multi-host directive even though there's no comma in the URI authority.
+        if (lower.contains("address=(host=")) {
+            final int first = lower.indexOf("(host=");
+            final int second = lower.indexOf("(host=", first + 1);
+            if (second >= 0) return true;
+        }
+
+        // 1) Comma-in-authority — the original round-1 check.
+        try {
+            final String authority =
+                    java.net.URI.create(trimmed.substring(5)).getRawAuthority();
+            return authority != null && authority.indexOf(',') >= 0;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private static boolean hasUserInfo(final String jdbcUrl) {
         // Detection mirrors stripUserInfo's authority-based logic — any URI whose
         // raw authority contains '@' carries userinfo.
@@ -253,6 +311,18 @@ public class JdbcUrlValidator {
                 return Result.rejected("JDBC URL contains the disallowed parameter \"" + bad
                         + "\". Driver-specific parameters that execute code on connect are blocked.");
             }
+        }
+
+        // Reject comma-separated multi-host authorities (mysql://h1,h2/db and
+        // postgresql://h1,h2/db). Both drivers natively support failover/load-
+        // balancing by stringing hosts together; HOST_PATTERN below extracts
+        // only the first, so the allow-list check would otherwise accept the
+        // public host while the driver still connects to the second internal
+        // one — same SSRF reach the allow-list was added to block. Admins
+        // needing failover should configure it at the connection-pool layer.
+        if (hasMultiHostAuthority(url)) {
+            return Result.rejected("JDBC URL must not contain comma-separated host "
+                    + "lists. Use a single host; configure failover at the connection-pool layer.");
         }
 
         // Host allow-list — private/loopback/link-local addresses are always blocked by

@@ -12,7 +12,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Arbiter - Search</title>
-    <script th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
 </head>
 <body class="bg-gray-50">
 <div class="flex min-h-screen">
@@ -326,7 +326,7 @@
     </div>
 </div>
 
-<script>
+<script th:nonce="${cspNonce}">
     var statusColors = {
         'APPROVED':         'bg-green-100 text-green-800',
         'REJECTED':         'bg-red-100 text-red-800',

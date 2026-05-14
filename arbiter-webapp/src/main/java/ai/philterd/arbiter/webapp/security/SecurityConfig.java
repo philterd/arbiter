@@ -23,12 +23,16 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.authentication.ExceptionMappingAuthenticationFailureHandler;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
+import org.springframework.security.web.session.HttpSessionEventPublisher;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import java.util.Map;
@@ -64,6 +68,31 @@ public class SecurityConfig {
     @Bean
     public SecurityContextRepository securityContextRepository() {
         return new HttpSessionSecurityContextRepository();
+    }
+
+    /**
+     * Tracks live sessions per principal so we can expire them on
+     * password change, role change, or account deletion (R2-F12). Without this
+     * an attacker who has hijacked a session keeps full access even after the
+     * legitimate user rotates their credentials.
+     *
+     * <p>{@link HttpSessionEventPublisher} forwards servlet container session
+     * lifecycle events to the registry so it stays in sync with reality.
+     *
+     * <p>For Spring-Session-backed deployments (Redis/Valkey), swap this bean
+     * for {@code SpringSessionBackedSessionRegistry} so the per-principal
+     * tracking is shared across replicas. Today's prod compose runs with
+     * {@code SPRING_SESSION_STORE_TYPE=none}, so the in-memory registry is
+     * correct for that deployment.
+     */
+    @Bean
+    public SessionRegistry sessionRegistry() {
+        return new SessionRegistryImpl();
+    }
+
+    @Bean
+    public HttpSessionEventPublisher httpSessionEventPublisher() {
+        return new HttpSessionEventPublisher();
     }
 
     @Bean
@@ -113,7 +142,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/login", "/mfa", "/invitations/**",
                                 "/css/**", "/js/**", "/images/**", "/webjars/**", "/docs/**", "/error").permitAll()
-                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        // OpenAPI / Swagger UI is admin-only (R2-F2). Previously
+                        // permitAll(), which let any unauthenticated caller enumerate
+                        // every admin endpoint and DTO shape — free reconnaissance.
+                        // The /v3/api-docs and /swagger-ui paths are also disabled by
+                        // default at the springdoc level (application.properties); set
+                        // ARBITER_OPENAPI_ENABLED=true on a deployment that needs them.
+                        .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").hasRole("ADMIN")
                         // Admin → Tools hosts destructive maintenance actions (today: data
                         // import job cleanup). Auditors are read-only and shouldn't even see
                         // the page, so this path is admin-only for both GETs and writes —
@@ -133,6 +168,15 @@ public class SecurityConfig {
                         .successHandler(mfaSuccessHandler)
                         .failureHandler(failureHandler)
                         .permitAll())
+                // Plug the SessionRegistry into the security pipeline so the
+                // password-change / role-change paths can expire other live
+                // sessions for the principal (R2-F12). maximumSessions(-1) =
+                // unlimited concurrent sessions — we're not enforcing a cap
+                // here, just registering each session so it can be expired
+                // on demand.
+                .sessionManagement(s -> s
+                        .sessionFixation().changeSessionId()
+                        .maximumSessions(-1).sessionRegistry(sessionRegistry()))
                 .logout(logout -> logout
                         .addLogoutHandler(auditLogoutHandler)
                         .logoutSuccessUrl("/login?logout")
@@ -150,7 +194,34 @@ public class SecurityConfig {
                 // both authentication filters so the SecurityContext is populated, and
                 // before AuthorizationFilter so the 403 it returns is the one the user sees.
                 .addFilterBefore(new AuditorWriteRejectFilter(), AuthorizationFilter.class)
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"));
+                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
+                // Defence-in-depth response headers. Arbiter renders document text
+                // and reviewer comments through Thymeleaf (escaped via th:text), but
+                // any future regression introducing an unescaped sink would otherwise
+                // execute with full document scope and could fetch /api/v1/** to
+                // exfiltrate PII. The CSP below restricts script/object/base/form
+                // sources to same-origin only, blocking the exfil chain.
+                //
+                // HSTS protects against first-visit downgrade for deployments behind
+                // a TLS-terminating reverse proxy (production model — see
+                // server.forward-headers-strategy=framework).
+                .headers(headers -> headers
+                        // CSP is written by CspNonceHeaderWriter (per-request nonce so
+                        // legitimate inline scripts run while attacker-injected ones —
+                        // which can't know the nonce — are refused). Don't also write a
+                        // static script-src 'self' via the default DSL: the two would
+                        // race and the static one would either replace the nonced policy
+                        // or land alongside it, both of which neutralise the protection.
+                        .addHeaderWriter(new CspNonceHeaderWriter())
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .maxAgeInSeconds(31_536_000)
+                                .preload(true))
+                        .referrerPolicy(rp -> rp.policy(
+                                ReferrerPolicyHeaderWriter.ReferrerPolicy.NO_REFERRER))
+                        .permissionsPolicy(pp -> pp.policy(
+                                "geolocation=(), microphone=(), camera=(), payment=(), "
+                                        + "usb=(), midi=(), magnetometer=(), gyroscope=(), accelerometer=()")));
         return http.build();
     }
 }

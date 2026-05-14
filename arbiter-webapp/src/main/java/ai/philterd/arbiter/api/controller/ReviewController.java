@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.http.MediaType;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -100,7 +101,7 @@ public class ReviewController {
     public record CreateSpanRequest(String type, Integer start, Integer end) {}
 
     @PostMapping(value = "/documents/{documentId}/spans",
-            consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
+            consumes = MediaType.APPLICATION_JSON_VALUE)
     public Span createSpan(@PathVariable final String documentId,
                            @RequestBody final CreateSpanRequest request,
                            final Authentication authentication) {
@@ -156,7 +157,7 @@ public class ReviewController {
     }
 
     @PatchMapping(value = "/spans/{id}",
-            consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
+            consumes = MediaType.APPLICATION_JSON_VALUE)
     public Span updateSpan(@PathVariable final String id,
                            @RequestBody final SpanUpdateRequest request,
                            final Authentication authentication) {
@@ -225,7 +226,8 @@ public class ReviewController {
         return saved;
     }
 
-    @DeleteMapping("/spans/{id}")
+    @DeleteMapping(value = "/spans/{id}",
+            consumes = MediaType.APPLICATION_JSON_VALUE)
     public Map<String, Object> deleteSpan(@PathVariable final String id, final Authentication authentication) {
         final Span span = spanRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found."));
@@ -253,7 +255,7 @@ public class ReviewController {
      * empty JSON content-type header, so legitimate calls are unaffected.
      */
     @PostMapping(value = "/spans/{id}/redact-like",
-            consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
+            consumes = MediaType.APPLICATION_JSON_VALUE)
     public Map<String, Object> redactAllLike(@PathVariable final String id, final Authentication authentication) {
         final Span source = spanRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found."));
@@ -362,7 +364,7 @@ public class ReviewController {
     public record ResetSpanRequest(String originalStatus) {}
 
     @PostMapping(value = "/spans/{id}/reset",
-            consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
+            consumes = MediaType.APPLICATION_JSON_VALUE)
     public Span resetSpan(@PathVariable final String id,
                           @RequestBody(required = false) final ResetSpanRequest request,
                           final Authentication authentication) {

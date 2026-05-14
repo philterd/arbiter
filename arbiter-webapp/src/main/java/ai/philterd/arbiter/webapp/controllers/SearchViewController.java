@@ -81,8 +81,16 @@ public class SearchViewController {
             final SearchResults results = openSearchIndexService.search(query, safeOffset, PAGE_SIZE, allowedBatchIds);
             total = results.total();
             if (safeOffset == 0) {
+                // Persist only the SHA-256 + length, not the cleartext. Search
+                // queries routinely contain PII (an analyst typing an SSN or PAN
+                // to locate a document); the audit log is cross-group-readable
+                // by auditors, so storing the query cleartext would leak that
+                // PII to people who never had access to the source document.
+                // Forensic "did anyone search for X?" still works via hashing X.
                 auditLogService.log("DOCUMENT_SEARCH", "Document", null,
-                        Map.of("query", query, "total", total));
+                        Map.of("queryHash", auditLogService.hashForAudit(query),
+                                "queryLength", query == null ? 0 : query.length(),
+                                "total", total));
             }
 
             // Collect all document and batch IDs so we can do two batch lookups.

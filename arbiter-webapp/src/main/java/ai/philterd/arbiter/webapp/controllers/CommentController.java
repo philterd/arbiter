@@ -37,6 +37,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.http.MediaType;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -79,7 +80,7 @@ public class CommentController {
     }
 
     @PostMapping(value = "/documents/{id}/comments",
-            consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
+            consumes = MediaType.APPLICATION_JSON_VALUE)
     public Map<String, Object> add(@PathVariable final String id,
                                    @RequestBody final CommentRequest body,
                                    final Authentication authentication) {

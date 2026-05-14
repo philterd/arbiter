@@ -18,7 +18,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Arbiter - Audit Log</title>
-    <script th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -438,7 +438,7 @@
         </div>
     </div>
 
-    <script>
+    <script th:nonce="${cspNonce}">
         document.addEventListener('DOMContentLoaded', () => {
             const now = new Date();
             const startDefault = new Date(now.getTime() - 24 * 60 * 60 * 1000);
@@ -546,7 +546,7 @@
         });
     </script>
 
-    <script>
+    <script th:nonce="${cspNonce}">
         // Tab controller for the Audit Log page. ?tab=query|export drives the
         // active panel on load. Click handlers swap panels and update the URL
         // via history.replaceState. No-JS fallback: the first <section> renders
@@ -596,7 +596,7 @@
         })();
     </script>
 
-    <script>
+    <script th:nonce="${cspNonce}">
         // Query Audit Log tab. Pulls /admin/audit/query?…&page=N&pageSize=N
         // and renders one page of results plus pager controls. Filter changes
         // reset to page 0; Prev/Next walks the pages without resetting filters.

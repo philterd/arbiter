@@ -27,7 +27,9 @@ import java.util.Optional;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -151,6 +153,58 @@ class PasswordChangeRequiredInterceptorTest {
         final boolean cont = interceptor.preHandle(req("/login"), resp, new Object());
 
         assertTrue(cont);
+        verify(resp, never()).sendRedirect(any());
+    }
+
+    // ---------- /api/** gating (finding #4) ----------
+
+    @Test
+    void rejectsFlaggedUserOnApiPathWithForbiddenInsteadOfRedirect() throws Exception {
+        // Before finding #4: /api/** was on the interceptor's exclusion list, so a
+        // session-cookie caller hitting /api/v1/spans/x bypassed the gate entirely.
+        // Now: the gate fires, and because a 302 to /settings would just produce a
+        // confusing CORS/fetch error in the browser, the API path gets a clean 403.
+        authenticate("alice@x.com");
+        when(userRepository.findByEmail("alice@x.com")).thenReturn(Optional.of(user(true)));
+        final HttpServletResponse resp = mock(HttpServletResponse.class);
+
+        final boolean cont = interceptor.preHandle(req("/api/v1/spans/abc"), resp, new Object());
+
+        assertFalse(cont, "flagged user must not proceed to /api/v1/**");
+        verify(resp).sendError(eq(HttpServletResponse.SC_FORBIDDEN), contains("Password change required"));
+        verify(resp, never()).sendRedirect(any());
+    }
+
+    @Test
+    void bearerAuthenticatedRequestSkipsGateEvenWhenFlagged() throws Exception {
+        // API-key callers present a separate credential. The rotation gate exists
+        // to stop the admin (who knows the initial password) from acting via that
+        // password — the API key bypasses that admin, so the gate doesn't apply.
+        authenticate("alice@x.com");
+        when(userRepository.findByEmail("alice@x.com")).thenReturn(Optional.of(user(true)));
+        final HttpServletRequest r = req("/api/v1/spans/abc");
+        when(r.getAttribute(ApiKeyAuthFilter.BEARER_AUTH_ATTR)).thenReturn(Boolean.TRUE);
+        final HttpServletResponse resp = mock(HttpServletResponse.class);
+
+        final boolean cont = interceptor.preHandle(r, resp, new Object());
+
+        assertTrue(cont, "Bearer-authenticated request must not be blocked by the password-rotation gate");
+        verify(resp, never()).sendError(anyInt(), any());
+        verify(resp, never()).sendRedirect(any());
+    }
+
+    @Test
+    void unflaggedUserOnApiPathIsAllowedThrough() throws Exception {
+        // The gate fires only when isMustChangePassword() is true. An unflagged
+        // user must not be redirected or 403'd just because they're on /api/**.
+        authenticate("alice@x.com");
+        when(userRepository.findByEmail("alice@x.com")).thenReturn(Optional.of(user(false)));
+        final HttpServletResponse resp = mock(HttpServletResponse.class);
+
+        final boolean cont = interceptor.preHandle(req("/api/v1/spans/abc"), resp, new Object());
+
+        assertTrue(cont);
+        verify(resp, never()).sendError(anyInt(), any());
         verify(resp, never()).sendRedirect(any());
     }
 }

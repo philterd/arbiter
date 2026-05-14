@@ -25,6 +25,8 @@ import ai.philterd.arbiter.service.UserNotificationService;
 import ai.philterd.arbiter.webapp.security.InvitationService;
 import ai.philterd.arbiter.webapp.security.LoginAttemptService;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.session.SessionInformation;
+import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -56,6 +58,7 @@ public class AdminController {
     private final LoginAttemptService loginAttemptService;
     private final InvitationService invitationService;
     private final ai.philterd.arbiter.repository.InvitationRepository invitationRepository;
+    private final SessionRegistry sessionRegistry;
 
     public AdminController(final UserRepository userRepository,
                            final PasswordEncoder passwordEncoder,
@@ -64,7 +67,8 @@ public class AdminController {
                            final UserNotificationService userNotificationService,
                            final LoginAttemptService loginAttemptService,
                            final InvitationService invitationService,
-                           final ai.philterd.arbiter.repository.InvitationRepository invitationRepository) {
+                           final ai.philterd.arbiter.repository.InvitationRepository invitationRepository,
+                           final SessionRegistry sessionRegistry) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.auditLogService = auditLogService;
@@ -73,6 +77,7 @@ public class AdminController {
         this.loginAttemptService = loginAttemptService;
         this.invitationService = invitationService;
         this.invitationRepository = invitationRepository;
+        this.sessionRegistry = sessionRegistry;
     }
 
     @GetMapping("/users")
@@ -227,6 +232,7 @@ public class AdminController {
                     "Cannot remove admin from \"" + user.getEmail() + "\": at least one administrator is required.");
             return "redirect:/admin/users";
         }
+        final boolean roleChanged = wasAdmin != willBeAdmin;
         user.setRoles(Set.of(requestedRole));
         boolean passwordReset = false;
         if (newPassword != null && !newPassword.isEmpty()) {
@@ -242,6 +248,16 @@ public class AdminController {
             passwordReset = true;
         }
         userRepository.save(user);
+
+        // R2-F12: a password reset or role demotion must terminate any live
+        // session that user currently holds. Otherwise the user keeps their
+        // existing tab/cookie with the OLD role and the OLD credential they
+        // still know, and the admin's lockdown action is purely cosmetic.
+        if (passwordReset || roleChanged) {
+            sessionRegistry.getAllSessions(user.getEmail(), false)
+                    .forEach(SessionInformation::expireNow);
+        }
+
         auditLogService.log("USER_UPDATE", "User", user.getId(),
                 Map.of("email", user.getEmail() == null ? "" : user.getEmail(),
                         "previousRole", primaryRole(user.getRoles(), wasAdmin),
@@ -307,6 +323,17 @@ public class AdminController {
 
     private static boolean isValidEmail(String value) {
         if (value == null) return false;
+        // Reject any ASCII control character (CR, LF, TAB, etc., plus DEL) so a
+        // smuggled \n can't forge log entries downstream — the audit and
+        // invitation services both echo the email into log lines and audit
+        // detail rows, and a value like
+        //   alice@x.com\n2026-05-13T12:00:00Z INFO Redeemed for ceo@arbiter.local
+        // would split into two indistinguishable log records. CLAUDE.md treats
+        // the audit log as tamper-evident; that property requires this check.
+        for (int i = 0; i < value.length(); i++) {
+            final char c = value.charAt(i);
+            if (c < 0x20 || c == 0x7F) return false;
+        }
         final int at = value.indexOf('@');
         final int lastAt = value.lastIndexOf('@');
         if (at <= 0 || at != lastAt || at == value.length() - 1) return false;

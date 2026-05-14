@@ -65,6 +65,11 @@ class SearchControllerTest {
         controller = new SearchController(openSearchIndexService, documentRepository,
                 auditLogService, batchAccessService);
 
+        // Default hashForAudit to "" so the controller's Map.of(...) audit-detail
+        // construction doesn't NPE on the mock's null return. Tests that assert
+        // on the hash value override this default.
+        when(auditLogService.hashForAudit(any())).thenReturn("");
+
         // Default: no documents in MongoDB lookup (lets each test focus on the search side).
         when(documentRepository.findAllById(any())).thenReturn(List.of());
     }
@@ -186,6 +191,54 @@ class SearchControllerTest {
         for (Map<String, Object> hit : hits) {
             assertFalse(hit.containsKey("restricted"));
         }
+    }
+
+    // ---------- audit-log content: query must NEVER be stored in cleartext (finding #5) ----------
+
+    @Test
+    void searchAuditLogStoresHashAndLengthNotRawQuery() {
+        // Searches routinely contain PII (an analyst typing an SSN to locate a
+        // tax form). The audit log is cross-group-readable by auditors who may
+        // not have access to the source — storing the cleartext leaks PII to
+        // people who never had visibility into the underlying document.
+        final String pii = "4111-1111-1111-1111";
+        when(openSearchIndexService.search(eq(pii), eq(0), eq(10), isNull()))
+                .thenReturn(new SearchResults(0, 0, 10, List.of()));
+        // Stub the mocked AuditLogService.hashForAudit to a deterministic value
+        // that the test can assert against. The actual HMAC behaviour is pinned
+        // by AuditLogServiceTest — this assertion is about what the controller
+        // passes through to the audit log.
+        when(auditLogService.hashForAudit(pii)).thenReturn("hash-of-pan");
+
+        controller.search(pii, 0, 10, admin());
+
+        @SuppressWarnings("unchecked")
+        final ArgumentCaptor<Map<String, Object>> details =
+                ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService).log(eq("DOCUMENT_SEARCH"), eq("Document"),
+                org.mockito.ArgumentMatchers.isNull(String.class), details.capture());
+        final Map<String, Object> d = details.getValue();
+
+        assertFalse(d.containsKey("query"),
+                "audit details must not include the cleartext query — that's the leak");
+        assertEquals("hash-of-pan", d.get("queryHash"),
+                "controller must funnel the query through the audit service's hashForAudit");
+        assertEquals(pii.length(), d.get("queryLength"));
+        // Belt-and-braces: the serialised audit details string must not contain the PAN.
+        assertFalse(d.toString().contains(pii),
+                "audit details rendered to string still leaks the PAN: " + d);
+    }
+
+    @Test
+    void searchAuditLogOnlyFiresOnFirstPage() {
+        // Pagination requests (offset != 0) should not double-count searches.
+        when(openSearchIndexService.search(anyString(), anyInt(), anyInt(), isNull()))
+                .thenReturn(new SearchResults(0, 10, 10, List.of()));
+
+        controller.search("ssn", 10, 10, admin());
+
+        verify(auditLogService, org.mockito.Mockito.never())
+                .log(eq("DOCUMENT_SEARCH"), any(), any(), any());
     }
 
     @Test

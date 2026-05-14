@@ -83,7 +83,21 @@ public final class SqlReadOnlyValidator {
                     + "|EXEC|EXECUTE|CALL|ALTER|CREATE|RENAME|LOCK|UNLOCK|SET|DECLARE"
                     + "|BEGIN|COMMIT|ROLLBACK|SAVEPOINT|VACUUM|ANALYZE|CLUSTER|COPY"
                     + "|REINDEX|REFRESH|LISTEN|NOTIFY|UNLISTEN|DISCARD|RESET|LOAD"
-                    + "|PREPARE|DEALLOCATE)\\b",
+                    + "|PREPARE|DEALLOCATE"
+                    // MySQL / MariaDB write-via-SELECT primitives. INTO OUTFILE
+                    // and INTO DUMPFILE turn a "read-only" SELECT into arbitrary
+                    // file-write on the remote DB server, defeating the entire
+                    // read-only contract this validator is here to enforce.
+                    // LOAD_FILE is the mirror primitive on the read side.
+                    + "|OUTFILE|DUMPFILE|LOAD_FILE"
+                    // PostgreSQL equivalents (R2-F15). Same justification as
+                    // LOAD_FILE — a SELECT that calls pg_read_file('/etc/passwd')
+                    // exfiltrates files from the remote DB host's filesystem
+                    // through the standard query path. pg_ls_dir and pg_stat_file
+                    // are the directory-enumeration equivalents; lo_import and
+                    // lo_export are the read/write large-object primitives.
+                    + "|PG_READ_FILE|PG_READ_BINARY_FILE|PG_LS_DIR|PG_STAT_FILE"
+                    + "|LO_IMPORT|LO_EXPORT)\\b",
             Pattern.CASE_INSENSITIVE);
 
     /** Leading-keyword check: the first significant token must be SELECT or WITH. */

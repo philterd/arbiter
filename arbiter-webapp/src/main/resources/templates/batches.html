@@ -18,7 +18,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Arbiter - Batches</title>
-    <script th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -727,7 +727,7 @@
         </form>
     </div>
 
-    <script th:inline="javascript">
+    <script th:nonce="${cspNonce}" th:inline="javascript">
         /*<![CDATA[*/
         (function () {
             const modal = document.getElementById('thresholdsModal');
@@ -770,7 +770,7 @@
         /*]]>*/
     </script>
 
-    <script th:inline="javascript">
+    <script th:nonce="${cspNonce}" th:inline="javascript">
         /*<![CDATA[*/
         (function () {
             const modal = document.getElementById('batchPhilterModal');
@@ -840,7 +840,7 @@
         /*]]>*/
     </script>
 
-    <script>
+    <script th:nonce="${cspNonce}">
         (function () {
             const philterSel = document.getElementById('newBatchPhilter');
             const policySel = document.getElementById('newBatchPolicy');
@@ -882,7 +882,7 @@
         })();
     </script>
 
-    <script>
+    <script th:nonce="${cspNonce}">
         // Batch info modal: clicking an Info link populates the modal body with
         // the row's compliance profile and finalization policy (the two columns
         // we hid from the table to keep it readable) and opens the dialog. No
@@ -941,7 +941,7 @@
         })();
     </script>
 
-    <script>
+    <script th:nonce="${cspNonce}">
         // Export modal: clicking an Export link rewrites the form action to
         // /batches/{id}/export and opens the modal. The destination select and
         // format select are populated server-side via Thymeleaf, so no fetch is
@@ -982,7 +982,7 @@
         })();
     </script>
 
-    <script>
+    <script th:nonce="${cspNonce}">
         // Create-batch modal: opens on the Create Batch button, closes on Cancel /
         // backdrop / Escape / X. The trigger and modal are both rendered admin-only,
         // so the script may not find them (e.g. on a non-admin page render); guard

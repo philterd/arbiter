@@ -62,8 +62,14 @@ public class SearchController {
         final Set<String> allowedBatchIds = admin ? null : batchAccessService.allowedBatchIds(authentication);
         final SearchResults results = openSearchIndexService.search(query, offset, size, allowedBatchIds);
         if (offset == 0) {
+            // Hash + length only — search queries routinely contain PII (SSN/PAN
+            // typed in to locate a document) and the audit log is readable by
+            // auditors who may not have access to the source. See
+            // AuditLogService.hashForAudit for the forensic-correlation pattern.
             auditLogService.log("DOCUMENT_SEARCH", "Document", null,
-                    java.util.Map.of("query", query == null ? "" : query, "total", results.total()));
+                    java.util.Map.of("queryHash", auditLogService.hashForAudit(query),
+                            "queryLength", query == null ? 0 : query.length(),
+                            "total", results.total()));
         }
 
         // Live status from MongoDB — the indexed status can be stale if the document

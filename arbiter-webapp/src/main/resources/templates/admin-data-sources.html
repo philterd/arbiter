@@ -18,7 +18,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Arbiter - Data Sources</title>
-    <script th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -643,6 +643,24 @@
                     Names must be unique. Username and password are encrypted at rest with the
                     application's symmetric key.
                 </p>
+                <div class="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start gap-2"
+                     role="note">
+                    <svg class="h-4 w-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                         aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span>
+                        <strong>Use read-only, narrowly-scoped credentials.</strong>
+                        Arbiter validates the SQL query against an allow-list (only <code>SELECT</code>
+                        / <code>WITH … SELECT</code> are accepted; mutating statements,
+                        <code>INTO&nbsp;OUTFILE</code> / <code>DUMPFILE</code> file-write primitives,
+                        and dangerous driver parameters are refused). These checks are defence in
+                        depth — the authoritative protection is the database account itself. Grant
+                        the configured user <em>only</em> <code>SELECT</code> on the specific tables
+                        you intend to ingest from, and nothing else.
+                    </span>
+                </div>
                 <form th:action="@{/admin/data-sources/rdb}" method="post" class="space-y-3">
                     <div class="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)] gap-2">
                         <div>
@@ -951,7 +969,7 @@
         </div>
     </div>
 
-    <script>
+    <script th:nonce="${cspNonce}">
 
         (function () {
             const modal = document.getElementById('dsEditModal');
@@ -1200,7 +1218,7 @@
         })();
     </script>
 
-    <script>
+    <script th:nonce="${cspNonce}">
         // Data Sources tab controller. Reads ?tab=… on load to pick the active tab so a
         // page reload (or a redirect from a "post-success → reload" admin action) lands the
         // operator on the same source type they were configuring. Click handlers swap which

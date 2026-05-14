@@ -19,7 +19,7 @@
     <meta charset="UTF-8">
     <meta name="display-timezone" th:content="${@timestampFormatter.zoneId}" content="UTC">
     <title>Arbiter - Review Document</title>
-    <script th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
     <style>
         .text-pane {
             background-color: white;
@@ -540,7 +540,7 @@
         </div>
     </div>
 
-    <script th:inline="javascript">
+    <script th:nonce="${cspNonce}" th:inline="javascript">
         /*<![CDATA[*/
         const originalText = /*[[${originalText}]]*/ '';
         const redactedText = /*[[${redactedText}]]*/ '';
@@ -817,7 +817,7 @@
                     try {
                         const resp = await fetch(`/api/v1/review/${encodeURIComponent(documentId)}/pulse`, {
                             method: 'POST',
-                            headers: { 'X-Requested-With': 'fetch' }
+                            headers: { 'X-Requested-With': 'fetch', 'Content-Type': 'application/json' }
                         });
                         if (!resp.ok) return;
                         const body = await resp.json().catch(() => ({}));
@@ -833,7 +833,11 @@
                 // The 15-minute server-side TTL is the safety net if this fires too late.
                 window.addEventListener('pagehide', () => {
                     try {
-                        navigator.sendBeacon(`/api/v1/review/${encodeURIComponent(documentId)}/release`);
+                        // sendBeacon defaults to application/x-www-form-urlencoded, which the
+                        // server now refuses on /api/** (CSRF defence via consumes=application/json).
+                        // Pass a Blob with the JSON content-type so the beacon honours the contract.
+                        const beaconBody = new Blob(['{}'], { type: 'application/json' });
+                        navigator.sendBeacon(`/api/v1/review/${encodeURIComponent(documentId)}/release`, beaconBody);
                     } catch (_) {}
                 });
             }
@@ -900,7 +904,8 @@
                     deleteSpan.textContent = 'Removing…';
                     try {
                         const response = await fetch(`/api/v1/spans/${encodeURIComponent(id)}`, {
-                            method: 'DELETE'
+                            method: 'DELETE',
+                            headers: { 'Content-Type': 'application/json' }
                         });
                         if (!response.ok) {
                             let detail = `HTTP ${response.status}`;
@@ -1449,7 +1454,7 @@
         </div>
     </div>
 
-    <script th:inline="javascript">
+    <script th:nonce="${cspNonce}" th:inline="javascript">
         /*<![CDATA[*/
         (function () {
             const docId = /*[[${document.id}]]*/ '';
@@ -1696,7 +1701,7 @@
         </div>
     </div>
 
-    <script th:inline="javascript">
+    <script th:nonce="${cspNonce}" th:inline="javascript">
         /*<![CDATA[*/
         (function () {
             const docId = /*[[${document.id}]]*/ '';
@@ -1857,7 +1862,7 @@
         </div>
     </div>
 
-    <script th:inline="javascript">
+    <script th:nonce="${cspNonce}" th:inline="javascript">
         /*<![CDATA[*/
         (function () {
             const documentId = /*[[${document.id}]]*/ '';
@@ -1984,7 +1989,7 @@
         /*]]>*/
     </script>
 
-<script>
+<script th:nonce="${cspNonce}">
     (function() {
         var btn   = document.getElementById('focusToggle');
         var label = document.getElementById('focusLabel');
@@ -2040,7 +2045,7 @@
     </div>
 </div>
 
-<script th:inline="javascript">
+<script th:nonce="${cspNonce}" th:inline="javascript">
     /*<![CDATA[*/
     (function() {
         var batchName        = /*[[${batchName}]]*/ '';
@@ -2145,7 +2150,7 @@
     </div>
 </div>
 
-<script>
+<script th:nonce="${cspNonce}">
     (function () {
         const btn = document.getElementById('documentInfoBtn');
         const modal = document.getElementById('documentInfoModal');
@@ -2155,7 +2160,7 @@
 </script>
 
 <!-- Similar documents modal — only emitted when full-text search is enabled. The
-     companion <script> block below is also gated on the same flag so the
+     companion <script th:nonce="${cspNonce}"> block below is also gated on the same flag so the
      getElementById('similarBtn').addEventListener call does not crash when the
      button isn't in the DOM. -->
 <div th:if="${fullTextSearchEnabled}" id="similarModal"
@@ -2179,7 +2184,7 @@
     </div>
 </div>
 
-<script th:if="${fullTextSearchEnabled}" th:inline="javascript">
+<script th:nonce="${cspNonce}" th:if="${fullTextSearchEnabled}" th:inline="javascript">
     /*<![CDATA[*/
     (function() {
         var documentId = /*[[${document.id}]]*/ '';

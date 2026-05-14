@@ -18,7 +18,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Arbiter - Review Redactions</title>
-    <script th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
     <style>
         .redacted-area, .original-area { 
             background-color: white; 
@@ -163,7 +163,7 @@
         </form>
     </div>
 
-    <script th:inline="javascript">
+    <script th:nonce="${cspNonce}" th:inline="javascript">
         /*<![CDATA[*/
         const redactionResponse = /*[[${redactionResponse}]]*/ {};
         const originalText = redactionResponse.originalText;

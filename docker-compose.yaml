@@ -23,6 +23,10 @@ services:
       # be at least 12 characters; if blank or too short, Arbiter generates a
       # random password and prints it to stdout instead.
       - ARBITER_ADMIN_INITIAL_PASSWORD=ChangeMeOnFirstLogin!
+      # The dev compose explicitly opts in to demo-data loading (R2-F4). The
+      # default in application.properties is now off — production deployments
+      # should never load synthetic data, but the dev stack benefits from it.
+      - ARBITER_DEMO_DATA_ENABLED=true
 
     volumes:
       - ./sample-files:/app/sample-files:ro

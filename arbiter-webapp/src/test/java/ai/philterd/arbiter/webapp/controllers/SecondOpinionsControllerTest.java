@@ -83,6 +83,10 @@ class SecondOpinionsControllerTest {
         auditLogRepository = mock(AuditLogRepository.class);
         auditLogQueryService = mock(AuditLogQueryService.class);
         auditLogService = mock(AuditLogService.class);
+        // hashForAudit is called from documentHistoryCsv when building audit details
+        // (R2-F7). Default the mock to return "" for unstubbed inputs so Map.of(...)
+        // doesn't NPE. Tests that assert on the hash value override this default.
+        when(auditLogService.hashForAudit(any())).thenReturn("");
         controller = new SecondOpinionsController(spanRepository, documentRepository, batchRepository,
                 complianceProfileRepository, userGroupsService, auditLogRepository,
                 auditLogQueryService, auditLogService, new ObjectMapper());
@@ -182,10 +186,11 @@ class SecondOpinionsControllerTest {
     }
 
     @Test
-    void exportEntryDetailsCaptureFormatAndFilename() throws IOException {
+    void exportEntryDetailsCaptureFormatAndFilenameHash() throws IOException {
         when(documentRepository.findById("doc1")).thenReturn(Optional.of(doc("doc1", "report.txt")));
         when(spanRepository.findByDocumentId("doc1")).thenReturn(List.of());
         when(auditLogQueryService.findForDocument(eq("doc1"), any())).thenReturn(List.of());
+        when(auditLogService.hashForAudit("report.txt")).thenReturn("hashed-filename");
         final MockHttpServletResponse response = new MockHttpServletResponse();
 
         controller.documentHistoryCsv("doc1", admin(), response);
@@ -195,7 +200,14 @@ class SecondOpinionsControllerTest {
         verify(auditLogService).log(eq("DOCUMENT_AUDIT_EXPORT"), eq("Document"), eq("doc1"),
                 details.capture());
         assertEquals("csv", details.getValue().get("format"));
-        assertEquals("report.txt", details.getValue().get("filename"));
+        // R2-F7: filename is hashed in audit details — filenames carry PII and
+        // the audit log is read by auditors who may not have access to the source.
+        // Controller must funnel the filename through auditLogService.hashForAudit;
+        // the actual HMAC behaviour is pinned by AuditLogServiceTest.
+        assertFalse(details.getValue().containsKey("filename"),
+                "audit details must not contain the cleartext filename");
+        assertEquals("hashed-filename", details.getValue().get("filenameHash"));
+        assertEquals("report.txt".length(), details.getValue().get("filenameLength"));
     }
 
     @Test

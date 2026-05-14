@@ -31,6 +31,7 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
+import org.springframework.http.MediaType;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -58,7 +59,7 @@ public class IngestionController {
     }
 
     @PostMapping(value = "/ingest",
-            consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
+            consumes = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<?> ingest(@Valid @RequestBody final IngestRequest request, final Authentication authentication) {
 
         final Batch batch = batchRepository.findById(request.batchId()).orElse(null);

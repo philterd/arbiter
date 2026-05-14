@@ -218,8 +218,14 @@ public class IngestQueueService {
             persistenceService.apply(doc, batch, response);
             pendingUploadRepository.deleteById(doc.getId());
         } catch (Exception e) {
-            log.warn("Document {} ({}): redaction failed via {}: {}",
-                    doc.getId(), doc.getFilename(), e.getClass().getSimpleName(), e.getMessage(), e);
+            // The document id alone is enough to correlate to the encrypted-at-rest
+            // Document row. Filenames in this product routinely carry PII
+            // (e.g. mrn-12345678-jane-doe-discharge.pdf, 2024-tax-return-john-doe.pdf);
+            // logging them here would leak that PII to the application log (which is
+            // typically retained outside the encrypted DB tier and read by operators
+            // who may have log-read but not document-read access).
+            log.warn("Document {}: redaction failed via {}: {}",
+                    doc.getId(), e.getClass().getSimpleName(), e.getMessage(), e);
             markFailed(doc, e.getMessage(), e);
         }
     }

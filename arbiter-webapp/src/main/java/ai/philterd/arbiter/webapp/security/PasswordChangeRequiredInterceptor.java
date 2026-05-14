@@ -53,6 +53,14 @@ public class PasswordChangeRequiredInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        // Bearer (API-key) callers present a separate credential — the API key
+        // — so the password-rotation gate doesn't apply. The gate exists to
+        // prevent an admin who set the initial password from acting via that
+        // password; an API key bypasses that admin entirely.
+        if (Boolean.TRUE.equals(request.getAttribute(ApiKeyAuthFilter.BEARER_AUTH_ATTR))) {
+            return true;
+        }
+
         final String path = request.getRequestURI();
         if (isExempt(path)) {
             return true;
@@ -60,7 +68,17 @@ public class PasswordChangeRequiredInterceptor implements HandlerInterceptor {
 
         final User user = userRepository.findByEmail(auth.getName()).orElse(null);
         if (user != null && user.isMustChangePassword()) {
-            response.sendRedirect(request.getContextPath() + SETTINGS_PATH + "?mustChangePassword=true");
+            // API callers (session-cookie /api/v1/**) get a 403 with a short
+            // JSON-friendly reason rather than the 302 the browser UI expects —
+            // fetch() doesn't follow cross-origin redirects to /settings and
+            // the redirect would just produce a confusing CORS error in the
+            // browser console.
+            if (path != null && path.startsWith("/api/")) {
+                response.sendError(HttpServletResponse.SC_FORBIDDEN,
+                        "Password change required.");
+            } else {
+                response.sendRedirect(request.getContextPath() + SETTINGS_PATH + "?mustChangePassword=true");
+            }
             return false;
         }
 

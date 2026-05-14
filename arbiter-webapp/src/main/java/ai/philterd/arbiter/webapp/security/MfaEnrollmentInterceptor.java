@@ -46,6 +46,14 @@ public class MfaEnrollmentInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        // Bearer (API-key) callers are exempt — TOTP enrolment is a session-login
+        // requirement, not an API-key requirement. Forcing MFA enrolment on every
+        // API request would lock out automated clients the moment an admin flipped
+        // require-MFA on.
+        if (Boolean.TRUE.equals(request.getAttribute(ApiKeyAuthFilter.BEARER_AUTH_ATTR))) {
+            return true;
+        }
+
         final String path = request.getRequestURI();
         if (isExempt(path)) {
             return true;
@@ -58,7 +66,14 @@ public class MfaEnrollmentInterceptor implements HandlerInterceptor {
 
         final User user = userRepository.findByEmail(auth.getName()).orElse(null);
         if (user != null && !user.isMfaEnabled()) {
-            response.sendRedirect(request.getContextPath() + SETUP_PATH + "?required=true");
+            // Same path-based response branching as the password-change gate:
+            // 403 for API callers, 302 to setup for the browser UI.
+            if (path != null && path.startsWith("/api/")) {
+                response.sendError(HttpServletResponse.SC_FORBIDDEN,
+                        "MFA enrollment required.");
+            } else {
+                response.sendRedirect(request.getContextPath() + SETUP_PATH + "?required=true");
+            }
             return false;
         }
 

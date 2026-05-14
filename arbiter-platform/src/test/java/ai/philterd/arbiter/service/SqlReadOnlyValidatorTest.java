@@ -221,4 +221,116 @@ class SqlReadOnlyValidatorTest {
         assertRejected("explain select id from documents", "must start with SELECT or WITH");
         assertRejected("select 1 ; select 2", "semicolon");
     }
+
+    // ---------- MySQL / MariaDB write-via-SELECT primitives (finding #1) ----------
+
+    @Test
+    void rejectsSelectIntoOutfile() {
+        // Canonical bypass: SELECT leads (passes), no listed mutation verb appears
+        // (would have passed pre-fix), but INTO OUTFILE turns the SELECT into
+        // arbitrary-file-write on the remote MySQL/MariaDB filesystem.
+        assertRejected(
+                "SELECT user, password_hash FROM mysql.user INTO OUTFILE '/var/lib/mysql-files/exfil.csv'",
+                "OUTFILE");
+    }
+
+    @Test
+    void rejectsSelectIntoDumpfile() {
+        // DUMPFILE is the binary variant — paired with a hex literal payload it
+        // becomes a primitive for dropping a shared object that CREATE FUNCTION
+        // can then load. Full RCE chain on permissive MySQL configs.
+        assertRejected(
+                "SELECT 0x7f454c46 INTO DUMPFILE '/tmp/x.so'",
+                "DUMPFILE");
+    }
+
+    @Test
+    void rejectsLoadFileFunctionCall() {
+        // Read-side mirror primitive — pulls a file from the DB server filesystem
+        // into the result set. Same blast radius (secrets exfil) without needing
+        // FILE-write privilege.
+        assertRejected(
+                "SELECT LOAD_FILE('/etc/passwd')",
+                "LOAD_FILE");
+    }
+
+    @Test
+    void rejectionIsCaseInsensitiveOnNewKeywords() {
+        assertRejected("select id from t into outfile '/tmp/x.csv'", "OUTFILE");
+        assertRejected("select 1 into dumpfile '/tmp/x'", "DUMPFILE");
+        assertRejected("select load_file('/etc/hosts')", "LOAD_FILE");
+    }
+
+    // ---------- PostgreSQL file-read primitives (R2-F15) ----------
+
+    @Test
+    void rejectsPgReadFile() {
+        // The PostgreSQL mirror of MySQL's LOAD_FILE. A "read-only" SELECT that
+        // calls pg_read_file('/etc/passwd') exfiltrates files from the remote
+        // DB server filesystem through the standard query path.
+        assertRejected(
+                "SELECT pg_read_file('/etc/passwd', 0, 10000) AS leak",
+                "PG_READ_FILE");
+    }
+
+    @Test
+    void rejectsPgReadBinaryFile() {
+        // Binary variant — same primitive, different return type.
+        assertRejected(
+                "SELECT pg_read_binary_file('/etc/shadow')",
+                "PG_READ_BINARY_FILE");
+    }
+
+    @Test
+    void rejectsPgLsDir() {
+        // Directory-enumeration primitive; reveals filesystem layout to a
+        // caller with FILE-read privilege, prelude to a targeted pg_read_file.
+        assertRejected(
+                "SELECT * FROM pg_ls_dir('/etc')",
+                "PG_LS_DIR");
+    }
+
+    @Test
+    void rejectsPgStatFile() {
+        // Stat metadata (size, mtime, owner). Lower-impact than the read
+        // primitives but still server-side filesystem disclosure.
+        assertRejected(
+                "SELECT pg_stat_file('/etc/passwd')",
+                "PG_STAT_FILE");
+    }
+
+    @Test
+    void rejectsLoImport() {
+        // Large-object import — reads a file from the DB server filesystem
+        // into the database. The validator's "read-only" contract bans this
+        // even though the data movement is technically just into Postgres.
+        assertRejected(
+                "SELECT lo_import('/etc/passwd')",
+                "LO_IMPORT");
+    }
+
+    @Test
+    void rejectsLoExport() {
+        // Large-object export — writes a binary blob to the DB server
+        // filesystem. Same write-primitive concern as INTO DUMPFILE.
+        assertRejected(
+                "SELECT lo_export(123, '/tmp/exfil.bin')",
+                "LO_EXPORT");
+    }
+
+    @Test
+    void postgresFileReadKeywordsAreCaseInsensitive() {
+        assertRejected("select pg_read_file('/etc/passwd')", "PG_READ_FILE");
+        assertRejected("select LO_EXPORT(1, '/tmp/x')", "LO_EXPORT");
+    }
+
+    @Test
+    void cleanSelectMentioningOutfileInsideStringLiteralStillAccepted() {
+        // The new keywords are whole-word matches, and the validator already
+        // strips single-quoted string literals before the keyword scan. So a
+        // label or alias literally containing "outfile" inside a string doesn't
+        // false-positive. Confirms the fix didn't regress the happy path.
+        assertAccepted("SELECT id, body FROM documents WHERE label = 'outfile-archive'");
+        assertAccepted("WITH d AS (SELECT id FROM documents) SELECT * FROM d");
+    }
 }

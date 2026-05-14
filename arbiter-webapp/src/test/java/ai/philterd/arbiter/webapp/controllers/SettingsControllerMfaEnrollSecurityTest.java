@@ -21,6 +21,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.ui.Model;
 import org.springframework.ui.ConcurrentModel;
@@ -29,6 +30,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributesModelMap;
 
 import java.util.Base64;
 import java.util.Optional;
+import java.util.OptionalLong;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -87,7 +89,8 @@ class SettingsControllerMfaEnrollSecurityTest {
         apiKeyHashingService = mock(ApiKeyHashingService.class);
         cipher = new SymmetricCipher(TEST_KEY_B64);
         controller = new SettingsController(userRepository, passwordEncoder, auditLogService,
-                userSettingsService, totpService, apiKeyHashingService, cipher);
+                userSettingsService, totpService, apiKeyHashingService, cipher,
+                mock(SessionRegistry.class));
     }
 
     private static RedirectAttributes flash() { return new RedirectAttributesModelMap(); }
@@ -167,7 +170,7 @@ class SettingsControllerMfaEnrollSecurityTest {
         final HttpSession session = mock(HttpSession.class);
         when(session.getAttribute("TOTP_SETUP_SECRET")).thenReturn(RAW_SECRET);
         // The valid TOTP code alone used to be enough — this test pins that it isn't.
-        when(totpService.verify(eq(RAW_SECRET), eq("123456"))).thenReturn(true);
+        when(totpService.verifyAndReturnStep(eq(RAW_SECRET), eq("123456"))).thenReturn(OptionalLong.of(1234567L));
 
         final RedirectAttributes ra = flash();
         final String view = controller.mfaEnable(null, "123456", false,
@@ -188,7 +191,7 @@ class SettingsControllerMfaEnrollSecurityTest {
         when(userRepository.findByEmail("alice@x.com")).thenReturn(Optional.of(u));
         final HttpSession session = mock(HttpSession.class);
         when(session.getAttribute("TOTP_SETUP_SECRET")).thenReturn(RAW_SECRET);
-        when(totpService.verify(eq(RAW_SECRET), eq("123456"))).thenReturn(true);
+        when(totpService.verifyAndReturnStep(eq(RAW_SECRET), eq("123456"))).thenReturn(OptionalLong.of(1234567L));
         when(passwordEncoder.matches(eq("wrong-password"), eq("hash"))).thenReturn(false);
 
         final RedirectAttributes ra = flash();
@@ -209,7 +212,7 @@ class SettingsControllerMfaEnrollSecurityTest {
         when(passwordEncoder.matches(eq("right-password"), eq("hash"))).thenReturn(true);
         final HttpSession session = mock(HttpSession.class);
         when(session.getAttribute("TOTP_SETUP_SECRET")).thenReturn(RAW_SECRET);
-        when(totpService.verify(eq(RAW_SECRET), eq("123456"))).thenReturn(true);
+        when(totpService.verifyAndReturnStep(eq(RAW_SECRET), eq("123456"))).thenReturn(OptionalLong.of(1234567L));
 
         final RedirectAttributes ra = flash();
         final String view = controller.mfaEnable("right-password", "123456", false,
@@ -241,7 +244,7 @@ class SettingsControllerMfaEnrollSecurityTest {
         final HttpSession session = mock(HttpSession.class);
         when(session.getAttribute("TOTP_SETUP_SECRET")).thenReturn(RAW_SECRET);
         when(passwordEncoder.matches(eq("right-password"), eq("hash"))).thenReturn(true);
-        when(totpService.verify(eq(RAW_SECRET), eq("123456"))).thenReturn(true);
+        when(totpService.verifyAndReturnStep(eq(RAW_SECRET), eq("123456"))).thenReturn(OptionalLong.of(1234567L));
 
         final RedirectAttributes ra = flash();
         final String view = controller.mfaEnable("right-password", "123456", false,

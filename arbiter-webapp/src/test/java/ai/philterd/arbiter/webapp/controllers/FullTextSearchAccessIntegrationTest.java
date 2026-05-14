@@ -155,6 +155,10 @@ class FullTextSearchAccessIntegrationTest {
         final OpenSearchIndexService openSearchIndexService = new OpenSearchIndexService(generalSettingsService);
         final BatchAccessService batchAccessService = new BatchAccessService(batchRepository, userGroupsService);
         final AuditLogService auditLogService = mock(AuditLogService.class);
+        // Default hashForAudit to "" so the controller's Map.of(...) calls don't NPE
+        // on the mock's null return. Behaviour of the real HMAC is pinned in
+        // AuditLogServiceTest; these tests don't care about the hash value itself.
+        when(auditLogService.hashForAudit(anyString())).thenReturn("");
 
         apiController = new SearchController(openSearchIndexService, documentRepository,
                 auditLogService, batchAccessService);

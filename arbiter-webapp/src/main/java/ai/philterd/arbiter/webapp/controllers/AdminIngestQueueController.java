@@ -185,10 +185,13 @@ public class AdminIngestQueueController {
         // Best-effort sidecar cleanup — only some uploads have one (PDFs).
         try { pendingUploadRepository.deleteById(id); } catch (Exception ignored) {}
 
+        // Filename hashed (R2-F7) — filenames carry PII; audit log is
+        // cross-group-readable by auditors.
         auditLogService.log("INGEST_QUEUE_REMOVE", "Document", id,
                 Map.of(
                         "batchId", removed.getBatchId() == null ? "" : removed.getBatchId(),
-                        "filename", removed.getFilename() == null ? "" : removed.getFilename(),
+                        "filenameHash", auditLogService.hashForAudit(removed.getFilename()),
+                        "filenameLength", removed.getFilename() == null ? 0 : removed.getFilename().length(),
                         "removedBy", authentication == null ? "unknown" : authentication.getName()));
         redirectAttributes.addFlashAttribute("success",
                 "Removed \"" + (removed.getFilename() == null ? "document" : removed.getFilename())
@@ -214,10 +217,12 @@ public class AdminIngestQueueController {
         }
         try { pendingUploadRepository.deleteById(id); } catch (Exception ignored) {}
 
+        // Filename hashed (R2-F7).
         auditLogService.log("INGEST_QUEUE_FAILURE_CLEAR", "Document", id,
                 Map.of(
                         "batchId", removed.getBatchId() == null ? "" : removed.getBatchId(),
-                        "filename", removed.getFilename() == null ? "" : removed.getFilename(),
+                        "filenameHash", auditLogService.hashForAudit(removed.getFilename()),
+                        "filenameLength", removed.getFilename() == null ? 0 : removed.getFilename().length(),
                         "clearedBy", authentication == null ? "unknown" : authentication.getName()));
         redirectAttributes.addFlashAttribute("success",
                 "Removed \"" + (removed.getFilename() == null ? "document" : removed.getFilename())

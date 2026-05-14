@@ -23,8 +23,11 @@ import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.SymmetricCipher;
 import ai.philterd.arbiter.service.UserSettingsService;
 import ai.philterd.arbiter.webapp.security.TotpService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -36,6 +39,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.OptionalLong;
 
 @Controller
 @RequestMapping("/settings")
@@ -50,6 +54,7 @@ public class SettingsController {
     private final TotpService totpService;
     private final ApiKeyHashingService apiKeyHashingService;
     private final SymmetricCipher cipher;
+    private final SessionRegistry sessionRegistry;
 
     public SettingsController(final UserRepository userRepository,
                               final PasswordEncoder passwordEncoder,
@@ -57,7 +62,8 @@ public class SettingsController {
                               final UserSettingsService userSettingsService,
                               final TotpService totpService,
                               final ApiKeyHashingService apiKeyHashingService,
-                              final SymmetricCipher cipher) {
+                              final SymmetricCipher cipher,
+                              final SessionRegistry sessionRegistry) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.auditLogService = auditLogService;
@@ -65,6 +71,7 @@ public class SettingsController {
         this.totpService = totpService;
         this.apiKeyHashingService = apiKeyHashingService;
         this.cipher = cipher;
+        this.sessionRegistry = sessionRegistry;
     }
 
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -151,7 +158,8 @@ public class SettingsController {
             redirectAttributes.addFlashAttribute("error", "Setup session expired. Please try again.");
             return redirectOnFailure;
         }
-        if (!totpService.verify(secret, code)) {
+        final OptionalLong enrollStep = totpService.verifyAndReturnStep(secret, code);
+        if (enrollStep.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Invalid code. Please scan the QR code again and try once more.");
             return redirectOnFailure;
         }
@@ -162,6 +170,9 @@ public class SettingsController {
         // FIELD_PREFIX marker so a re-save of a loaded user does not double-encrypt.
         user.setTotpSecret(cipher.encryptField(secret));
         user.setMfaEnabled(true);
+        // Seed the replay-protection step with the enrol code so that same code
+        // can't immediately be replayed on /mfa (R2-F11).
+        user.setLastTotpStep(enrollStep.getAsLong());
         userRepository.save(user);
         session.removeAttribute(TOTP_SETUP_SECRET);
         auditLogService.log("MFA_ENABLED", "User", user.getId(), null);
@@ -190,12 +201,21 @@ public class SettingsController {
         // Decrypt the stored secret before verifying. decryptField passes legacy
         // plaintext rows through unchanged so accounts whose MFA was set up before
         // this change keep working until the user next disables/re-enables.
-        if (!totpService.verify(cipher.decryptField(user.getTotpSecret()), code)) {
+        final OptionalLong disableStep =
+                totpService.verifyAndReturnStep(cipher.decryptField(user.getTotpSecret()), code);
+        final boolean disableReplayed = disableStep.isPresent()
+                && user.getLastTotpStep() != null
+                && disableStep.getAsLong() <= user.getLastTotpStep();
+        if (disableStep.isEmpty() || disableReplayed) {
             redirectAttributes.addFlashAttribute("error", "Invalid code. MFA was not disabled.");
             return "redirect:/settings";
         }
         user.setTotpSecret(null);
         user.setMfaEnabled(false);
+        // Even though we're disabling, persist the accepted step. Re-enrolment
+        // generates a new secret so lastTotpStep gets re-seeded; meanwhile, if
+        // someone else captures this disable code they can't replay it.
+        user.setLastTotpStep(disableStep.getAsLong());
         userRepository.save(user);
         auditLogService.log("MFA_DISABLED", "User", user.getId(), null);
         redirectAttributes.addFlashAttribute("success", "Two-factor authentication disabled.");
@@ -279,6 +299,7 @@ public class SettingsController {
                                  @RequestParam("newPassword") final String newPassword,
                                  @RequestParam("confirmPassword") final String confirmPassword,
                                  final Authentication authentication,
+                                 final HttpServletRequest request,
                                  final RedirectAttributes redirectAttributes) {
         if (newPassword == null || newPassword.length() < 12) {
             redirectAttributes.addFlashAttribute("error", "New password must be at least 12 characters.");
@@ -304,9 +325,46 @@ public class SettingsController {
         // reset this account — the user has now rotated the password the admin
         // gave them, so the gate that forces them onto this page is satisfied.
         user.setMustChangePassword(false);
-        userRepository.save(user);
+        try {
+            userRepository.save(user);
+        } catch (OptimisticLockingFailureException conflict) {
+            // R2-F13: a concurrent write to this user row beat us. The other
+            // write may have been the user racing themselves from another tab,
+            // or an admin's reset landing simultaneously. Surface a benign
+            // retry message rather than swallowing the conflict (last-write-
+            // wins on a credential change is the correctness defect we just
+            // added @Version to detect).
+            redirectAttributes.addFlashAttribute("error",
+                    "Your account was updated by another session while you were changing your "
+                            + "password. Please sign in again and retry.");
+            return "redirect:/settings";
+        }
+
+        // R2-F12: a hijacked session must not survive the credential rotation.
+        // 1) Rotate THIS session id so any pre-rotation cookie is dead even on
+        //    this browser. (Spring's sessionFixation policy also does this on
+        //    re-auth, but we do it explicitly here because the password change
+        //    is not a fresh authentication.)
+        // 2) Expire any OTHER live sessions for the same principal so an
+        //    attacker who still has the old cookie is kicked out.
+        final HttpSession current = request.getSession(false);
+        final String currentId = current == null ? null : current.getId();
+        request.changeSessionId();
+        expireOtherSessions(user.getEmail(), currentId);
+
         auditLogService.log("PASSWORD_CHANGE", "User", user.getId(), null);
         redirectAttributes.addFlashAttribute("success", "Password updated.");
         return "redirect:/settings";
+    }
+
+    private void expireOtherSessions(final String principal, final String currentSessionId) {
+        if (principal == null) return;
+        // SessionRegistry.getAllSessions(principal, false) excludes already-expired
+        // sessions; expire any whose id is NOT the caller's current session.
+        sessionRegistry.getAllSessions(principal, false).forEach(info -> {
+            if (currentSessionId == null || !currentSessionId.equals(info.getSessionId())) {
+                info.expireNow();
+            }
+        });
     }
 }

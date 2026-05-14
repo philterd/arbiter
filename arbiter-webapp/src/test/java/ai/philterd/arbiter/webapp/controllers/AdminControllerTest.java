@@ -20,6 +20,8 @@ import ai.philterd.arbiter.webapp.security.InvitationService;
 import ai.philterd.arbiter.webapp.security.LoginAttemptService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.servlet.mvc.support.RedirectAttributesModelMap;
@@ -66,10 +68,13 @@ class AdminControllerTest {
         // Default: no pending invitations for any email. Tests that exercise the
         // "pending invitation supersedes" path override this explicitly.
         when(invitationRepository.findByEmail(anyString())).thenReturn(Optional.empty());
+        sessionRegistry = mock(SessionRegistry.class);
         controller = new AdminController(userRepository, passwordEncoder, auditLogService,
                 notificationSettingsService, userNotificationService,
-                loginAttemptService, invitationService, invitationRepository);
+                loginAttemptService, invitationService, invitationRepository, sessionRegistry);
     }
+
+    private SessionRegistry sessionRegistry;
 
     private static RedirectAttributes flash() { return new RedirectAttributesModelMap(); }
     private static String error(final RedirectAttributes ra) {
@@ -123,6 +128,42 @@ class AdminControllerTest {
     }
 
     @Test
+    void rejectsEmailWithEmbeddedNewlineLogForgeryAttempt() {
+        // Finding #3: a smuggled \n in the email field would let the admin forge
+        // log lines. The redemption-success log later prints "Redeemed invitation
+        // for {email}" — without this check, a value like
+        // "attacker@x.com\n2026-... INFO Redeemed for ceo@arbiter.local"
+        // would split into two indistinguishable log records. Same vector for
+        // the audit "details" map. Refuse at the controller boundary.
+        final RedirectAttributes ra = flash();
+        controller.create("attacker@x.com\n2026-05-13 INFO forged-line", false, null, ra);
+
+        assertNotNull(error(ra));
+        assertTrue(error(ra).contains("not a valid email address"),
+                "control-char email must produce the same generic error as any malformed input "
+                        + "(so a probing admin can't fingerprint the rule)");
+        verify(invitationService, never()).issue(anyString(), anyBoolean(), anySet());
+    }
+
+    @Test
+    void rejectsEmailWithEmbeddedCarriageReturnAndTab() {
+        // Belt-and-braces: the rule is "any character < 0x20 or == 0x7F", not
+        // just \n. Spot-check the other common control chars that could split
+        // log lines or smuggle into other downstream strings.
+        for (String injection : new String[]{
+                "attacker@x.com\r2026-05-13 INFO forged",
+                "attacker@x.com\tforged",
+                "attacker@x.comforged"}) {
+            final RedirectAttributes ra = flash();
+            controller.create(injection, false, null, ra);
+            assertNotNull(error(ra), "expected rejection for: " + injection.replace("\r", "\\r")
+                    .replace("\t", "\\t").replace("", "\\u007f"));
+            assertTrue(error(ra).contains("not a valid email address"));
+        }
+        verify(invitationService, never()).issue(anyString(), anyBoolean(), anySet());
+    }
+
+    @Test
     void rejectsDuplicateEmail() {
         when(userRepository.findByEmail("a@b.com")).thenReturn(Optional.of(new User()));
 
@@ -157,7 +198,7 @@ class AdminControllerTest {
         verify(userNotificationService, never())
                 .sendInvitation(anyString(), anyString());
         verify(auditLogService, never())
-                .log(org.mockito.ArgumentMatchers.eq("USER_INVITATION_ISSUED"),
+                .log(eq("USER_INVITATION_ISSUED"),
                         any(), any(), any());
     }
 
@@ -231,7 +272,7 @@ class AdminControllerTest {
         verify(invitationService, never()).issue(anyString(), anyBoolean(), anySet());
         verify(userNotificationService, never()).sendInvitation(anyString(), anyString());
         // The new user is persisted with the encoded password and the rotation flag.
-        final org.mockito.ArgumentCaptor<User> captor = org.mockito.ArgumentCaptor.forClass(User.class);
+        final ArgumentCaptor<User> captor = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(captor.capture());
         final User saved = captor.getValue();
         assertEquals("a@b.com", saved.getEmail());

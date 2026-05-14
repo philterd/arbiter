@@ -160,6 +160,29 @@ class InvitationServiceTest {
     }
 
     @Test
+    void issueRejectsEmailWithControlCharacters() {
+        // Defence in depth against finding #3: even if a future caller bypasses
+        // AdminController.isValidEmail (e.g. a programmatic admin-API flow), the
+        // service must self-defend against control characters so the redemption-
+        // success log line can't be split by a smuggled \n.
+        for (String bad : new String[]{
+                "alice@x.com\nforged",
+                "alice@x.com\rforged",
+                "alice@x.com\tforged",
+                "alice@x.com",
+                "alice@x.com"}) {
+            final IllegalArgumentException ex = org.junit.jupiter.api.Assertions.assertThrows(
+                    IllegalArgumentException.class,
+                    () -> service.issue(bad, false, Set.of()),
+                    "expected refusal for control-char email: "
+                            + bad.replace("\n", "\\n").replace("\r", "\\r")
+                                .replace("\t", "\\t"));
+            assertTrue(ex.getMessage().toLowerCase().contains("control"),
+                    "error message should name the rule, got: " + ex.getMessage());
+        }
+    }
+
+    @Test
     void issueLowercasesEmail() {
         final IssuedInvitation issued = service.issue("Alice@X.COM", false, Set.of());
         assertEquals("alice@x.com", issued.invitation().getEmail());

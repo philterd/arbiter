@@ -35,6 +35,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.core.io.Resource;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -96,6 +97,11 @@ class ReviewViewControllerTest {
         complianceProfileRepository = mock(ComplianceProfileRepository.class);
         userGroupsService = mock(UserGroupsService.class);
         auditLogService = mock(AuditLogService.class);
+        // hashForAudit is called from controllers when building audit details (R2-F7/R2-F8).
+        // Default the mock to return "" for any input so Map.of(...) doesn't NPE when a
+        // particular test doesn't care about the hash value. Tests that DO care can
+        // override with their own stub.
+        when(auditLogService.hashForAudit(any())).thenReturn("");
         ollamaInstanceRepository = mock(OllamaInstanceRepository.class);
         llmJudgeDefaultsService = mock(LlmJudgeDefaultsService.class);
         userSettingsService = mock(UserSettingsService.class);
@@ -399,12 +405,24 @@ class ReviewViewControllerTest {
         d.setRedactedText("redacted");
         when(documentRepository.findById("d1")).thenReturn(Optional.of(d));
 
+        when(auditLogService.hashForAudit("d1_redacted.txt")).thenReturn("hashed-filename");
+
         controller.download("d1", admin());
 
         final ArgumentCaptor<Map<String, Object>> details = capturingDetails("DOCUMENT_DOWNLOAD", "d1");
         assertEquals("admin@x.com", details.getValue().get("actor"));
-        assertEquals("d1_redacted.txt", details.getValue().get("filename"));
         assertEquals(8, details.getValue().get("bytes"));
+        // R2-F7: filename is hashed (filenames carry PII in this product and the
+        // audit log is cross-group-readable). The controller must hand the filename
+        // through auditLogService.hashForAudit; the actual HMAC behaviour is
+        // pinned by AuditLogServiceTest.
+        org.junit.jupiter.api.Assertions.assertFalse(details.getValue().containsKey("filename"),
+                "audit details must not contain the cleartext filename — that's the R2-F7 leak");
+        org.junit.jupiter.api.Assertions.assertEquals("hashed-filename",
+                details.getValue().get("filenameHash"));
+        org.junit.jupiter.api.Assertions.assertEquals(
+                "d1_redacted.txt".length(),
+                details.getValue().get("filenameLength"));
     }
 
     @Test
@@ -591,7 +609,7 @@ class ReviewViewControllerTest {
         // silently retried with stale state.
         final Document d = reviewableDoc("d1");
         when(documentRepository.save(any(Document.class)))
-                .thenThrow(new org.springframework.dao.OptimisticLockingFailureException("stale version"));
+                .thenThrow(new OptimisticLockingFailureException("stale version"));
 
         final RedirectAttributes ra = flash();
         final String view = controller.approve("d1", admin(), ra);
@@ -608,7 +626,7 @@ class ReviewViewControllerTest {
     void rejectSurfacesOptimisticLockingFailureAsLockLost() {
         reviewableDoc("d1");
         when(documentRepository.save(any(Document.class)))
-                .thenThrow(new org.springframework.dao.OptimisticLockingFailureException("stale version"));
+                .thenThrow(new OptimisticLockingFailureException("stale version"));
 
         final RedirectAttributes ra = flash();
         final String view = controller.reject("d1", admin(), ra);

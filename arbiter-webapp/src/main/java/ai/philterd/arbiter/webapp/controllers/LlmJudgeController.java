@@ -53,6 +53,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import org.springframework.http.MediaType;
 
 import static org.springframework.http.HttpStatus.BAD_GATEWAY;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
@@ -155,7 +156,7 @@ public class LlmJudgeController {
     public record ExplainRequest(String instanceId, String model) {}
 
     @PostMapping(value = "/documents/{documentId}/explain",
-            consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
+            consumes = MediaType.APPLICATION_JSON_VALUE)
     public Map<String, Object> explain(@PathVariable final String documentId,
                                        @RequestBody final ExplainRequest request,
                                        final Authentication authentication) {
@@ -232,7 +233,7 @@ public class LlmJudgeController {
      * already sets the JSON content type.
      */
     @PostMapping(value = "/spans/{spanId}/second-opinion",
-            consumes = org.springframework.http.MediaType.APPLICATION_JSON_VALUE)
+            consumes = MediaType.APPLICATION_JSON_VALUE)
     public Map<String, Object> secondOpinion(@PathVariable final String spanId,
                                              final Authentication authentication) {
         final Span span = spanRepository.findById(spanId)

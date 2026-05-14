@@ -18,7 +18,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Arbiter - Upload Documents</title>
-    <script th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -537,7 +537,7 @@
                 </div>
             </div>
 
-            <script>
+            <script th:nonce="${cspNonce}">
                 (function () {
                     const tabs = document.querySelectorAll('[data-source-tab]');
                     const panels = document.querySelectorAll('[data-source-panel]');

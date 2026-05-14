@@ -383,10 +383,16 @@ public class RedactionController {
                 final String text = new String(fileBytes, StandardCharsets.UTF_8);
                 queued = ingestQueueService.enqueueText(batch, originalFilename, text, safePriority);
             }
+            // Filename is hashed (R2-F7) — filenames routinely carry PII
+            // (patient names, MRNs, tax-form filers) and the audit log is
+            // cross-group-readable by auditors. The document row keeps the
+            // plaintext filename behind encryption-at-rest for callers with
+            // legitimate access.
             auditLogService.log("DOCUMENT_QUEUED", "Document", queued.getId(),
                     Map.of(
                             "batchId", batch.getId(),
-                            "filename", originalFilename == null ? "" : originalFilename,
+                            "filenameHash", auditLogService.hashForAudit(originalFilename),
+                            "filenameLength", originalFilename == null ? 0 : originalFilename.length(),
                             "contentType", contentType == null ? "" : contentType,
                             "size", fileBytes.length));
             queuedCount++;

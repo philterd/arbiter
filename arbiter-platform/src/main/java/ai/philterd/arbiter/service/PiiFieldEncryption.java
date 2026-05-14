@@ -12,6 +12,7 @@ package ai.philterd.arbiter.service;
 import ai.philterd.arbiter.model.Document;
 import ai.philterd.arbiter.model.DocumentComment;
 import ai.philterd.arbiter.model.GeneralSettings;
+import ai.philterd.arbiter.model.RedactionCertificate;
 import ai.philterd.arbiter.model.Span;
 import org.springframework.data.mongodb.core.mapping.event.AfterConvertCallback;
 import org.springframework.data.mongodb.core.mapping.event.AfterSaveCallback;
@@ -203,6 +204,61 @@ public final class PiiFieldEncryption {
         @Override
         public DocumentComment onAfterConvert(final DocumentComment entity, final org.bson.Document document, final String collection) {
             entity.setText(cipher.decryptField(entity.getText()));
+            return entity;
+        }
+    }
+
+    /**
+     * Lifecycle callbacks that wrap {@link RedactionCertificate} save/load with PII
+     * encryption. The certificate denormalises two PII-bearing fields out of the
+     * Document / Span tables — the document filename (often patient names, MRN-style
+     * identifiers, etc.) and the literal span text on each overturn entry. Without
+     * this callback those fields land in the {@code redaction_certificates} collection
+     * as plaintext while their source tables are encrypted, defeating the at-rest
+     * envelope for the denormalised copy. R2-F6 fix.
+     */
+    @Component
+    public static class RedactionCertificateCallbacks
+            implements BeforeConvertCallback<RedactionCertificate>,
+                       AfterSaveCallback<RedactionCertificate>,
+                       AfterConvertCallback<RedactionCertificate> {
+
+        private final SymmetricCipher cipher;
+
+        public RedactionCertificateCallbacks(final SymmetricCipher cipher) {
+            this.cipher = cipher;
+        }
+
+        @Override
+        public RedactionCertificate onBeforeConvert(final RedactionCertificate entity, final String collection) {
+            entity.setDocumentFilename(cipher.encryptField(entity.getDocumentFilename()));
+            if (entity.getOverturns() != null) {
+                for (RedactionCertificate.OverturnEntry o : entity.getOverturns()) {
+                    o.setSpanText(cipher.encryptField(o.getSpanText()));
+                }
+            }
+            return entity;
+        }
+
+        @Override
+        public RedactionCertificate onAfterSave(final RedactionCertificate entity, final org.bson.Document document, final String collection) {
+            entity.setDocumentFilename(cipher.decryptField(entity.getDocumentFilename()));
+            if (entity.getOverturns() != null) {
+                for (RedactionCertificate.OverturnEntry o : entity.getOverturns()) {
+                    o.setSpanText(cipher.decryptField(o.getSpanText()));
+                }
+            }
+            return entity;
+        }
+
+        @Override
+        public RedactionCertificate onAfterConvert(final RedactionCertificate entity, final org.bson.Document document, final String collection) {
+            entity.setDocumentFilename(cipher.decryptField(entity.getDocumentFilename()));
+            if (entity.getOverturns() != null) {
+                for (RedactionCertificate.OverturnEntry o : entity.getOverturns()) {
+                    o.setSpanText(cipher.decryptField(o.getSpanText()));
+                }
+            }
             return entity;
         }
     }

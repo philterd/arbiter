@@ -12,6 +12,7 @@ package ai.philterd.arbiter.model;
 import java.time.LocalDateTime;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -23,6 +24,17 @@ public class User {
 
     @Id
     private String id;
+
+    /**
+     * Optimistic-lock counter (R2-F13). Spring Data Mongo increments this on
+     * every save, and the save throws {@link org.springframework.dao.OptimisticLockingFailureException}
+     * if the loaded version doesn't match what's in Mongo. Catches concurrent
+     * writes such as a user racing themselves on /settings/password against
+     * an admin's reset — last-write-wins on critical credential changes is
+     * a correctness defect we want to surface, not absorb silently.
+     */
+    @Version
+    private Long version;
 
     @Indexed(unique = true)
     private String email;
@@ -41,6 +53,14 @@ public class User {
 
     private boolean mfaEnabled;
     private String totpSecret;
+    /**
+     * Most recently accepted TOTP step (Unix-seconds / 30). Used to refuse
+     * replay of a code within its validity window — without this, a captured
+     * 6-digit TOTP can be used from a second browser for 30–60 seconds after
+     * the legitimate user submitted it. Null until the user verifies for the
+     * first time; never decreases over time. R2-F11 fix.
+     */
+    private Long lastTotpStep;
 
     /**
      * When true, the user must change their password on next login before they
@@ -65,6 +85,12 @@ public class User {
 
     public String getTotpSecret() { return totpSecret; }
     public void setTotpSecret(final String totpSecret) { this.totpSecret = totpSecret; }
+
+    public Long getLastTotpStep() { return lastTotpStep; }
+    public void setLastTotpStep(final Long lastTotpStep) { this.lastTotpStep = lastTotpStep; }
+
+    public Long getVersion() { return version; }
+    public void setVersion(final Long version) { this.version = version; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(final LocalDateTime createdAt) { this.createdAt = createdAt; }
 

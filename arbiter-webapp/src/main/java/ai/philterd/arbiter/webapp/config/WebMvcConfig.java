@@ -36,13 +36,20 @@ public class WebMvcConfig implements WebMvcConfigurer {
         // before the MFA enrollment gate so a user who must do both lands on
         // the password page first; the MFA gate fires once the password
         // change has cleared this one.
+        //
+        // /api/** intentionally NOT excluded: a session-cookie caller hitting
+        // /api/v1/** must satisfy the same gate as the browser UI, otherwise
+        // an admin who knows a user's initial password can act as them through
+        // the API before the user has rotated. Bearer (API-key) callers are
+        // separately exempted inside the interceptor — their credential is the
+        // API key, not the password being rotated.
         registry.addInterceptor(new PasswordChangeRequiredInterceptor(userRepository))
                 .excludePathPatterns("/css/**", "/js/**", "/images/**", "/webjars/**", "/docs/**",
                         "/login", "/login/**", "/logout", "/mfa", "/error",
-                        "/api/**", "/v3/api-docs/**", "/swagger-ui/**");
+                        "/v3/api-docs/**", "/swagger-ui/**");
         registry.addInterceptor(new MfaEnrollmentInterceptor(generalSettingsService, userRepository))
                 .excludePathPatterns("/css/**", "/js/**", "/images/**", "/webjars/**", "/docs/**",
                         "/login", "/login/**", "/logout", "/mfa", "/error",
-                        "/api/**", "/v3/api-docs/**", "/swagger-ui/**");
+                        "/v3/api-docs/**", "/swagger-ui/**");
     }
 }

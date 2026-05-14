@@ -11,6 +11,7 @@ package ai.philterd.arbiter.service;
 
 import ai.philterd.arbiter.model.Document;
 import ai.philterd.arbiter.model.DocumentComment;
+import ai.philterd.arbiter.model.RedactionCertificate;
 import ai.philterd.arbiter.model.Span;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,6 +37,7 @@ class PiiFieldEncryptionTest {
     private PiiFieldEncryption.DocumentCallbacks documentCallbacks;
     private PiiFieldEncryption.SpanCallbacks spanCallbacks;
     private PiiFieldEncryption.DocumentCommentCallbacks commentCallbacks;
+    private PiiFieldEncryption.RedactionCertificateCallbacks certificateCallbacks;
 
     @BeforeEach
     void setUp() {
@@ -45,6 +47,7 @@ class PiiFieldEncryptionTest {
         documentCallbacks = new PiiFieldEncryption.DocumentCallbacks(cipher);
         spanCallbacks = new PiiFieldEncryption.SpanCallbacks(cipher);
         commentCallbacks = new PiiFieldEncryption.DocumentCommentCallbacks(cipher);
+        certificateCallbacks = new PiiFieldEncryption.RedactionCertificateCallbacks(cipher);
     }
 
     // ---------- Document ----------
@@ -325,6 +328,95 @@ class PiiFieldEncryptionTest {
 
         assertEquals(originalView.getOriginalText(), loadedView.getOriginalText());
         assertEquals(originalView.getRedactedText(), loadedView.getRedactedText());
+    }
+
+    // ---------- RedactionCertificate (R2-F6) ----------
+
+    @Test
+    void certificateBeforeConvertEncryptsDocumentFilenameAndEveryOverturnSpanText() {
+        // Without this callback the redaction_certificates collection would store
+        // these fields as plaintext while the source documents/spans collections
+        // hold them encrypted — defeating the at-rest envelope for the
+        // denormalised copy.
+        final RedactionCertificate cert = new RedactionCertificate();
+        cert.setDocumentFilename("mrn-12345678-jane-doe-discharge.pdf");
+        final RedactionCertificate.OverturnEntry o1 = new RedactionCertificate.OverturnEntry();
+        o1.setSpanText("555-12-3456");
+        final RedactionCertificate.OverturnEntry o2 = new RedactionCertificate.OverturnEntry();
+        o2.setSpanText("alice@example.com");
+        cert.setOverturns(java.util.List.of(o1, o2));
+
+        certificateCallbacks.onBeforeConvert(cert, "redaction_certificates");
+
+        assertEncrypted(cert.getDocumentFilename(), "jane-doe");
+        assertEncrypted(cert.getOverturns().get(0).getSpanText(), "555-12-3456");
+        assertEncrypted(cert.getOverturns().get(1).getSpanText(), "alice@example.com");
+    }
+
+    @Test
+    void certificateAfterSaveRestoresPlaintextOnCallerReference() {
+        // Same in-place mutation contract as the Document/Span callbacks: a caller
+        // that does {certificate.save(); certificate.getDocumentFilename();} should
+        // see plaintext, not the ciphertext that BeforeConvert wrote.
+        final RedactionCertificate cert = new RedactionCertificate();
+        cert.setDocumentFilename("mrn-12345678.pdf");
+        final RedactionCertificate.OverturnEntry o = new RedactionCertificate.OverturnEntry();
+        o.setSpanText("555-12-3456");
+        cert.setOverturns(java.util.List.of(o));
+
+        certificateCallbacks.onBeforeConvert(cert, "redaction_certificates");
+        assertEncrypted(cert.getDocumentFilename(), "mrn-12345678");
+        assertEncrypted(cert.getOverturns().get(0).getSpanText(), "555-12-3456");
+
+        final RedactionCertificate returned = certificateCallbacks.onAfterSave(
+                cert, new org.bson.Document(), "redaction_certificates");
+        assertSame(cert, returned);
+        assertEquals("mrn-12345678.pdf", cert.getDocumentFilename());
+        assertEquals("555-12-3456", cert.getOverturns().get(0).getSpanText());
+    }
+
+    @Test
+    void certificateAfterConvertDecryptsValuesLoadedFromMongo() {
+        // Round-trip: encrypt with BeforeConvert, then run AfterConvert (as if Mongo
+        // loaded the stored ciphertext) and assert we get the plaintext back.
+        final RedactionCertificate cert = new RedactionCertificate();
+        cert.setDocumentFilename("mrn-12345678.pdf");
+        final RedactionCertificate.OverturnEntry o = new RedactionCertificate.OverturnEntry();
+        o.setSpanText("555-12-3456");
+        cert.setOverturns(java.util.List.of(o));
+
+        certificateCallbacks.onBeforeConvert(cert, "redaction_certificates");
+
+        // Simulate Mongo loading the ciphertext into a fresh entity instance.
+        final RedactionCertificate loaded = new RedactionCertificate();
+        loaded.setDocumentFilename(cert.getDocumentFilename());
+        final RedactionCertificate.OverturnEntry loadedOverturn = new RedactionCertificate.OverturnEntry();
+        loadedOverturn.setSpanText(cert.getOverturns().get(0).getSpanText());
+        loaded.setOverturns(java.util.List.of(loadedOverturn));
+
+        certificateCallbacks.onAfterConvert(loaded, new org.bson.Document(), "redaction_certificates");
+
+        assertEquals("mrn-12345678.pdf", loaded.getDocumentFilename());
+        assertEquals("555-12-3456", loaded.getOverturns().get(0).getSpanText());
+    }
+
+    @Test
+    void certificateCallbackHandlesNullAndEmptyOverturnsList() {
+        // Defensive: the callback must not NPE when the certificate has no
+        // overturns (no spans were overturned for that document) or when the
+        // overturns list is null (legacy data).
+        final RedactionCertificate empty = new RedactionCertificate();
+        empty.setDocumentFilename(null);
+        empty.setOverturns(null);
+        certificateCallbacks.onBeforeConvert(empty, "redaction_certificates");
+        certificateCallbacks.onAfterSave(empty, new org.bson.Document(), "redaction_certificates");
+        certificateCallbacks.onAfterConvert(empty, new org.bson.Document(), "redaction_certificates");
+
+        final RedactionCertificate noOverturns = new RedactionCertificate();
+        noOverturns.setDocumentFilename("clean.pdf");
+        noOverturns.setOverturns(java.util.List.of());
+        certificateCallbacks.onBeforeConvert(noOverturns, "redaction_certificates");
+        assertEncrypted(noOverturns.getDocumentFilename(), "clean.pdf");
     }
 
     // ---------- helpers ----------

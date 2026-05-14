@@ -30,6 +30,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
+import java.util.OptionalLong;
+
 @Controller
 @RequestMapping("/mfa")
 public class MfaController {
@@ -93,8 +95,19 @@ public class MfaController {
         // Decrypt the at-rest TOTP secret before verifying. decryptField is a
         // no-op for legacy plaintext rows, so accounts whose MFA was set up
         // before the encryption roll-out keep working until they re-enroll.
-        if (user == null
-                || !totpService.verify(cipher.decryptField(user.getTotpSecret()), code)) {
+        final OptionalLong matchedStep = user == null
+                ? OptionalLong.empty()
+                : totpService.verifyAndReturnStep(cipher.decryptField(user.getTotpSecret()), code);
+        // R2-F11: refuse re-use of a code we've already accepted, even within
+        // its 30–60s validity window. The samstevens library accepts a code
+        // anywhere in the ±1 step window with no internal tracking, so a
+        // captured code can otherwise be replayed from a second browser. Track
+        // the most recently accepted step on the User row and require strict
+        // monotonic increase.
+        final boolean replayed = matchedStep.isPresent()
+                && user.getLastTotpStep() != null
+                && matchedStep.getAsLong() <= user.getLastTotpStep();
+        if (user == null || matchedStep.isEmpty() || replayed) {
             loginAttemptService.onFailure(email, ip);
             // If this last failure pushed us over the threshold, drop the pending session
             // so the attacker can't keep the form open and continue.
@@ -106,6 +119,10 @@ public class MfaController {
             session.setAttribute("mfaError", true);
             return "redirect:/mfa";
         }
+
+        // Remember the accepted step so a parallel browser can't replay this code.
+        user.setLastTotpStep(matchedStep.getAsLong());
+        userRepository.save(user);
 
         loginAttemptService.onSuccess(email, ip);
         session.removeAttribute(MfaAuthenticationSuccessHandler.PENDING_MFA_AUTH);

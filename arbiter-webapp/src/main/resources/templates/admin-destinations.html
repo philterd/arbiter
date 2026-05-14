@@ -18,7 +18,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Arbiter - Destinations</title>
-    <script th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -520,7 +520,7 @@
         </form>
     </div>
 
-    <script>
+    <script th:nonce="${cspNonce}">
         (function () {
             const modal = document.getElementById('destTestModal');
             if (!modal) return;
@@ -721,7 +721,7 @@
         })();
     </script>
 
-    <script>
+    <script th:nonce="${cspNonce}">
         // Destinations tab controller. Reads ?tab=… on load to pick the active tab so a
         // page reload (or a redirect from a "post-success → reload" admin action) lands
         // the operator on the same destination type they were configuring. Click handlers

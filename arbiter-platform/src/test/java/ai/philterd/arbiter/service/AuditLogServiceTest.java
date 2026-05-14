@@ -33,6 +33,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -59,11 +60,16 @@ class AuditLogServiceTest {
     private UserRepository userRepository;
     private AuditLogService service;
 
+    /** Deterministic 32-byte key (base64) so the pinned HMAC vectors below stay stable.
+     *  The bytes are not secret — picked so tests are reproducible. */
+    private static final String TEST_CRYPTO_SECRET =
+            "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+
     @BeforeEach
     void setUp() {
         auditLogRepository = mock(AuditLogRepository.class);
         userRepository = mock(UserRepository.class);
-        service = new AuditLogService(auditLogRepository, userRepository);
+        service = new AuditLogService(auditLogRepository, userRepository, TEST_CRYPTO_SECRET);
         SecurityContextHolder.clearContext();
         RequestContextHolder.resetRequestAttributes();
     }
@@ -313,6 +319,62 @@ class AuditLogServiceTest {
         // call won't fire in that case (entire record() body is in the try) but we must
         // at least not throw to the caller.
         service.log("X", "Y", "z", null);
+    }
+
+    // ---------- hashForAudit (finding #5, hardened to HMAC by R2-F8) ----------
+
+    @Test
+    void hashForAuditReturnsKeyedHmacSha256() {
+        // Pinned vector: HMAC-SHA-256("4111-1111-1111-1111") keyed with the
+        // domain-separated subkey of TEST_CRYPTO_SECRET. R2-F8: plain SHA-256
+        // of low-entropy PII (SSNs ~10^9, phone numbers ~10^10) was brute-
+        // forceable in seconds — HMAC keyed by the server secret means an
+        // attacker with only the audit collection cannot enumerate candidates
+        // without also stealing the crypto secret.
+        //
+        // Reference Python (run locally to update if the subkey derivation
+        // ever changes):
+        //   import hmac, hashlib, base64
+        //   k = base64.b64decode("AAAAAAA…AAA=")
+        //   sub = hmac.new(k, b"arbiter:audit-hash:v1", hashlib.sha256).digest()
+        //   print(hmac.new(sub, b"4111-1111-1111-1111", hashlib.sha256).hexdigest())
+        final String expected = "d8f7fdfe447f8f0de7ae15deddfb99c4e714dcd83cf53e7071eb9ad4063aa2f5";
+        assertEquals(expected, service.hashForAudit("4111-1111-1111-1111"));
+    }
+
+    @Test
+    void hashForAuditWithDifferentKeyProducesDifferentValue() {
+        // The core security property: an attacker who only has the audit log
+        // (and not the crypto secret) cannot precompute a dictionary of PII
+        // candidates. Two services with different keys must produce different
+        // hashes for the same input.
+        // A different valid 32-byte key (base64 of 0xFF * 32).
+        final AuditLogService other = new AuditLogService(
+                auditLogRepository, userRepository,
+                "//////////////////////////////////////////8=");
+        assertNotEquals(
+                service.hashForAudit("4111-1111-1111-1111"),
+                other.hashForAudit("4111-1111-1111-1111"),
+                "Same plaintext with different keys must produce different hashes — "
+                        + "otherwise we'd just be SHA-256 in disguise.");
+    }
+
+    @Test
+    void hashForAuditReturnsEmptyStringForNullOrBlank() {
+        // "" rather than null so an audit row never carries a null placeholder
+        // that could be misread as an absent value vs. a search for the empty string.
+        assertEquals("", service.hashForAudit(null));
+        assertEquals("", service.hashForAudit(""));
+    }
+
+    @Test
+    void hashForAuditIsDeterministicAndDifferentForDifferentInputs() {
+        // Same input → same hash; different inputs → different hashes. The first
+        // half is what makes "did anyone search for X?" work; the second half is
+        // what makes the hash not collapse all queries to a single bucket.
+        assertEquals(service.hashForAudit("abc"), service.hashForAudit("abc"));
+        assertNotEquals(
+                service.hashForAudit("abc"), service.hashForAudit("abd"));
     }
 
     // ---------- helpers ----------

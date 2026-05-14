@@ -9,14 +9,18 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/arbiter
-      # The OpenSearch endpoint used for full-text search is now configured
-      # under Admin → Settings → Full text search; the compose stack still
-      # ships an OpenSearch container so the default http://opensearch:9200
-      # works the moment an admin clicks Save.
+      # MongoDB now runs with auth required (R2-F3) — the app authenticates as
+      # ${MONGO_APP_USER} against authSource=admin. Set MONGO_APP_USER and
+      # MONGO_APP_PASSWORD in .env alongside the root credentials below.
+      - SPRING_DATA_MONGODB_URI=mongodb://${MONGO_APP_USER:?Set MONGO_APP_USER in .env}:${MONGO_APP_PASSWORD:?Set MONGO_APP_PASSWORD in .env}@mongodb:27017/arbiter?authSource=admin
       - ARBITER_CRYPTO_SECRET=${ARBITER_CRYPTO_SECRET:?Set ARBITER_CRYPTO_SECRET in .env}
+      - ARBITER_ADMIN_INITIAL_PASSWORD=${ARBITER_ADMIN_INITIAL_PASSWORD:?Set ARBITER_ADMIN_INITIAL_PASSWORD in .env on first install (12+ chars)}
       - ARBITER_DEMO_DATA_ENABLED=false
       - SPRING_SESSION_STORE_TYPE=none
+      # OpenSearch security plugin is on (R2-F3); the app authenticates as the
+      # admin user the OS bootstrap-config script seeds. Configure the actual
+      # OpenSearch endpoint and credentials via Admin → Full text search after
+      # first sign-in, or set ARBITER_OPENSEARCH_* in .env for unattended boot.
     depends_on:
       mongodb:
         condition: service_healthy
@@ -29,12 +33,25 @@ services:
     image: mongo:latest
     container_name: arbiter-mongodb
     restart: unless-stopped
+    # --auth refuses every operation that doesn't authenticate. Bind to all
+    # interfaces so containers on the bridge network can reach 27017 — the
+    # network itself is the access boundary, no port published to the host.
+    command: ["mongod", "--auth", "--bind_ip_all"]
+    environment:
+      # Root credentials seed the admin database on first boot of an empty
+      # volume. Operators should rotate these via mongosh once the stack is up
+      # and remove them from .env. Required even after rotation because the
+      # entrypoint script re-checks them on every restart.
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USER:?Set MONGO_ROOT_USER in .env}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD:?Set MONGO_ROOT_PASSWORD in .env}
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.runCommand({ping:1})"]
+      # Healthcheck authenticates as the root user — without --username the
+      # ping would fail under --auth and never recover.
+      test: ["CMD", "mongosh", "--quiet", "--username=${MONGO_ROOT_USER}", "--password=${MONGO_ROOT_PASSWORD}", "--authenticationDatabase=admin", "--eval=db.runCommand({ping:1})"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 15s
     volumes:
       - mongodb_data:/data/db
     networks:
@@ -48,18 +65,23 @@ services:
       - discovery.type=single-node
       - bootstrap.memory_lock=true
       - "OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m"
-      - "DISABLE_SECURITY_PLUGIN=true"
-      - "DISABLE_INSTALL_DEMO_CONFIG=true"
+      # Security plugin is REQUIRED in production (R2-F3). DISABLE_SECURITY_PLUGIN
+      # previously left OpenSearch wide-open to any container on the bridge
+      # network. The plugin seeds an `admin` user from this env var on first boot;
+      # operators should create a dedicated arbiter user and rotate this password.
+      - "OPENSEARCH_INITIAL_ADMIN_PASSWORD=${OPENSEARCH_ADMIN_PASSWORD:?Set OPENSEARCH_ADMIN_PASSWORD in .env (16+ chars, mixed case + digit + symbol)}"
     ulimits:
       memlock:
         soft: -1
         hard: -1
     healthcheck:
-      test: ["CMD-SHELL", "curl -fs http://localhost:9200 >/dev/null || exit 1"]
+      # Healthcheck must now authenticate. -k accepts the plugin's self-signed
+      # cert; the cluster generates one on first boot.
+      test: ["CMD-SHELL", "curl -fsk -u admin:$$OPENSEARCH_INITIAL_ADMIN_PASSWORD https://localhost:9200 >/dev/null || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 10
-      start_period: 30s
+      start_period: 60s
     volumes:
       - opensearch_data:/usr/share/opensearch/data
     networks:

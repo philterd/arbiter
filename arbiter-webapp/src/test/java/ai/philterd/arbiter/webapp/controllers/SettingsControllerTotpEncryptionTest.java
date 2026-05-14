@@ -22,12 +22,14 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.servlet.mvc.support.RedirectAttributesModelMap;
 
 import java.util.Base64;
 import java.util.Optional;
+import java.util.OptionalLong;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -81,7 +83,8 @@ class SettingsControllerTotpEncryptionTest {
         apiKeyHashingService = mock(ApiKeyHashingService.class);
         cipher = new SymmetricCipher(TEST_KEY_B64);
         controller = new SettingsController(userRepository, passwordEncoder, auditLogService,
-                userSettingsService, totpService, apiKeyHashingService, cipher);
+                userSettingsService, totpService, apiKeyHashingService, cipher,
+                mock(SessionRegistry.class));
     }
 
     private static RedirectAttributes flash() { return new RedirectAttributesModelMap(); }
@@ -108,7 +111,7 @@ class SettingsControllerTotpEncryptionTest {
         when(userRepository.findByEmail("alice@x.com"))
                 .thenReturn(Optional.of(existingUser("alice@x.com")));
         when(passwordEncoder.matches(eq("pw"), eq("hash"))).thenReturn(true);
-        when(totpService.verify(eq(RAW_SECRET), eq("123456"))).thenReturn(true);
+        when(totpService.verifyAndReturnStep(eq(RAW_SECRET), eq("123456"))).thenReturn(OptionalLong.of(1234567L));
 
         controller.mfaEnable("pw", "123456", false, userAuth("alice@x.com"), session, flash());
 
@@ -136,7 +139,7 @@ class SettingsControllerTotpEncryptionTest {
         when(userRepository.findByEmail("alice@x.com"))
                 .thenReturn(Optional.of(existingUser("alice@x.com")));
         when(passwordEncoder.matches(eq("pw"), eq("hash"))).thenReturn(true);
-        when(totpService.verify(eq(RAW_SECRET), eq("123456"))).thenReturn(true);
+        when(totpService.verifyAndReturnStep(eq(RAW_SECRET), eq("123456"))).thenReturn(OptionalLong.of(1234567L));
 
         controller.mfaEnable("pw", "123456", false, userAuth("alice@x.com"), session, flash());
 
@@ -160,7 +163,7 @@ class SettingsControllerTotpEncryptionTest {
         when(userRepository.findByEmail("alice@x.com"))
                 .thenReturn(Optional.of(existingUser("alice@x.com")));
         when(passwordEncoder.matches(eq("pw"), eq("hash"))).thenReturn(true);
-        when(totpService.verify(eq(RAW_SECRET), eq("999999"))).thenReturn(false);
+        when(totpService.verifyAndReturnStep(eq(RAW_SECRET), eq("999999"))).thenReturn(OptionalLong.empty());
 
         controller.mfaEnable("pw", "999999", false, userAuth("alice@x.com"), session, flash());
 
@@ -180,11 +183,11 @@ class SettingsControllerTotpEncryptionTest {
         u.setTotpSecret(cipher.encryptField(RAW_SECRET));
         when(userRepository.findByEmail("alice@x.com")).thenReturn(Optional.of(u));
         when(passwordEncoder.matches(eq("pw"), eq("hash"))).thenReturn(true);
-        when(totpService.verify(eq(RAW_SECRET), eq("123456"))).thenReturn(true);
+        when(totpService.verifyAndReturnStep(eq(RAW_SECRET), eq("123456"))).thenReturn(OptionalLong.of(1234567L));
 
         controller.mfaDisable("pw", "123456", userAuth("alice@x.com"), flash());
 
-        verify(totpService).verify(eq(RAW_SECRET), eq("123456"));
+        verify(totpService).verifyAndReturnStep(eq(RAW_SECRET), eq("123456"));
         final ArgumentCaptor<User> saved = ArgumentCaptor.forClass(User.class);
         verify(userRepository).save(saved.capture());
         assertNull(saved.getValue().getTotpSecret(), "totpSecret should be cleared on disable");
@@ -202,11 +205,11 @@ class SettingsControllerTotpEncryptionTest {
         u.setTotpSecret(RAW_SECRET); // legacy plaintext row
         when(userRepository.findByEmail("alice@x.com")).thenReturn(Optional.of(u));
         when(passwordEncoder.matches(eq("pw"), eq("hash"))).thenReturn(true);
-        when(totpService.verify(eq(RAW_SECRET), eq("123456"))).thenReturn(true);
+        when(totpService.verifyAndReturnStep(eq(RAW_SECRET), eq("123456"))).thenReturn(OptionalLong.of(1234567L));
 
         controller.mfaDisable("pw", "123456", userAuth("alice@x.com"), flash());
 
-        verify(totpService).verify(eq(RAW_SECRET), eq("123456"));
+        verify(totpService).verifyAndReturnStep(eq(RAW_SECRET), eq("123456"));
         verify(userRepository).save(any(User.class));
     }
 
@@ -218,7 +221,7 @@ class SettingsControllerTotpEncryptionTest {
         u.setTotpSecret(encrypted);
         when(userRepository.findByEmail("alice@x.com")).thenReturn(Optional.of(u));
         when(passwordEncoder.matches(eq("pw"), eq("hash"))).thenReturn(true);
-        when(totpService.verify(anyString(), eq("000000"))).thenReturn(false);
+        when(totpService.verifyAndReturnStep(anyString(), eq("000000"))).thenReturn(OptionalLong.empty());
 
         controller.mfaDisable("pw", "000000", userAuth("alice@x.com"), flash());
 

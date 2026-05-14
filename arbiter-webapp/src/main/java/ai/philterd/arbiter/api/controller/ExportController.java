@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.springframework.http.MediaType;
 
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -50,7 +51,8 @@ public class ExportController {
         this.documentAccessService = documentAccessService;
     }
 
-    @PostMapping("/documents/{id}/finalize")
+    @PostMapping(value = "/documents/{id}/finalize",
+            consumes = MediaType.APPLICATION_JSON_VALUE)
     public Map<String, String> finalize(@PathVariable final String id, final Authentication authentication) throws IOException {
         final Document document = documentRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));

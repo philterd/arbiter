@@ -401,12 +401,25 @@ public class BatchExportService {
         return new RenderedPayload(buffer.toByteArray(), written);
     }
 
-    private void recordFailureSample(final BackgroundJob job, final String docId, final Exception e) {
+    // Package-private for direct R2-F9 unit testing — the rule "no exception
+    // message in the persisted sample" is small and self-contained, so a
+    // focused method-level test is more readable than driving the whole
+    // export pipeline.
+    void recordFailureSample(final BackgroundJob job, final String docId, final Exception e) {
         if (job.getFailureMessages() == null) {
             job.setFailureMessages(new java.util.ArrayList<>());
         }
         if (job.getFailureMessages().size() < BackgroundJob.MAX_FAILURE_MESSAGES) {
-            job.getFailureMessages().add("Document " + docId + ": " + e.getMessage());
+            // R2-F9: persist only the document id and the exception class. The
+            // exception MESSAGE on a JsonProcessingException (or similar value-
+            // conversion error) often quotes the offending field value, which
+            // for an export job means raw PII from the source document. That
+            // message would end up in BackgroundJob.failureMessages — which is
+            // rendered to operators on the Jobs page without encryption — so
+            // anything beyond the class name is a leak. Operators correlate to
+            // the source via the document id; class name is enough to
+            // distinguish "render error" from "I/O error" at a glance.
+            job.getFailureMessages().add("Document " + docId + ": " + e.getClass().getSimpleName());
         }
     }
 

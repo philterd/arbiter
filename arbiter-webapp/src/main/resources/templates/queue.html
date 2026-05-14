@@ -20,7 +20,7 @@
     <meta name="_csrf" th:content="${_csrf != null ? _csrf.token : ''}"/>
     <meta name="_csrf_header" th:content="${_csrf != null ? _csrf.headerName : 'X-CSRF-TOKEN'}"/>
     <title>Arbiter - Documents to Review</title>
-    <script th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -333,7 +333,7 @@
         </div>
     </div>
 
-    <script>
+    <script th:nonce="${cspNonce}">
         let currentPage = 0;
         const pageSize = 10;
         let currentSort = 'riskScore';

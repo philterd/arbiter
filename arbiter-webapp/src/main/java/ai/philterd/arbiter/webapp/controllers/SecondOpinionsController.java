@@ -239,9 +239,13 @@ public class SecondOpinionsController {
         // Record the export *before* querying entries so the export event itself appears
         // as the newest row in the resulting CSV. findForDocument() sorts DESC by
         // timestamp, so the just-written entry naturally lands at the top.
+        //
+        // Filename is hashed (R2-F7) — filenames carry PII and this row is read
+        // by auditors who may not have access to the source document.
         auditLogService.log("DOCUMENT_AUDIT_EXPORT", "Document", id,
                 Map.of("format", "csv",
-                        "filename", document.getFilename() == null ? "" : document.getFilename()));
+                        "filenameHash", auditLogService.hashForAudit(document.getFilename()),
+                        "filenameLength", document.getFilename() == null ? 0 : document.getFilename().length()));
 
         final List<Span> spans = spanRepository.findByDocumentId(id);
         final Map<String, Span> spansById = new HashMap<>();

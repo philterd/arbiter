@@ -39,6 +39,7 @@ import ai.philterd.arbiter.service.OpenSearchIndexService;
 import ai.philterd.arbiter.service.UserGroupsService;
 import ai.philterd.arbiter.service.UserSettingsService;
 import ai.philterd.arbiter.service.RedactionCertificateService;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -57,6 +58,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import org.springframework.http.MediaType;
 
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
@@ -309,7 +311,8 @@ public class ReviewViewController {
         return "review";
     }
 
-    @PostMapping("/api/v1/review/{documentId}/pulse")
+    @PostMapping(value = "/api/v1/review/{documentId}/pulse",
+            consumes = MediaType.APPLICATION_JSON_VALUE)
     @org.springframework.web.bind.annotation.ResponseBody
     public Map<String, Object> pulse(@PathVariable final String documentId,
                                      final Authentication authentication) {
@@ -496,9 +499,11 @@ public class ReviewViewController {
         final byte[] body = redacted.getBytes(java.nio.charset.StandardCharsets.UTF_8);
         final String filename = redactedFilename(document.getFilename());
         final String email = authentication == null ? null : authentication.getName();
+        // Filename hashed (R2-F7) — filenames carry PII; audit log is cross-group-readable.
         auditLogService.log("DOCUMENT_DOWNLOAD", "Document", documentId,
                 Map.of("actor", email == null ? "" : email,
-                        "filename", filename,
+                        "filenameHash", auditLogService.hashForAudit(filename),
+                        "filenameLength", filename == null ? 0 : filename.length(),
                         "bytes", body.length));
         return org.springframework.http.ResponseEntity.ok()
                 .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
@@ -554,7 +559,8 @@ public class ReviewViewController {
      * JSON-friendly release endpoint, for {@code navigator.sendBeacon} on page hide. Lives
      * under {@code /api/**} so it bypasses CSRF (sendBeacon can't easily attach tokens).
      */
-    @PostMapping("/api/v1/review/{documentId}/release")
+    @PostMapping(value = "/api/v1/review/{documentId}/release",
+            consumes = MediaType.APPLICATION_JSON_VALUE)
     @org.springframework.web.bind.annotation.ResponseBody
     public Map<String, Object> releaseApi(@PathVariable final String documentId,
                                           final Authentication authentication) {
@@ -687,7 +693,7 @@ public class ReviewViewController {
         }
         try {
             documentRepository.save(document);
-        } catch (org.springframework.dao.OptimisticLockingFailureException e) {
+        } catch (OptimisticLockingFailureException e) {
             // Stale-version write — another reviewer's save sneaked in between our
             // lock acquisition and our own save (possible across a lock-expiry boundary).
             // Refuse the mutation rather than silently dropping their work.
@@ -757,7 +763,7 @@ public class ReviewViewController {
         document.changeStatus("REJECTED");
         try {
             documentRepository.save(document);
-        } catch (org.springframework.dao.OptimisticLockingFailureException e) {
+        } catch (OptimisticLockingFailureException e) {
             redirectAttributes.addFlashAttribute("error",
                     "Another reviewer's change was saved while you were reviewing. Refresh the page and try again.");
             return "redirect:/review/" + documentId;

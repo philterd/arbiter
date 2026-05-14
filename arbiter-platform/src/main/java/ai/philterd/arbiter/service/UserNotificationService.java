@@ -71,17 +71,21 @@ public class UserNotificationService {
      * the token does, and even a leaked token is single-shot and time-limited.
      */
     public boolean sendInvitation(final String toEmail, final String invitationLink) {
+        // R2-F10: email addresses are PII (account-identifying) per CLAUDE.md.
+        // Log only an outcome-shaped message; an operator triaging from
+        // application.log can correlate to the audit-log USER_INVITATION_ISSUED
+        // row via timestamp when they need the email.
         final NotificationSettings settings = settingsService.load();
         if (!settings.isEnabled()) {
-            log.warn("Outbound email is disabled; skipping invitation to {}", toEmail);
+            log.warn("Outbound email is disabled; skipping invitation send.");
             return false;
         }
         if (settings.getHost() == null || settings.getHost().isBlank()) {
-            log.warn("Outbound email is enabled but no SMTP host is configured; skipping invitation to {}", toEmail);
+            log.warn("Outbound email is enabled but no SMTP host is configured; skipping invitation send.");
             return false;
         }
         if (settings.getFromAddress() == null || settings.getFromAddress().isBlank()) {
-            log.warn("Outbound email is enabled but no from-address is configured; skipping invitation to {}", toEmail);
+            log.warn("Outbound email is enabled but no from-address is configured; skipping invitation send.");
             return false;
         }
 
@@ -98,10 +102,14 @@ public class UserNotificationService {
             helper.setSubject("Your Arbiter invitation");
             helper.setText(buildInvitationBody(toEmail, invitationLink));
             mailSender.send(message);
-            log.info("Sent invitation email to {}", toEmail);
+            log.info("Sent invitation email.");
             return true;
         } catch (Exception e) {
-            log.warn("Failed to send invitation email to {}: {}", toEmail, e.getMessage());
+            // Log only the exception class + message — both can leak SMTP server
+            // diagnostics referring to the recipient, but the recipient itself
+            // doesn't appear in the parameter list any longer.
+            log.warn("Failed to send invitation email: {}: {}",
+                    e.getClass().getSimpleName(), e.getMessage());
             return false;
         }
     }
