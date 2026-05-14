@@ -119,7 +119,10 @@ public class AdminDataSourceController {
             String sqlQuery,
             String encryptedUsername,
             String encryptedPassword,
-            java.time.LocalDateTime createdAt) {}
+            java.time.LocalDateTime createdAt,
+            String watermarkColumn,
+            String lastImportedKey,
+            java.time.Instant lastImportedAt) {}
 
     private RelationalDbDataSourceView toRdbView(final RelationalDbDataSource r) {
         // Decryption can throw on a tampered / out-of-sync ciphertext. Render an
@@ -134,7 +137,8 @@ public class AdminDataSourceController {
         }
         return new RelationalDbDataSourceView(
                 r.getId(), r.getName(), url, r.getSqlQuery(),
-                r.getEncryptedUsername(), r.getEncryptedPassword(), r.getCreatedAt());
+                r.getEncryptedUsername(), r.getEncryptedPassword(), r.getCreatedAt(),
+                r.getWatermarkColumn(), r.getLastImportedKey(), r.getLastImportedAt());
     }
 
     @GetMapping
@@ -828,21 +832,24 @@ public class AdminDataSourceController {
                             @RequestParam("sqlQuery") final String sqlQuery,
                             @RequestParam(value = "username", required = false) final String username,
                             @RequestParam(value = "password", required = false) final String password,
+                            @RequestParam(value = "watermarkColumn", required = false)
+                                    final String watermarkColumn,
                             final RedirectAttributes redirectAttributes) {
         final String trimmedName = name == null ? "" : name.trim();
         final String trimmedUrl = jdbcUrl == null ? "" : jdbcUrl.trim();
         final String trimmedSql = sqlQuery == null ? "" : sqlQuery.trim();
+        final String trimmedWatermark = watermarkColumn == null ? "" : watermarkColumn.trim();
         // Credentials are not trimmed — leading/trailing whitespace can be valid in passwords.
         final String rawUsername = username == null ? "" : username;
         final String rawPassword = password == null ? "" : password;
 
         if (trimmedName.isEmpty()) {
             return rdbCreateError(redirectAttributes, "Name is required.",
-                    trimmedName, trimmedUrl, trimmedSql, rawUsername, rawPassword);
+                    trimmedName, trimmedUrl, trimmedSql, rawUsername, rawPassword, trimmedWatermark);
         }
         if (trimmedUrl.isEmpty()) {
             return rdbCreateError(redirectAttributes, "JDBC URL is required.",
-                    trimmedName, trimmedUrl, trimmedSql, rawUsername, rawPassword);
+                    trimmedName, trimmedUrl, trimmedSql, rawUsername, rawPassword, trimmedWatermark);
         }
         // SSRF / RCE defense: refuse JDBC URLs whose driver can run code at connect
         // time (H2 INIT, Derby restoreFrom), or that smuggle a known-dangerous param
@@ -863,11 +870,11 @@ public class AdminDataSourceController {
                             "jdbcUrl", safeUrl,
                             "reason", urlCheck.error() == null ? "" : urlCheck.error()));
             return rdbCreateError(redirectAttributes, urlCheck.error(),
-                    trimmedName, trimmedUrl, trimmedSql, rawUsername, rawPassword);
+                    trimmedName, trimmedUrl, trimmedSql, rawUsername, rawPassword, trimmedWatermark);
         }
         if (trimmedSql.isEmpty()) {
             return rdbCreateError(redirectAttributes, "SQL query is required.",
-                    trimmedName, trimmedUrl, trimmedSql, rawUsername, rawPassword);
+                    trimmedName, trimmedUrl, trimmedSql, rawUsername, rawPassword, trimmedWatermark);
         }
         // Read-only allow-list: only SELECT and WITH … SELECT are permitted; any
         // mutation keyword (INSERT/UPDATE/MERGE/EXEC/CALL/…), multi-statement input,
@@ -883,13 +890,13 @@ public class AdminDataSourceController {
                             "reason", sqlCheck.error() == null ? "" : sqlCheck.error(),
                             "sqlQuery", trimmedSql));
             return rdbCreateError(redirectAttributes, sqlCheck.error(),
-                    trimmedName, trimmedUrl, trimmedSql, rawUsername, rawPassword);
+                    trimmedName, trimmedUrl, trimmedSql, rawUsername, rawPassword, trimmedWatermark);
         }
         // A username without a password (or vice versa) is almost always a typo.
         if (rawUsername.isEmpty() != rawPassword.isEmpty()) {
             return rdbCreateError(redirectAttributes,
                     "Provide both Username and Password, or leave both blank.",
-                    trimmedName, trimmedUrl, trimmedSql, rawUsername, rawPassword);
+                    trimmedName, trimmedUrl, trimmedSql, rawUsername, rawPassword, trimmedWatermark);
         }
         final java.util.Optional<RelationalDbDataSource> existingRdb =
                 rdbRepository.findFirstByNameIgnoreCase(trimmedName);
@@ -897,7 +904,7 @@ public class AdminDataSourceController {
             return rdbCreateError(redirectAttributes,
                     "A relational database data source named \"" + existingRdb.get().getName()
                             + "\" already exists.",
-                    trimmedName, trimmedUrl, trimmedSql, rawUsername, rawPassword);
+                    trimmedName, trimmedUrl, trimmedSql, rawUsername, rawPassword, trimmedWatermark);
         }
 
         final RelationalDbDataSource source = new RelationalDbDataSource();
@@ -911,20 +918,27 @@ public class AdminDataSourceController {
         source.setEncryptedUsername(rawUsername.isEmpty() ? null : cipher.encrypt(rawUsername));
         source.setEncryptedPassword(rawPassword.isEmpty() ? null : cipher.encrypt(rawPassword));
         source.setCreatedAt(LocalDateTime.now());
+        // Watermark column is opt-in per source. Empty means the source runs
+        // as a one-shot full-scan (capped by MAX_ROWS_PER_RUN); a value means
+        // the worker reads that column from each row and advances the per-
+        // source watermark to its last-seen value on a successful run.
+        source.setWatermarkColumn(trimmedWatermark.isEmpty() ? null : trimmedWatermark);
 
         try {
             rdbRepository.save(source);
         } catch (DuplicateKeyException e) {
             return rdbCreateError(redirectAttributes,
                     "A relational database data source named \"" + trimmedName + "\" already exists.",
-                    trimmedName, trimmedUrl, trimmedSql, rawUsername, rawPassword);
+                    trimmedName, trimmedUrl, trimmedSql, rawUsername, rawPassword, trimmedWatermark);
         }
 
         auditLogService.log("RDB_DATASOURCE_CREATE", "RelationalDbDataSource", source.getId(),
                 Map.of("name", trimmedName,
                         "jdbcUrl", safeUrl,
                         "sqlQuery", trimmedSql,
-                        "credentialsSet", source.getEncryptedUsername() != null));
+                        "credentialsSet", source.getEncryptedUsername() != null,
+                        "watermarkColumn", source.getWatermarkColumn() == null
+                                ? "" : source.getWatermarkColumn()));
         redirectAttributes.addFlashAttribute("success",
                 "Relational database data source \"" + trimmedName + "\" added.");
         return "redirect:/admin/data-sources?tab=rdb";
@@ -944,13 +958,15 @@ public class AdminDataSourceController {
      */
     private String rdbCreateError(final RedirectAttributes ra, final String error,
                                   final String name, final String jdbcUrl, final String sqlQuery,
-                                  final String username, final String password) {
+                                  final String username, final String password,
+                                  final String watermarkColumn) {
         ra.addFlashAttribute("error", error);
         ra.addFlashAttribute("rdbFormName", name);
         ra.addFlashAttribute("rdbFormJdbcUrl", jdbcUrl);
         ra.addFlashAttribute("rdbFormSqlQuery", sqlQuery);
         ra.addFlashAttribute("rdbFormUsername", username);
         ra.addFlashAttribute("rdbFormPassword", password);
+        ra.addFlashAttribute("rdbFormWatermarkColumn", watermarkColumn);
         return "redirect:/admin/data-sources?tab=rdb";
     }
 
@@ -1005,8 +1021,12 @@ public class AdminDataSourceController {
                           @RequestParam("sqlQuery") final String sqlQuery,
                           @RequestParam(value = "username", required = false) final String username,
                           @RequestParam(value = "password", required = false) final String password,
+                          @RequestParam(value = "watermarkColumn", required = false)
+                                  final String watermarkColumn,
                           @RequestParam(value = "clearCredentials", defaultValue = "false")
                                   final boolean clearCredentials,
+                          @RequestParam(value = "confirmResetWatermark", defaultValue = "false")
+                                  final boolean confirmResetWatermark,
                           final RedirectAttributes redirectAttributes) {
         final RelationalDbDataSource source = rdbRepository.findById(id).orElse(null);
         if (source == null) {
@@ -1015,6 +1035,7 @@ public class AdminDataSourceController {
         }
         final String trimmedUrl = jdbcUrl == null ? "" : jdbcUrl.trim();
         final String trimmedSql = sqlQuery == null ? "" : sqlQuery.trim();
+        final String trimmedWatermark = watermarkColumn == null ? "" : watermarkColumn.trim();
         // Credentials are not trimmed — leading/trailing whitespace can be valid in passwords.
         final String rawUsername = username == null ? "" : username;
         final String rawPassword = password == null ? "" : password;
@@ -1068,11 +1089,37 @@ public class AdminDataSourceController {
             credentialsChanged = false;
         }
 
+        // Watermark integrity: if the admin changes the SQL or the watermark
+        // column on a source that has an active watermark, the new query may
+        // mean something entirely different. Force an explicit confirmation
+        // so a typo can't quietly cause everything to be re-imported (if the
+        // watermark is reset) or for new rows to be skipped (if it isn't).
+        // The form's "Save" button toggles confirmResetWatermark=true once
+        // the operator clicks through the warning.
+        final boolean sqlChanged = !trimmedSql.equals(source.getSqlQuery() == null ? "" : source.getSqlQuery());
+        final boolean watermarkColumnChanged = !trimmedWatermark.equals(
+                source.getWatermarkColumn() == null ? "" : source.getWatermarkColumn());
+        final boolean hasActiveWatermark = source.getLastImportedKey() != null;
+        if (hasActiveWatermark && (sqlChanged || watermarkColumnChanged) && !confirmResetWatermark) {
+            redirectAttributes.addFlashAttribute("error",
+                    "This source has an active watermark (last imported key \""
+                            + source.getLastImportedKey() + "\"). Changing the SQL or watermark "
+                            + "column would change what \"new\" means; re-submit with "
+                            + "\"Reset watermark\" checked to confirm.");
+            return "redirect:/admin/data-sources?tab=rdb";
+        }
+        final boolean watermarkReset = hasActiveWatermark && (sqlChanged || watermarkColumnChanged);
+        if (watermarkReset) {
+            source.setLastImportedKey(null);
+            source.setLastImportedAt(null);
+        }
+
         // Re-encrypt on every edit. The URL may have changed; even if it hasn't,
         // re-encrypting produces a fresh AES-GCM nonce so the ciphertext on disk
         // rotates whenever the row is touched.
         source.setEncryptedJdbcUrl(cipher.encrypt(trimmedUrl));
         source.setSqlQuery(trimmedSql);
+        source.setWatermarkColumn(trimmedWatermark.isEmpty() ? null : trimmedWatermark);
         rdbRepository.save(source);
 
         auditLogService.log("RDB_DATASOURCE_UPDATE", "RelationalDbDataSource", source.getId(),
@@ -1080,7 +1127,10 @@ public class AdminDataSourceController {
                         "jdbcUrl", safeUrl,
                         "sqlQuery", trimmedSql,
                         "credentialsChanged", credentialsChanged,
-                        "credentialsSet", source.getEncryptedUsername() != null));
+                        "credentialsSet", source.getEncryptedUsername() != null,
+                        "watermarkColumn", source.getWatermarkColumn() == null
+                                ? "" : source.getWatermarkColumn(),
+                        "watermarkReset", watermarkReset));
         redirectAttributes.addFlashAttribute("success",
                 "Relational database data source \"" + source.getName() + "\" updated.");
         return "redirect:/admin/data-sources?tab=rdb";
@@ -1096,6 +1146,89 @@ public class AdminDataSourceController {
      * MongoDB row could in principle slip a {@code DELETE} past the saved-state
      * guard.
      */
+    /**
+     * Clear the per-source watermark so the next ingest run starts from
+     * scratch (the {@code :lastKey} placeholder substitutes {@code NULL}).
+     * Used when the underlying table has been re-keyed, the watermark has
+     * skipped past rows that should have been imported, or the operator
+     * simply wants a full re-scan. Existing documents are not deleted —
+     * the {@code (source-id, filename)} dedupe skips already-imported rows
+     * on the next run.
+     */
+    @PostMapping("/rdb/{id}/reset-watermark")
+    public String resetRdbWatermark(@PathVariable final String id,
+                                    final RedirectAttributes redirectAttributes) {
+        final RelationalDbDataSource source = rdbRepository.findById(id).orElse(null);
+        if (source == null) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Relational database data source not found.");
+            return "redirect:/admin/data-sources?tab=rdb";
+        }
+        final String previous = source.getLastImportedKey();
+        source.setLastImportedKey(null);
+        source.setLastImportedAt(null);
+        rdbRepository.save(source);
+        auditLogService.log("RDB_WATERMARK_RESET", "RelationalDbDataSource", source.getId(),
+                Map.of("name", source.getName() == null ? "" : source.getName(),
+                        "previousKey", previous == null ? "" : previous));
+        redirectAttributes.addFlashAttribute("success",
+                "Watermark cleared for \"" + source.getName() + "\". The next run starts from scratch.");
+        return "redirect:/admin/data-sources?tab=rdb";
+    }
+
+    /**
+     * Set the per-source watermark to a specific value, without running an
+     * ingest. Useful for skipping past a known-bad range, or seeding the
+     * watermark before the first run when the operator wants to ignore
+     * everything older than some pivot.
+     */
+    /**
+     * Conservative upper bound on a watermark value. Real-world keys are small —
+     * a 64-bit integer is 19 ASCII chars, a UUID is 36, an RFC-3339 timestamp is
+     * 25. 256 leaves comfortable headroom for combined keys
+     * ({@code "2026-05-14T00:00:00Z|550e8400-e29b-41d4-a716-446655440000"}) while
+     * refusing pathological inputs that would bloat the source row, the audit
+     * log details, and the JDBC bind parameter for every subsequent run.
+     */
+    static final int MAX_WATERMARK_LENGTH = 256;
+
+    @PostMapping("/rdb/{id}/set-watermark")
+    public String setRdbWatermark(@PathVariable final String id,
+                                  @RequestParam("watermark") final String watermark,
+                                  final RedirectAttributes redirectAttributes) {
+        final RelationalDbDataSource source = rdbRepository.findById(id).orElse(null);
+        if (source == null) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Relational database data source not found.");
+            return "redirect:/admin/data-sources?tab=rdb";
+        }
+        final String trimmed = watermark == null ? "" : watermark.trim();
+        if (trimmed.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Watermark value is required. Use Reset to clear it instead.");
+            return "redirect:/admin/data-sources?tab=rdb";
+        }
+        if (trimmed.length() > MAX_WATERMARK_LENGTH) {
+            // Defence in depth — admin-only endpoint, but a typo or paste-error
+            // shouldn't blow up the source row, the audit log, or the JDBC bind.
+            redirectAttributes.addFlashAttribute("error",
+                    "Watermark value is too long (" + trimmed.length()
+                            + " characters; max " + MAX_WATERMARK_LENGTH + ").");
+            return "redirect:/admin/data-sources?tab=rdb";
+        }
+        final String previous = source.getLastImportedKey();
+        source.setLastImportedKey(trimmed);
+        source.setLastImportedAt(java.time.Instant.now());
+        rdbRepository.save(source);
+        auditLogService.log("RDB_WATERMARK_SET_MANUAL", "RelationalDbDataSource", source.getId(),
+                Map.of("name", source.getName() == null ? "" : source.getName(),
+                        "from", previous == null ? "" : previous,
+                        "to", trimmed));
+        redirectAttributes.addFlashAttribute("success",
+                "Watermark for \"" + source.getName() + "\" set to \"" + trimmed + "\".");
+        return "redirect:/admin/data-sources?tab=rdb";
+    }
+
     @PostMapping("/rdb/{id}/preview")
     @ResponseBody
     public Map<String, Object> previewRdb(@PathVariable final String id) {

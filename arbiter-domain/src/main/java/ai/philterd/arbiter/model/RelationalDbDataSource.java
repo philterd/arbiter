@@ -9,6 +9,7 @@
  */
 package ai.philterd.arbiter.model;
 
+import java.time.Instant;
 import java.time.LocalDateTime;
 
 import org.springframework.data.annotation.Id;
@@ -54,6 +55,37 @@ public class RelationalDbDataSource {
 
     private LocalDateTime createdAt;
 
+    /**
+     * Result-column name (case-insensitive, matched the same way as {@code filename})
+     * whose value the worker reads from each row to advance the per-source watermark.
+     * Null/empty means watermarking is disabled — the source behaves as a one-shot
+     * full-scan ingest, capped at the worker's per-run row ceiling.
+     *
+     * <p>When set, the admin's SQL is expected to reference {@code :lastKey} in a
+     * predicate like {@code WHERE id > COALESCE(:lastKey::bigint, 0) ORDER BY id}.
+     * The worker substitutes the stored {@link #lastImportedKey} for the placeholder
+     * at execution time, and advances the watermark to the last row's value after a
+     * successful run.
+     */
+    private String watermarkColumn;
+
+    /**
+     * Most-recently-imported watermark value, stored as a String so the same
+     * column can hold an integer PK, a UUID, a timestamp, or any other key the
+     * admin's SQL is keyset-paginating on. Type coercion against the watermark
+     * column happens in the admin's SQL via an explicit cast — see the docs.
+     *
+     * <p>Null on a fresh source (or after a manual reset). The worker substitutes
+     * {@code NULL} into the SQL for the {@code :lastKey} placeholder on a null
+     * watermark, so the canonical {@code COALESCE(:lastKey, 0)} pattern picks
+     * the right floor for the first run.
+     */
+    private String lastImportedKey;
+
+    /** Wall-clock instant the watermark last advanced. Surfaced in the admin UI
+     *  so operators can see at a glance when a source last picked up new rows. */
+    private Instant lastImportedAt;
+
     public RelationalDbDataSource() {
     }
 
@@ -77,4 +109,13 @@ public class RelationalDbDataSource {
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(final LocalDateTime createdAt) { this.createdAt = createdAt; }
+
+    public String getWatermarkColumn() { return watermarkColumn; }
+    public void setWatermarkColumn(final String watermarkColumn) { this.watermarkColumn = watermarkColumn; }
+
+    public String getLastImportedKey() { return lastImportedKey; }
+    public void setLastImportedKey(final String lastImportedKey) { this.lastImportedKey = lastImportedKey; }
+
+    public Instant getLastImportedAt() { return lastImportedAt; }
+    public void setLastImportedAt(final Instant lastImportedAt) { this.lastImportedAt = lastImportedAt; }
 }

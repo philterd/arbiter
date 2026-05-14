@@ -24,6 +24,7 @@ import org.springframework.stereotype.Service;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
@@ -285,13 +286,41 @@ public class RdbIngestJobService {
         // but the strip is a no-op for well-formed URLs so it's safe to keep here.)
         final String safeUrl = JdbcUrlValidator.stripUserInfo(jdbcUrl);
 
+        // Substitute the watermark placeholder. Three cases:
+        //   1. SQL has no :lastKey at all — the prepared/literal path is identical.
+        //   2. SQL has :lastKey AND the source has a stored lastImportedKey — bind it
+        //      as a parameter. This is the steady-state incremental-ingest case.
+        //   3. SQL has :lastKey but the source has no stored watermark yet —
+        //      substitute the SQL literal NULL so the admin's COALESCE(:lastKey, …)
+        //      pattern picks up the first-run floor without any extra UI dance.
+        final boolean usesWatermark = sql.contains(SqlReadOnlyValidator.WATERMARK_PLACEHOLDER);
+        final String storedWatermark = source.getLastImportedKey();
+        final String runtimeSql;
+        final boolean bindWatermark;
+        if (usesWatermark && storedWatermark != null) {
+            runtimeSql = sql.replace(SqlReadOnlyValidator.WATERMARK_PLACEHOLDER, "?");
+            bindWatermark = true;
+        } else if (usesWatermark) {
+            runtimeSql = sql.replace(SqlReadOnlyValidator.WATERMARK_PLACEHOLDER, "NULL");
+            bindWatermark = false;
+        } else {
+            runtimeSql = sql;
+            bindWatermark = false;
+        }
+
         try (Connection conn = connectionFactory.open(jdbcUrl, username, password);
-             Statement stmt = conn.createStatement(ResultSet.TYPE_FORWARD_ONLY,
-                     ResultSet.CONCUR_READ_ONLY)) {
+             PreparedStatement stmt = conn.prepareStatement(runtimeSql,
+                     ResultSet.TYPE_FORWARD_ONLY, ResultSet.CONCUR_READ_ONLY)) {
             stmt.setMaxRows(MAX_ROWS_PER_RUN);
             stmt.setFetchSize(1_000);
             stmt.setQueryTimeout(QUERY_TIMEOUT_SECONDS);
-            try (ResultSet rs = stmt.executeQuery(sql)) {
+            if (bindWatermark) {
+                // Always bind as String. Type coercion against the watermark column
+                // is the admin's responsibility via an explicit cast in their SQL
+                // (e.g. `id > :lastKey::bigint` on Postgres) — see the docs.
+                stmt.setString(1, storedWatermark);
+            }
+            try (ResultSet rs = stmt.executeQuery()) {
                 processRows(job, batch, source, safeUrl, rs);
             }
             finish(job, BackgroundJob.STATUS_COMPLETED, null);
@@ -324,7 +353,21 @@ public class RdbIngestJobService {
             return;
         }
         final int filenameColumn = findColumn(md, FILENAME_COLUMN);
+        // Watermark column is opt-in per source. Resolve once; if the admin
+        // named a column that the SQL doesn't actually return, lookup yields
+        // -1 and we skip the advance — the source still ingests rows, the
+        // watermark just won't move and the operator will notice via the
+        // "Last advanced …" line on the admin page.
+        final int watermarkColIdx = source.getWatermarkColumn() != null
+                && !source.getWatermarkColumn().isBlank()
+                ? findColumn(md, source.getWatermarkColumn())
+                : -1;
         final String sourceIndex = source.getId();
+        // Track the last watermark value seen across the cursor. Because the
+        // admin's SQL is required to ORDER BY this column for keyset paging
+        // to work, "last seen" equals "max seen" — but using last-seen avoids
+        // any String vs. numeric Comparator gymnastics.
+        String lastSeenWatermark = null;
         long rowIndex = 0;
         while (rs.next()) {
             rowIndex++;
@@ -336,6 +379,10 @@ public class RdbIngestJobService {
                     ? "row-" + rowIndex + ".txt"
                     : filename;
             final String sourceDocId = resolvedFilename;
+            if (watermarkColIdx > 0) {
+                final String thisWatermark = rs.getString(watermarkColIdx);
+                if (thisWatermark != null) lastSeenWatermark = thisWatermark;
+            }
             if (text == null || text.isEmpty()) {
                 final String reason = "Row " + rowIndex
                         + " has a null/empty first column (no document text).";
@@ -374,6 +421,27 @@ public class RdbIngestJobService {
         // dialect-agnostic and avoids a second round trip.
         job.setTotalDocuments(rowIndex);
         jobRepository.save(job);
+
+        // Advance the watermark on the source row. We do this only when the
+        // cursor drained cleanly (we reached this point — any SQLException
+        // upstream would have skipped past us via the catch in startRun()),
+        // and only when the last-seen value actually moved. A null
+        // lastSeenWatermark (no watermark column, or every row's value was
+        // null) leaves the stored watermark untouched.
+        if (watermarkColIdx > 0 && lastSeenWatermark != null
+                && !lastSeenWatermark.equals(source.getLastImportedKey())) {
+            final String previous = source.getLastImportedKey();
+            source.setLastImportedKey(lastSeenWatermark);
+            source.setLastImportedAt(Instant.now());
+            dataSourceRepository.save(source);
+            final Map<String, Object> details = new LinkedHashMap<>();
+            details.put("sourceId", source.getId());
+            details.put("from", previous == null ? "" : previous);
+            details.put("to", lastSeenWatermark);
+            details.put("rowsProcessed", rowIndex);
+            auditLogService.log("RDB_WATERMARK_ADVANCE", "RelationalDbDataSource",
+                    source.getId(), details);
+        }
     }
 
     /**

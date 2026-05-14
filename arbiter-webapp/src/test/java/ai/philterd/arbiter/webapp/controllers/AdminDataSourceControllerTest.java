@@ -408,7 +408,7 @@ class AdminDataSourceControllerTest {
         final RedirectAttributes ra = flash();
 
         controller.createRdb("warehouse", "jdbc:postgresql://host/db",
-                "SELECT body FROM documents", "alice", "pw", ra);
+                "SELECT body FROM documents", "alice", "pw", null, ra);
 
         final ArgumentCaptor<RelationalDbDataSource> saved =
                 ArgumentCaptor.forClass(RelationalDbDataSource.class);
@@ -435,14 +435,14 @@ class AdminDataSourceControllerTest {
     @Test
     void rdbCreateRejectsBlankJdbcUrl() {
         final RedirectAttributes ra = flash();
-        controller.createRdb("n", "", "SELECT 1", null, null, ra);
+        controller.createRdb("n", "", "SELECT 1", null, null, null, ra);
         assertEquals("JDBC URL is required.", error(ra));
     }
 
     @Test
     void rdbCreateRejectsBlankSqlQuery() {
         final RedirectAttributes ra = flash();
-        controller.createRdb("n", "jdbc:postgresql://host:5432/db", "  ", null, null, ra);
+        controller.createRdb("n", "jdbc:postgresql://host:5432/db", "  ", null, null, null, ra);
         assertEquals("SQL query is required.", error(ra));
     }
 
@@ -451,7 +451,7 @@ class AdminDataSourceControllerTest {
         // The controller refuses queries that could mutate the source table.
         final RedirectAttributes ra = flash();
         controller.createRdb("evil", "jdbc:postgresql://host:5432/db",
-                "DELETE FROM documents WHERE 1=1", null, null, ra);
+                "DELETE FROM documents WHERE 1=1", null, null, null, ra);
         assertNotNull(error(ra));
         assertTrue(error(ra).toLowerCase().contains("disallowed"),
                 "expected dangerous-keyword rejection, got: " + error(ra));
@@ -463,7 +463,7 @@ class AdminDataSourceControllerTest {
     @Test
     void rdbCreateRejectsUsernameWithoutPassword() {
         final RedirectAttributes ra = flash();
-        controller.createRdb("n", "jdbc:postgresql://host:5432/db", "SELECT 1", "alice", "", ra);
+        controller.createRdb("n", "jdbc:postgresql://host:5432/db", "SELECT 1", "alice", "", null, ra);
         assertEquals("Provide both Username and Password, or leave both blank.", error(ra));
     }
 
@@ -475,7 +475,7 @@ class AdminDataSourceControllerTest {
         final RedirectAttributes ra = flash();
         controller.createRdb("warehouse",
                 "jdbc:postgresql://alice:s3cret@host:5432/db",
-                "SELECT 1", null, null, ra);
+                "SELECT 1", null, null, null, ra);
 
         assertNotNull(error(ra));
         assertTrue(error(ra).toLowerCase().contains("embedded credentials"));
@@ -507,7 +507,7 @@ class AdminDataSourceControllerTest {
         when(rdbRepository.findFirstByNameIgnoreCase("warehouse")).thenReturn(Optional.empty());
         final RedirectAttributes ra = flash();
         controller.createRdb("warehouse", "jdbc:postgresql://host:5432/db",
-                "SELECT id, body FROM documents", "alice", "secret", ra);
+                "SELECT id, body FROM documents", "alice", "secret", null, ra);
 
         @SuppressWarnings("unchecked")
         final ArgumentCaptor<Map<String, Object>> details =
@@ -530,7 +530,7 @@ class AdminDataSourceControllerTest {
         // pass a URL that the validator accepts but then has a DELETE in the SQL.
         final RedirectAttributes ra = flash();
         controller.createRdb("evil", "jdbc:postgresql://host:5432/db",
-                "DELETE FROM documents", null, null, ra);
+                "DELETE FROM documents", null, null, null, ra);
 
         @SuppressWarnings("unchecked")
         final ArgumentCaptor<Map<String, Object>> details =
@@ -554,7 +554,7 @@ class AdminDataSourceControllerTest {
                 "warehouse",
                 "postgresql://host:5432/db",         // missing "jdbc:" prefix
                 "SELECT body FROM documents",
-                "alice", "pw", ra);
+                "alice", "pw", null, ra);
 
         assertEquals("redirect:/admin/data-sources?tab=rdb", view,
                 "Redirect target must include ?tab=rdb so the operator lands back on the RDB tab.");
@@ -582,7 +582,7 @@ class AdminDataSourceControllerTest {
         controller.createRdb("",
                 "jdbc:postgresql://host/db",
                 "SELECT 1",
-                "alice", "pw", ra);
+                "alice", "pw", null, ra);
 
         final java.util.Map<String, ?> flash = ra.getFlashAttributes();
         assertEquals("Name is required.", error(ra));
@@ -654,6 +654,8 @@ class AdminDataSourceControllerTest {
                 "jdbc:postgresql://new:5432/db",
                 "SELECT text, filename FROM documents",
                 "alice", "secretpw",
+                null,
+                false,
                 false,
                 ra);
 
@@ -696,6 +698,8 @@ class AdminDataSourceControllerTest {
                 "jdbc:postgresql://host:5432/db",
                 "SELECT 1",
                 "", "",
+                null,
+                false,
                 false,
                 ra);
 
@@ -721,7 +725,9 @@ class AdminDataSourceControllerTest {
                 "jdbc:postgresql://host:5432/db",
                 "SELECT 1",
                 "", "",
+                null,
                 true,
+                false,
                 ra);
 
         final ArgumentCaptor<RelationalDbDataSource> saved =
@@ -743,6 +749,8 @@ class AdminDataSourceControllerTest {
                 "jdbc:postgresql://host:5432/db",
                 "DELETE FROM documents",
                 null, null,
+                null,
+                false,
                 false,
                 ra);
 
@@ -923,5 +931,252 @@ class AdminDataSourceControllerTest {
             assertTrue(!error.toString().contains("allow-list"),
                     "did not expect allow-list error, got: " + error);
         }
+    }
+
+    // ---------- watermark create/edit/reset/set-manual ----------
+
+    @Test
+    void rdbCreatePersistsWatermarkColumn() {
+        when(rdbRepository.findFirstByNameIgnoreCase("warehouse")).thenReturn(Optional.empty());
+        final RedirectAttributes ra = flash();
+
+        controller.createRdb("warehouse", "jdbc:postgresql://host/db",
+                "SELECT body, id FROM documents WHERE id > COALESCE(:lastKey, 0) ORDER BY id",
+                null, null, "id", ra);
+
+        final ArgumentCaptor<RelationalDbDataSource> saved =
+                ArgumentCaptor.forClass(RelationalDbDataSource.class);
+        verify(rdbRepository).save(saved.capture());
+        assertEquals("id", saved.getValue().getWatermarkColumn());
+        assertNull(saved.getValue().getLastImportedKey(),
+                "fresh source must have no watermark yet — it advances after the first run");
+    }
+
+    @Test
+    void rdbCreateWithBlankWatermarkPersistsNull() {
+        // Blank-string equivalence to null — the worker treats either as
+        // "watermark not configured" and the field model should reflect that.
+        when(rdbRepository.findFirstByNameIgnoreCase("warehouse")).thenReturn(Optional.empty());
+        final RedirectAttributes ra = flash();
+
+        controller.createRdb("warehouse", "jdbc:postgresql://host/db",
+                "SELECT body FROM documents",
+                null, null, "   ", ra);
+
+        final ArgumentCaptor<RelationalDbDataSource> saved =
+                ArgumentCaptor.forClass(RelationalDbDataSource.class);
+        verify(rdbRepository).save(saved.capture());
+        assertNull(saved.getValue().getWatermarkColumn());
+    }
+
+    @Test
+    void rdbEditWithActiveWatermarkRequiresConfirmResetOnSqlChange() {
+        // A source that's already advanced its watermark. Changing the SQL
+        // without confirming would risk re-importing everything or skipping
+        // new rows depending on which way the change goes — refuse.
+        final RelationalDbDataSource src = new RelationalDbDataSource();
+        src.setId("ds-1");
+        src.setName("warehouse");
+        src.setSqlQuery("SELECT body, id FROM documents WHERE id > :lastKey ORDER BY id");
+        src.setWatermarkColumn("id");
+        src.setLastImportedKey("12345");
+        when(rdbRepository.findById("ds-1")).thenReturn(Optional.of(src));
+        final RedirectAttributes ra = flash();
+
+        controller.editRdb("ds-1",
+                "jdbc:postgresql://host:5432/db",
+                "SELECT body, name FROM documents WHERE name > :lastKey ORDER BY name",   // different SQL
+                null, null,
+                "id",
+                false,
+                false,                                                                     // confirm NOT set
+                ra);
+
+        assertNotNull(error(ra));
+        assertTrue(error(ra).contains("watermark"),
+                "rejection must call out the watermark concern: " + error(ra));
+        verify(rdbRepository, never()).save(any());
+    }
+
+    @Test
+    void rdbEditWithConfirmResetClearsWatermarkOnSqlChange() {
+        // Same scenario but with the confirmation checked. The save proceeds
+        // and the watermark is reset to null so the next run starts over.
+        final RelationalDbDataSource src = new RelationalDbDataSource();
+        src.setId("ds-1");
+        src.setName("warehouse");
+        src.setSqlQuery("SELECT body, id FROM documents WHERE id > :lastKey ORDER BY id");
+        src.setWatermarkColumn("id");
+        src.setLastImportedKey("12345");
+        when(rdbRepository.findById("ds-1")).thenReturn(Optional.of(src));
+        final RedirectAttributes ra = flash();
+
+        controller.editRdb("ds-1",
+                "jdbc:postgresql://host:5432/db",
+                "SELECT body, name FROM documents WHERE name > :lastKey ORDER BY name",
+                null, null,
+                "name",
+                false,
+                true,
+                ra);
+
+        final ArgumentCaptor<RelationalDbDataSource> saved =
+                ArgumentCaptor.forClass(RelationalDbDataSource.class);
+        verify(rdbRepository).save(saved.capture());
+        assertNull(saved.getValue().getLastImportedKey(),
+                "confirmed SQL change must reset the watermark");
+        assertEquals("name", saved.getValue().getWatermarkColumn());
+    }
+
+    @Test
+    void rdbEditWithoutSqlOrWatermarkChangeDoesNotRequireConfirmation() {
+        // Touching the credentials or URL on a watermarked source is fine —
+        // the meaning of "new" hasn't changed.
+        final RelationalDbDataSource src = new RelationalDbDataSource();
+        src.setId("ds-1");
+        src.setName("warehouse");
+        src.setSqlQuery("SELECT body, id FROM documents WHERE id > :lastKey ORDER BY id");
+        src.setWatermarkColumn("id");
+        src.setLastImportedKey("12345");
+        when(rdbRepository.findById("ds-1")).thenReturn(Optional.of(src));
+        final RedirectAttributes ra = flash();
+
+        controller.editRdb("ds-1",
+                "jdbc:postgresql://newhost:5432/db",                                       // URL change only
+                "SELECT body, id FROM documents WHERE id > :lastKey ORDER BY id",          // same SQL
+                null, null,
+                "id",                                                                       // same watermark column
+                false,
+                false,                                                                     // no confirm needed
+                ra);
+
+        final ArgumentCaptor<RelationalDbDataSource> saved =
+                ArgumentCaptor.forClass(RelationalDbDataSource.class);
+        verify(rdbRepository).save(saved.capture());
+        assertEquals("12345", saved.getValue().getLastImportedKey(),
+                "URL-only edit must NOT touch the watermark");
+    }
+
+    @Test
+    void resetWatermarkClearsKeyAndAuditsTheChange() {
+        final RelationalDbDataSource src = new RelationalDbDataSource();
+        src.setId("ds-1");
+        src.setName("warehouse");
+        src.setLastImportedKey("999");
+        src.setLastImportedAt(java.time.Instant.parse("2026-05-01T00:00:00Z"));
+        when(rdbRepository.findById("ds-1")).thenReturn(Optional.of(src));
+        final RedirectAttributes ra = flash();
+
+        controller.resetRdbWatermark("ds-1", ra);
+
+        final ArgumentCaptor<RelationalDbDataSource> saved =
+                ArgumentCaptor.forClass(RelationalDbDataSource.class);
+        verify(rdbRepository).save(saved.capture());
+        assertNull(saved.getValue().getLastImportedKey());
+        assertNull(saved.getValue().getLastImportedAt());
+
+        @SuppressWarnings("unchecked")
+        final ArgumentCaptor<Map<String, Object>> details =
+                ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService).log(eq("RDB_WATERMARK_RESET"), eq("RelationalDbDataSource"),
+                eq("ds-1"), details.capture());
+        // The previous value is preserved in the audit row for forensics.
+        assertEquals("999", details.getValue().get("previousKey"));
+    }
+
+    @Test
+    void resetWatermarkOnMissingSourceFlashesError() {
+        when(rdbRepository.findById("ghost")).thenReturn(Optional.empty());
+        final RedirectAttributes ra = flash();
+
+        controller.resetRdbWatermark("ghost", ra);
+
+        assertNotNull(error(ra));
+        verify(rdbRepository, never()).save(any());
+        verify(auditLogService, never()).log(eq("RDB_WATERMARK_RESET"),
+                anyString(), anyString(), any());
+    }
+
+    @Test
+    void setWatermarkManuallyUpdatesKeyAndAudits() {
+        final RelationalDbDataSource src = new RelationalDbDataSource();
+        src.setId("ds-1");
+        src.setName("warehouse");
+        src.setLastImportedKey("100");
+        when(rdbRepository.findById("ds-1")).thenReturn(Optional.of(src));
+        final RedirectAttributes ra = flash();
+
+        controller.setRdbWatermark("ds-1", "  9999  ", ra);
+
+        final ArgumentCaptor<RelationalDbDataSource> saved =
+                ArgumentCaptor.forClass(RelationalDbDataSource.class);
+        verify(rdbRepository).save(saved.capture());
+        assertEquals("9999", saved.getValue().getLastImportedKey(),
+                "value must be trimmed before storage");
+        assertNotNull(saved.getValue().getLastImportedAt());
+
+        @SuppressWarnings("unchecked")
+        final ArgumentCaptor<Map<String, Object>> details =
+                ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService).log(eq("RDB_WATERMARK_SET_MANUAL"),
+                eq("RelationalDbDataSource"), eq("ds-1"), details.capture());
+        assertEquals("100", details.getValue().get("from"));
+        assertEquals("9999", details.getValue().get("to"));
+    }
+
+    @Test
+    void setWatermarkManuallyRejectsBlankValue() {
+        // Use Reset to clear; this endpoint requires a positive value.
+        final RelationalDbDataSource src = new RelationalDbDataSource();
+        src.setId("ds-1");
+        when(rdbRepository.findById("ds-1")).thenReturn(Optional.of(src));
+        final RedirectAttributes ra = flash();
+
+        controller.setRdbWatermark("ds-1", "   ", ra);
+
+        assertNotNull(error(ra));
+        assertTrue(error(ra).toLowerCase().contains("required"));
+        verify(rdbRepository, never()).save(any());
+    }
+
+    @Test
+    void setWatermarkManuallyRejectsOversizedValue() {
+        // Defence in depth — admin-only endpoint, but a typo or paste-error
+        // shouldn't blow up the source row and the audit log details. The
+        // 256-char cap is well above any realistic watermark (UUID = 36,
+        // timestamp = 25, 64-bit int = 19); rejecting at the controller
+        // keeps a 10MB paste from landing in Mongo.
+        final RelationalDbDataSource src = new RelationalDbDataSource();
+        src.setId("ds-1");
+        when(rdbRepository.findById("ds-1")).thenReturn(Optional.of(src));
+        final RedirectAttributes ra = flash();
+
+        final String oversized = "x".repeat(
+                AdminDataSourceController.MAX_WATERMARK_LENGTH + 1);
+        controller.setRdbWatermark("ds-1", oversized, ra);
+
+        assertNotNull(error(ra));
+        assertTrue(error(ra).toLowerCase().contains("too long"),
+                "rejection must explain the length problem, got: " + error(ra));
+        verify(rdbRepository, never()).save(any());
+        verify(auditLogService, never()).log(eq("RDB_WATERMARK_SET_MANUAL"),
+                anyString(), anyString(), any());
+    }
+
+    @Test
+    void setWatermarkManuallyAcceptsAtTheLengthLimit() {
+        // Boundary check — exactly MAX_WATERMARK_LENGTH passes. Off-by-one
+        // would either accept oversized inputs or refuse the longest legal value.
+        final RelationalDbDataSource src = new RelationalDbDataSource();
+        src.setId("ds-1");
+        when(rdbRepository.findById("ds-1")).thenReturn(Optional.of(src));
+        final RedirectAttributes ra = flash();
+
+        final String atLimit = "x".repeat(AdminDataSourceController.MAX_WATERMARK_LENGTH);
+        controller.setRdbWatermark("ds-1", atLimit, ra);
+
+        verify(rdbRepository).save(any());
+        verify(auditLogService).log(eq("RDB_WATERMARK_SET_MANUAL"),
+                anyString(), anyString(), any());
     }
 }

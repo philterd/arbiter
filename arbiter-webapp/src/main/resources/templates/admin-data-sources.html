@@ -709,11 +709,30 @@
                     <div>
                         <label for="rdbSql" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">SQL query</label>
                         <textarea id="rdbSql" name="sqlQuery" rows="3" required
-                                  placeholder="SELECT body FROM documents WHERE imported_at IS NULL"
+                                  placeholder="SELECT body, doc_path AS filename, id FROM documents WHERE id &gt; COALESCE(:lastKey::bigint, 0) ORDER BY id"
                                   th:text="${rdbFormSqlQuery}"
                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
                         <p class="mt-1 text-xs text-gray-500">
-                            The first column of each returned row is treated as the document text.
+                            Column&nbsp;1 holds the document text. An optional column
+                            named <code>filename</code> supplies the per-row filename.
+                            For incremental ingest, reference <code>:lastKey</code> in a
+                            <code>WHERE</code> predicate and name the watermark column
+                            below.
+                        </p>
+                    </div>
+                    <div>
+                        <label for="rdbWatermarkColumn" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
+                            Watermark column <span class="text-gray-400 normal-case font-normal">(optional)</span>
+                        </label>
+                        <input id="rdbWatermarkColumn" name="watermarkColumn" type="text"
+                               placeholder="id"
+                               th:value="${rdbFormWatermarkColumn}"
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <p class="mt-1 text-xs text-gray-500">
+                            Result-column name whose value is read from each row and used as the
+                            watermark for the next run. Pair this with a <code>:lastKey</code>
+                            placeholder and an <code>ORDER&nbsp;BY</code> on the same column in
+                            the SQL above. Leave blank to do a full-scan ingest each time.
                         </p>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 items-end">
@@ -751,12 +770,13 @@
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">JDBC URL</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Watermark</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
                         <tr th:if="${#lists.isEmpty(rdbDataSources)}">
-                            <td colspan="3" class="px-6 py-8 text-center text-sm text-gray-500">
+                            <td colspan="4" class="px-6 py-8 text-center text-sm text-gray-500">
                                 No relational database data sources registered yet.
                             </td>
                         </tr>
@@ -765,6 +785,24 @@
                                 th:text="${r.name}">name</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono"
                                 th:text="${r.jdbcUrl}">jdbc:postgresql://host/db</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700">
+                                <!-- Three states: not configured, configured-but-never-run, advanced. -->
+                                <span th:if="${r.watermarkColumn == null or #strings.isEmpty(r.watermarkColumn)}"
+                                      class="text-gray-400">Not used</span>
+                                <span th:if="${r.watermarkColumn != null and !#strings.isEmpty(r.watermarkColumn) and r.lastImportedKey == null}"
+                                      class="text-gray-500">
+                                    <span class="font-mono" th:text="${r.watermarkColumn}">col</span>
+                                    <span class="text-gray-400">— not yet advanced</span>
+                                </span>
+                                <span th:if="${r.lastImportedKey != null}">
+                                    <span class="font-mono" th:text="${r.watermarkColumn}">col</span>
+                                    <span class="text-gray-400 mx-1">@</span>
+                                    <span class="font-mono" th:text="${r.lastImportedKey}">12345</span>
+                                    <span th:if="${r.lastImportedAt != null}"
+                                          class="block text-xs text-gray-400"
+                                          th:text="|advanced ${#temporals.format(r.lastImportedAt, 'yyyy-MM-dd HH:mm z', 'UTC')}|">advanced …</span>
+                                </span>
+                            </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <button type="button"
                                         class="edit-rdb-btn text-blue-600 hover:text-blue-800 font-medium mr-3"
@@ -772,6 +810,8 @@
                                                  data-rdb-name=${r.name},
                                                  data-rdb-jdbc-url=${r.jdbcUrl == null ? '' : r.jdbcUrl},
                                                  data-rdb-sql=${r.sqlQuery == null ? '' : r.sqlQuery},
+                                                 data-rdb-watermark-column=${r.watermarkColumn == null ? '' : r.watermarkColumn},
+                                                 data-rdb-has-watermark=${r.lastImportedKey != null},
                                                  data-rdb-has-username=${r.encryptedUsername != null and !#strings.isEmpty(r.encryptedUsername)},
                                                  data-rdb-has-password=${r.encryptedPassword != null and !#strings.isEmpty(r.encryptedPassword)}">
                                     Edit
@@ -782,6 +822,14 @@
                                                  data-rdb-name=${r.name}">
                                     Preview
                                 </button>
+                                <!-- Only show Reset when a watermark actually exists to clear. -->
+                                <form th:if="${r.lastImportedKey != null}"
+                                      th:action="@{/admin/data-sources/rdb/{id}/reset-watermark(id=${r.id})}"
+                                      method="post"
+                                      class="inline confirm-delete-form mr-3"
+                                      th:attr="data-confirm-message=|Reset the watermark on &quot;${r.name}&quot;? The next run will start from scratch; already-imported documents will be skipped by filename dedupe.|">
+                                    <button type="submit" class="text-amber-700 hover:text-amber-900 font-medium">Reset watermark</button>
+                                </form>
                                 <form th:action="@{/admin/data-sources/rdb/{id}/delete(id=${r.id})}" method="post"
                                       class="inline confirm-delete-form"
                                       th:attr="data-confirm-message=|Delete the relational database data source &quot;${r.name}&quot;? This action cannot be undone.|">
@@ -1020,8 +1068,20 @@
                 <div>
                     <label for="rdbEditSql" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">SQL query</label>
                     <textarea id="rdbEditSql" name="sqlQuery" rows="4" required
-                              placeholder="SELECT text, filename FROM documents"
+                              placeholder="SELECT body, doc_path AS filename, id FROM documents WHERE id > COALESCE(:lastKey::bigint, 0) ORDER BY id"
                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+                <div>
+                    <label for="rdbEditWatermarkColumn" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
+                        Watermark column <span class="text-gray-400 normal-case font-normal">(optional)</span>
+                    </label>
+                    <input id="rdbEditWatermarkColumn" name="watermarkColumn" type="text"
+                           placeholder="id"
+                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <p class="mt-1 text-xs text-gray-500">
+                        Pair with a <code>:lastKey</code> placeholder + <code>ORDER&nbsp;BY</code>
+                        on the same column for incremental ingest. Leave blank for full-scan.
+                    </p>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
@@ -1043,6 +1103,16 @@
                 <label class="flex items-center text-xs text-gray-700">
                     <input id="rdbEditClearCreds" name="clearCredentials" type="checkbox" value="true" class="mr-2">
                     Clear the stored credentials (fall back to JDBC-URL / driver auth)
+                </label>
+                <!-- Shown by JS only when the row being edited has an active watermark AND
+                     the operator changes the SQL or watermark column. The controller refuses
+                     the save without this confirmation. -->
+                <label id="rdbEditConfirmResetRow"
+                       class="hidden flex items-center text-xs text-amber-900 bg-amber-50 border border-amber-200 rounded-lg p-2">
+                    <input id="rdbEditConfirmReset" name="confirmResetWatermark" type="checkbox" value="true" class="mr-2">
+                    Reset the watermark to start from scratch on the next run. (Required
+                    when changing the SQL or watermark column on a source that has
+                    already advanced its watermark.)
                 </label>
             </div>
             <div class="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-200">
@@ -1232,13 +1302,35 @@
             const nameSpan = document.getElementById('rdbEditName');
             const urlEl = document.getElementById('rdbEditJdbcUrl');
             const sqlEl = document.getElementById('rdbEditSql');
+            const watermarkEl = document.getElementById('rdbEditWatermarkColumn');
             const userEl = document.getElementById('rdbEditUsername');
             const passEl = document.getElementById('rdbEditPassword');
             const clearEl = document.getElementById('rdbEditClearCreds');
+            const confirmResetRow = document.getElementById('rdbEditConfirmResetRow');
+            const confirmResetEl = document.getElementById('rdbEditConfirmReset');
             const closeBtn = document.getElementById('rdbEditClose');
             const cancelBtn = document.getElementById('rdbEditCancel');
 
             function close() { modal.classList.add('hidden'); }
+
+            // Track the values the modal opened with so we can decide whether to
+            // surface the "reset watermark" confirmation. The controller refuses
+            // the save without it when the SQL or watermark column has changed
+            // on a source that already has an active watermark.
+            let initialSql = '';
+            let initialWatermarkColumn = '';
+            let hasActiveWatermark = false;
+
+            function updateConfirmResetVisibility() {
+                const changed = (sqlEl.value !== initialSql)
+                        || (watermarkEl.value !== initialWatermarkColumn);
+                if (hasActiveWatermark && changed) {
+                    confirmResetRow.classList.remove('hidden');
+                } else {
+                    confirmResetRow.classList.add('hidden');
+                    confirmResetEl.checked = false;
+                }
+            }
 
             document.querySelectorAll('.edit-rdb-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -1247,9 +1339,15 @@
                     nameSpan.textContent = btn.getAttribute('data-rdb-name') || '';
                     urlEl.value = btn.getAttribute('data-rdb-jdbc-url') || '';
                     sqlEl.value = btn.getAttribute('data-rdb-sql') || '';
+                    watermarkEl.value = btn.getAttribute('data-rdb-watermark-column') || '';
                     userEl.value = '';
                     passEl.value = '';
                     clearEl.checked = false;
+                    confirmResetEl.checked = false;
+                    initialSql = sqlEl.value;
+                    initialWatermarkColumn = watermarkEl.value;
+                    hasActiveWatermark = btn.getAttribute('data-rdb-has-watermark') === 'true';
+                    updateConfirmResetVisibility();
                     const hasUser = btn.getAttribute('data-rdb-has-username') === 'true';
                     const hasPass = btn.getAttribute('data-rdb-has-password') === 'true';
                     userEl.placeholder = hasUser
@@ -1261,6 +1359,11 @@
                     modal.classList.remove('hidden');
                 });
             });
+
+            // React to live edits so the warning appears as soon as the operator
+            // touches the SQL or watermark column on a source that has advanced.
+            sqlEl.addEventListener('input', updateConfirmResetVisibility);
+            watermarkEl.addEventListener('input', updateConfirmResetVisibility);
 
             closeBtn.addEventListener('click', close);
             cancelBtn.addEventListener('click', close);

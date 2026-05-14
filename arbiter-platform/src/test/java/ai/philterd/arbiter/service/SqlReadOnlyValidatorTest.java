@@ -333,4 +333,47 @@ class SqlReadOnlyValidatorTest {
         assertAccepted("SELECT id, body FROM documents WHERE label = 'outfile-archive'");
         assertAccepted("WITH d AS (SELECT id FROM documents) SELECT * FROM d");
     }
+
+    // ---------- :lastKey watermark placeholder ----------
+
+    @Test
+    void selectWithLastKeyPlaceholderIsAccepted() {
+        // The canonical incremental-ingest shape. :lastKey is substituted with
+        // a harmless empty string literal before the other safeguards run, so
+        // the SELECT, the ORDER BY, and the COALESCE all parse cleanly.
+        assertAccepted("SELECT body, id AS filename FROM documents "
+                + "WHERE id > COALESCE(:lastKey::bigint, 0) ORDER BY id");
+    }
+
+    @Test
+    void lastKeyDoesNotSmuggleMutatingKeywordsPastValidation() {
+        // The validator's substitution replaces :lastKey with a single empty
+        // string literal — it can't be used as a wedge for DELETE / multi-
+        // statement injection. The two checks (mutating-keyword scan, then
+        // semicolon refusal) BOTH catch these examples; either rejection is
+        // a valid outcome.
+        final SqlReadOnlyValidator.Result semi = SqlReadOnlyValidator.validate(
+                "SELECT body FROM documents WHERE id > :lastKey; DELETE FROM users");
+        assertFalse(semi.ok(), "semicolon+DELETE form must be rejected");
+        assertNotNull(semi.error());
+        // The mutating-keyword scan runs first in the validator's pipeline, so
+        // DELETE is named in the error before the semicolon check fires. Accept
+        // either signal as evidence the rule tripped.
+        assertTrue(semi.error().toLowerCase().contains("delete")
+                        || semi.error().toLowerCase().contains("semicolon"),
+                "expected DELETE or semicolon rejection, got: " + semi.error());
+
+        // UNION ALL DELETE — pure mutation-keyword case, no semicolon involved.
+        assertRejected("SELECT body FROM documents WHERE id > :lastKey AND deleted_at IS NULL "
+                + "UNION ALL DELETE FROM users", "DELETE");
+    }
+
+    @Test
+    void multipleLastKeyOccurrencesAreAllSubstituted() {
+        // The canonical shape only uses :lastKey once, but a query that
+        // references it twice (e.g. inside both WHERE and a HAVING) must also
+        // pass — perl-style substitution is global, not first-match.
+        assertAccepted("SELECT body, id AS filename FROM documents "
+                + "WHERE id > :lastKey AND priority > :lastKey ORDER BY id");
+    }
 }

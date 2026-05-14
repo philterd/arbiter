@@ -22,10 +22,10 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -61,7 +61,7 @@ class RdbIngestJobServiceTest {
     // Each test plugs the connection's stmt → rs chain into these fields so the
     // factory below returns a Connection that issues exactly what the test wants.
     private Connection stubConnection;
-    private Statement stubStatement;
+    private PreparedStatement stubStatement;
 
     @BeforeEach
     void setUp() throws SQLException {
@@ -91,9 +91,10 @@ class RdbIngestJobServiceTest {
         importLogService = mock(DataImportLogService.class);
 
         stubConnection = mock(Connection.class);
-        stubStatement = mock(Statement.class);
-        when(stubConnection.createStatement(anyInt(), anyInt())).thenReturn(stubStatement);
-        // setMaxRows / setQueryTimeout / setFetchSize: nothing to stub, they're void.
+        stubStatement = mock(PreparedStatement.class);
+        when(stubConnection.prepareStatement(anyString(), anyInt(), anyInt()))
+                .thenReturn(stubStatement);
+        // setMaxRows / setQueryTimeout / setFetchSize / setString: nothing to stub, they're void.
 
         service = new RdbIngestJobService(jobRepository, dataSourceRepository, batchRepository,
                 documentRepository, ingestQueueService, cipher, inboxService,
@@ -197,7 +198,7 @@ class RdbIngestJobServiceTest {
                         {"alpha body", "a.txt"},
                         {"bravo body", "b.txt"}
                 });
-        when(stubStatement.executeQuery(src.getSqlQuery())).thenReturn(rs);
+        when(stubStatement.executeQuery()).thenReturn(rs);
 
         // Job pre-saved in PENDING state — that's what run() reads on entry.
         final BackgroundJob pending = pendingJob("job-1", src, batch);
@@ -235,7 +236,7 @@ class RdbIngestJobServiceTest {
                         {"alpha body"},
                         {"bravo body"}
                 });
-        when(stubStatement.executeQuery(src.getSqlQuery())).thenReturn(rs);
+        when(stubStatement.executeQuery()).thenReturn(rs);
         when(jobRepository.findById("job-1")).thenReturn(Optional.of(pendingJob("job-1", src, batch)));
 
         service.run("job-1");
@@ -258,7 +259,7 @@ class RdbIngestJobServiceTest {
                         {"alpha body", "a.txt"},   // already imported
                         {"bravo body", "b.txt"}    // new
                 });
-        when(stubStatement.executeQuery(src.getSqlQuery())).thenReturn(rs);
+        when(stubStatement.executeQuery()).thenReturn(rs);
         when(jobRepository.findById("job-1")).thenReturn(Optional.of(pendingJob("job-1", src, batch)));
         when(documentRepository.existsBySourceIndexAndSourceDocId("src-1", "a.txt"))
                 .thenReturn(true);
@@ -283,7 +284,7 @@ class RdbIngestJobServiceTest {
                         {null, "a.txt"},
                         {"bravo body", "b.txt"}
                 });
-        when(stubStatement.executeQuery(src.getSqlQuery())).thenReturn(rs);
+        when(stubStatement.executeQuery()).thenReturn(rs);
         final BackgroundJob pending = pendingJob("job-1", src, batch);
         when(jobRepository.findById("job-1")).thenReturn(Optional.of(pending));
 
@@ -301,7 +302,7 @@ class RdbIngestJobServiceTest {
         final Batch batch = batch("b-1");
         primeForRun(src, batch);
 
-        when(stubStatement.executeQuery(src.getSqlQuery()))
+        when(stubStatement.executeQuery())
                 .thenThrow(new SQLException("relation \"documents\" does not exist", "42P01"));
         final BackgroundJob pending = pendingJob("job-1", src, batch);
         when(jobRepository.findById("job-1")).thenReturn(Optional.of(pending));
@@ -380,6 +381,191 @@ class RdbIngestJobServiceTest {
         j.setPriority(2);
         j.setCreatedBy("alice@x.com");
         return j;
+    }
+
+    // ---------- watermark (:lastKey substitution + advance) ----------
+
+    @Test
+    void firstRunSubstitutesNullForLastKeyAndDoesNotBindParameter() throws SQLException {
+        // A source with watermark enabled but no stored value yet. The
+        // canonical COALESCE(:lastKey, 0) pattern needs the worker to put a
+        // SQL literal NULL into the query, NOT a bound parameter (binding a
+        // null String would still require setString and break drivers that
+        // can't type-coerce a null bind).
+        final RelationalDbDataSource src = source("src-1");
+        src.setSqlQuery("SELECT body, id AS _wm FROM documents "
+                + "WHERE id > COALESCE(:lastKey::bigint, 0) ORDER BY id");
+        src.setWatermarkColumn("_wm");
+        src.setLastImportedKey(null);
+        final Batch batch = batch("b-1");
+        primeForRun(src, batch);
+
+        final ResultSet __rs = resultSetWith(new String[]{"body", "_wm"}, new String[][]{});
+        when(stubStatement.executeQuery()).thenReturn(__rs);
+        when(jobRepository.findById("job-1")).thenReturn(Optional.of(pendingJob("job-1", src, batch)));
+
+        service.run("job-1");
+
+        // The placeholder is replaced by the literal NULL before prepare().
+        final ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(stubConnection).prepareStatement(sql.capture(), anyInt(), anyInt());
+        assertTrue(sql.getValue().contains("COALESCE(NULL::bigint, 0)"),
+                "first-run SQL must inline NULL for :lastKey, got: " + sql.getValue());
+        // ...and no parameter is bound because there's no placeholder left.
+        verify(stubStatement, never()).setString(anyInt(), anyString());
+    }
+
+    @Test
+    void subsequentRunBindsStoredKeyAsParameter() throws SQLException {
+        // Source has run before. The placeholder becomes "?" and the stored
+        // value is bound. Verify the SQL and the bound argument.
+        final RelationalDbDataSource src = source("src-1");
+        src.setSqlQuery("SELECT body, id AS _wm FROM documents "
+                + "WHERE id > :lastKey ORDER BY id");
+        src.setWatermarkColumn("_wm");
+        src.setLastImportedKey("12345");
+        final Batch batch = batch("b-1");
+        primeForRun(src, batch);
+
+        final ResultSet __rs = resultSetWith(new String[]{"body", "_wm"}, new String[][]{});
+        when(stubStatement.executeQuery()).thenReturn(__rs);
+        when(jobRepository.findById("job-1")).thenReturn(Optional.of(pendingJob("job-1", src, batch)));
+
+        service.run("job-1");
+
+        final ArgumentCaptor<String> sql = ArgumentCaptor.forClass(String.class);
+        verify(stubConnection).prepareStatement(sql.capture(), anyInt(), anyInt());
+        assertTrue(sql.getValue().contains("id > ?"),
+                "stored-key SQL must use a bind parameter, got: " + sql.getValue());
+        verify(stubStatement).setString(eq(1), eq("12345"));
+    }
+
+    @Test
+    void sourceWithoutLastKeyPlaceholderRunsUnchanged() throws SQLException {
+        // Backwards compatibility: a source whose SQL has no :lastKey at all
+        // must continue to behave exactly as before — no substitution, no
+        // bind, full-scan ingest.
+        final RelationalDbDataSource src = source("src-1");
+        src.setSqlQuery("SELECT body FROM documents WHERE imported_at IS NULL");
+        src.setWatermarkColumn(null);
+        src.setLastImportedKey(null);
+        final Batch batch = batch("b-1");
+        primeForRun(src, batch);
+
+        final ResultSet __rs = resultSetWith(new String[]{"body"}, new String[][]{});
+        when(stubStatement.executeQuery()).thenReturn(__rs);
+        when(jobRepository.findById("job-1")).thenReturn(Optional.of(pendingJob("job-1", src, batch)));
+
+        service.run("job-1");
+
+        verify(stubConnection).prepareStatement(eq(src.getSqlQuery()), anyInt(), anyInt());
+        verify(stubStatement, never()).setString(anyInt(), anyString());
+    }
+
+    @Test
+    void successfulRunAdvancesWatermarkToLastSeenValue() throws SQLException {
+        final RelationalDbDataSource src = source("src-1");
+        src.setSqlQuery("SELECT body, id AS _wm FROM documents "
+                + "WHERE id > COALESCE(:lastKey::bigint, 0) ORDER BY id");
+        src.setWatermarkColumn("_wm");
+        src.setLastImportedKey("100");
+        final Batch batch = batch("b-1");
+        primeForRun(src, batch);
+
+        // Three rows; the watermark column holds 101, 102, 103. Because the
+        // admin's SQL orders by it, "last-seen" equals "max-seen".
+        final ResultSet __rs = resultSetWith(
+                new String[]{"body", "_wm"},
+                new String[][]{
+                        {"row 101", "101"},
+                        {"row 102", "102"},
+                        {"row 103", "103"}
+                });
+        when(stubStatement.executeQuery()).thenReturn(__rs);
+        when(jobRepository.findById("job-1")).thenReturn(Optional.of(pendingJob("job-1", src, batch)));
+
+        service.run("job-1");
+
+        final ArgumentCaptor<RelationalDbDataSource> saved =
+                ArgumentCaptor.forClass(RelationalDbDataSource.class);
+        verify(dataSourceRepository).save(saved.capture());
+        assertEquals("103", saved.getValue().getLastImportedKey(),
+                "watermark must advance to the last-seen value after a successful run");
+        assertNotNull(saved.getValue().getLastImportedAt(),
+                "lastImportedAt must be stamped when the watermark advances");
+        verify(auditLogService).log(eq("RDB_WATERMARK_ADVANCE"),
+                eq("RelationalDbDataSource"), eq("src-1"), any());
+    }
+
+    @Test
+    void watermarkDoesNotAdvanceWhenNoColumnIsConfigured() throws SQLException {
+        final RelationalDbDataSource src = source("src-1");
+        src.setSqlQuery("SELECT body FROM documents");
+        src.setWatermarkColumn(null);                // not configured
+        src.setLastImportedKey(null);
+        final Batch batch = batch("b-1");
+        primeForRun(src, batch);
+
+        final ResultSet __rs = resultSetWith(
+                new String[]{"body"},
+                new String[][]{{"row 1"}});
+        when(stubStatement.executeQuery()).thenReturn(__rs);
+        when(jobRepository.findById("job-1")).thenReturn(Optional.of(pendingJob("job-1", src, batch)));
+
+        service.run("job-1");
+
+        // The data source is never saved on the watermark path — the source
+        // only gets persisted again if the watermark column is configured AND
+        // a non-null value was seen AND it's different from the stored one.
+        verify(dataSourceRepository, never()).save(any(RelationalDbDataSource.class));
+        verify(auditLogService, never()).log(eq("RDB_WATERMARK_ADVANCE"),
+                anyString(), anyString(), any());
+    }
+
+    @Test
+    void watermarkDoesNotAdvanceWhenSqlExceptionOccurs() throws SQLException {
+        // The advance only runs after processRows() returns normally, which
+        // doesn't happen if executeQuery throws. The stored watermark must
+        // be untouched so the next run picks up where this one started.
+        final RelationalDbDataSource src = source("src-1");
+        src.setSqlQuery("SELECT body, id AS _wm FROM documents WHERE id > :lastKey ORDER BY id");
+        src.setWatermarkColumn("_wm");
+        src.setLastImportedKey("50");
+        final Batch batch = batch("b-1");
+        primeForRun(src, batch);
+
+        when(stubStatement.executeQuery())
+                .thenThrow(new SQLException("connection reset"));
+        when(jobRepository.findById("job-1")).thenReturn(Optional.of(pendingJob("job-1", src, batch)));
+
+        service.run("job-1");
+
+        verify(dataSourceRepository, never()).save(any(RelationalDbDataSource.class));
+        verify(auditLogService, never()).log(eq("RDB_WATERMARK_ADVANCE"),
+                anyString(), anyString(), any());
+    }
+
+    @Test
+    void watermarkDoesNotMoveWhenLastSeenEqualsCurrentValue() throws SQLException {
+        // No-op advance: if the cursor returned no new rows, the watermark
+        // column never produces a value, and the source stays untouched.
+        // (This is the common "no new rows since last run" steady state for
+        // a scheduled incremental ingest.)
+        final RelationalDbDataSource src = source("src-1");
+        src.setSqlQuery("SELECT body, id AS _wm FROM documents WHERE id > :lastKey ORDER BY id");
+        src.setWatermarkColumn("_wm");
+        src.setLastImportedKey("999");
+        final Batch batch = batch("b-1");
+        primeForRun(src, batch);
+
+        final ResultSet __rs = resultSetWith(
+                new String[]{"body", "_wm"}, new String[][]{});
+        when(stubStatement.executeQuery()).thenReturn(__rs);
+        when(jobRepository.findById("job-1")).thenReturn(Optional.of(pendingJob("job-1", src, batch)));
+
+        service.run("job-1");
+
+        verify(dataSourceRepository, never()).save(any(RelationalDbDataSource.class));
     }
 
     /**

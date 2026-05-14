@@ -114,6 +114,15 @@ public final class SqlReadOnlyValidator {
     }
 
     /**
+     * Watermark-substitution placeholder. Replaced with a single-quoted empty
+     * string at validation time so the SQL is otherwise unchanged — any
+     * disallowed keyword or multi-statement injection smuggled around the
+     * placeholder still trips the safeguards below. The worker performs a
+     * different substitution at execution time (see {@code RdbIngestJobService}).
+     */
+    public static final String WATERMARK_PLACEHOLDER = ":lastKey";
+
+    /**
      * Inspect a SQL string and return whether it is safe to store as a read-only
      * data-source query. Returns the most specific applicable error on rejection.
      */
@@ -128,10 +137,16 @@ public final class SqlReadOnlyValidator {
                     + "queries. Use single-quoted string literals.");
         }
 
+        // Substitute the watermark placeholder with a harmless string literal so
+        // the rest of the safeguards see executable SQL with no surprises. The
+        // substitution is deliberately conservative — ":lastKey" only, no other
+        // templating — so an admin can't smuggle bytes through this layer.
+        final String withPlaceholder = sql.replace(WATERMARK_PLACEHOLDER, "''");
+
         // Strip block + line comments, then single-quoted string literals. After this
         // the remaining text is executable SQL only — any keyword we see here is
         // genuinely intended to run on the remote database.
-        String stripped = BLOCK_COMMENT.matcher(sql).replaceAll(" ");
+        String stripped = BLOCK_COMMENT.matcher(withPlaceholder).replaceAll(" ");
         stripped = LINE_COMMENT.matcher(stripped).replaceAll(" ");
         stripped = STRING_LITERAL.matcher(stripped).replaceAll("''");
 

@@ -477,6 +477,109 @@ public class AuthorizationIntegrationTest {
     }
 
     // ---------------------------------------------------------------------
+    // RDB watermark write endpoints (reset / set-manual): admin-only, CSRF-protected
+    // ---------------------------------------------------------------------
+    //
+    // These endpoints sit under /admin/data-sources/rdb/{id}/(reset|set)-watermark
+    // and inherit the standard /admin/** gating:
+    //   - GET on /admin/** — admin OR auditor
+    //   - any other method on /admin/** — admin only
+    //   - AuditorWriteRejectFilter denies any auditor write that slipped through
+    //   - CSRF token required (admin/** is NOT in csrf.ignoringRequestMatchers)
+    //
+    // AdminDataSourceController is not in this @WebMvcTest's controller list, so
+    // a request that passes the security gate reaches Spring MVC's dispatcher and
+    // 404s. That's the signal we use to assert "security allowed it through" —
+    // anything that does NOT 404 (i.e. 401/403/302) tells us the security gate
+    // refused before the controller would have run.
+
+    @Test
+    void anonymousCannotPostRdbWatermarkReset() throws Exception {
+        final int status = mockMvc.perform(
+                        post("/admin/data-sources/rdb/some-id/reset-watermark").with(csrf()))
+                .andReturn().getResponse().getStatus();
+        assertTrue(status == 401 || (status >= 300 && status < 400),
+                "anonymous POST should be 401 or redirect, was " + status);
+    }
+
+    @Test
+    void anonymousCannotPostRdbWatermarkSet() throws Exception {
+        final int status = mockMvc.perform(
+                        post("/admin/data-sources/rdb/some-id/set-watermark")
+                                .param("watermark", "12345").with(csrf()))
+                .andReturn().getResponse().getStatus();
+        assertTrue(status == 401 || (status >= 300 && status < 400),
+                "anonymous POST should be 401 or redirect, was " + status);
+    }
+
+    @Test
+    void userRoleForbiddenFromRdbWatermarkWrites() throws Exception {
+        // Reviewers / annotators / API-key holders must never reach admin writes —
+        // these endpoints can move the cursor on data ingestion, which is an
+        // operator concern by design.
+        mockMvc.perform(post("/admin/data-sources/rdb/some-id/reset-watermark")
+                        .with(user("u").roles("USER")).with(csrf()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/admin/data-sources/rdb/some-id/set-watermark")
+                        .param("watermark", "12345")
+                        .with(user("u").roles("USER")).with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void auditorRoleForbiddenFromRdbWatermarkWrites() throws Exception {
+        // Auditors can READ admin pages (the watermark value is visible on the
+        // data-sources listing), but cannot WRITE to them. Two filters enforce
+        // this — the path matcher's other-than-GET rule and AuditorWriteRejectFilter
+        // — so even if a refactor removed one, the other would still hold.
+        mockMvc.perform(post("/admin/data-sources/rdb/some-id/reset-watermark")
+                        .with(user("a").roles("AUDITOR")).with(csrf()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/admin/data-sources/rdb/some-id/set-watermark")
+                        .param("watermark", "12345")
+                        .with(user("a").roles("AUDITOR")).with(csrf()))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminWithoutCsrfRejectedFromRdbWatermarkWrites() throws Exception {
+        // CSRF token requirement isn't path-specific — every admin POST needs it.
+        // Pinning the explicit test here means a refactor that accidentally adds
+        // /admin/data-sources/** to the CSRF ignoring list trips immediately.
+        mockMvc.perform(post("/admin/data-sources/rdb/some-id/reset-watermark")
+                        .with(user("a").roles("ADMIN")))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/admin/data-sources/rdb/some-id/set-watermark")
+                        .param("watermark", "12345")
+                        .with(user("a").roles("ADMIN")))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    void adminWithCsrfPassesGateForRdbWatermarkWrites() throws Exception {
+        // Sanity check: a valid admin POST with CSRF passes the security gate.
+        // The AdminDataSourceController isn't loaded in this @WebMvcTest, so we
+        // get a 404 from the dispatcher — but specifically NOT a 403, which
+        // would mean the security gate denied. Anything other than 403 proves
+        // the security gate allowed it.
+        mockMvc.perform(post("/admin/data-sources/rdb/some-id/reset-watermark")
+                        .with(user("a").roles("ADMIN")).with(csrf()))
+                .andExpect(result -> {
+                    final int s = result.getResponse().getStatus();
+                    assertTrue(s != 403 && s != 401,
+                            "admin POST with CSRF must pass the security gate (saw " + s + ")");
+                });
+        mockMvc.perform(post("/admin/data-sources/rdb/some-id/set-watermark")
+                        .param("watermark", "12345")
+                        .with(user("a").roles("ADMIN")).with(csrf()))
+                .andExpect(result -> {
+                    final int s = result.getResponse().getStatus();
+                    assertTrue(s != 403 && s != 401,
+                            "admin POST with CSRF must pass the security gate (saw " + s + ")");
+                });
+    }
+
+    // ---------------------------------------------------------------------
     // Defence-in-depth response headers (finding #8)
     // ---------------------------------------------------------------------
 

@@ -187,13 +187,14 @@ attachment mechanics differ.
 
 ### Relational Database
 
-| Field     | Required | Notes                                                                     |
-| --------- | -------- | ------------------------------------------------------------------------- |
-| Name      | yes      | Unique among RDB sources                                                   |
-| JDBC URL  | yes      | Standard JDBC URL, e.g. `jdbc:postgresql://host:5432/dbname`               |
-| SQL query | yes      | Query whose **first column** of each row is treated as the document text   |
-| Username  | no       | Encrypted at rest                                                          |
-| Password  | no       | Encrypted at rest                                                          |
+| Field             | Required | Notes                                                                     |
+| ----------------- | -------- | ------------------------------------------------------------------------- |
+| Name              | yes      | Unique among RDB sources                                                   |
+| JDBC URL          | yes      | Standard JDBC URL, e.g. `jdbc:postgresql://host:5432/dbname`               |
+| SQL query         | yes      | `SELECT` whose **first column** holds the document text. An optional column named `filename` (case-insensitive) supplies the per-row filename. See [How rows map to documents](#how-rows-map-to-documents) below. |
+| Watermark column  | no       | Result-column name whose value Arbiter reads from each row and advances the per-source watermark to on a successful run. Pair with a `:lastKey` placeholder in the SQL above for incremental ingest — see [Incremental ingest with watermarks](#incremental-ingest-with-watermarks) below. Leave blank for a full-scan ingest each time. |
+| Username          | no       | Encrypted at rest                                                          |
+| Password          | no       | Encrypted at rest                                                          |
 
 Username and password are validated as a pair — provide both or neither.
 Leaving them blank means the runtime will rely on credentials embedded in the
@@ -215,20 +216,193 @@ section below).
 The match is whole-word-only, so legitimate column names like
 `dropoff_count` or `deleted_at` do not trigger the safeguard.
 
+#### How rows map to documents
+
+Each row in the result set becomes one document. Arbiter reads two
+things from every row:
+
+- **Document text** — the value of **column 1** of the SELECT list,
+  whatever the admin called it. This is a *positional* lookup: the
+  column's name is irrelevant; only its position matters. A row whose
+  first column is `NULL` or empty is recorded as a failure with reason
+  *"Row N has a null/empty first column (no document text)"* and never
+  becomes a document.
+
+- **Filename** — the value of a column named `filename`, looked up by
+  name (case-insensitive — `Filename`, `FILENAME`, and `filename` all
+  match). The value is used verbatim — no extension is added, no
+  characters are stripped. When the column is absent, or present but
+  null/empty for that row, the worker synthesises `row-1.txt`,
+  `row-2.txt`, … using the 1-based row index within the current run.
+
+The conventional query shape:
+
+```sql
+SELECT body, doc_path AS filename, ...
+       ^^^^                          ← text (column 1, name irrelevant)
+              ^^^^^^^^^^^^^^^^^^^^^  ← optional, looked up by name
+FROM documents WHERE imported_at IS NULL
+```
+
+A `SELECT *` works as long as the schema happens to put the text column
+first; explicit aliasing is safer.
+
+> **Filenames are the dedupe key.** Arbiter records
+> `(data-source id, filename)` for every imported row and skips
+> subsequent rows with the same key. If you rely on the synthesised
+> `row-N.txt` fallback and the underlying table is later reordered or
+> rows are inserted in the middle of the existing set, the same
+> *content* will be assigned a *different* synthesised filename on the
+> next run and re-imported. Returning a stable per-row identifier
+> (primary key, content hash, etc.) as `filename` is strongly preferred
+> for any source you intend to re-ingest incrementally.
+
+#### Incremental ingest with watermarks
+
+A source that fills in the **Watermark column** field uses a keyset
+cursor instead of a full table scan. Each run only sees rows the
+previous run hasn't already imported, so a daily-scheduled ingest
+against a 10-million-row table doesn't re-read the whole 10M every
+night — it picks up only what's new.
+
+The mechanism has three moving parts:
+
+1. **The `:lastKey` placeholder in the SQL.** Reference it in a `WHERE`
+   predicate against the same column you name as the watermark.
+   Arbiter substitutes the stored watermark value at execution time:
+   - On the **first run** (or after a reset), `:lastKey` becomes the
+     SQL literal `NULL`. Use `COALESCE(:lastKey, …)` to pick a starting
+     floor.
+   - On every **subsequent run**, `:lastKey` becomes a bound JDBC
+     parameter holding the value of the watermark column from the
+     last row of the previous run.
+
+2. **The Watermark column.** Names the result column whose value
+   Arbiter reads from each row. After a successful run completes,
+   the source's stored watermark is advanced to that column's
+   last-seen value (which, given `ORDER BY` on the same column, is
+   also the largest value seen) and an `RDB_WATERMARK_ADVANCE` audit
+   row is written. Only successful runs advance the watermark — a
+   crash mid-cursor leaves it untouched, and the next run resumes
+   from where the previous one started.
+
+3. **The `ORDER BY` on the watermark column.** Without it the
+   "last-seen value" is whatever the database happened to emit last,
+   which is undefined for a `SELECT` without an `ORDER BY`. Arbiter
+   does not enforce this — it's the admin's responsibility. A missing
+   `ORDER BY` won't break ingest, but the watermark will advance
+   erratically and miss rows.
+
+The canonical incremental-ingest shape:
+
+=== "PostgreSQL"
+    ```sql
+    SELECT body,
+           doc_path                              AS filename,
+           id
+      FROM documents
+     WHERE id > COALESCE(:lastKey::bigint, 0)
+     ORDER BY id
+    ```
+    Watermark column: `id`.
+
+=== "MySQL / MariaDB"
+    ```sql
+    SELECT body,
+           doc_path                              AS filename,
+           id
+      FROM documents
+     WHERE id > COALESCE(CAST(:lastKey AS UNSIGNED), 0)
+     ORDER BY id
+    ```
+    Watermark column: `id`. Note the explicit `CAST` — MySQL's
+    implicit coercion against a bound `String` is unreliable for
+    range comparisons against an integer column.
+
+=== "SQL Server"
+    ```sql
+    SELECT body,
+           doc_path                              AS filename,
+           id
+      FROM documents
+     WHERE id > COALESCE(CAST(:lastKey AS BIGINT), 0)
+     ORDER BY id
+    ```
+    Watermark column: `id`. SQL Server **refuses** implicit
+    String → BIGINT casts, so the explicit `CAST` is mandatory rather
+    than recommended.
+
+=== "Oracle"
+    ```sql
+    SELECT body,
+           doc_path                              AS filename,
+           id
+      FROM documents
+     WHERE id > COALESCE(TO_NUMBER(:lastKey), 0)
+     ORDER BY id
+    ```
+    Watermark column: `id`.
+
+The watermark column doesn't have to be an integer. A monotonic
+timestamp works the same way (`WHERE updated_at > COALESCE(:lastKey,
+'1970-01-01')`), as does a UUIDv7 PK ordered lexically. The only hard
+requirements are that the column is **strictly monotonic across
+inserts you want to ingest** and that the SQL's `ORDER BY` matches.
+
+##### Changing the SQL or watermark column on an active source
+
+When a source has already advanced its watermark and the admin edits
+either the SQL or the watermark column, Arbiter refuses the save
+until the **Reset watermark** confirmation is checked on the Edit
+form. The reasoning is symmetric:
+
+- If the new SQL keeps the watermark **and** the meaning is
+  unchanged, the old value is still valid and the change shouldn't
+  reset it (so the operator unchecks the confirmation, which can't
+  be done unless they leave the relevant fields alone).
+- If the new SQL means something different — different table,
+  different ordering, different predicate — the old watermark would
+  either miss new rows or re-import old ones. The reset is then the
+  right call, and the explicit confirmation is the operator's
+  acknowledgement that they understand.
+
+The Edit modal shows the confirmation row only when the SQL or
+watermark column has actually changed on a source that has an active
+watermark; URL and credential edits don't require it.
+
+##### Manual watermark adjustments
+
+Two operator overrides are available on the Data Sources page:
+
+- **Reset watermark** clears the stored value, so the next run starts
+  from scratch (already-imported documents are still skipped via the
+  `(source-id, filename)` dedupe). Audited as `RDB_WATERMARK_RESET`.
+- **Set watermark manually** writes a specific value to the source.
+  Useful for skipping past a known-bad range, or seeding the cursor
+  before the first run so older rows are ignored. Audited as
+  `RDB_WATERMARK_SET_MANUAL`.
+
+##### When NOT to use a watermark
+
+If your source already filters to "new rows" some other way — e.g.
+the SQL has `WHERE imported_flag = 0` and your application sets
+`imported_flag = 1` out of band — leave **Watermark column** blank.
+The two mechanisms are independent; mixing them adds complexity for
+no benefit. The 100,000-row per-run cap still applies, so a source
+that needs to drain a backlog larger than that should use one of the
+two approaches (out-of-band flag or watermark) rather than relying
+on the cap to throttle.
+
 #### Running an ingest
 
 When the user clicks **Ingest from Relational Database** on the Add
 Documents page, the worker opens a JDBC connection using the stored URL
-and credentials, runs the saved SQL, and enqueues one document per row:
+and credentials, runs the saved SQL, and enqueues one document per row
+according to the column mapping above. The job is subject to:
 
-- **Document text** comes from the **first column** of each row.
-- **Filename** comes from a column named `filename` when present in the
-  result set (case-insensitive). When no such column is present, the
-  worker synthesises `row-1.txt`, `row-2.txt`, … so every row still has a
-  stable identifier.
-- **Dedupe** is keyed on `(data-source id, filename)`. Re-running the same
-  ingest doesn't double-import rows whose filename hasn't changed; new
-  rows go in and previously-seen filenames are recorded as **Skipped**.
+- **Dedupe** keyed on `(data-source id, filename)`. New rows go in;
+  previously-seen filenames are recorded as **Skipped** rather than
+  re-imported.
 - **Cap**: at most 100,000 rows per run, enforced via
   `Statement.setMaxRows(…)` at the JDBC protocol level so the database
   doesn't stream more data than the ingest will use.
@@ -248,6 +422,203 @@ source pointing at a bundled `postgres` container, whose `documents`
 table is seeded with synthetic PII-shaped rows so the RDB ingest path
 can be exercised without standing up a database by hand. See
 [Getting started](../getting-started.md) for the full demo layout.
+
+#### Example SQL queries
+
+The queries below cover the common shapes Arbiter operators reach for.
+Every example follows the two contracts laid out in [How rows map to
+documents](#how-rows-map-to-documents): **column 1 is the document
+text** (positional, name irrelevant), and the optional **`filename`
+column** supplies the per-row filename (named lookup, case-insensitive).
+
+##### Basic — one row per `documents` table row
+
+The simplest shape. Use this when there's a column that already holds
+the full document text and a separate column for the filename, and you
+want to ingest the whole table once (no incremental support).
+
+```sql
+SELECT body,
+       doc_path AS filename
+  FROM documents
+```
+
+If you want re-runs to skip already-imported rows without a watermark,
+either keep the SQL filter on an out-of-band flag (`WHERE imported_at
+IS NULL`) and update the flag yourself, or rely on the
+`(source-id, filename)` dedupe — which only works when `filename`
+returns stable, distinct values per row.
+
+##### Composing the text from multiple columns
+
+When the document text lives in several columns (e.g. a CRM ticket
+with separate `subject`, `body`, and `notes`), concatenate them in the
+SELECT. The redactor then sees the full composed text per row.
+
+=== "PostgreSQL / SQL Server / Oracle (ANSI)"
+    ```sql
+    SELECT subject || E'\n\n' || body || E'\n\nNotes:\n' || COALESCE(notes, '')
+                                                       AS document_text,
+           ticket_id::text                             AS filename
+      FROM support_tickets
+     WHERE status = 'closed'
+    ```
+
+=== "MySQL / MariaDB"
+    ```sql
+    SELECT CONCAT(subject, '\n\n', body, '\n\nNotes:\n', COALESCE(notes, ''))
+                                                       AS document_text,
+           CAST(ticket_id AS CHAR)                     AS filename
+      FROM support_tickets
+     WHERE status = 'closed'
+    ```
+
+The first column (`document_text`) is whatever the concatenation
+expression returns; its name and alias are decorative — the worker
+reads column **1** by position.
+
+##### Joining a documents table with a per-row metadata table
+
+Sometimes the filename lives elsewhere — e.g. an attachment table
+keyed on `document_id`. The join is yours to write; Arbiter only
+needs the two contractual columns on the result.
+
+```sql
+SELECT d.body,
+       COALESCE(a.original_filename, d.id::text)  AS filename
+  FROM documents d
+  LEFT JOIN attachments a
+    ON a.document_id = d.id AND a.role = 'original'
+ WHERE d.imported_into_arbiter = FALSE
+```
+
+The `LEFT JOIN` keeps documents without a matching attachment;
+`COALESCE` falls back to the document id (cast to text) so every row
+has a stable filename for the dedupe key.
+
+##### Filtering by status
+
+To pick up only documents in a particular workflow state, add a `WHERE`
+clause. The validator allows arbitrary `WHERE` / `JOIN` / `GROUP BY` /
+`HAVING` / `ORDER BY` / `LIMIT` — only `INSERT`/`UPDATE`/`DELETE` and
+their kin are refused.
+
+```sql
+SELECT body,
+       case_number AS filename
+  FROM legal_cases
+ WHERE status IN ('NEEDS_REVIEW', 'PENDING_REDACTION')
+   AND created_at >= CURRENT_DATE - INTERVAL '90 days'
+```
+
+##### Incremental ingest with an integer primary key
+
+The canonical keyset-paginated shape. Set **Watermark column** to
+`id`; Arbiter advances it after each successful run. See
+[Incremental ingest with watermarks](#incremental-ingest-with-watermarks)
+for the cross-driver variants and the `COALESCE` first-run idiom.
+
+```sql
+SELECT body,
+       doc_path AS filename,
+       id
+  FROM documents
+ WHERE id > COALESCE(:lastKey::bigint, 0)
+ ORDER BY id
+```
+
+##### Incremental ingest by timestamp
+
+When the table doesn't have a monotonic integer PK but does have a
+reliable `updated_at` column, use that as the watermark. Set
+**Watermark column** to `updated_at`. The placeholder substitutes a
+String, so cast it back to the column type in the predicate.
+
+=== "PostgreSQL"
+    ```sql
+    SELECT body,
+           filename,
+           updated_at
+      FROM documents
+     WHERE updated_at > COALESCE(:lastKey::timestamptz, '1970-01-01'::timestamptz)
+     ORDER BY updated_at, id        -- tiebreak on id so rows with the same
+                                    -- updated_at advance deterministically
+    ```
+
+=== "MySQL / MariaDB"
+    ```sql
+    SELECT body,
+           filename,
+           updated_at
+      FROM documents
+     WHERE updated_at > COALESCE(CAST(:lastKey AS DATETIME), '1970-01-01')
+     ORDER BY updated_at, id
+    ```
+
+> **Caveat.** A timestamp watermark misses rows whose `updated_at`
+> equals the watermark from the previous run's last row, because the
+> predicate is strictly `>`. The tiebreaker on `id` only orders the
+> rows correctly for the `ORDER BY`; the next run starts from
+> `updated_at > X`, which skips any other row at exactly time `X`.
+> For tables with multiple rows per timestamp, prefer an integer PK
+> watermark, or design the predicate as
+> `(updated_at, id) > (:lastKey_ts, :lastKey_id)` — which Arbiter
+> doesn't natively support (only a single `:lastKey` placeholder
+> is substituted), so this is a documented limitation.
+
+##### Using a CTE / `WITH` clause
+
+The validator accepts `WITH … SELECT` as a first-class top-level
+shape. CTEs are useful when the per-row logic is complex enough that
+inlining it as a subquery becomes unreadable.
+
+```sql
+WITH redactable AS (
+    SELECT d.id,
+           d.body,
+           d.filename,
+           ROW_NUMBER() OVER (PARTITION BY d.tenant_id ORDER BY d.id) AS rn
+      FROM documents d
+     WHERE d.body IS NOT NULL
+)
+SELECT body, filename, id
+  FROM redactable
+ WHERE rn <= 1000              -- one per tenant per run, oldest first
+ ORDER BY id
+```
+
+> **Note.** Any mutating keyword inside the `WITH` block (e.g.
+> PostgreSQL's `WITH d AS (DELETE … RETURNING *) SELECT …`) is
+> refused by [the read-only safeguard](#read-only-safeguard) — the
+> CTE-with-DELETE pattern is exactly what the safeguard's
+> whole-word keyword scan was built to catch.
+
+##### What NOT to do
+
+```sql
+-- Refused: leading keyword must be SELECT or WITH.
+EXPLAIN SELECT body FROM documents
+
+-- Refused: multi-statement input. Remove the trailing semicolon.
+SELECT body FROM documents;
+
+-- Refused: mutating keyword anywhere in the statement.
+WITH purged AS (DELETE FROM documents RETURNING *)
+SELECT body FROM purged
+
+-- Refused: SQL Server / MySQL write-via-SELECT primitive.
+SELECT body FROM documents INTO OUTFILE '/tmp/exfil.csv'
+
+-- Refused: PostgreSQL filesystem read primitive.
+SELECT pg_read_file('/etc/passwd')
+
+-- Accepted, but you almost certainly didn't mean it: the watermark
+-- column is set but the SQL doesn't reference :lastKey. The
+-- watermark advances after each run but does nothing to filter
+-- the cursor — every run re-reads the entire table (capped at
+-- 100,000 rows) and re-pays the dedupe cost.
+SELECT body, id AS filename FROM documents ORDER BY id
+```
 
 ### Local Directory
 
@@ -411,9 +782,12 @@ email and the affected source's id and name:
 | `ELASTICSEARCH_DATASOURCE_DELETE`     | `ElasticsearchDataSource`  | Elasticsearch source removed             |
 | `S3_DATASOURCE_CREATE`                | `S3DataSource`             | S3 source added                          |
 | `S3_DATASOURCE_DELETE`                | `S3DataSource`             | S3 source removed                        |
-| `RDB_DATASOURCE_CREATE`               | `RelationalDbDataSource`   | Relational database source added         |
-| `RDB_DATASOURCE_UPDATE`               | `RelationalDbDataSource`   | Relational database source edited (payload includes `credentialsChanged` and `credentialsSet` booleans) |
+| `RDB_DATASOURCE_CREATE`               | `RelationalDbDataSource`   | Relational database source added. Payload includes `watermarkColumn` (empty when watermarking is off). |
+| `RDB_DATASOURCE_UPDATE`               | `RelationalDbDataSource`   | Relational database source edited. Payload includes `credentialsChanged`, `credentialsSet`, `watermarkColumn`, and a `watermarkReset` boolean (true when the edit changed the SQL or watermark column on an already-advanced source). |
 | `RDB_DATASOURCE_DELETE`               | `RelationalDbDataSource`   | Relational database source removed       |
+| `RDB_WATERMARK_ADVANCE`               | `RelationalDbDataSource`   | Auto-advanced after a successful incremental run. Payload includes `from`, `to`, and the row count processed in this run. |
+| `RDB_WATERMARK_RESET`                 | `RelationalDbDataSource`   | Operator-initiated reset via the **Reset watermark** button. Payload includes the `previousKey`. |
+| `RDB_WATERMARK_SET_MANUAL`            | `RelationalDbDataSource`   | Operator-initiated manual override of the watermark value. Payload includes `from` and `to`. |
 | `RDB_DANGEROUS_SQL_BLOCKED`           | `RelationalDbDataSource`   | RDB source rejected for containing `DELETE`, `TRUNCATE`, or `DROP` in the SQL — entityId is `null` because nothing was saved. The payload includes the data-source name, JDBC URL, matched `keywords`, and the offending `sqlQuery`. |
 | `RDB_DANGEROUS_JDBC_URL_BLOCKED`      | `RelationalDbDataSource`   | RDB source rejected by `JdbcUrlValidator` (driver-level RCE primitive, dangerous parameter, embedded credentials, host not on the allow-list, …). entityId is `null` on create; on edit it carries the existing source id. |
 | `LOCAL_DATASOURCE_CREATE`             | `LocalDirectoryDataSource` | Local directory source added             |
