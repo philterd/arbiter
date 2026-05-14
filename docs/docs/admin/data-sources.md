@@ -136,6 +136,56 @@ bucket `arbiter-demo`) so the S3 path can be exercised without an AWS
 account. See [Getting started](../getting-started.md) for the full demo
 layout.
 
+#### Recommended IAM policy
+
+Grant the configured access key **read-only access scoped to the bucket and
+key prefix** above — and nothing else. Ingestion needs `s3:GetObject` on the
+objects under the prefix, and `s3:ListBucket` (constrained by an
+`s3:prefix` condition) to enumerate them. No write, delete, or bucket-admin
+permissions are required.
+
+The following policy is a starting point — replace `my-bucket` and
+`archive/2026/` with your actual bucket name and key prefix:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ArbiterListPrefix",
+      "Effect": "Allow",
+      "Action": "s3:ListBucket",
+      "Resource": "arn:aws:s3:::my-bucket",
+      "Condition": {
+        "StringLike": {
+          "s3:prefix": ["archive/2026/*"]
+        }
+      }
+    },
+    {
+      "Sid": "ArbiterReadObjects",
+      "Effect": "Allow",
+      "Action": "s3:GetObject",
+      "Resource": "arn:aws:s3:::my-bucket/archive/2026/*"
+    }
+  ]
+}
+```
+
+This is a suggestion, not a substitute for AWS's own guidance. For
+authoritative details on writing least-privilege S3 policies — including
+prefix conditions, object-tag conditions, SSE-KMS key access, and the
+permission semantics for non-AWS S3-compatible services (MinIO, Cloudflare
+R2, Backblaze B2, etc.) — refer to the AWS documentation:
+
+- [Identity and access management in Amazon S3](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html)
+- [Bucket policies and user policies](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-iam-policies.html)
+- [Actions, resources, and condition keys for Amazon S3](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html)
+
+For non-AWS S3-compatible services, consult that vendor's documentation —
+the action names and ARN format are usually compatible, but the policy
+attachment mechanics differ.
+
 ### Relational Database
 
 | Field     | Required | Notes                                                                     |

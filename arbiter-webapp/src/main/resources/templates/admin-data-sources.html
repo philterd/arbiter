@@ -521,6 +521,28 @@
                     which to look, and a filename glob filter (for example <code>*.txt</code>
                     or <code>**/*.pdf</code>). Names must be unique.
                 </p>
+                <div class="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-900 flex items-start gap-2"
+                     role="note">
+                    <svg class="h-4 w-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                         aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <span>
+                        <strong>Use read-only, narrowly-scoped credentials.</strong>
+                        Grant the configured access key only <code>s3:GetObject</code> (and
+                        <code>s3:ListBucket</code> scoped via a prefix condition) on the specific
+                        bucket and key prefix configured above — and nothing else. No write,
+                        delete, or bucket-administration permissions are required for ingestion.
+                        Scoping the IAM policy (or equivalent) to the exact prefix ensures a
+                        compromise of these credentials cannot reach objects outside the data
+                        you intend to ingest.
+                        <a href="/docs/admin/data-sources/#recommended-iam-policy"
+                           target="_blank" rel="noopener noreferrer"
+                           class="font-medium text-amber-900 underline hover:text-amber-700">See
+                            the recommended IAM policy &amp; AWS docs &rarr;</a>
+                    </span>
+                </div>
                 <form th:action="@{/admin/data-sources/s3}" method="post" class="space-y-3">
                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <div>
@@ -659,6 +681,10 @@
                         depth — the authoritative protection is the database account itself. Grant
                         the configured user <em>only</em> <code>SELECT</code> on the specific tables
                         you intend to ingest from, and nothing else.
+                        <a href="/docs/admin/data-sources/#read-only-safeguard"
+                           target="_blank" rel="noopener noreferrer"
+                           class="font-medium text-amber-900 underline hover:text-amber-700">See
+                            the credential &amp; SQL safeguard docs &rarr;</a>
                     </span>
                 </div>
                 <form th:action="@{/admin/data-sources/rdb}" method="post" class="space-y-3">

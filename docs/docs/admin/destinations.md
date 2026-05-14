@@ -62,6 +62,49 @@ credentials file, etc.). The listing table shows a **Credentials** badge
 that reads **Configured** if explicit credentials were stored, **Ambient**
 otherwise.
 
+#### Recommended IAM policy
+
+Grant the configured access key **write-only access scoped to the bucket
+and key prefix** above — and nothing else. Delivering redacted output needs
+`s3:PutObject` on the objects under the prefix. No read, delete, or
+bucket-admin permissions are required.
+
+The following policy is a starting point — replace `my-redacted-bucket` and
+`finalized/` with your actual bucket name and key prefix:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "ArbiterWriteObjects",
+      "Effect": "Allow",
+      "Action": "s3:PutObject",
+      "Resource": "arn:aws:s3:::my-redacted-bucket/finalized/*"
+    }
+  ]
+}
+```
+
+This is a suggestion, not a substitute for AWS's own guidance. For
+authoritative details on writing least-privilege S3 policies — including
+prefix conditions, object-tag conditions, SSE-KMS key access, and the
+permission semantics for non-AWS S3-compatible services (MinIO, Cloudflare
+R2, Backblaze B2, etc.) — refer to the AWS documentation:
+
+- [Identity and access management in Amazon S3](https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html)
+- [Bucket policies and user policies](https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-iam-policies.html)
+- [Actions, resources, and condition keys for Amazon S3](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html)
+
+For non-AWS S3-compatible services, consult that vendor's documentation —
+the action names and ARN format are usually compatible, but the policy
+attachment mechanics differ.
+
+If you use the **Test** button (see below), the test code path also calls
+`s3:PutObject` — so the same write-only policy is sufficient. The test
+object is not deleted by Arbiter; if you want test artefacts cleaned up
+automatically, grant `s3:DeleteObject` separately, or remove them by hand.
+
 ## Testing a destination
 
 Beside each **Add** button there is a **Test** button that runs an immediate
