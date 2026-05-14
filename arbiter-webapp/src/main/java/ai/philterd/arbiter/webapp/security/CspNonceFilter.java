@@ -9,18 +9,31 @@
  */
 package ai.philterd.arbiter.webapp.security;
 
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.security.web.header.HeaderWriter;
+import org.springframework.web.filter.OncePerRequestFilter;
 
+import java.io.IOException;
 import java.security.SecureRandom;
 import java.util.Base64;
 
 /**
- * Writes a per-request {@code Content-Security-Policy} header with a freshly-minted
- * nonce, and exposes the nonce on the request as the {@code cspNonce} attribute so
- * Thymeleaf templates can stamp matching {@code nonce="…"} on their inline
- * {@code <script>} blocks via {@code th:nonce="${cspNonce}"}.
+ * Mints a per-request CSP nonce, exposes it as the {@code cspNonce} request
+ * attribute (so Thymeleaf templates can stamp it via {@code th:nonce="${cspNonce}"}),
+ * and writes a matching {@code Content-Security-Policy} response header.
+ *
+ * <p>Why a filter rather than a Spring Security {@code HeaderWriter}: the
+ * {@code HeaderWriterFilter} invokes its writers when the response is being
+ * committed — i.e. <em>after</em> the view has rendered. A writer that sets a
+ * request attribute at that point is too late for Thymeleaf, which has already
+ * resolved {@code ${cspNonce}} to {@code null} and dropped the {@code nonce}
+ * attribute from every {@code <script>} tag. The header gets the nonce, the
+ * page doesn't, and the browser refuses every script under
+ * {@code 'strict-dynamic'} (which causes {@code 'self'} to be ignored). Running
+ * this as a filter places the attribute on the request <em>before</em>
+ * controllers run and templates render.
  *
  * <p>Why a nonce policy rather than {@code 'self'} alone: Arbiter ships inline
  * scripts on every interactive page (review, queue, admin pages). Under {@code
@@ -39,7 +52,7 @@ import java.util.Base64;
  * attribute safety. A fresh nonce is generated per request so capturing one
  * doesn't let an attacker forge a script for a later request.
  */
-public class CspNonceHeaderWriter implements HeaderWriter {
+public class CspNonceFilter extends OncePerRequestFilter {
 
     /** Request attribute name that Thymeleaf templates read for {@code th:nonce}. */
     public static final String ATTRIBUTE_NAME = "cspNonce";
@@ -52,21 +65,18 @@ public class CspNonceHeaderWriter implements HeaderWriter {
     private final SecureRandom random = new SecureRandom();
 
     @Override
-    public void writeHeaders(final HttpServletRequest request, final HttpServletResponse response) {
-        // Same nonce for the entire request — multiple inline blocks on one page share it.
-        // If the attribute is already populated by an earlier writer in the chain, reuse it
-        // rather than minting a second nonce that would only match half the page.
-        String nonce = (String) request.getAttribute(ATTRIBUTE_NAME);
-        if (nonce == null) {
-            final byte[] bytes = new byte[NONCE_BYTES];
-            random.nextBytes(bytes);
-            nonce = ENCODER.encodeToString(bytes);
-            request.setAttribute(ATTRIBUTE_NAME, nonce);
-        }
+    protected void doFilterInternal(final HttpServletRequest request,
+                                    final HttpServletResponse response,
+                                    final FilterChain filterChain)
+            throws ServletException, IOException {
+        final byte[] bytes = new byte[NONCE_BYTES];
+        random.nextBytes(bytes);
+        final String nonce = ENCODER.encodeToString(bytes);
 
-        // Static error pages and Spring Security's own /error handler may have already
-        // written a CSP — replace, don't append, so the policy is unambiguous.
+        request.setAttribute(ATTRIBUTE_NAME, nonce);
         response.setHeader(HEADER, build(nonce));
+
+        filterChain.doFilter(request, response);
     }
 
     /**

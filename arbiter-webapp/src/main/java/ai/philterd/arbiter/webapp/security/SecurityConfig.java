@@ -205,14 +205,19 @@ public class SecurityConfig {
                 // HSTS protects against first-visit downgrade for deployments behind
                 // a TLS-terminating reverse proxy (production model — see
                 // server.forward-headers-strategy=framework).
+                // CSP is written by CspNonceFilter (per-request nonce so legitimate
+                // inline scripts run while attacker-injected ones — which can't know
+                // the nonce — are refused). It MUST run before view rendering so the
+                // nonce is exposed as a request attribute Thymeleaf can read; a
+                // HeaderWriter would fire too late (at response-commit time, after the
+                // template has already resolved ${cspNonce} to null and dropped every
+                // <script> tag's nonce attribute). Don't also write a static
+                // script-src 'self' via the default DSL: the two would race and the
+                // static one would either replace the nonced policy or land alongside
+                // it, both of which neutralise the protection.
+                .addFilterBefore(new CspNonceFilter(),
+                        org.springframework.security.web.header.HeaderWriterFilter.class)
                 .headers(headers -> headers
-                        // CSP is written by CspNonceHeaderWriter (per-request nonce so
-                        // legitimate inline scripts run while attacker-injected ones —
-                        // which can't know the nonce — are refused). Don't also write a
-                        // static script-src 'self' via the default DSL: the two would
-                        // race and the static one would either replace the nonced policy
-                        // or land alongside it, both of which neutralise the protection.
-                        .addHeaderWriter(new CspNonceHeaderWriter())
                         .httpStrictTransportSecurity(hsts -> hsts
                                 .includeSubDomains(true)
                                 .maxAgeInSeconds(31_536_000)

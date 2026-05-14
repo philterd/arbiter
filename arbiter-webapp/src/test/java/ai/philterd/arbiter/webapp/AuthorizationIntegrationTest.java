@@ -587,4 +587,27 @@ public class AuthorizationIntegrationTest {
         org.junit.jupiter.api.Assertions.assertTrue(mA.group(1).length() >= 16,
                 "nonce too short to provide 128 bits of entropy: " + mA.group(1));
     }
+
+    @Test
+    void cspNonceIsStampedOnScriptTagsInRenderedBody() throws Exception {
+        // The CSP says script-src 'self' 'nonce-XXX' 'strict-dynamic'.
+        // 'strict-dynamic' causes Chrome to IGNORE 'self', so a <script src="...">
+        // without a matching nonce attribute is refused by the browser. This test
+        // verifies the rendered HTML actually contains nonce="<csp-nonce>" so
+        // tailwind.js (and every other src'd script) loads.
+        final org.springframework.test.web.servlet.MvcResult result =
+                mockMvc.perform(get("/login").secure(true))
+                        .andExpect(status().isOk())
+                        .andReturn();
+        final String csp = result.getResponse().getHeader("Content-Security-Policy");
+        final String body = result.getResponse().getContentAsString();
+        final java.util.regex.Matcher m =
+                java.util.regex.Pattern.compile("'nonce-([A-Za-z0-9_-]+)'").matcher(csp);
+        org.junit.jupiter.api.Assertions.assertTrue(m.find(), "CSP missing nonce");
+        final String nonce = m.group(1);
+        org.junit.jupiter.api.Assertions.assertTrue(
+                body.contains("nonce=\"" + nonce + "\""),
+                "rendered body missing nonce=\"" + nonce + "\". body excerpt: "
+                        + body.substring(0, Math.min(body.length(), 800)));
+    }
 }
