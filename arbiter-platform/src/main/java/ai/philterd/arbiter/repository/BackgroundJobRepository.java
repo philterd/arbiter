@@ -44,4 +44,13 @@ public interface BackgroundJobRepository extends MongoRepository<BackgroundJob, 
 
     /** Bulk-delete variant of {@link #findByTypeInAndStatusIn}, used after log cleanup. */
     long deleteByTypeInAndStatusIn(Collection<String> types, Collection<String> statuses);
+
+    /**
+     * Used by the data-source delete path to refuse removal while an in-flight
+     * import is still referencing it. Returns true when any job exists whose
+     * {@code sourceId} matches and whose status is one of the supplied
+     * statuses — pass {@code PENDING}/{@code RUNNING} for the "currently in
+     * use" check. Terminal jobs (COMPLETED/FAILED) don't count.
+     */
+    boolean existsBySourceIdAndStatusIn(String sourceId, Collection<String> statuses);
 }

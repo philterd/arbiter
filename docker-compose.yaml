@@ -53,6 +53,8 @@ services:
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
     networks:
       - arbiter
 
@@ -179,6 +181,32 @@ services:
         mc mirror --overwrite /sample-files/ local/arbiter-demo/arbiter-demo/ &&
         echo 'Seeded arbiter-demo bucket from /sample-files (under arbiter-demo/ prefix).'
       "
+    networks:
+      - arbiter
+
+  # Lightweight PostgreSQL for the demo Relational Database data source.
+  # First-boot initialisation runs every .sql file under
+  # /docker-entrypoint-initdb.d/, so init-postgres.sql creates the
+  # `documents(filename, text)` table and inserts synthetic PII rows.
+  # DemoDataSourceLoader registers a matching "Demo PostgreSQL" data source
+  # whose SQL query reads from that table.
+  postgres:
+    image: postgres:16-alpine
+    container_name: arbiter-postgres
+    environment:
+      - POSTGRES_USER=arbiter_demo
+      - POSTGRES_PASSWORD=arbiter_demo
+      - POSTGRES_DB=arbiter_demo
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init-postgres.sql:/docker-entrypoint-initdb.d/01-documents.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U arbiter_demo -d arbiter_demo"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     networks:
       - arbiter
 

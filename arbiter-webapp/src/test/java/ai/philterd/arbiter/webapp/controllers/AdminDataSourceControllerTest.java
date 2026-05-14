@@ -33,6 +33,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -56,8 +57,10 @@ class AdminDataSourceControllerTest {
     private S3DataSourceRepository s3Repository;
     private RelationalDbDataSourceRepository rdbRepository;
     private LocalDirectoryDataSourceRepository localRepository;
+    private ai.philterd.arbiter.repository.BackgroundJobRepository backgroundJobRepository;
     private AuditLogService auditLogService;
     private SymmetricCipher cipher;
+    private ai.philterd.arbiter.service.RdbPreviewService rdbPreviewService;
     private AdminDataSourceController controller;
 
     @BeforeEach
@@ -67,17 +70,21 @@ class AdminDataSourceControllerTest {
         s3Repository = mock(S3DataSourceRepository.class);
         rdbRepository = mock(RelationalDbDataSourceRepository.class);
         localRepository = mock(LocalDirectoryDataSourceRepository.class);
+        backgroundJobRepository = mock(ai.philterd.arbiter.repository.BackgroundJobRepository.class);
         auditLogService = mock(AuditLogService.class);
         cipher = mock(SymmetricCipher.class);
+        rdbPreviewService = mock(ai.philterd.arbiter.service.RdbPreviewService.class);
         // Identity-ish encrypt so assertions can recover the supplied value.
         when(cipher.encrypt(anyString())).thenAnswer(inv -> "enc:" + inv.getArgument(0));
         final ai.philterd.arbiter.service.DataSourceHostAllowList allowList =
                 new ai.philterd.arbiter.service.DataSourceHostAllowList("");
         controller = new AdminDataSourceController(
                 repository, esRepository, s3Repository, rdbRepository, localRepository,
+                backgroundJobRepository,
                 auditLogService, cipher, new ObjectMapper(),
                 allowList,
-                new ai.philterd.arbiter.service.JdbcUrlValidator(allowList));
+                new ai.philterd.arbiter.service.JdbcUrlValidator(allowList),
+                rdbPreviewService);
     }
 
     private RedirectAttributes flash() { return new RedirectAttributesModelMap(); }
@@ -406,10 +413,23 @@ class AdminDataSourceControllerTest {
         final ArgumentCaptor<RelationalDbDataSource> saved =
                 ArgumentCaptor.forClass(RelationalDbDataSource.class);
         verify(rdbRepository).save(saved.capture());
-        assertEquals("jdbc:postgresql://host/db", saved.getValue().getJdbcUrl());
         assertEquals("SELECT body FROM documents", saved.getValue().getSqlQuery());
+        // JDBC URL and credentials are all encrypted at rest. The cipher mock returns
+        // "enc:<plain>", so asserting both the encrypted form and the absence of the
+        // plaintext catches a regression that bypassed cipher.encrypt() but happened
+        // to coincide with the expected ciphertext.
+        assertEquals("enc:jdbc:postgresql://host/db", saved.getValue().getEncryptedJdbcUrl());
         assertEquals("enc:alice", saved.getValue().getEncryptedUsername());
         assertEquals("enc:pw", saved.getValue().getEncryptedPassword());
+        assertNotEquals("jdbc:postgresql://host/db", saved.getValue().getEncryptedJdbcUrl(),
+                "Plaintext JDBC URL must never be persisted on the RelationalDbDataSource row.");
+        assertNotEquals("alice", saved.getValue().getEncryptedUsername(),
+                "Plaintext username must never be persisted on the RelationalDbDataSource row.");
+        assertNotEquals("pw", saved.getValue().getEncryptedPassword(),
+                "Plaintext password must never be persisted on the RelationalDbDataSource row.");
+        verify(cipher).encrypt("jdbc:postgresql://host/db");
+        verify(cipher).encrypt("alice");
+        verify(cipher).encrypt("pw");
     }
 
     @Test
@@ -524,6 +544,56 @@ class AdminDataSourceControllerTest {
     }
 
     @Test
+    void rdbCreateValidationErrorRoundTripsFormValuesThroughFlashAttributes() {
+        // The bad JDBC URL must not navigate the operator away from the page or empty the
+        // form — they should land back on the RDB tab with their entries intact so they
+        // can fix the one typo without retyping everything.
+        final RedirectAttributes ra = flash();
+
+        final String view = controller.createRdb(
+                "warehouse",
+                "postgresql://host:5432/db",         // missing "jdbc:" prefix
+                "SELECT body FROM documents",
+                "alice", "pw", ra);
+
+        assertEquals("redirect:/admin/data-sources?tab=rdb", view,
+                "Redirect target must include ?tab=rdb so the operator lands back on the RDB tab.");
+        assertNotNull(error(ra), "Validation failure must surface an error to the user.");
+        verify(rdbRepository, never()).save(any());
+
+        final java.util.Map<String, ?> flash = ra.getFlashAttributes();
+        assertEquals("warehouse", flash.get("rdbFormName"));
+        assertEquals("postgresql://host:5432/db", flash.get("rdbFormJdbcUrl"));
+        assertEquals("SELECT body FROM documents", flash.get("rdbFormSqlQuery"));
+        assertEquals("alice", flash.get("rdbFormUsername"));
+        // Password is round-tripped too — re-typing it on a JDBC-URL typo is friction
+        // the operator shouldn't have to suffer. Flash attributes live in the session
+        // for exactly one redirect, so this is no more exposure than the original POST.
+        assertEquals("pw", flash.get("rdbFormPassword"));
+    }
+
+    @Test
+    void rdbCreateBlankNameRoundTripsTheOtherFieldsThroughFlash() {
+        // A different validation failure (blank Name) still preserves everything else
+        // the operator typed. Without this the operator would lose the URL/SQL just
+        // because they forgot to fill in Name.
+        final RedirectAttributes ra = flash();
+
+        controller.createRdb("",
+                "jdbc:postgresql://host/db",
+                "SELECT 1",
+                "alice", "pw", ra);
+
+        final java.util.Map<String, ?> flash = ra.getFlashAttributes();
+        assertEquals("Name is required.", error(ra));
+        assertEquals("", flash.get("rdbFormName"));
+        assertEquals("jdbc:postgresql://host/db", flash.get("rdbFormJdbcUrl"));
+        assertEquals("SELECT 1", flash.get("rdbFormSqlQuery"));
+        assertEquals("alice", flash.get("rdbFormUsername"));
+        assertEquals("pw", flash.get("rdbFormPassword"));
+    }
+
+    @Test
     void rdbDeleteHappyPath() {
         final RelationalDbDataSource src = new RelationalDbDataSource();
         src.setId("ds-1");
@@ -543,6 +613,185 @@ class AdminDataSourceControllerTest {
         final RedirectAttributes ra = flash();
         controller.deleteRdb("ghost", ra);
         assertEquals("Relational database data source not found.", error(ra));
+    }
+
+    @Test
+    void rdbDeleteRefusedWhenInUseByImportJob() {
+        // While a data-import job is PENDING or RUNNING against this source, the
+        // delete must refuse. Otherwise the worker would later pick up the queued
+        // job and fail with a confusing "source not found" — the operator never
+        // sees what they did wrong. Terminal jobs (COMPLETED/FAILED) don't block.
+        final RelationalDbDataSource src = new RelationalDbDataSource();
+        src.setId("ds-1");
+        src.setName("warehouse");
+        when(rdbRepository.findById("ds-1")).thenReturn(Optional.of(src));
+        when(backgroundJobRepository.existsBySourceIdAndStatusIn(
+                eq("ds-1"),
+                org.mockito.ArgumentMatchers.argThat(c ->
+                        c.contains("PENDING") && c.contains("RUNNING"))))
+                .thenReturn(true);
+        final RedirectAttributes ra = flash();
+
+        controller.deleteRdb("ds-1", ra);
+
+        verify(rdbRepository, never()).deleteById(anyString());
+        assertNotNull(error(ra));
+        assertTrue(error(ra).contains("currently using it"),
+                "expected in-use error, got: " + error(ra));
+    }
+
+    @Test
+    void rdbEditHappyPathUpdatesUrlSqlAndCredentials() {
+        final RelationalDbDataSource src = new RelationalDbDataSource();
+        src.setId("ds-1");
+        src.setName("warehouse");
+        src.setEncryptedJdbcUrl("enc:jdbc:postgresql://old:5432/db");
+        src.setSqlQuery("SELECT 1");
+        when(rdbRepository.findById("ds-1")).thenReturn(Optional.of(src));
+        final RedirectAttributes ra = flash();
+
+        controller.editRdb("ds-1",
+                "jdbc:postgresql://new:5432/db",
+                "SELECT text, filename FROM documents",
+                "alice", "secretpw",
+                false,
+                ra);
+
+        final ArgumentCaptor<RelationalDbDataSource> saved =
+                ArgumentCaptor.forClass(RelationalDbDataSource.class);
+        verify(rdbRepository).save(saved.capture());
+        assertEquals("enc:jdbc:postgresql://new:5432/db", saved.getValue().getEncryptedJdbcUrl());
+        assertEquals("SELECT text, filename FROM documents", saved.getValue().getSqlQuery());
+        // JDBC URL and credentials are all encrypted on the edit path too — same posture
+        // as create. A regression that bypassed the cipher would satisfy the equality
+        // checks above but fail the plaintext-rejection ones below.
+        assertEquals("enc:alice", saved.getValue().getEncryptedUsername());
+        assertEquals("enc:secretpw", saved.getValue().getEncryptedPassword());
+        assertNotEquals("jdbc:postgresql://new:5432/db", saved.getValue().getEncryptedJdbcUrl(),
+                "Plaintext JDBC URL must never be persisted on the edit path.");
+        assertNotEquals("alice", saved.getValue().getEncryptedUsername(),
+                "Plaintext username must never be persisted on the edit path.");
+        assertNotEquals("secretpw", saved.getValue().getEncryptedPassword(),
+                "Plaintext password must never be persisted on the edit path.");
+        verify(cipher).encrypt("jdbc:postgresql://new:5432/db");
+        verify(cipher).encrypt("alice");
+        verify(cipher).encrypt("secretpw");
+        verify(auditLogService).log(eq("RDB_DATASOURCE_UPDATE"), anyString(), eq("ds-1"), any());
+    }
+
+    @Test
+    void rdbEditWithBlankCredentialsLeavesStoredOnesIntact() {
+        // Mirrors the S3 / OpenSearch edit flow: blank pair + clearCredentials=false
+        // means "keep what's stored." Without this, every URL/SQL edit would silently
+        // strip the password and the operator would have to re-type it.
+        final RelationalDbDataSource src = new RelationalDbDataSource();
+        src.setId("ds-1");
+        src.setName("warehouse");
+        src.setEncryptedUsername("enc:existingUser");
+        src.setEncryptedPassword("enc:existingPass");
+        when(rdbRepository.findById("ds-1")).thenReturn(Optional.of(src));
+        final RedirectAttributes ra = flash();
+
+        controller.editRdb("ds-1",
+                "jdbc:postgresql://host:5432/db",
+                "SELECT 1",
+                "", "",
+                false,
+                ra);
+
+        final ArgumentCaptor<RelationalDbDataSource> saved =
+                ArgumentCaptor.forClass(RelationalDbDataSource.class);
+        verify(rdbRepository).save(saved.capture());
+        assertEquals("enc:existingUser", saved.getValue().getEncryptedUsername(),
+                "blank credentials must not erase what's already stored");
+        assertEquals("enc:existingPass", saved.getValue().getEncryptedPassword());
+    }
+
+    @Test
+    void rdbEditClearCredentialsWipesStoredOnes() {
+        final RelationalDbDataSource src = new RelationalDbDataSource();
+        src.setId("ds-1");
+        src.setName("warehouse");
+        src.setEncryptedUsername("enc:existingUser");
+        src.setEncryptedPassword("enc:existingPass");
+        when(rdbRepository.findById("ds-1")).thenReturn(Optional.of(src));
+        final RedirectAttributes ra = flash();
+
+        controller.editRdb("ds-1",
+                "jdbc:postgresql://host:5432/db",
+                "SELECT 1",
+                "", "",
+                true,
+                ra);
+
+        final ArgumentCaptor<RelationalDbDataSource> saved =
+                ArgumentCaptor.forClass(RelationalDbDataSource.class);
+        verify(rdbRepository).save(saved.capture());
+        assertNull(saved.getValue().getEncryptedUsername());
+        assertNull(saved.getValue().getEncryptedPassword());
+    }
+
+    @Test
+    void rdbEditRejectsDangerousSql() {
+        final RelationalDbDataSource src = new RelationalDbDataSource();
+        src.setId("ds-1");
+        src.setName("warehouse");
+        when(rdbRepository.findById("ds-1")).thenReturn(Optional.of(src));
+        final RedirectAttributes ra = flash();
+
+        controller.editRdb("ds-1",
+                "jdbc:postgresql://host:5432/db",
+                "DELETE FROM documents",
+                null, null,
+                false,
+                ra);
+
+        verify(rdbRepository, never()).save(any());
+        verify(auditLogService).log(eq("RDB_DANGEROUS_SQL_BLOCKED"), anyString(), eq("ds-1"), any());
+    }
+
+    @Test
+    void rdbPreviewDelegatesToServiceAndReturnsRows() {
+        final RelationalDbDataSource src = new RelationalDbDataSource();
+        src.setId("ds-1");
+        src.setName("warehouse");
+        when(rdbRepository.findById("ds-1")).thenReturn(Optional.of(src));
+        final java.util.List<String> cols = java.util.List.of("text", "filename");
+        final java.util.List<java.util.Map<String, Object>> rows = java.util.List.of(
+                java.util.Map.of("text", "hello", "filename", "a.txt"),
+                java.util.Map.of("text", "world", "filename", "b.txt"));
+        when(rdbPreviewService.preview(src))
+                .thenReturn(ai.philterd.arbiter.service.RdbPreviewService.Result.ok(cols, rows));
+
+        final java.util.Map<String, Object> result = controller.previewRdb("ds-1");
+
+        assertEquals(Boolean.TRUE, result.get("ok"));
+        assertEquals(cols, result.get("columns"));
+        assertEquals(rows, result.get("rows"));
+        assertEquals(ai.philterd.arbiter.service.RdbPreviewService.MAX_ROWS, result.get("rowLimit"));
+    }
+
+    @Test
+    void rdbPreviewReturnsErrorWhenServiceFails() {
+        final RelationalDbDataSource src = new RelationalDbDataSource();
+        src.setId("ds-1");
+        when(rdbRepository.findById("ds-1")).thenReturn(Optional.of(src));
+        when(rdbPreviewService.preview(src))
+                .thenReturn(ai.philterd.arbiter.service.RdbPreviewService.Result.failed(
+                        "[08001] Connection refused"));
+
+        final java.util.Map<String, Object> result = controller.previewRdb("ds-1");
+
+        assertEquals(Boolean.FALSE, result.get("ok"));
+        assertEquals("[08001] Connection refused", result.get("error"));
+    }
+
+    @Test
+    void rdbPreviewMissingIdReturnsError() {
+        when(rdbRepository.findById("ghost")).thenReturn(Optional.empty());
+        final java.util.Map<String, Object> result = controller.previewRdb("ghost");
+        assertEquals(Boolean.FALSE, result.get("ok"));
+        assertNotNull(result.get("error"));
     }
 
     // ====================================================================
@@ -612,9 +861,11 @@ class AdminDataSourceControllerTest {
                 new ai.philterd.arbiter.service.DataSourceHostAllowList("opensearch.internal");
         final AdminDataSourceController restricted = new AdminDataSourceController(
                 repository, esRepository, s3Repository, rdbRepository, localRepository,
+                backgroundJobRepository,
                 auditLogService, cipher, new ObjectMapper(),
                 opensearchOnly,
-                new ai.philterd.arbiter.service.JdbcUrlValidator(opensearchOnly));
+                new ai.philterd.arbiter.service.JdbcUrlValidator(opensearchOnly),
+                rdbPreviewService);
 
         final java.util.Map<String, Object> result = restricted.testOpenSearch(
                 "http://attacker.example.com:9200", "contracts/_search { }", null, null);
@@ -631,9 +882,11 @@ class AdminDataSourceControllerTest {
                 new ai.philterd.arbiter.service.DataSourceHostAllowList("elastic.internal");
         final AdminDataSourceController restricted = new AdminDataSourceController(
                 repository, esRepository, s3Repository, rdbRepository, localRepository,
+                backgroundJobRepository,
                 auditLogService, cipher, new ObjectMapper(),
                 elasticOnly,
-                new ai.philterd.arbiter.service.JdbcUrlValidator(elasticOnly));
+                new ai.philterd.arbiter.service.JdbcUrlValidator(elasticOnly),
+                rdbPreviewService);
 
         final java.util.Map<String, Object> result = restricted.testElasticsearch(
                 "http://attacker.example.com:9200", "orders/_search { }", null, null);
@@ -653,9 +906,11 @@ class AdminDataSourceControllerTest {
                 new ai.philterd.arbiter.service.DataSourceHostAllowList("127.0.0.1");
         final AdminDataSourceController restricted = new AdminDataSourceController(
                 repository, esRepository, s3Repository, rdbRepository, localRepository,
+                backgroundJobRepository,
                 auditLogService, cipher, new ObjectMapper(),
                 loopbackOnly,
-                new ai.philterd.arbiter.service.JdbcUrlValidator(loopbackOnly));
+                new ai.philterd.arbiter.service.JdbcUrlValidator(loopbackOnly),
+                rdbPreviewService);
 
         // Use port 1 — guaranteed to refuse so the test doesn't hang on a real connect.
         final java.util.Map<String, Object> result = restricted.testOpenSearch(

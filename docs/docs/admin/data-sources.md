@@ -12,12 +12,11 @@ link in the sidebar's Administration section. ROLE_ADMIN only.
 Data sources are the *input* half of Arbiter's I/O. For where finalized
 redacted documents go *out*, see [Destinations](destinations.md).
 
-> **Status:** **OpenSearch**, **Elasticsearch**, and **Local Directory**
-> ingest are fully wired up — clicking *Ingest from …* on the Add Documents
-> page kicks off a background job that pulls documents into the redaction
-> queue. **S3** and **Relational Database** ingest are not implemented yet;
-> submitting those forms still returns a *"…is not yet implemented"*
-> notice.
+> **Status:** All five source types — **OpenSearch**, **Elasticsearch**,
+> **S3**, **Relational Database**, and **Local Directory** — are fully wired
+> up. Clicking *Ingest from …* on the Add Documents page kicks off a
+> background job that pulls documents into the redaction queue; progress is
+> visible on the Background Jobs page.
 
 ## Source types
 
@@ -216,6 +215,40 @@ section below).
 The match is whole-word-only, so legitimate column names like
 `dropoff_count` or `deleted_at` do not trigger the safeguard.
 
+#### Running an ingest
+
+When the user clicks **Ingest from Relational Database** on the Add
+Documents page, the worker opens a JDBC connection using the stored URL
+and credentials, runs the saved SQL, and enqueues one document per row:
+
+- **Document text** comes from the **first column** of each row.
+- **Filename** comes from a column named `filename` when present in the
+  result set (case-insensitive). When no such column is present, the
+  worker synthesises `row-1.txt`, `row-2.txt`, … so every row still has a
+  stable identifier.
+- **Dedupe** is keyed on `(data-source id, filename)`. Re-running the same
+  ingest doesn't double-import rows whose filename hasn't changed; new
+  rows go in and previously-seen filenames are recorded as **Skipped**.
+- **Cap**: at most 100,000 rows per run, enforced via
+  `Statement.setMaxRows(…)` at the JDBC protocol level so the database
+  doesn't stream more data than the ingest will use.
+- **Timeouts**: 15s connection timeout, 5min per-statement query timeout.
+  An accidentally-broad query against a huge table can't pin a worker
+  thread indefinitely.
+
+The job is a [Background Job](../user-guide/background-jobs.md) and
+reports `Processed N / Failed M / Skipped K` the same way every other
+ingest does. If the JDBC connection fails (host unreachable, bad
+credentials, table doesn't exist) the job is marked FAILED with the
+underlying SQLSTATE plus driver message so operators can diagnose without
+hunting through the application log.
+
+The shipped Docker compose stack registers a **Demo PostgreSQL** data
+source pointing at a bundled `postgres` container, whose `documents`
+table is seeded with synthetic PII-shaped rows so the RDB ingest path
+can be exercised without standing up a database by hand. See
+[Getting started](../getting-started.md) for the full demo layout.
+
 ### Local Directory
 
 | Field          | Required | Notes                                                                |
@@ -379,8 +412,10 @@ email and the affected source's id and name:
 | `S3_DATASOURCE_CREATE`                | `S3DataSource`             | S3 source added                          |
 | `S3_DATASOURCE_DELETE`                | `S3DataSource`             | S3 source removed                        |
 | `RDB_DATASOURCE_CREATE`               | `RelationalDbDataSource`   | Relational database source added         |
+| `RDB_DATASOURCE_UPDATE`               | `RelationalDbDataSource`   | Relational database source edited (payload includes `credentialsChanged` and `credentialsSet` booleans) |
 | `RDB_DATASOURCE_DELETE`               | `RelationalDbDataSource`   | Relational database source removed       |
 | `RDB_DANGEROUS_SQL_BLOCKED`           | `RelationalDbDataSource`   | RDB source rejected for containing `DELETE`, `TRUNCATE`, or `DROP` in the SQL — entityId is `null` because nothing was saved. The payload includes the data-source name, JDBC URL, matched `keywords`, and the offending `sqlQuery`. |
+| `RDB_DANGEROUS_JDBC_URL_BLOCKED`      | `RelationalDbDataSource`   | RDB source rejected by `JdbcUrlValidator` (driver-level RCE primitive, dangerous parameter, embedded credentials, host not on the allow-list, …). entityId is `null` on create; on edit it carries the existing source id. |
 | `LOCAL_DATASOURCE_CREATE`             | `LocalDirectoryDataSource` | Local directory source added             |
 | `LOCAL_DATASOURCE_DELETE`             | `LocalDirectoryDataSource` | Local directory source removed           |
 

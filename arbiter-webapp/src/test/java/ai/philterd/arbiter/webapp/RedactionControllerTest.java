@@ -221,6 +221,9 @@ public class RedactionControllerTest {
     @MockBean
     private ai.philterd.arbiter.service.S3IngestJobService s3IngestJobService;
 
+    @MockBean
+    private ai.philterd.arbiter.service.RdbIngestJobService rdbIngestJobService;
+
     /**
      * A non-admin reviewer with no group membership submits an OpenSearch ingest pointed at a
      * batch they do not have access to. The controller must reject the request before the
@@ -354,6 +357,44 @@ public class RedactionControllerTest {
                 .start(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any());
     }
 
+    /**
+     * Relational-database ingest is wired to the dedicated {@code rdbIngestJobService}
+     * and redirects the operator to the Background Jobs page on success — matching the
+     * shape of the OpenSearch / Elasticsearch / S3 paths above. Pre-implementation this
+     * branch returned a "not yet implemented" flash; the test guards against a
+     * regression that would silently break the demo PostgreSQL data source.
+     */
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    public void ingestFromSourceRdbStartsBackgroundJobAndRedirectsToJobsPage() throws Exception {
+        final Batch batch = new Batch();
+        batch.setId("b1");
+        batch.setName("Q4 docs");
+        batch.setGroupId("g1");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(batch));
+
+        final ai.philterd.arbiter.model.BackgroundJob job = new ai.philterd.arbiter.model.BackgroundJob();
+        job.setStatus(ai.philterd.arbiter.model.BackgroundJob.STATUS_PENDING);
+        when(rdbIngestJobService.start(any(), any(), org.mockito.ArgumentMatchers.anyInt(), any()))
+                .thenReturn(job);
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .post("/ingest-from-source")
+                        .param("sourceType", "rdb")
+                        .param("batchId", "b1")
+                        .param("dataSourceId", "rdb-1")
+                        .with(csrf()))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(redirectedUrl("/jobs"))
+                .andExpect(flash().attributeExists("success"));
+
+        org.mockito.Mockito.verify(rdbIngestJobService)
+                .start(org.mockito.ArgumentMatchers.eq("rdb-1"),
+                        org.mockito.ArgumentMatchers.eq("b1"),
+                        org.mockito.ArgumentMatchers.anyInt(),
+                        any());
+    }
+
     /** A closed batch cannot accept new ingest jobs. */
     @Test
     @WithMockUser(roles = "ADMIN")
@@ -479,5 +520,57 @@ public class RedactionControllerTest {
         final int firstQuote = tail.indexOf('"');
         org.junit.jupiter.api.Assertions.assertEquals(tail.length() - 1, firstQuote,
                 "filename portion must not contain bare double quotes; got: " + disposition);
+    }
+
+    /**
+     * Render the Add Documents page with a populated RDB data source list. Catches a
+     * Thymeleaf template regression — the dropdown previously interpolated
+     * {@code r.jdbcUrl} on the entity, which broke when that field was renamed to
+     * {@code encryptedJdbcUrl}. With an empty repo the iteration body never runs and
+     * the breakage stays invisible to existing tests; this test gives the iteration
+     * at least one row to render.
+     */
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    public void uploadPageRendersRdbDropdownWithStoredDataSources() throws Exception {
+        final ai.philterd.arbiter.model.RelationalDbDataSource src =
+                new ai.philterd.arbiter.model.RelationalDbDataSource();
+        src.setId("rdb-1");
+        src.setName("warehouse");
+        // The URL field is encrypted at rest — the entity carries ciphertext.
+        // The upload page must not interpolate this field (which would (a) crash
+        // because the entity no longer has getJdbcUrl(), and (b) leak ciphertext
+        // — or, with a sloppy decrypt, the plaintext URL — onto a page reachable
+        // by every reviewer, not just admins).
+        src.setEncryptedJdbcUrl("enc:jdbc:postgresql://host:5432/db");
+        src.setSqlQuery("SELECT text, filename FROM documents");
+        when(relationalDbDataSourceRepository.findAll(
+                org.mockito.ArgumentMatchers.any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of(src)));
+
+        // Provide one batch too so the form is rendered (the template skips the form
+        // when batches is empty, which would also skip iteration over rdbDataSources).
+        final Batch batch = new Batch();
+        batch.setId("b1");
+        batch.setName("Mine");
+        batch.setGroupId("g-mine");
+        when(batchRepository.findAll(
+                org.mockito.ArgumentMatchers.any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of(batch)));
+        when(userGroupsService.groupIdsForEmail(any())).thenReturn(java.util.Set.of("g-mine"));
+
+        final org.springframework.test.web.servlet.MvcResult result = mockMvc.perform(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/upload"))
+                .andExpect(status().isOk())
+                .andReturn();
+        final String body = result.getResponse().getContentAsString();
+        org.junit.jupiter.api.Assertions.assertTrue(body.contains("warehouse"),
+                "The RDB data source's name should render in the dropdown.");
+        // The encrypted URL (or any URL) must NOT appear on this page — encryption-at-rest
+        // becomes useless if /upload (reachable by all reviewers) prints it back out.
+        org.junit.jupiter.api.Assertions.assertFalse(body.contains("jdbc:postgresql://"),
+                "Encrypted-at-rest JDBC URL must not be surfaced on the upload page.");
+        org.junit.jupiter.api.Assertions.assertFalse(body.contains("enc:jdbc:"),
+                "Raw ciphertext must never appear on the upload page.");
     }
 }

@@ -24,8 +24,17 @@ public class RelationalDbDataSource {
     @Indexed(unique = true)
     private String name;
 
-    /** A standard JDBC URL, e.g. {@code jdbc:postgresql://host:5432/db}. */
-    private String jdbcUrl;
+    /**
+     * AES-GCM ciphertext of the JDBC URL (see {@code SymmetricCipher}). The plaintext is a
+     * standard JDBC URL, e.g. {@code jdbc:postgresql://host:5432/db}. Stored encrypted
+     * because JDBC URLs can carry credentials in query parameters (e.g.
+     * {@code …/db?user=alice&password=…}) and connection-string flags that some drivers
+     * accept. {@code JdbcUrlValidator} refuses {@code user:pass@} userinfo and a known set
+     * of dangerous query parameters at save time, but encrypting at rest is the
+     * belt-and-braces guarantee: even a future validator regression can't surface a
+     * cleartext credential out of the database.
+     */
+    private String encryptedJdbcUrl;
 
     /**
      * SQL query that returns the documents to be imported. The first column of each row is
@@ -54,8 +63,8 @@ public class RelationalDbDataSource {
     public String getName() { return name; }
     public void setName(final String name) { this.name = name; }
 
-    public String getJdbcUrl() { return jdbcUrl; }
-    public void setJdbcUrl(final String jdbcUrl) { this.jdbcUrl = jdbcUrl; }
+    public String getEncryptedJdbcUrl() { return encryptedJdbcUrl; }
+    public void setEncryptedJdbcUrl(final String encryptedJdbcUrl) { this.encryptedJdbcUrl = encryptedJdbcUrl; }
 
     public String getSqlQuery() { return sqlQuery; }
     public void setSqlQuery(final String sqlQuery) { this.sqlQuery = sqlQuery; }

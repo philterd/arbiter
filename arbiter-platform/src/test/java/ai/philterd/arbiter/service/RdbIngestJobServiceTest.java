@@ -1,0 +1,419 @@
+/*
+ * Copyright 2026 Philterd, LLC.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ */
+package ai.philterd.arbiter.service;
+
+import ai.philterd.arbiter.model.BackgroundJob;
+import ai.philterd.arbiter.model.Batch;
+import ai.philterd.arbiter.model.Document;
+import ai.philterd.arbiter.model.RelationalDbDataSource;
+import ai.philterd.arbiter.repository.BackgroundJobRepository;
+import ai.philterd.arbiter.repository.BatchRepository;
+import ai.philterd.arbiter.repository.DocumentRepository;
+import ai.philterd.arbiter.repository.RelationalDbDataSourceRepository;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.ResultSetMetaData;
+import java.sql.SQLException;
+import java.sql.Statement;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+/**
+ * Unit tests for {@link RdbIngestJobService}. JDBC calls go through a Mockito-driven
+ * stub {@link Connection}/{@link Statement}/{@link ResultSet} chain — no real database
+ * is required.
+ */
+class RdbIngestJobServiceTest {
+
+    private BackgroundJobRepository jobRepository;
+    private RelationalDbDataSourceRepository dataSourceRepository;
+    private BatchRepository batchRepository;
+    private DocumentRepository documentRepository;
+    private IngestQueueService ingestQueueService;
+    private SymmetricCipher cipher;
+    private InboxService inboxService;
+    private AuditLogService auditLogService;
+    private DataImportLogService importLogService;
+    private RdbIngestJobService service;
+    // Each test plugs the connection's stmt → rs chain into these fields so the
+    // factory below returns a Connection that issues exactly what the test wants.
+    private Connection stubConnection;
+    private Statement stubStatement;
+
+    @BeforeEach
+    void setUp() throws SQLException {
+        jobRepository = mock(BackgroundJobRepository.class);
+        when(jobRepository.save(any(BackgroundJob.class)))
+                .thenAnswer(inv -> inv.getArgument(0, BackgroundJob.class));
+        dataSourceRepository = mock(RelationalDbDataSourceRepository.class);
+        batchRepository = mock(BatchRepository.class);
+        documentRepository = mock(DocumentRepository.class);
+        when(documentRepository.save(any(Document.class)))
+                .thenAnswer(inv -> inv.getArgument(0, Document.class));
+        ingestQueueService = mock(IngestQueueService.class);
+        when(ingestQueueService.enqueueText(any(Batch.class), anyString(), anyString(), anyInt()))
+                .thenAnswer(inv -> {
+                    final Document d = new Document();
+                    d.setId("doc-" + inv.getArgument(1, String.class));
+                    d.setFilename(inv.getArgument(1, String.class));
+                    return d;
+                });
+        cipher = mock(SymmetricCipher.class);
+        when(cipher.decrypt(anyString())).thenAnswer(inv -> {
+            final String s = inv.getArgument(0, String.class);
+            return s.startsWith("enc:") ? s.substring(4) : s;
+        });
+        inboxService = mock(InboxService.class);
+        auditLogService = mock(AuditLogService.class);
+        importLogService = mock(DataImportLogService.class);
+
+        stubConnection = mock(Connection.class);
+        stubStatement = mock(Statement.class);
+        when(stubConnection.createStatement(anyInt(), anyInt())).thenReturn(stubStatement);
+        // setMaxRows / setQueryTimeout / setFetchSize: nothing to stub, they're void.
+
+        service = new RdbIngestJobService(jobRepository, dataSourceRepository, batchRepository,
+                documentRepository, ingestQueueService, cipher, inboxService,
+                auditLogService, importLogService,
+                (url, user, pass) -> stubConnection);
+    }
+
+    // ---------- start() validation ----------
+
+    @Test
+    void startFailsImmediatelyWhenSourceIsMissing() {
+        when(dataSourceRepository.findById("missing")).thenReturn(Optional.empty());
+        when(batchRepository.findById("b-1")).thenReturn(Optional.of(batch("b-1")));
+
+        final BackgroundJob job = service.start("missing", "b-1", 2, "alice@x.com");
+
+        assertEquals(BackgroundJob.STATUS_FAILED, job.getStatus());
+        assertEquals("Relational database data source not found.", job.getErrorMessage());
+    }
+
+    @Test
+    void startFailsImmediatelyWhenBatchIsMissing() {
+        when(dataSourceRepository.findById("src-1")).thenReturn(Optional.of(source("src-1")));
+        when(batchRepository.findById("ghost")).thenReturn(Optional.empty());
+
+        final BackgroundJob job = service.start("src-1", "ghost", 2, "alice@x.com");
+
+        assertEquals(BackgroundJob.STATUS_FAILED, job.getStatus());
+        assertEquals("Batch not found.", job.getErrorMessage());
+    }
+
+    @Test
+    void startFailsImmediatelyWhenJdbcUrlIsBlank() {
+        final RelationalDbDataSource s = source("src-1");
+        // The URL field is now stored encrypted; an empty ciphertext stands in
+        // for "no URL configured" (the controller never persists an empty plaintext).
+        s.setEncryptedJdbcUrl("");
+        when(dataSourceRepository.findById("src-1")).thenReturn(Optional.of(s));
+        when(batchRepository.findById("b-1")).thenReturn(Optional.of(batch("b-1")));
+
+        final BackgroundJob job = service.start("src-1", "b-1", 2, "alice@x.com");
+
+        assertEquals(BackgroundJob.STATUS_FAILED, job.getStatus());
+        assertTrue(job.getErrorMessage().contains("JDBC URL"));
+    }
+
+    @Test
+    void startFailsImmediatelyWhenSqlIsBlank() {
+        final RelationalDbDataSource s = source("src-1");
+        s.setSqlQuery("   ");
+        when(dataSourceRepository.findById("src-1")).thenReturn(Optional.of(s));
+        when(batchRepository.findById("b-1")).thenReturn(Optional.of(batch("b-1")));
+
+        final BackgroundJob job = service.start("src-1", "b-1", 2, "alice@x.com");
+
+        assertEquals(BackgroundJob.STATUS_FAILED, job.getStatus());
+        assertTrue(job.getErrorMessage().contains("SQL query"));
+    }
+
+    @Test
+    void startFailsImmediatelyWhenSqlIsDangerous() {
+        // Defense in depth: even though the saved-state guard refuses these,
+        // start() re-runs the validator so a hand-edited Mongo row can't slip
+        // a DELETE past the runtime.
+        final RelationalDbDataSource s = source("src-1");
+        s.setSqlQuery("DELETE FROM documents");
+        when(dataSourceRepository.findById("src-1")).thenReturn(Optional.of(s));
+        when(batchRepository.findById("b-1")).thenReturn(Optional.of(batch("b-1")));
+
+        final BackgroundJob job = service.start("src-1", "b-1", 2, "alice@x.com");
+
+        assertEquals(BackgroundJob.STATUS_FAILED, job.getStatus());
+    }
+
+    @Test
+    void startPersistsPendingJobOnSuccess() {
+        when(dataSourceRepository.findById("src-1")).thenReturn(Optional.of(source("src-1")));
+        when(batchRepository.findById("b-1")).thenReturn(Optional.of(batch("b-1")));
+
+        final BackgroundJob job = service.start("src-1", "b-1", 3, "alice@x.com");
+
+        assertEquals(BackgroundJob.STATUS_PENDING, job.getStatus());
+        assertEquals(BackgroundJob.TYPE_RDB_INGEST, job.getType());
+        assertEquals(3, job.getPriority());
+        assertEquals("alice@x.com", job.getCreatedBy());
+        assertNotNull(job.getCreatedAt());
+        verify(jobRepository).save(any(BackgroundJob.class));
+    }
+
+    // ---------- run(): row → Document mapping ----------
+
+    @Test
+    void runEnqueuesOneDocumentPerRowUsingFilenameColumn() throws SQLException {
+        final RelationalDbDataSource src = source("src-1");
+        final Batch batch = batch("b-1");
+        primeForRun(src, batch);
+
+        final ResultSet rs = resultSetWith(
+                new String[] {"text", "filename"},
+                new String[][] {
+                        {"alpha body", "a.txt"},
+                        {"bravo body", "b.txt"}
+                });
+        when(stubStatement.executeQuery(src.getSqlQuery())).thenReturn(rs);
+
+        // Job pre-saved in PENDING state — that's what run() reads on entry.
+        final BackgroundJob pending = pendingJob("job-1", src, batch);
+        when(jobRepository.findById("job-1")).thenReturn(Optional.of(pending));
+
+        service.run("job-1");
+
+        final ArgumentCaptor<String> filenames = ArgumentCaptor.forClass(String.class);
+        final ArgumentCaptor<String> bodies = ArgumentCaptor.forClass(String.class);
+        verify(ingestQueueService, org.mockito.Mockito.times(2))
+                .enqueueText(eq(batch), filenames.capture(), bodies.capture(), anyInt());
+        assertEquals(java.util.List.of("a.txt", "b.txt"), filenames.getAllValues());
+        assertEquals(java.util.List.of("alpha body", "bravo body"), bodies.getAllValues());
+
+        // Each saved Document gets RDB attribution stamped on.
+        final ArgumentCaptor<Document> docs = ArgumentCaptor.forClass(Document.class);
+        verify(documentRepository, org.mockito.Mockito.atLeast(2)).save(docs.capture());
+        final Document first = docs.getAllValues().get(0);
+        assertEquals("RDB", first.getSourceSystem());
+        assertEquals("src-1", first.getSourceIndex(),
+                "sourceIndex should be the data source id so two RDB sources don't collide on filename");
+        assertEquals("a.txt", first.getSourceDocId());
+    }
+
+    @Test
+    void runSynthesizesFilenameWhenNoFilenameColumnPresent() throws SQLException {
+        final RelationalDbDataSource src = source("src-1");
+        final Batch batch = batch("b-1");
+        primeForRun(src, batch);
+
+        // No filename column — only the text column. The service should fall back to row-N.txt.
+        final ResultSet rs = resultSetWith(
+                new String[] {"text"},
+                new String[][] {
+                        {"alpha body"},
+                        {"bravo body"}
+                });
+        when(stubStatement.executeQuery(src.getSqlQuery())).thenReturn(rs);
+        when(jobRepository.findById("job-1")).thenReturn(Optional.of(pendingJob("job-1", src, batch)));
+
+        service.run("job-1");
+
+        final ArgumentCaptor<String> filenames = ArgumentCaptor.forClass(String.class);
+        verify(ingestQueueService, org.mockito.Mockito.times(2))
+                .enqueueText(eq(batch), filenames.capture(), anyString(), anyInt());
+        assertEquals(java.util.List.of("row-1.txt", "row-2.txt"), filenames.getAllValues());
+    }
+
+    @Test
+    void runSkipsDuplicateRowsByExistingSourceIndexAndDocId() throws SQLException {
+        final RelationalDbDataSource src = source("src-1");
+        final Batch batch = batch("b-1");
+        primeForRun(src, batch);
+
+        final ResultSet rs = resultSetWith(
+                new String[] {"text", "filename"},
+                new String[][] {
+                        {"alpha body", "a.txt"},   // already imported
+                        {"bravo body", "b.txt"}    // new
+                });
+        when(stubStatement.executeQuery(src.getSqlQuery())).thenReturn(rs);
+        when(jobRepository.findById("job-1")).thenReturn(Optional.of(pendingJob("job-1", src, batch)));
+        when(documentRepository.existsBySourceIndexAndSourceDocId("src-1", "a.txt"))
+                .thenReturn(true);
+
+        service.run("job-1");
+
+        // The duplicate must NOT call enqueueText — the SKIPPED placeholder is persisted directly.
+        verify(ingestQueueService, never()).enqueueText(any(), eq("a.txt"), anyString(), anyInt());
+        verify(ingestQueueService).enqueueText(any(), eq("b.txt"), eq("bravo body"), anyInt());
+        verify(importLogService).skipped(eq("job-1"), eq("a.txt"), eq("a.txt"));
+    }
+
+    @Test
+    void runMarksRowFailedWhenFirstColumnIsNull() throws SQLException {
+        final RelationalDbDataSource src = source("src-1");
+        final Batch batch = batch("b-1");
+        primeForRun(src, batch);
+
+        final ResultSet rs = resultSetWith(
+                new String[] {"text", "filename"},
+                new String[][] {
+                        {null, "a.txt"},
+                        {"bravo body", "b.txt"}
+                });
+        when(stubStatement.executeQuery(src.getSqlQuery())).thenReturn(rs);
+        final BackgroundJob pending = pendingJob("job-1", src, batch);
+        when(jobRepository.findById("job-1")).thenReturn(Optional.of(pending));
+
+        service.run("job-1");
+
+        // a.txt: failed (null text); b.txt: enqueued.
+        verify(ingestQueueService, never()).enqueueText(any(), eq("a.txt"), anyString(), anyInt());
+        verify(ingestQueueService).enqueueText(any(), eq("b.txt"), eq("bravo body"), anyInt());
+        verify(importLogService).failed(eq("job-1"), eq("a.txt"), eq("a.txt"), anyString());
+    }
+
+    @Test
+    void runFailsJobWhenSqlExecutionRaises() throws SQLException {
+        final RelationalDbDataSource src = source("src-1");
+        final Batch batch = batch("b-1");
+        primeForRun(src, batch);
+
+        when(stubStatement.executeQuery(src.getSqlQuery()))
+                .thenThrow(new SQLException("relation \"documents\" does not exist", "42P01"));
+        final BackgroundJob pending = pendingJob("job-1", src, batch);
+        when(jobRepository.findById("job-1")).thenReturn(Optional.of(pending));
+
+        service.run("job-1");
+
+        assertEquals(BackgroundJob.STATUS_FAILED, pending.getStatus());
+        assertNotNull(pending.getErrorMessage());
+        assertTrue(pending.getErrorMessage().contains("42P01"),
+                "SQLSTATE should surface in the operator-visible error: " + pending.getErrorMessage());
+    }
+
+    @Test
+    void runFailsWhenSavedSqlBecomesDangerous() throws SQLException {
+        // Defense in depth at run() time too: a hand-edited Mongo row that put
+        // DELETE into the saved SQL must be refused before the connection is even
+        // opened. The factory must not be touched.
+        final RelationalDbDataSource src = source("src-1");
+        src.setSqlQuery("DELETE FROM documents");
+        final Batch batch = batch("b-1");
+        primeForRun(src, batch);
+
+        final BackgroundJob pending = pendingJob("job-1", src, batch);
+        when(jobRepository.findById("job-1")).thenReturn(Optional.of(pending));
+
+        // Use a factory that throws if it's called — proves run() short-circuits
+        // before opening a connection.
+        service = new RdbIngestJobService(jobRepository, dataSourceRepository, batchRepository,
+                documentRepository, ingestQueueService, cipher, inboxService,
+                auditLogService, importLogService,
+                (url, user, pass) -> {
+                    throw new AssertionError("Connection must not be opened for dangerous SQL.");
+                });
+        service.run("job-1");
+
+        assertEquals(BackgroundJob.STATUS_FAILED, pending.getStatus());
+        verify(ingestQueueService, never()).enqueueText(any(), anyString(), anyString(), anyInt());
+    }
+
+    // ---------- helpers ----------
+
+    private void primeForRun(final RelationalDbDataSource src, final Batch batch) {
+        when(dataSourceRepository.findById(src.getId())).thenReturn(Optional.of(src));
+        when(batchRepository.findById(batch.getId())).thenReturn(Optional.of(batch));
+    }
+
+    private static RelationalDbDataSource source(final String id) {
+        final RelationalDbDataSource s = new RelationalDbDataSource();
+        s.setId(id);
+        s.setName("warehouse");
+        // Store the JDBC URL as if it had already been encrypted by the controller.
+        // The cipher mock in setUp() decrypts "enc:<plain>" back to "<plain>", so the
+        // ingest service's connectionFactory.open call sees the expected plaintext URL.
+        s.setEncryptedJdbcUrl("enc:jdbc:postgresql://host:5432/db");
+        s.setSqlQuery("SELECT text, filename FROM documents");
+        return s;
+    }
+
+    private static Batch batch(final String id) {
+        final Batch b = new Batch();
+        b.setId(id);
+        b.setName("Q4 docs");
+        return b;
+    }
+
+    private static BackgroundJob pendingJob(final String id, final RelationalDbDataSource src,
+                                            final Batch batch) {
+        final BackgroundJob j = new BackgroundJob();
+        j.setId(id);
+        j.setType(BackgroundJob.TYPE_RDB_INGEST);
+        j.setSourceId(src.getId());
+        j.setSourceName(src.getName());
+        j.setBatchId(batch.getId());
+        j.setBatchName(batch.getName());
+        j.setStatus(BackgroundJob.STATUS_PENDING);
+        j.setPriority(2);
+        j.setCreatedBy("alice@x.com");
+        return j;
+    }
+
+    /**
+     * Stand up a Mockito-backed {@link ResultSet} that walks the supplied rows. Each
+     * row is an array of column values; columns are positional (1-based) and the
+     * label list also drives {@link ResultSetMetaData} for case-insensitive
+     * column lookup.
+     */
+    private static ResultSet resultSetWith(final String[] columns, final String[][] rows)
+            throws SQLException {
+        final ResultSet rs = mock(ResultSet.class);
+        final ResultSetMetaData md = mock(ResultSetMetaData.class);
+        when(md.getColumnCount()).thenReturn(columns.length);
+        for (int i = 0; i < columns.length; i++) {
+            when(md.getColumnLabel(i + 1)).thenReturn(columns[i]);
+        }
+        when(rs.getMetaData()).thenReturn(md);
+
+        // next(): true N times, then false. We pair each next() with a side effect
+        // that loads the row's values into the getString(i) stubs.
+        final int[] cursor = {0};
+        when(rs.next()).thenAnswer(inv -> {
+            if (cursor[0] >= rows.length) return false;
+            cursor[0]++;
+            return true;
+        });
+        for (int colIdx = 0; colIdx < columns.length; colIdx++) {
+            final int col1Based = colIdx + 1;
+            lenient().when(rs.getString(col1Based)).thenAnswer(inv -> {
+                final int row = cursor[0] - 1;
+                if (row < 0 || row >= rows.length) return null;
+                return rows[row][col1Based - 1];
+            });
+        }
+        return rs;
+    }
+}

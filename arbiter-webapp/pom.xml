@@ -92,6 +92,19 @@
             <artifactId>javase</artifactId>
             <version>3.5.3</version>
         </dependency>
+        <!--
+            PostgreSQL JDBC driver. Runtime-scoped because nothing in arbiter-platform
+            or arbiter-webapp compiles against the driver's API directly — it's loaded
+            reflectively by java.sql.DriverManager when an RDB data source preview /
+            ingest opens a connection. Adding more drivers (MySQL, MariaDB, Oracle…)
+            here follows the same shape; the runnable webapp jar is the right place
+            to bundle them so DriverManager can find them on the system classpath.
+        -->
+        <dependency>
+            <groupId>org.postgresql</groupId>
+            <artifactId>postgresql</artifactId>
+            <scope>runtime</scope>
+        </dependency>
     </dependencies>
     <build>
         <plugins>

@@ -20,12 +20,15 @@ import ai.philterd.arbiter.model.LocalDirectoryDataSource;
 import ai.philterd.arbiter.model.OpenSearchDataSource;
 import ai.philterd.arbiter.model.RelationalDbDataSource;
 import ai.philterd.arbiter.model.S3DataSource;
+import ai.philterd.arbiter.model.BackgroundJob;
+import ai.philterd.arbiter.repository.BackgroundJobRepository;
 import ai.philterd.arbiter.repository.ElasticsearchDataSourceRepository;
 import ai.philterd.arbiter.repository.LocalDirectoryDataSourceRepository;
 import ai.philterd.arbiter.repository.OpenSearchDataSourceRepository;
 import ai.philterd.arbiter.repository.RelationalDbDataSourceRepository;
 import ai.philterd.arbiter.repository.S3DataSourceRepository;
 import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.service.RdbPreviewService;
 import ai.philterd.arbiter.service.SymmetricCipher;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -65,11 +68,13 @@ public class AdminDataSourceController {
     private final S3DataSourceRepository s3Repository;
     private final RelationalDbDataSourceRepository rdbRepository;
     private final LocalDirectoryDataSourceRepository localRepository;
+    private final BackgroundJobRepository backgroundJobRepository;
     private final AuditLogService auditLogService;
     private final SymmetricCipher cipher;
     private final ObjectMapper objectMapper;
     private final ai.philterd.arbiter.service.DataSourceHostAllowList hostAllowList;
     private final ai.philterd.arbiter.service.JdbcUrlValidator jdbcUrlValidator;
+    private final RdbPreviewService rdbPreviewService;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
@@ -79,21 +84,57 @@ public class AdminDataSourceController {
                                      final S3DataSourceRepository s3Repository,
                                      final RelationalDbDataSourceRepository rdbRepository,
                                      final LocalDirectoryDataSourceRepository localRepository,
+                                     final BackgroundJobRepository backgroundJobRepository,
                                      final AuditLogService auditLogService,
                                      final SymmetricCipher cipher,
                                      final ObjectMapper objectMapper,
                                      final ai.philterd.arbiter.service.DataSourceHostAllowList hostAllowList,
-                                     final ai.philterd.arbiter.service.JdbcUrlValidator jdbcUrlValidator) {
+                                     final ai.philterd.arbiter.service.JdbcUrlValidator jdbcUrlValidator,
+                                     final RdbPreviewService rdbPreviewService) {
         this.repository = repository;
         this.esRepository = esRepository;
         this.s3Repository = s3Repository;
         this.rdbRepository = rdbRepository;
         this.localRepository = localRepository;
+        this.backgroundJobRepository = backgroundJobRepository;
         this.auditLogService = auditLogService;
         this.cipher = cipher;
         this.objectMapper = objectMapper;
         this.hostAllowList = hostAllowList;
         this.jdbcUrlValidator = jdbcUrlValidator;
+        this.rdbPreviewService = rdbPreviewService;
+    }
+
+    /**
+     * Template-facing projection of {@link RelationalDbDataSource}. The {@code jdbcUrl}
+     * field carries the <em>decrypted</em> URL so the Data Sources page can render it
+     * in the listing row and stamp it onto the Edit modal's data-attribute. The
+     * encrypted username/password are passed through verbatim — the template only
+     * tests them for emptiness ("are credentials stored?") and never displays them.
+     */
+    public record RelationalDbDataSourceView(
+            String id,
+            String name,
+            String jdbcUrl,
+            String sqlQuery,
+            String encryptedUsername,
+            String encryptedPassword,
+            java.time.LocalDateTime createdAt) {}
+
+    private RelationalDbDataSourceView toRdbView(final RelationalDbDataSource r) {
+        // Decryption can throw on a tampered / out-of-sync ciphertext. Render an
+        // explicit marker instead of crashing the whole listing — operators can
+        // then identify and re-create the bad row.
+        String url;
+        try {
+            url = r.getEncryptedJdbcUrl() == null || r.getEncryptedJdbcUrl().isEmpty()
+                    ? "" : cipher.decrypt(r.getEncryptedJdbcUrl());
+        } catch (RuntimeException e) {
+            url = "(unable to decrypt — re-save this data source)";
+        }
+        return new RelationalDbDataSourceView(
+                r.getId(), r.getName(), url, r.getSqlQuery(),
+                r.getEncryptedUsername(), r.getEncryptedPassword(), r.getCreatedAt());
     }
 
     @GetMapping
@@ -112,7 +153,15 @@ public class AdminDataSourceController {
 
         final List<RelationalDbDataSource> rdbSources = rdbRepository
                 .findAll(PageRequest.of(0, 500, Sort.by("name"))).getContent();
-        model.addAttribute("rdbDataSources", rdbSources);
+        // Map the entities to a view record that exposes the decrypted JDBC URL —
+        // the template displays it in the listing row and stamps it onto the Edit
+        // button's data-attribute for the modal prefill. Decryption happens once
+        // here so the template never sees ciphertext (and so a future change can't
+        // accidentally render the encrypted blob to the page).
+        final List<RelationalDbDataSourceView> rdbView = rdbSources.stream()
+                .map(this::toRdbView)
+                .toList();
+        model.addAttribute("rdbDataSources", rdbView);
 
         final List<LocalDirectoryDataSource> localSources = localRepository
                 .findAll(PageRequest.of(0, 500, Sort.by("name"))).getContent();
@@ -788,12 +837,12 @@ public class AdminDataSourceController {
         final String rawPassword = password == null ? "" : password;
 
         if (trimmedName.isEmpty()) {
-            redirectAttributes.addFlashAttribute("error", "Name is required.");
-            return "redirect:/admin/data-sources";
+            return rdbCreateError(redirectAttributes, "Name is required.",
+                    trimmedName, trimmedUrl, trimmedSql, rawUsername, rawPassword);
         }
         if (trimmedUrl.isEmpty()) {
-            redirectAttributes.addFlashAttribute("error", "JDBC URL is required.");
-            return "redirect:/admin/data-sources";
+            return rdbCreateError(redirectAttributes, "JDBC URL is required.",
+                    trimmedName, trimmedUrl, trimmedSql, rawUsername, rawPassword);
         }
         // SSRF / RCE defense: refuse JDBC URLs whose driver can run code at connect
         // time (H2 INIT, Derby restoreFrom), or that smuggle a known-dangerous param
@@ -813,12 +862,12 @@ public class AdminDataSourceController {
                     Map.of("name", trimmedName,
                             "jdbcUrl", safeUrl,
                             "reason", urlCheck.error() == null ? "" : urlCheck.error()));
-            redirectAttributes.addFlashAttribute("error", urlCheck.error());
-            return "redirect:/admin/data-sources";
+            return rdbCreateError(redirectAttributes, urlCheck.error(),
+                    trimmedName, trimmedUrl, trimmedSql, rawUsername, rawPassword);
         }
         if (trimmedSql.isEmpty()) {
-            redirectAttributes.addFlashAttribute("error", "SQL query is required.");
-            return "redirect:/admin/data-sources";
+            return rdbCreateError(redirectAttributes, "SQL query is required.",
+                    trimmedName, trimmedUrl, trimmedSql, rawUsername, rawPassword);
         }
         // Read-only allow-list: only SELECT and WITH … SELECT are permitted; any
         // mutation keyword (INSERT/UPDATE/MERGE/EXEC/CALL/…), multi-statement input,
@@ -833,27 +882,31 @@ public class AdminDataSourceController {
                             "jdbcUrl", safeUrl,
                             "reason", sqlCheck.error() == null ? "" : sqlCheck.error(),
                             "sqlQuery", trimmedSql));
-            redirectAttributes.addFlashAttribute("error", sqlCheck.error());
-            return "redirect:/admin/data-sources";
+            return rdbCreateError(redirectAttributes, sqlCheck.error(),
+                    trimmedName, trimmedUrl, trimmedSql, rawUsername, rawPassword);
         }
         // A username without a password (or vice versa) is almost always a typo.
         if (rawUsername.isEmpty() != rawPassword.isEmpty()) {
-            redirectAttributes.addFlashAttribute("error",
-                    "Provide both Username and Password, or leave both blank.");
-            return "redirect:/admin/data-sources";
+            return rdbCreateError(redirectAttributes,
+                    "Provide both Username and Password, or leave both blank.",
+                    trimmedName, trimmedUrl, trimmedSql, rawUsername, rawPassword);
         }
         final java.util.Optional<RelationalDbDataSource> existingRdb =
                 rdbRepository.findFirstByNameIgnoreCase(trimmedName);
         if (existingRdb.isPresent()) {
-            redirectAttributes.addFlashAttribute("error",
-                    "A relational database data source named \"" + existingRdb.get().getName() + "\" already exists.");
-            return "redirect:/admin/data-sources";
+            return rdbCreateError(redirectAttributes,
+                    "A relational database data source named \"" + existingRdb.get().getName()
+                            + "\" already exists.",
+                    trimmedName, trimmedUrl, trimmedSql, rawUsername, rawPassword);
         }
 
         final RelationalDbDataSource source = new RelationalDbDataSource();
         source.setId(UUID.randomUUID().toString());
         source.setName(trimmedName);
-        source.setJdbcUrl(trimmedUrl);
+        // The JDBC URL is encrypted at rest because it can carry credentials in
+        // query-string flags some drivers accept. The validator already refused
+        // user:pass@ userinfo above; this is the belt-and-braces guarantee.
+        source.setEncryptedJdbcUrl(cipher.encrypt(trimmedUrl));
         source.setSqlQuery(trimmedSql);
         source.setEncryptedUsername(rawUsername.isEmpty() ? null : cipher.encrypt(rawUsername));
         source.setEncryptedPassword(rawPassword.isEmpty() ? null : cipher.encrypt(rawPassword));
@@ -862,9 +915,9 @@ public class AdminDataSourceController {
         try {
             rdbRepository.save(source);
         } catch (DuplicateKeyException e) {
-            redirectAttributes.addFlashAttribute("error",
-                    "A relational database data source named \"" + trimmedName + "\" already exists.");
-            return "redirect:/admin/data-sources";
+            return rdbCreateError(redirectAttributes,
+                    "A relational database data source named \"" + trimmedName + "\" already exists.",
+                    trimmedName, trimmedUrl, trimmedSql, rawUsername, rawPassword);
         }
 
         auditLogService.log("RDB_DATASOURCE_CREATE", "RelationalDbDataSource", source.getId(),
@@ -874,7 +927,31 @@ public class AdminDataSourceController {
                         "credentialsSet", source.getEncryptedUsername() != null));
         redirectAttributes.addFlashAttribute("success",
                 "Relational database data source \"" + trimmedName + "\" added.");
-        return "redirect:/admin/data-sources";
+        return "redirect:/admin/data-sources?tab=rdb";
+    }
+
+    /**
+     * Round-trip the submitted form values through flash attributes so the page that
+     * re-renders after a validation error keeps everything the operator typed. Without
+     * this every error path would empty the form and the operator would have to retype
+     * the JDBC URL and SQL just to fix a single field. The redirect target also pins
+     * the RDB tab as the active one (the tab controller reads {@code ?tab=…} on load).
+     *
+     * <p>The credentials round-trip too — re-entering a password after a name-collision
+     * error is friction the operator doesn't need. Flash attributes are server-side
+     * session storage scoped to a single redirect, so the password is not exposed any
+     * more than the original POST body.
+     */
+    private String rdbCreateError(final RedirectAttributes ra, final String error,
+                                  final String name, final String jdbcUrl, final String sqlQuery,
+                                  final String username, final String password) {
+        ra.addFlashAttribute("error", error);
+        ra.addFlashAttribute("rdbFormName", name);
+        ra.addFlashAttribute("rdbFormJdbcUrl", jdbcUrl);
+        ra.addFlashAttribute("rdbFormSqlQuery", sqlQuery);
+        ra.addFlashAttribute("rdbFormUsername", username);
+        ra.addFlashAttribute("rdbFormPassword", password);
+        return "redirect:/admin/data-sources?tab=rdb";
     }
 
     @PostMapping("/rdb/{id}/delete")
@@ -884,12 +961,158 @@ public class AdminDataSourceController {
             redirectAttributes.addFlashAttribute("error", "Relational database data source not found.");
             return "redirect:/admin/data-sources";
         }
+        // Refuse the delete while an import job is still running against this source.
+        // Without this check the worker would dequeue a now-orphaned job and fail in a
+        // way that's hard to diagnose ("source not found" on a job the operator never
+        // started). Terminal jobs (COMPLETED/FAILED) don't block — they're just history.
+        final boolean inUse = backgroundJobRepository.existsBySourceIdAndStatusIn(
+                id, List.of(BackgroundJob.STATUS_PENDING, BackgroundJob.STATUS_RUNNING));
+        if (inUse) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Cannot remove \"" + source.getName()
+                            + "\" — a data import job is currently using it. "
+                            + "Wait for the job to finish or cancel it first.");
+            return "redirect:/admin/data-sources?tab=rdb";
+        }
         rdbRepository.deleteById(id);
         auditLogService.log("RDB_DATASOURCE_DELETE", "RelationalDbDataSource", id,
                 Map.of("name", source.getName() == null ? "" : source.getName()));
         redirectAttributes.addFlashAttribute("success",
                 "Relational database data source \"" + source.getName() + "\" removed.");
-        return "redirect:/admin/data-sources";
+        return "redirect:/admin/data-sources?tab=rdb";
+    }
+
+    /**
+     * Update connection properties on a saved RDB data source. The {@code name} is
+     * immutable for the same reason as on every other data-source edit path: it's the
+     * stable identifier operators use to recognise the row, and renaming it has zero
+     * functional benefit. JDBC URL and SQL re-run through the same validators as the
+     * create path, so a saved row can never be edited into something the create form
+     * would have refused.
+     *
+     * <p>Credentials are tri-state, mirroring the S3 / OpenSearch edit flows:
+     * <ul>
+     *   <li>{@code clearCredentials=true} wipes both stored values (fall back to whatever
+     *       the JDBC URL itself or the driver's ambient auth provides).</li>
+     *   <li>Non-empty pair replaces them (re-encrypted at rest).</li>
+     *   <li>Blank pair with {@code clearCredentials=false} leaves them intact, so an
+     *       admin can adjust the URL or SQL without re-typing the password.</li>
+     * </ul>
+     */
+    @PostMapping("/rdb/{id}/edit")
+    public String editRdb(@PathVariable final String id,
+                          @RequestParam("jdbcUrl") final String jdbcUrl,
+                          @RequestParam("sqlQuery") final String sqlQuery,
+                          @RequestParam(value = "username", required = false) final String username,
+                          @RequestParam(value = "password", required = false) final String password,
+                          @RequestParam(value = "clearCredentials", defaultValue = "false")
+                                  final boolean clearCredentials,
+                          final RedirectAttributes redirectAttributes) {
+        final RelationalDbDataSource source = rdbRepository.findById(id).orElse(null);
+        if (source == null) {
+            redirectAttributes.addFlashAttribute("error", "Relational database data source not found.");
+            return "redirect:/admin/data-sources?tab=rdb";
+        }
+        final String trimmedUrl = jdbcUrl == null ? "" : jdbcUrl.trim();
+        final String trimmedSql = sqlQuery == null ? "" : sqlQuery.trim();
+        // Credentials are not trimmed — leading/trailing whitespace can be valid in passwords.
+        final String rawUsername = username == null ? "" : username;
+        final String rawPassword = password == null ? "" : password;
+
+        if (trimmedUrl.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "JDBC URL is required.");
+            return "redirect:/admin/data-sources?tab=rdb";
+        }
+        final ai.philterd.arbiter.service.JdbcUrlValidator.Result urlCheck =
+                jdbcUrlValidator.validate(trimmedUrl);
+        final String safeUrl = ai.philterd.arbiter.service.JdbcUrlValidator.stripUserInfo(trimmedUrl);
+        if (!urlCheck.ok()) {
+            auditLogService.log("RDB_DANGEROUS_JDBC_URL_BLOCKED", "RelationalDbDataSource", id,
+                    Map.of("name", source.getName() == null ? "" : source.getName(),
+                            "jdbcUrl", safeUrl,
+                            "reason", urlCheck.error() == null ? "" : urlCheck.error()));
+            redirectAttributes.addFlashAttribute("error", urlCheck.error());
+            return "redirect:/admin/data-sources?tab=rdb";
+        }
+        if (trimmedSql.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "SQL query is required.");
+            return "redirect:/admin/data-sources?tab=rdb";
+        }
+        final ai.philterd.arbiter.service.SqlReadOnlyValidator.Result sqlCheck =
+                ai.philterd.arbiter.service.SqlReadOnlyValidator.validate(trimmedSql);
+        if (!sqlCheck.ok()) {
+            auditLogService.log("RDB_DANGEROUS_SQL_BLOCKED", "RelationalDbDataSource", id,
+                    Map.of("name", source.getName() == null ? "" : source.getName(),
+                            "jdbcUrl", safeUrl,
+                            "reason", sqlCheck.error() == null ? "" : sqlCheck.error(),
+                            "sqlQuery", trimmedSql));
+            redirectAttributes.addFlashAttribute("error", sqlCheck.error());
+            return "redirect:/admin/data-sources?tab=rdb";
+        }
+        if (rawUsername.isEmpty() != rawPassword.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Provide both Username and Password, or leave both blank.");
+            return "redirect:/admin/data-sources?tab=rdb";
+        }
+
+        final boolean credentialsChanged;
+        if (clearCredentials) {
+            source.setEncryptedUsername(null);
+            source.setEncryptedPassword(null);
+            credentialsChanged = true;
+        } else if (!rawUsername.isEmpty()) {
+            source.setEncryptedUsername(cipher.encrypt(rawUsername));
+            source.setEncryptedPassword(cipher.encrypt(rawPassword));
+            credentialsChanged = true;
+        } else {
+            credentialsChanged = false;
+        }
+
+        // Re-encrypt on every edit. The URL may have changed; even if it hasn't,
+        // re-encrypting produces a fresh AES-GCM nonce so the ciphertext on disk
+        // rotates whenever the row is touched.
+        source.setEncryptedJdbcUrl(cipher.encrypt(trimmedUrl));
+        source.setSqlQuery(trimmedSql);
+        rdbRepository.save(source);
+
+        auditLogService.log("RDB_DATASOURCE_UPDATE", "RelationalDbDataSource", source.getId(),
+                Map.of("name", source.getName() == null ? "" : source.getName(),
+                        "jdbcUrl", safeUrl,
+                        "sqlQuery", trimmedSql,
+                        "credentialsChanged", credentialsChanged,
+                        "credentialsSet", source.getEncryptedUsername() != null));
+        redirectAttributes.addFlashAttribute("success",
+                "Relational database data source \"" + source.getName() + "\" updated.");
+        return "redirect:/admin/data-sources?tab=rdb";
+    }
+
+    /**
+     * Run the saved SQL with a {@link RdbPreviewService#MAX_ROWS} row cap and return
+     * the column names plus the first few rows as JSON. The Preview popup on the
+     * Data Sources page calls this to give operators a quick "does this query
+     * return what I expect" check without leaving the page or starting a real
+     * import. Defence in depth: the service revalidates the SQL — even though the
+     * write paths above already gate against mutating statements, a hand-edited
+     * MongoDB row could in principle slip a {@code DELETE} past the saved-state
+     * guard.
+     */
+    @PostMapping("/rdb/{id}/preview")
+    @ResponseBody
+    public Map<String, Object> previewRdb(@PathVariable final String id) {
+        final RelationalDbDataSource source = rdbRepository.findById(id).orElse(null);
+        if (source == null) {
+            return Map.of("ok", false, "error", "Relational database data source not found.");
+        }
+        final RdbPreviewService.Result result = rdbPreviewService.preview(source);
+        if (!result.ok()) {
+            return Map.of("ok", false, "error", result.error() == null ? "" : result.error());
+        }
+        final Map<String, Object> body = new LinkedHashMap<>();
+        body.put("ok", true);
+        body.put("rowLimit", RdbPreviewService.MAX_ROWS);
+        body.put("columns", result.columns());
+        body.put("rows", result.rows());
+        return body;
     }
 
     @PostMapping("/local")

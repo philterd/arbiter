@@ -14,6 +14,7 @@ import ai.philterd.arbiter.repository.ElasticsearchDataSourceRepository;
 import ai.philterd.arbiter.repository.LocalDirectoryDataSourceRepository;
 import ai.philterd.arbiter.repository.LocalDirectoryDestinationRepository;
 import ai.philterd.arbiter.repository.OpenSearchDataSourceRepository;
+import ai.philterd.arbiter.repository.RelationalDbDataSourceRepository;
 import ai.philterd.arbiter.repository.S3DataSourceRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,6 +45,7 @@ class DemoDataSourceLoaderMinioTest {
     private LocalDirectoryDataSourceRepository localDirectoryRepository;
     private LocalDirectoryDestinationRepository localDestinationRepository;
     private S3DataSourceRepository s3Repository;
+    private RelationalDbDataSourceRepository rdbRepository;
     private SymmetricCipher cipher;
     private DemoDataSourceLoader loader;
 
@@ -54,6 +56,7 @@ class DemoDataSourceLoaderMinioTest {
         localDirectoryRepository = mock(LocalDirectoryDataSourceRepository.class);
         localDestinationRepository = mock(LocalDirectoryDestinationRepository.class);
         s3Repository = mock(S3DataSourceRepository.class);
+        rdbRepository = mock(RelationalDbDataSourceRepository.class);
         cipher = mock(SymmetricCipher.class);
         when(cipher.encrypt(anyString())).thenAnswer(inv -> "enc(" + inv.getArgument(0) + ")");
 
@@ -63,15 +66,17 @@ class DemoDataSourceLoaderMinioTest {
         when(localDirectoryRepository.findFirstByNameIgnoreCase(anyString())).thenReturn(Optional.empty());
         when(localDestinationRepository.findFirstByNameIgnoreCase(anyString())).thenReturn(Optional.empty());
         when(s3Repository.findFirstByNameIgnoreCase(anyString())).thenReturn(Optional.empty());
+        when(rdbRepository.findFirstByNameIgnoreCase(anyString())).thenReturn(Optional.empty());
 
         loader = new DemoDataSourceLoader(
                 openSearchRepository, elasticsearchRepository, localDirectoryRepository,
-                localDestinationRepository, s3Repository, cipher,
+                localDestinationRepository, s3Repository, rdbRepository, cipher,
                 // Use blank endpoints for OpenSearch / Elasticsearch so the loader's
                 // backend-seed step short-circuits without trying to make HTTP calls.
                 "", "",
                 "/app/local-files", "/app/output",
-                "http://minio:9000", "arbiter-demo", "minioadmin", "minioadmin");
+                "http://minio:9000", "arbiter-demo", "minioadmin", "minioadmin",
+                "jdbc:postgresql://postgres:5432/arbiter_demo", "arbiter_demo", "arbiter_demo");
     }
 
     @Test

@@ -53,7 +53,8 @@ public class DataImportDispatcher {
             BackgroundJob.TYPE_OPENSEARCH_INGEST,
             BackgroundJob.TYPE_ELASTICSEARCH_INGEST,
             BackgroundJob.TYPE_LOCAL_DIRECTORY_INGEST,
-            BackgroundJob.TYPE_S3_INGEST);
+            BackgroundJob.TYPE_S3_INGEST,
+            BackgroundJob.TYPE_RDB_INGEST);
 
     private final BackgroundJobRepository jobRepository;
     private final MongoOperations mongoOperations;
@@ -61,6 +62,7 @@ public class DataImportDispatcher {
     private final ElasticsearchIngestJobService esService;
     private final LocalDirectoryIngestJobService localService;
     private final S3IngestJobService s3Service;
+    private final RdbIngestJobService rdbService;
     private final GeneralSettingsService generalSettingsService;
     /**
      * Pool that runs claimed jobs. Sized to the upper bound of the admin-configurable
@@ -75,6 +77,7 @@ public class DataImportDispatcher {
                                 final ElasticsearchIngestJobService esService,
                                 final LocalDirectoryIngestJobService localService,
                                 final S3IngestJobService s3Service,
+                                final RdbIngestJobService rdbService,
                                 final GeneralSettingsService generalSettingsService) {
         this.jobRepository = jobRepository;
         this.mongoOperations = mongoOperations;
@@ -82,6 +85,7 @@ public class DataImportDispatcher {
         this.esService = esService;
         this.localService = localService;
         this.s3Service = s3Service;
+        this.rdbService = rdbService;
         this.generalSettingsService = generalSettingsService;
         this.workerPool = Executors.newFixedThreadPool(
                 GeneralSettingsService.MAX_CONCURRENT_DATA_IMPORTS, r -> {
@@ -159,6 +163,7 @@ public class DataImportDispatcher {
                 case BackgroundJob.TYPE_ELASTICSEARCH_INGEST -> esService.run(job.getId());
                 case BackgroundJob.TYPE_LOCAL_DIRECTORY_INGEST -> localService.run(job.getId());
                 case BackgroundJob.TYPE_S3_INGEST -> s3Service.run(job.getId());
+                case BackgroundJob.TYPE_RDB_INGEST -> rdbService.run(job.getId());
                 default -> log.warn("DataImportDispatcher: unknown job type {} for job {}",
                         job.getType(), job.getId());
             }

@@ -98,6 +98,7 @@ public class RedactionController {
     private final ai.philterd.arbiter.service.ElasticsearchIngestJobService elasticsearchIngestJobService;
     private final ai.philterd.arbiter.service.LocalDirectoryIngestJobService localDirectoryIngestJobService;
     private final ai.philterd.arbiter.service.S3IngestJobService s3IngestJobService;
+    private final ai.philterd.arbiter.service.RdbIngestJobService rdbIngestJobService;
 
     public RedactionController(final RedactionService redactionService,
                                final BatchRepository batchRepository,
@@ -117,7 +118,8 @@ public class RedactionController {
                                final ai.philterd.arbiter.service.OpenSearchIngestJobService openSearchIngestJobService,
                                final ai.philterd.arbiter.service.ElasticsearchIngestJobService elasticsearchIngestJobService,
                                final ai.philterd.arbiter.service.LocalDirectoryIngestJobService localDirectoryIngestJobService,
-                               final ai.philterd.arbiter.service.S3IngestJobService s3IngestJobService) {
+                               final ai.philterd.arbiter.service.S3IngestJobService s3IngestJobService,
+                               final ai.philterd.arbiter.service.RdbIngestJobService rdbIngestJobService) {
         this.redactionService = redactionService;
         this.batchRepository = batchRepository;
         this.documentRepository = documentRepository;
@@ -137,6 +139,7 @@ public class RedactionController {
         this.elasticsearchIngestJobService = elasticsearchIngestJobService;
         this.localDirectoryIngestJobService = localDirectoryIngestJobService;
         this.s3IngestJobService = s3IngestJobService;
+        this.rdbIngestJobService = rdbIngestJobService;
     }
 
     @GetMapping("/")
@@ -245,9 +248,12 @@ public class RedactionController {
     }
 
     /**
-     * Placeholder for "ingest from data source". The actual reads (OpenSearch, S3, RDB) are not
-     * wired up yet; this hands the form a working post target and shows reviewers a clear
-     * "not yet implemented" message rather than a 404.
+     * Dispatch an "ingest from data source" click on the Add Documents page. Looks at
+     * {@code sourceType} and hands off to the matching {@code *IngestJobService}, which
+     * records a PENDING {@link ai.philterd.arbiter.model.BackgroundJob} and returns
+     * immediately; {@link ai.philterd.arbiter.service.DataImportDispatcher} promotes
+     * it to RUNNING when a worker slot is free. The user is redirected to the
+     * Background Jobs page so they can watch progress.
      */
     @PostMapping("/ingest-from-source")
     public String ingestFromSource(@RequestParam("sourceType") final String sourceType,
@@ -323,15 +329,22 @@ public class RedactionController {
             }
             return "redirect:/jobs";
         }
-        // TODO: Implement RDB ingest. The admin UI lets operators configure RDB sources
-        // (with JDBC URL validation and credential encryption) and the test button
-        // exercises the connection path, but the ingest itself isn't wired up yet.
-        final String label = switch (sourceType == null ? "" : sourceType) {
-            case "rdb" -> "relational database";
-            default -> "data source";
-        };
-        redirectAttributes.addFlashAttribute("info",
-                "Ingesting from " + label + " is not yet implemented.");
+        if ("rdb".equals(sourceType)) {
+            final String email = authentication == null ? null : authentication.getName();
+            final ai.philterd.arbiter.model.BackgroundJob job =
+                    rdbIngestJobService.start(dataSourceId, batchId, priority, email);
+            if (ai.philterd.arbiter.model.BackgroundJob.STATUS_FAILED.equals(job.getStatus())) {
+                redirectAttributes.addFlashAttribute("error",
+                        "Could not start relational database ingest: " + job.getErrorMessage());
+            } else {
+                redirectAttributes.addFlashAttribute("success",
+                        "Relational database ingest started. "
+                                + "Watch its progress on the Background Jobs page.");
+            }
+            return "redirect:/jobs";
+        }
+        redirectAttributes.addFlashAttribute("error",
+                "Unknown data source type: \"" + sourceType + "\".");
         return "redirect:/upload";
     }
 

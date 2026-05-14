@@ -13,11 +13,13 @@ import ai.philterd.arbiter.model.ElasticsearchDataSource;
 import ai.philterd.arbiter.model.LocalDirectoryDataSource;
 import ai.philterd.arbiter.model.LocalDirectoryDestination;
 import ai.philterd.arbiter.model.OpenSearchDataSource;
+import ai.philterd.arbiter.model.RelationalDbDataSource;
 import ai.philterd.arbiter.model.S3DataSource;
 import ai.philterd.arbiter.repository.ElasticsearchDataSourceRepository;
 import ai.philterd.arbiter.repository.LocalDirectoryDataSourceRepository;
 import ai.philterd.arbiter.repository.LocalDirectoryDestinationRepository;
 import ai.philterd.arbiter.repository.OpenSearchDataSourceRepository;
+import ai.philterd.arbiter.repository.RelationalDbDataSourceRepository;
 import ai.philterd.arbiter.repository.S3DataSourceRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,6 +69,7 @@ public class DemoDataSourceLoader implements ApplicationRunner {
     private final LocalDirectoryDataSourceRepository localDirectoryRepository;
     private final LocalDirectoryDestinationRepository localDestinationRepository;
     private final S3DataSourceRepository s3Repository;
+    private final RelationalDbDataSourceRepository rdbRepository;
     private final SymmetricCipher cipher;
     private final String opensearchEndpoint;
     private final String elasticsearchEndpoint;
@@ -76,6 +79,9 @@ public class DemoDataSourceLoader implements ApplicationRunner {
     private final String minioBucket;
     private final String minioAccessKey;
     private final String minioSecretKey;
+    private final String postgresJdbcUrl;
+    private final String postgresUser;
+    private final String postgresPassword;
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(5))
             .build();
@@ -85,6 +91,7 @@ public class DemoDataSourceLoader implements ApplicationRunner {
                                 final LocalDirectoryDataSourceRepository localDirectoryRepository,
                                 final LocalDirectoryDestinationRepository localDestinationRepository,
                                 final S3DataSourceRepository s3Repository,
+                                final RelationalDbDataSourceRepository rdbRepository,
                                 final SymmetricCipher cipher,
                                 @Value("${arbiter.demo-data.opensearch-endpoint:http://opensearch:9200}") final String opensearchEndpoint,
                                 @Value("${arbiter.demo-data.elasticsearch-endpoint:http://elasticsearch:9200}") final String elasticsearchEndpoint,
@@ -93,12 +100,16 @@ public class DemoDataSourceLoader implements ApplicationRunner {
                                 @Value("${arbiter.demo-data.minio-endpoint:http://minio:9000}") final String minioEndpoint,
                                 @Value("${arbiter.demo-data.minio-bucket:arbiter-demo}") final String minioBucket,
                                 @Value("${arbiter.demo-data.minio-access-key:minioadmin}") final String minioAccessKey,
-                                @Value("${arbiter.demo-data.minio-secret-key:minioadmin}") final String minioSecretKey) {
+                                @Value("${arbiter.demo-data.minio-secret-key:minioadmin}") final String minioSecretKey,
+                                @Value("${arbiter.demo-data.postgres-jdbc-url:jdbc:postgresql://postgres:5432/arbiter_demo}") final String postgresJdbcUrl,
+                                @Value("${arbiter.demo-data.postgres-user:arbiter_demo}") final String postgresUser,
+                                @Value("${arbiter.demo-data.postgres-password:arbiter_demo}") final String postgresPassword) {
         this.openSearchRepository = openSearchRepository;
         this.elasticsearchRepository = elasticsearchRepository;
         this.localDirectoryRepository = localDirectoryRepository;
         this.localDestinationRepository = localDestinationRepository;
         this.s3Repository = s3Repository;
+        this.rdbRepository = rdbRepository;
         this.cipher = cipher;
         this.opensearchEndpoint = opensearchEndpoint;
         this.elasticsearchEndpoint = elasticsearchEndpoint;
@@ -108,6 +119,9 @@ public class DemoDataSourceLoader implements ApplicationRunner {
         this.minioBucket = minioBucket;
         this.minioAccessKey = minioAccessKey;
         this.minioSecretKey = minioSecretKey;
+        this.postgresJdbcUrl = postgresJdbcUrl;
+        this.postgresUser = postgresUser;
+        this.postgresPassword = postgresPassword;
     }
 
     @Override
@@ -118,6 +132,7 @@ public class DemoDataSourceLoader implements ApplicationRunner {
         ensureElasticsearchDataSource();
         ensureLocalDirectoryDataSource();
         ensureMinioDataSource();
+        ensurePostgresDataSource();
         ensureOutputDestination();
     }
 
@@ -288,6 +303,50 @@ public class DemoDataSourceLoader implements ApplicationRunner {
         s3Repository.save(ds);
         log.info("Registered demo S3 data source '{}' at {} (bucket {}).",
                 name, minioEndpoint, minioBucket);
+    }
+
+    /**
+     * Registers a Relational Database data source pointing at the PostgreSQL
+     * container shipped with the demo Docker compose. The first-boot init
+     * script (mounted into {@code /docker-entrypoint-initdb.d/}) creates a
+     * {@code documents(filename, text)} table and seeds it with synthetic
+     * PII-shaped rows, so the SQL query below is guaranteed to return data
+     * the redaction pipeline can chew on.
+     *
+     * <p>The data source contract is "first column of each row is the
+     * document text" — see {@link RelationalDbDataSource#getSqlQuery()} —
+     * so the query selects {@code text} first and {@code filename} second.
+     *
+     * <p>Skipped when the demo row already exists, so re-running the loader
+     * is safe. Skipped also if credential encryption fails (the application
+     * cipher hasn't been configured), so we never persist a plaintext
+     * password.
+     */
+    private void ensurePostgresDataSource() {
+        final String name = "Demo PostgreSQL";
+        if (rdbRepository.findFirstByNameIgnoreCase(name).isPresent()) {
+            return;
+        }
+        final RelationalDbDataSource ds = new RelationalDbDataSource();
+        ds.setId(UUID.randomUUID().toString());
+        ds.setName(name);
+        // First column (text) is treated as the document body; filename is
+        // metadata. Plain SELECT with no WHERE clause — the table is tiny
+        // (a dozen synthetic rows) and the demo loader only needs enough
+        // data to exercise the redaction path end-to-end.
+        ds.setSqlQuery("SELECT text, filename FROM documents");
+        try {
+            ds.setEncryptedJdbcUrl(cipher.encrypt(postgresJdbcUrl));
+            ds.setEncryptedUsername(cipher.encrypt(postgresUser));
+            ds.setEncryptedPassword(cipher.encrypt(postgresPassword));
+        } catch (RuntimeException e) {
+            log.warn("Could not encrypt PostgreSQL demo connection details, skipping demo RDB data source: {}",
+                    e.getMessage());
+            return;
+        }
+        ds.setCreatedAt(LocalDateTime.now());
+        rdbRepository.save(ds);
+        log.info("Registered demo RDB data source '{}' at {}.", name, postgresJdbcUrl);
     }
 
     /**

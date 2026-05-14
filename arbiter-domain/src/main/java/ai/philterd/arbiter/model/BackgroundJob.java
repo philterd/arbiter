@@ -37,7 +37,7 @@ import java.time.Instant;
         unique = true,
         partialFilter = "{ 'status': 'RUNNING', "
                 + "'type': { $in: ['OPENSEARCH_INGEST', 'ELASTICSEARCH_INGEST', "
-                + "'LOCAL_DIRECTORY_INGEST'] } }")
+                + "'LOCAL_DIRECTORY_INGEST', 'RDB_INGEST'] } }")
 public class BackgroundJob {
 
     public static final String STATUS_PENDING = "PENDING";
@@ -56,6 +56,8 @@ public class BackgroundJob {
     public static final String TYPE_LOCAL_DIRECTORY_INGEST = "LOCAL_DIRECTORY_INGEST";
     /** S3 / S3-compatible bucket ingest. */
     public static final String TYPE_S3_INGEST = "S3_INGEST";
+    /** Relational-database ingest — pulls rows from a SQL query into the redaction queue. */
+    public static final String TYPE_RDB_INGEST = "RDB_INGEST";
     /** Export of a batch's APPROVED documents to a configured destination. */
     public static final String TYPE_BATCH_EXPORT = "BATCH_EXPORT";
 
@@ -78,7 +80,8 @@ public class BackgroundJob {
         if (type == null) return CATEGORY_OTHER;
         return switch (type) {
             case TYPE_OPENSEARCH_INGEST, TYPE_ELASTICSEARCH_INGEST,
-                 TYPE_LOCAL_DIRECTORY_INGEST, TYPE_S3_INGEST -> CATEGORY_DATA_IMPORT;
+                 TYPE_LOCAL_DIRECTORY_INGEST, TYPE_S3_INGEST,
+                 TYPE_RDB_INGEST -> CATEGORY_DATA_IMPORT;
             case TYPE_BATCH_EXPORT -> CATEGORY_DATA_EXPORT;
             default -> CATEGORY_OTHER;
         };

@@ -358,8 +358,9 @@
                                                  data-ds-has-password=${d.encryptedPassword != null and !#strings.isEmpty(d.encryptedPassword)}">
                                     Edit
                                 </button>
-                                <form th:action="@{/admin/data-sources/{id}/delete(id=${d.id})}" method="post" class="inline"
-                                      onsubmit="return confirm('Remove this data source?');">
+                                <form th:action="@{/admin/data-sources/{id}/delete(id=${d.id})}" method="post"
+                                      class="inline confirm-delete-form"
+                                      th:attr="data-confirm-message=|Remove the OpenSearch data source &quot;${d.name}&quot;? This action cannot be undone.|">
                                     <button type="submit" class="text-red-600 hover:text-red-800 font-medium">Remove</button>
                                 </form>
                             </td>
@@ -498,8 +499,9 @@
                                                  data-ds-has-password=${d.encryptedPassword != null and !#strings.isEmpty(d.encryptedPassword)}">
                                     Edit
                                 </button>
-                                <form th:action="@{/admin/data-sources/es/{id}/delete(id=${d.id})}" method="post" class="inline"
-                                      onsubmit="return confirm('Remove this data source?');">
+                                <form th:action="@{/admin/data-sources/es/{id}/delete(id=${d.id})}" method="post"
+                                      class="inline confirm-delete-form"
+                                      th:attr="data-confirm-message=|Remove the Elasticsearch data source &quot;${d.name}&quot;? This action cannot be undone.|">
                                     <button type="submit" class="text-red-600 hover:text-red-800 font-medium">Remove</button>
                                 </form>
                             </td>
@@ -643,8 +645,9 @@
                                                  data-s3-has-secret-key=${s.encryptedSecretKey != null and !#strings.isEmpty(s.encryptedSecretKey)}">
                                     Edit
                                 </button>
-                                <form th:action="@{/admin/data-sources/s3/{id}/delete(id=${s.id})}" method="post" class="inline"
-                                      onsubmit="return confirm('Remove this S3 data source?');">
+                                <form th:action="@{/admin/data-sources/s3/{id}/delete(id=${s.id})}" method="post"
+                                      class="inline confirm-delete-form"
+                                      th:attr="data-confirm-message=|Remove the S3 data source &quot;${s.name}&quot;? This action cannot be undone.|">
                                     <button type="submit" class="text-red-600 hover:text-red-800 font-medium">Remove</button>
                                 </form>
                             </td>
@@ -692,12 +695,14 @@
                         <div>
                             <label for="rdbName" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Name</label>
                             <input id="rdbName" name="name" type="text" required placeholder="warehouse"
+                                   th:value="${rdbFormName}"
                                    class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                         <div>
                             <label for="rdbUrl" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">JDBC URL</label>
                             <input id="rdbUrl" name="jdbcUrl" type="text" required
                                    placeholder="jdbc:postgresql://host:5432/dbname"
+                                   th:value="${rdbFormJdbcUrl}"
                                    class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                     </div>
@@ -705,6 +710,7 @@
                         <label for="rdbSql" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">SQL query</label>
                         <textarea id="rdbSql" name="sqlQuery" rows="3" required
                                   placeholder="SELECT body FROM documents WHERE imported_at IS NULL"
+                                  th:text="${rdbFormSqlQuery}"
                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
                         <p class="mt-1 text-xs text-gray-500">
                             The first column of each returned row is treated as the document text.
@@ -716,6 +722,7 @@
                                 Username <span class="text-gray-400 normal-case font-normal">(optional)</span>
                             </label>
                             <input id="rdbUsername" name="username" type="text" autocomplete="off"
+                                   th:value="${rdbFormUsername}"
                                    class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                         <div>
@@ -723,6 +730,7 @@
                                 Password <span class="text-gray-400 normal-case font-normal">(optional)</span>
                             </label>
                             <input id="rdbPassword" name="password" type="password" autocomplete="new-password"
+                                   th:value="${rdbFormPassword}"
                                    class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                         </div>
                         <button type="submit"
@@ -743,13 +751,12 @@
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">JDBC URL</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SQL query</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
                         <tr th:if="${#lists.isEmpty(rdbDataSources)}">
-                            <td colspan="4" class="px-6 py-8 text-center text-sm text-gray-500">
+                            <td colspan="3" class="px-6 py-8 text-center text-sm text-gray-500">
                                 No relational database data sources registered yet.
                             </td>
                         </tr>
@@ -758,12 +765,27 @@
                                 th:text="${r.name}">name</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono"
                                 th:text="${r.jdbcUrl}">jdbc:postgresql://host/db</td>
-                            <td class="px-6 py-4 text-sm text-gray-700 font-mono max-w-md truncate"
-                                th:text="${r.sqlQuery}" th:title="${r.sqlQuery}">SELECT ...</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                <form th:action="@{/admin/data-sources/rdb/{id}/delete(id=${r.id})}" method="post" class="inline"
-                                      onsubmit="return confirm('Remove this relational database data source?');">
-                                    <button type="submit" class="text-red-600 hover:text-red-800 font-medium">Remove</button>
+                                <button type="button"
+                                        class="edit-rdb-btn text-blue-600 hover:text-blue-800 font-medium mr-3"
+                                        th:attr="data-rdb-id=${r.id},
+                                                 data-rdb-name=${r.name},
+                                                 data-rdb-jdbc-url=${r.jdbcUrl == null ? '' : r.jdbcUrl},
+                                                 data-rdb-sql=${r.sqlQuery == null ? '' : r.sqlQuery},
+                                                 data-rdb-has-username=${r.encryptedUsername != null and !#strings.isEmpty(r.encryptedUsername)},
+                                                 data-rdb-has-password=${r.encryptedPassword != null and !#strings.isEmpty(r.encryptedPassword)}">
+                                    Edit
+                                </button>
+                                <button type="button"
+                                        class="preview-rdb-btn text-blue-600 hover:text-blue-800 font-medium mr-3"
+                                        th:attr="data-rdb-id=${r.id},
+                                                 data-rdb-name=${r.name}">
+                                    Preview
+                                </button>
+                                <form th:action="@{/admin/data-sources/rdb/{id}/delete(id=${r.id})}" method="post"
+                                      class="inline confirm-delete-form"
+                                      th:attr="data-confirm-message=|Delete the relational database data source &quot;${r.name}&quot;? This action cannot be undone.|">
+                                    <button type="submit" class="text-red-600 hover:text-red-800 font-medium">Delete</button>
                                 </form>
                             </td>
                         </tr>
@@ -832,8 +854,9 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono"
                                 th:text="${l.filenameGlob}">*.txt</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                <form th:action="@{/admin/data-sources/local/{id}/delete(id=${l.id})}" method="post" class="inline"
-                                      onsubmit="return confirm('Remove this local directory data source?');">
+                                <form th:action="@{/admin/data-sources/local/{id}/delete(id=${l.id})}" method="post"
+                                      class="inline confirm-delete-form"
+                                      th:attr="data-confirm-message=|Remove the local-directory data source &quot;${l.name}&quot;? This action cannot be undone.|">
                                     <button type="submit" class="text-red-600 hover:text-red-800 font-medium">Remove</button>
                                 </form>
                             </td>
@@ -977,6 +1000,88 @@
         </form>
     </div>
 
+    <div id="rdbEditModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <form id="rdbEditForm" method="post" class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-2xl max-h-[90vh] flex flex-col">
+            <input type="hidden" name="_csrf" th:if="${_csrf != null}" th:value="${_csrf.token}">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    Edit relational database data source: <span id="rdbEditName" class="font-mono">name</span>
+                </h3>
+                <button type="button" id="rdbEditClose"
+                        class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+            </div>
+            <div class="px-5 py-4 overflow-auto space-y-3">
+                <div>
+                    <label for="rdbEditJdbcUrl" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">JDBC URL</label>
+                    <input id="rdbEditJdbcUrl" name="jdbcUrl" type="text" required
+                           placeholder="jdbc:postgresql://host:5432/dbname"
+                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label for="rdbEditSql" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">SQL query</label>
+                    <textarea id="rdbEditSql" name="sqlQuery" rows="4" required
+                              placeholder="SELECT text, filename FROM documents"
+                              class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                        <label for="rdbEditUsername" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
+                            Username <span class="text-gray-400 normal-case font-normal">(optional)</span>
+                        </label>
+                        <input id="rdbEditUsername" name="username" type="text" autocomplete="off"
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="rdbEditPassword" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
+                            Password <span class="text-gray-400 normal-case font-normal">(optional)</span>
+                        </label>
+                        <input id="rdbEditPassword" name="password" type="password" autocomplete="new-password"
+                               placeholder="Leave blank to keep existing password"
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                <label class="flex items-center text-xs text-gray-700">
+                    <input id="rdbEditClearCreds" name="clearCredentials" type="checkbox" value="true" class="mr-2">
+                    Clear the stored credentials (fall back to JDBC-URL / driver auth)
+                </label>
+            </div>
+            <div class="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-200">
+                <button type="button" id="rdbEditCancel"
+                        class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
+                <button type="submit"
+                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Save</button>
+            </div>
+        </form>
+    </div>
+
+    <div id="rdbPreviewModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-4xl max-h-[90vh] flex flex-col">
+            <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    Preview: <span id="rdbPreviewName" class="font-mono">name</span>
+                </h3>
+                <button type="button" id="rdbPreviewClose"
+                        class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
+            </div>
+            <div class="px-5 py-4 overflow-auto">
+                <p id="rdbPreviewStatus" class="text-sm text-gray-500 mb-3">Connecting…</p>
+                <p id="rdbPreviewError"
+                   class="hidden text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3 mb-3"></p>
+                <p id="rdbPreviewSummary" class="hidden text-xs text-gray-500 mb-2"></p>
+                <div id="rdbPreviewTableWrap" class="hidden overflow-auto border border-gray-200 rounded-lg">
+                    <table id="rdbPreviewTable" class="min-w-full divide-y divide-gray-200 text-xs">
+                        <thead class="bg-gray-50"><tr id="rdbPreviewHead"></tr></thead>
+                        <tbody id="rdbPreviewBody" class="bg-white divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+                <p id="rdbPreviewEmpty"
+                   class="hidden text-sm text-gray-600 bg-gray-50 border border-gray-200 rounded-lg p-3 mt-2">
+                    Query returned no rows.
+                </p>
+            </div>
+        </div>
+    </div>
+
     <div id="dsTestModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
         <div class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-3xl max-h-[90vh] flex flex-col">
             <div class="flex items-center justify-between px-5 py-4 border-b border-gray-200">
@@ -996,6 +1101,23 @@
     </div>
 
     <script th:nonce="${cspNonce}">
+
+        // Confirm-on-delete handler shared by every "Remove" / "Delete" form on this page.
+        // The data-confirm-message attribute on each form carries a row-specific prompt
+        // including the data source's name, e.g. 'Remove the S3 data source "archive"?'.
+        // The Thymeleaf template HTML-escapes the name when it builds the attribute, so
+        // names containing quotes or angle brackets can't break the prompt or inject HTML.
+        // Replacing the inline onsubmit="..." also gets us CSP-compliant — no inline event
+        // handlers are needed under the page's strict CSP nonce policy.
+        (function () {
+            document.querySelectorAll('form.confirm-delete-form').forEach(form => {
+                form.addEventListener('submit', e => {
+                    const msg = form.getAttribute('data-confirm-message')
+                            || 'Remove this item? This action cannot be undone.';
+                    if (!window.confirm(msg)) e.preventDefault();
+                });
+            });
+        })();
 
         (function () {
             const modal = document.getElementById('dsEditModal');
@@ -1093,6 +1215,175 @@
 
             closeBtn.addEventListener('click', close);
             cancelBtn.addEventListener('click', close);
+            modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
+            });
+        })();
+
+        // Relational-DB Edit modal. Mirrors the S3 edit flow above: prefill non-secret
+        // fields from data-* attributes on the row's Edit button, target the per-id
+        // POST handler with form.action, and reflect "credentials already on file" so
+        // operators know that leaving the password blank keeps the stored one intact.
+        (function () {
+            const modal = document.getElementById('rdbEditModal');
+            if (!modal) return;
+            const form = document.getElementById('rdbEditForm');
+            const nameSpan = document.getElementById('rdbEditName');
+            const urlEl = document.getElementById('rdbEditJdbcUrl');
+            const sqlEl = document.getElementById('rdbEditSql');
+            const userEl = document.getElementById('rdbEditUsername');
+            const passEl = document.getElementById('rdbEditPassword');
+            const clearEl = document.getElementById('rdbEditClearCreds');
+            const closeBtn = document.getElementById('rdbEditClose');
+            const cancelBtn = document.getElementById('rdbEditCancel');
+
+            function close() { modal.classList.add('hidden'); }
+
+            document.querySelectorAll('.edit-rdb-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const id = btn.getAttribute('data-rdb-id');
+                    form.action = '/admin/data-sources/rdb/' + encodeURIComponent(id) + '/edit';
+                    nameSpan.textContent = btn.getAttribute('data-rdb-name') || '';
+                    urlEl.value = btn.getAttribute('data-rdb-jdbc-url') || '';
+                    sqlEl.value = btn.getAttribute('data-rdb-sql') || '';
+                    userEl.value = '';
+                    passEl.value = '';
+                    clearEl.checked = false;
+                    const hasUser = btn.getAttribute('data-rdb-has-username') === 'true';
+                    const hasPass = btn.getAttribute('data-rdb-has-password') === 'true';
+                    userEl.placeholder = hasUser
+                            ? 'Leave blank to keep existing username'
+                            : 'No username stored';
+                    passEl.placeholder = hasPass
+                            ? 'Leave blank to keep existing password'
+                            : 'No password stored';
+                    modal.classList.remove('hidden');
+                });
+            });
+
+            closeBtn.addEventListener('click', close);
+            cancelBtn.addEventListener('click', close);
+            modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
+            });
+        })();
+
+        // Relational-DB Preview modal. POSTs to /admin/data-sources/rdb/{id}/preview
+        // (which the controller caps at 10 rows via Statement.setMaxRows), then renders
+        // the returned columns + rows as an HTML table. All cell content is text-content
+        // assigned, not innerHTML, so an operator-defined SQL alias or a database value
+        // can never inject markup into the popup.
+        (function () {
+            const modal = document.getElementById('rdbPreviewModal');
+            if (!modal) return;
+            const nameSpan = document.getElementById('rdbPreviewName');
+            const statusEl = document.getElementById('rdbPreviewStatus');
+            const errorEl = document.getElementById('rdbPreviewError');
+            const summaryEl = document.getElementById('rdbPreviewSummary');
+            const tableWrap = document.getElementById('rdbPreviewTableWrap');
+            const headRow = document.getElementById('rdbPreviewHead');
+            const bodyEl = document.getElementById('rdbPreviewBody');
+            const emptyEl = document.getElementById('rdbPreviewEmpty');
+            const closeBtn = document.getElementById('rdbPreviewClose');
+
+            function close() { modal.classList.add('hidden'); }
+
+            function resetState() {
+                statusEl.classList.remove('hidden');
+                statusEl.textContent = 'Connecting…';
+                errorEl.classList.add('hidden');
+                errorEl.textContent = '';
+                summaryEl.classList.add('hidden');
+                summaryEl.textContent = '';
+                tableWrap.classList.add('hidden');
+                emptyEl.classList.add('hidden');
+                headRow.replaceChildren();
+                bodyEl.replaceChildren();
+            }
+
+            function showError(msg) {
+                statusEl.classList.add('hidden');
+                summaryEl.classList.add('hidden');
+                tableWrap.classList.add('hidden');
+                emptyEl.classList.add('hidden');
+                errorEl.classList.remove('hidden');
+                errorEl.textContent = msg || 'Unknown error.';
+            }
+
+            function renderTable(columns, rows, rowLimit) {
+                statusEl.classList.add('hidden');
+                errorEl.classList.add('hidden');
+                if (!rows.length) {
+                    emptyEl.classList.remove('hidden');
+                    return;
+                }
+                columns.forEach(col => {
+                    const th = document.createElement('th');
+                    th.className = 'px-3 py-2 text-left font-medium text-gray-500 uppercase tracking-wider';
+                    th.textContent = col;
+                    headRow.appendChild(th);
+                });
+                rows.forEach(row => {
+                    const tr = document.createElement('tr');
+                    tr.className = 'hover:bg-gray-50';
+                    columns.forEach(col => {
+                        const td = document.createElement('td');
+                        td.className = 'px-3 py-2 align-top font-mono text-gray-700 max-w-md break-words';
+                        const v = row[col];
+                        if (v === null || v === undefined) {
+                            td.textContent = 'NULL';
+                            td.classList.add('text-gray-400', 'italic');
+                        } else {
+                            td.textContent = String(v);
+                        }
+                        tr.appendChild(td);
+                    });
+                    bodyEl.appendChild(tr);
+                });
+                tableWrap.classList.remove('hidden');
+                summaryEl.textContent = 'Showing ' + rows.length + ' row'
+                        + (rows.length === 1 ? '' : 's')
+                        + ' (capped at ' + rowLimit + ').';
+                summaryEl.classList.remove('hidden');
+            }
+
+            function csrfBody() {
+                const csrfInput = document.querySelector('form input[name="_csrf"]');
+                const body = new URLSearchParams();
+                if (csrfInput) body.set('_csrf', csrfInput.value);
+                return body;
+            }
+
+            document.querySelectorAll('.preview-rdb-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id = btn.getAttribute('data-rdb-id');
+                    nameSpan.textContent = btn.getAttribute('data-rdb-name') || '';
+                    resetState();
+                    modal.classList.remove('hidden');
+                    try {
+                        const resp = await fetch(
+                                '/admin/data-sources/rdb/' + encodeURIComponent(id) + '/preview',
+                                {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                                    body: csrfBody().toString(),
+                                });
+                        let data = {};
+                        try { data = await resp.json(); } catch (_) {}
+                        if (!resp.ok || !data.ok) {
+                            showError(data.error || ('Preview failed (HTTP ' + resp.status + ').'));
+                            return;
+                        }
+                        renderTable(data.columns || [], data.rows || [], data.rowLimit || 10);
+                    } catch (e) {
+                        showError('Network error: ' + e.message);
+                    }
+                });
+            });
+
+            closeBtn.addEventListener('click', close);
             modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
