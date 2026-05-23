@@ -9,6 +9,8 @@ For full documentation — installation, configuration, user and admin
 guides, REST API reference, and more — see
 <https://philterd.github.io/arbiter>.
 
+![Arbiter](arbiter.png)
+
 ## Quick start
 
 **1. Create your `.env` file with a secret key.**
@@ -37,9 +39,9 @@ docker compose up
 ```
 
 Arbiter will be available at <http://localhost:8080>. The bootstrap admin
-account is `admin@philterd.ai`; the initial password is printed to stdout
-on first startup (or you can set `ARBITER_ADMIN_INITIAL_PASSWORD` in
-`docker-compose.yaml` before starting).
+account is `admin@philterd.ai` with the password set in
+`ARBITER_ADMIN_INITIAL_PASSWORD` in `docker-compose.yaml`. Arbiter refuses
+to start if that variable is missing or shorter than 12 characters.
 
 ## Related Philterd open source projects
 

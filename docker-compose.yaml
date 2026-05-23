@@ -19,9 +19,8 @@ services:
       # echo "ARBITER_CRYPTO_SECRET=$(openssl rand -base64 32)" >> .env
       - ARBITER_CRYPTO_SECRET=${ARBITER_CRYPTO_SECRET:?Set ARBITER_CRYPTO_SECRET in .env (see .env.example)}
       # Initial password for the bootstrap admin (admin@philterd.ai). Used only
-      # when no admin account yet exists in the database. Must
-      # be at least 12 characters; if blank or too short, Arbiter generates a
-      # random password and prints it to stdout instead.
+      # when no admin account yet exists in the database. Must be at least 12
+      # characters; Arbiter refuses to start if it is missing or too short.
       - ARBITER_ADMIN_INITIAL_PASSWORD=ChangeMeOnFirstLogin!
       # The dev compose explicitly opts in to demo-data loading (R2-F4). The
       # default in application.properties is now off — production deployments
