@@ -1,0 +1,1936 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="User guide for Arbiter, the human-in-the-loop deidentification tool.">
+      
+      
+        <meta name="author" content="philterd">
+      
+      
+        <link rel="canonical" href="https://philterd.github.io/arbiter/concepts/">
+      
+      
+        <link rel="prev" href="../getting-started/">
+      
+      
+        <link rel="next" href="../workflow/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Concepts - Arbiter</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="red" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#concepts" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Arbiter" class="md-header__button md-logo" aria-label="Arbiter" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Arbiter
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Concepts
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/philterd/arbiter" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Arbiter" class="md-nav__button md-logo" aria-label="Arbiter" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Arbiter
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/philterd/arbiter" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#users-and-roles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Users and roles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#groups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Groups
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#batches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Batches
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ingest-queue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ingest queue
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#background-jobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Background jobs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#spans" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spans
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#risk-score" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Risk score
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#approval-rules-and-dual-approval" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Approval rules and dual approval
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Approval rules and dual approval">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rule-sets-batches-and-the-andor-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rule sets, batches, and the AND/OR model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#available-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Available rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#behavior-when-a-rule-set-fires" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Behavior when a rule set fires
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inbox" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inbox
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#search" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#audit-log" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit log
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Queue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/uploading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adding documents
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/background-jobs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Background jobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/reviewing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reviewing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Personal settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Admin guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/users-and-groups/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Users and groups
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/batches/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Batches
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Approval rule sets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/data-sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/destinations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Destinations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/audit-log/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/reports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/full-text-search/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full text search
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/notifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Notifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/risk-score/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Risk score
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/pii-types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PII types
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/roles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roles and permissions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#users-and-roles" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Users and roles
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#groups" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Groups
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#batches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Batches
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documents
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ingest-queue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ingest queue
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#background-jobs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Background jobs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#spans" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spans
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#risk-score" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Risk score
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#approval-rules-and-dual-approval" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Approval rules and dual approval
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Approval rules and dual approval">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#rule-sets-batches-and-the-andor-model" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Rule sets, batches, and the AND/OR model
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#available-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Available rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#behavior-when-a-rule-set-fires" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Behavior when a rule set fires
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#inbox" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Inbox
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#search" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#audit-log" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit log
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="concepts">Concepts<a class="headerlink" href="#concepts" title="Permanent link">&para;</a></h1>
+<h2 id="users-and-roles">Users and roles<a class="headerlink" href="#users-and-roles" title="Permanent link">&para;</a></h2>
+<p>A <strong>user</strong> signs in with an <strong>email address</strong> and a password. Each user has
+exactly one role:</p>
+<ul>
+<li><strong><code>USER</code></strong> — the default. Can view and review the batches and documents in
+  groups they belong to.</li>
+<li><strong><code>ADMIN</code></strong> — has full visibility (with an opt-in "Limit to my groups"
+  filter) and exclusive access to administrative actions like creating batches,
+  closing batches, and managing users / groups / settings.</li>
+<li><strong><code>AUDITOR</code></strong> — read-only counterpart to <code>ADMIN</code>. Sees the same cross-group
+  data an admin sees (queue, search, audit log, reports, batches), but cannot
+  mutate any state. Useful for compliance, legal, or analyst roles that need
+  to inspect activity without being able to change it. See
+  <a href="../reference/roles/">Roles and permissions</a> for the full feature matrix.</li>
+</ul>
+<p>Each user can also generate a personal <strong>API key</strong> for programmatic access.
+API keys carry the same permissions as the owning user account.</p>
+<h2 id="groups">Groups<a class="headerlink" href="#groups" title="Permanent link">&para;</a></h2>
+<p>A <strong>group</strong> is a named collection of users. Every batch must be assigned to
+exactly one group, and that assignment is what scopes visibility:</p>
+<ul>
+<li>A <code>USER</code> only sees batches whose group they belong to (and only the documents
+  inside those batches).</li>
+<li>An <code>ADMIN</code> sees everything by default. The "Limit to my groups" checkbox on
+  the queue and batches pages flips an admin to the same scoped view a regular
+  user would see.</li>
+<li>An <code>AUDITOR</code> sees everything an admin sees and is not bound to a group; the
+  role is intentionally cross-cutting because the whole point is a global read.</li>
+</ul>
+<p>A group must have at least one member. Admins manage groups under
+<strong>Admin → Groups</strong>.</p>
+<p>Within a group, an admin can additionally designate one or more members as
+<strong>team leads</strong>. A team lead is a regular <code>USER</code> who, <em>for that one group</em>,
+gains the operational authority to create batches, close them, and change
+their settings (Philter instance, domain, weights, thresholds). Team
+leadership is per-group: a user can lead group A and remain a regular member
+of group B. This lets day-to-day batch operations be delegated without
+granting site-wide admin authority. See
+<a href="../reference/roles/#team-leads">Team leads</a> for the full description.</p>
+<h2 id="batches">Batches<a class="headerlink" href="#batches" title="Permanent link">&para;</a></h2>
+<p>A <strong>batch</strong> is a container for documents. It has:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Name</td>
+<td>Human-readable label</td>
+</tr>
+<tr>
+<td>Group</td>
+<td>Which user group can see and act on it</td>
+</tr>
+<tr>
+<td>PII Threshold</td>
+<td>Per-span confidence floor for <em>auto-accepting</em> PII detections (default <code>0.8</code>)</td>
+</tr>
+<tr>
+<td>Document Threshold</td>
+<td>Risk-score ceiling for <em>auto-approving</em> documents (default <code>0.25</code>)</td>
+</tr>
+<tr>
+<td>Audit Sampling Rate</td>
+<td>Fraction of would-be auto-approved documents pulled into review for audit (default <code>0.10</code>)</td>
+</tr>
+<tr>
+<td>PII type weights</td>
+<td>Per-type sensitivity for the risk score (see <a href="../reference/pii-types/">PII types</a>)</td>
+</tr>
+<tr>
+<td>Philter instance</td>
+<td>Which configured Philter instance redacts the batch's documents (else embedded Phileas)</td>
+</tr>
+<tr>
+<td>Policy</td>
+<td>Name of the Phileas policy used during redaction</td>
+</tr>
+<tr>
+<td>Domain</td>
+<td>Optional grouping tag used for reporting</td>
+</tr>
+<tr>
+<td>Closed</td>
+<td>A closed batch refuses new documents (existing ones remain reviewable)</td>
+</tr>
+</tbody>
+</table>
+<p>Admins can create or close any batch, and team leads can create or close
+batches in groups they lead. Most batch settings (Philter instance, domain,
+thresholds, weights) can be changed by an admin or by a team lead of the
+batch's group; reassigning a batch to a different group is admin-only.</p>
+<h2 id="documents">Documents<a class="headerlink" href="#documents" title="Permanent link">&para;</a></h2>
+<p>A <strong>document</strong> belongs to a single batch. It carries the original text, a
+filename, a status (see below), a numeric <strong>risk score</strong> between 0 and 1
+that reflects how much PII is in the document weighted by sensitivity, and a
+<strong>priority</strong> flag (<code>1</code> Low, <code>2</code> Normal, <code>3</code> High; defaults to Normal) that the
+queue surfaces as a small chevron icon next to the filename.</p>
+<p>Document statuses:</p>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>PENDING</code></td>
+<td>Awaiting redaction in the <a href="#ingest-queue">ingest queue</a></td>
+</tr>
+<tr>
+<td><code>PROCESSING</code></td>
+<td>Currently claimed by a redaction worker (transient)</td>
+</tr>
+<tr>
+<td><code>REVIEW_REQUIRED</code></td>
+<td>Has at least one span the reviewer must accept or reject</td>
+</tr>
+<tr>
+<td><code>AUDIT_REQUIRED</code></td>
+<td>Eligible for auto-approval but pulled into review by audit sampling</td>
+</tr>
+<tr>
+<td><code>AUTO_APPROVED</code></td>
+<td>All spans auto-accepted, no human review needed</td>
+</tr>
+<tr>
+<td><code>APPROVED</code></td>
+<td>A reviewer explicitly approved the document</td>
+</tr>
+<tr>
+<td><code>REJECTED</code></td>
+<td>A reviewer explicitly rejected the document</td>
+</tr>
+<tr>
+<td><code>FINALIZED</code></td>
+<td>The document was finalized after approval — the redacted text has been rendered and the Certificate of Redaction issued. Terminal: a finalized document cannot be reopened or re-finalized.</td>
+</tr>
+<tr>
+<td><code>FAILED</code></td>
+<td>Redaction failed and the document was stored without spans</td>
+</tr>
+<tr>
+<td><code>SKIPPED</code></td>
+<td>Placeholder row written when an OpenSearch / Elasticsearch import detected a duplicate <code>(sourceIndex, sourceDocId)</code> and chose not to re-enqueue. Carries source attribution but no content.</td>
+</tr>
+</tbody>
+</table>
+<p>The queue also surfaces an <code>AUTO_APPROVED</code> <em>display label</em> for any non-terminal
+document whose risk score is at or below the batch's Document Threshold,
+overlaying the underlying status — retuning the threshold relabels existing
+rows. Documents in <code>AUDIT_REQUIRED</code> are deliberately excluded from this
+relabeling so the audit sample stays visible.</p>
+<h2 id="ingest-queue">Ingest queue<a class="headerlink" href="#ingest-queue" title="Permanent link">&para;</a></h2>
+<p>Newly received documents (whether uploaded through the UI or submitted via the
+<a href="../reference/api/">REST API</a>) are persisted as <code>PENDING</code> and placed on a
+shared, MongoDB-backed redaction queue. A background worker drains the queue
+oldest-first, claiming each document atomically (<code>PENDING → PROCESSING</code>) so
+multiple replicas can run safely. Once Philter completes, the worker writes
+the spans, computes the risk score, and transitions the document to its final
+post-ingest status (<code>REVIEW_REQUIRED</code>, <code>AUDIT_REQUIRED</code>, or <code>AUTO_APPROVED</code>).</p>
+<p>Admins monitor the queue at <strong>Admin → Ingest Queue</strong>, where they can also
+remove a still-pending document. The page also surfaces six summary widgets:</p>
+<ul>
+<li><strong>Pending</strong> — documents currently awaiting redaction.</li>
+<li><strong>Processing</strong> — documents claimed by a worker.</li>
+<li><strong>Failed</strong> — documents whose redaction failed (clearable via Clear failures).</li>
+<li><strong>Skipped</strong> — placeholder rows from re-runs of OpenSearch / Elasticsearch
+  imports that detected duplicates by <code>(sourceIndex, sourceDocId)</code>.</li>
+<li><strong>Last 24 hours</strong> — documents created in the last 24 hours, regardless
+  of current status.</li>
+<li><strong>Throughput</strong> — documents/hour averaged over the last 24 hours,
+  computed from <code>statusChangedAt</code> for documents that have left
+  <code>PENDING</code> / <code>PROCESSING</code>.</li>
+</ul>
+<h2 id="background-jobs">Background jobs<a class="headerlink" href="#background-jobs" title="Permanent link">&para;</a></h2>
+<p>Long-running ingests (today: pulling from OpenSearch or Elasticsearch
+<a href="../admin/data-sources/">data sources</a>) run as <strong>background jobs</strong> rather
+than blocking the request thread. Each job is a row in the <code>background_jobs</code>
+collection with status <code>PENDING</code> → <code>RUNNING</code> → <code>COMPLETED</code> / <code>FAILED</code>. A
+dispatcher polls every couple of seconds and atomically promotes one
+<code>PENDING</code> job per batch to <code>RUNNING</code>, so admins can queue many imports
+against a batch without worrying about race conditions:</p>
+<ul>
+<li><strong>Per-batch serialisation.</strong> A partial unique index on <code>background_jobs</code>
+  guarantees at most one <code>RUNNING</code> data-import job per batch, even across
+  replicas. Subsequent jobs sit at <code>PENDING</code> until the running one finishes.</li>
+<li><strong>Global ceiling.</strong> <strong>Admin → General → Max concurrent data imports</strong>
+  caps how many jobs run system-wide (<code>1</code>–<code>10</code>, default <code>1</code>).</li>
+</ul>
+<p>Reviewers watch progress on the <a href="../user-guide/background-jobs/">Background Jobs</a>
+page; the user who started a job receives an inbox notification when it
+ends.</p>
+<h2 id="spans">Spans<a class="headerlink" href="#spans" title="Permanent link">&para;</a></h2>
+<p>A <strong>span</strong> is a single PII detection inside a document. Each span has:</p>
+<ul>
+<li>A <strong>type</strong> (e.g., <code>ssn</code>, <code>phone-number</code>, <code>email-address</code>) — see
+  <a href="../reference/pii-types/">PII types</a>.</li>
+<li>A <strong>confidence</strong> between 0 and 1 from the redactor.</li>
+<li>A <strong>status</strong>: <code>PENDING</code> (needs review), <code>APPROVED</code> (will be redacted),
+  or <code>REJECTED</code> (will be left as-is).</li>
+<li>A character <code>start</code>/<code>end</code> and PDF coordinates if applicable.</li>
+</ul>
+<p>When a document is created, each span's initial status is set automatically
+based on the batch's PII Threshold:</p>
+<ul>
+<li><code>confidence ≥ PII Threshold</code> → <code>APPROVED</code></li>
+<li><code>confidence &lt;  PII Threshold</code> → <code>PENDING</code></li>
+</ul>
+<p>Reviewers can later flip a span's status, change its type, or use <strong>Redact All
+Like This</strong> to apply the same decision to every other occurrence of the exact
+text within the document.</p>
+<h2 id="risk-score">Risk score<a class="headerlink" href="#risk-score" title="Permanent link">&para;</a></h2>
+<p>Each document's risk score is computed from its spans, the batch's per-PII-type
+weights, the number of unresolved spans (those still <code>PENDING</code>), and the
+document's word count. The exact formula and an example are on the
+<a href="../reference/risk-score/">Risk score reference page</a>.</p>
+<h2 id="approval-rules-and-dual-approval">Approval rules and dual approval<a class="headerlink" href="#approval-rules-and-dual-approval" title="Permanent link">&para;</a></h2>
+<p>A batch may optionally require <strong>two approvals from two different reviewers</strong>
+before a document moves to <code>APPROVED</code>. Admins control this through
+<strong>rule sets</strong> under <strong>Admin → Approval Rules</strong>.</p>
+<h3 id="rule-sets-batches-and-the-andor-model">Rule sets, batches, and the AND/OR model<a class="headerlink" href="#rule-sets-batches-and-the-andor-model" title="Permanent link">&para;</a></h3>
+<p>A batch can have <strong>zero or more rule sets</strong> attached to it. Each rule set is a
+collection of conditions, and each condition is one of the rules listed below.</p>
+<ul>
+<li><strong>Within a single rule set, conditions are AND-ed.</strong> A rule set "fires" only
+  when <em>every</em> condition in it is satisfied at approve time.</li>
+<li><strong>Across rule sets on the same batch, results are OR-ed.</strong> A document
+  requires dual approval if <em>any</em> of the batch's rule sets fires.</li>
+<li>A batch with <strong>no</strong> rule sets behaves as before: single approval.</li>
+</ul>
+<p>This lets you express "trigger dual approval when (A AND B) OR (C AND D)"
+without complex per-rule expressions: each AND group is its own rule set, and
+adding more rule sets simply adds more independent triggers.</p>
+<h3 id="available-rules">Available rules<a class="headerlink" href="#available-rules" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Rule</th>
+<th>What it checks</th>
+<th>Configurable cutoff</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Document contains an SSN, credit card, or passport number</td>
+<td>Span types <code>SSN</code>, <code>CREDIT_CARD</code>, <code>PASSPORT_NUMBER</code></td>
+<td>—</td>
+</tr>
+<tr>
+<td>Document risk score above a threshold</td>
+<td>The document-level risk score</td>
+<td>yes (0–1, default <code>0.9</code>)</td>
+</tr>
+<tr>
+<td>A rejected span has confidence above a threshold</td>
+<td>Any rejected span's <code>confidence</code></td>
+<td>yes (0–1, default <code>0.95</code>)</td>
+</tr>
+<tr>
+<td>Approving reviewer has performed fewer reviews than a threshold</td>
+<td>Reviewer's prior approve count</td>
+<td>yes (≥0, default <code>100</code>)</td>
+</tr>
+<tr>
+<td>Reviewer manually added more than X redactions</td>
+<td>Count of <code>manuallyCreated</code> spans on the document</td>
+<td>yes (integer ≥0, default <code>5</code>)</td>
+</tr>
+<tr>
+<td>Document contains classified keywords</td>
+<td>Case-insensitive substring match against an admin list (e.g. <em>Classified</em>, <em>Proprietary</em>, <em>Secret</em>)</td>
+<td>yes (comma-separated list)</td>
+</tr>
+<tr>
+<td>Dual-approval sampling rate</td>
+<td>Per-document random roll persisted at ingest, compared to a configured rate</td>
+<td>yes (0.0–1.0, default <code>0.02</code> = 2%)</td>
+</tr>
+</tbody>
+</table>
+<p>The reviewer-experience rule short-circuits at queue display time so it can
+flag documents up front; document-side rules are evaluated against the live
+document state.</p>
+<h3 id="behavior-when-a-rule-set-fires">Behavior when a rule set fires<a class="headerlink" href="#behavior-when-a-rule-set-fires" title="Permanent link">&para;</a></h3>
+<p>When dual approval is required, the document tracks an ordered list of
+approver emails (<code>approvedBy</code>) and stays in <code>REVIEW_REQUIRED</code> until enough
+approvals have been collected. The same reviewer can never approve a document
+twice. The Document Queue's <strong>Approvals</strong> column shows progress (e.g. <code>1 of 2</code>).</p>
+<p>For worked examples and recommended configurations, see the admin guide:
+<a href="../admin/rules/">Approval rule sets</a>.</p>
+<h2 id="inbox">Inbox<a class="headerlink" href="#inbox" title="Permanent link">&para;</a></h2>
+<p>Each user has a per-user <strong>Inbox</strong> for system-delivered messages
+(<code>inbox_messages</code> collection: id, userId, message, createdAt, read). The
+sidebar <strong>Inbox</strong> link displays an unread-count badge that's available on every
+page via a global controller advice. Users mark messages read individually;
+admins can deliver messages programmatically via the inbox service.</p>
+<h2 id="search">Search<a class="headerlink" href="#search" title="Permanent link">&para;</a></h2>
+<p>Full text search is the optional capability that indexes every ingested
+document in <strong>OpenSearch</strong> so reviewers can search by content. When enabled,
+every document goes into the configured index at ingest time with its
+filename, batch, status, and full original text. The <strong>Search</strong> page in the
+sidebar and the <code>GET /api/v1/search</code> endpoint run a full-text match query
+against that index. Results outside the caller's group visibility return as
+<code>restricted: true</code> with content fields nulled — so the caller knows a result
+exists without seeing what it is.</p>
+<p>The feature is <strong>enabled by default</strong> but its connection details (endpoint,
+optional basic-auth credentials, index name) are configured at runtime under
+<strong>Admin → Settings → Full text search</strong>. The full configuration, mapping
+bootstrap, and what changes when the feature is turned off are documented
+on the <a href="../admin/full-text-search/">Full text search</a> admin page.</p>
+<h2 id="audit-log">Audit log<a class="headerlink" href="#audit-log" title="Permanent link">&para;</a></h2>
+<p>Every state-changing action — login, logout, batch changes, span and document
+updates, settings changes — is written to the <code>audit_log</code> collection in
+MongoDB with the actor's email, the resource touched, a timestamp, and
+context-specific details. Admins can browse and export the log under
+<strong>Admin → Audit log</strong>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright 2026 Philterd, LLC.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": [], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

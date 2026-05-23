@@ -1,0 +1,1733 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="User guide for Arbiter, the human-in-the-loop deidentification tool.">
+      
+      
+        <meta name="author" content="philterd">
+      
+      
+        <link rel="canonical" href="https://philterd.github.io/arbiter/admin/full-text-search/">
+      
+      
+        <link rel="prev" href="../reports/">
+      
+      
+        <link rel="next" href="../notifications/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Full text search - Arbiter</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="red" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#full-text-search" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Arbiter" class="md-header__button md-logo" aria-label="Arbiter" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Arbiter
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Full text search
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/philterd/arbiter" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Arbiter" class="md-nav__button md-logo" aria-label="Arbiter" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Arbiter
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/philterd/arbiter" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Queue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/uploading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adding documents
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/background-jobs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Background jobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/reviewing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reviewing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Personal settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Admin guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../users-and-groups/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Users and groups
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../batches/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Batches
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Approval rule sets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../destinations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Destinations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../audit-log/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full text search
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full text search
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-full-text-search-is-used-for" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What full text search is used for
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enabling-and-configuring-full-text-search" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enabling and configuring full text search
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Enabling and configuring full text search">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#choosing-an-index-name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing an index name
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mapping-comparison-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mapping comparison rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#disabling-full-text-search" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Disabling full text search
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Disabling full text search">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#implications-of-disabling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implications of disabling
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security considerations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../notifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Notifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/risk-score/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Risk score
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/pii-types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PII types
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/roles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roles and permissions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-full-text-search-is-used-for" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What full text search is used for
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#enabling-and-configuring-full-text-search" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enabling and configuring full text search
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Enabling and configuring full text search">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#choosing-an-index-name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing an index name
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mapping-comparison-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mapping comparison rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#disabling-full-text-search" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Disabling full text search
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Disabling full text search">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#implications-of-disabling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implications of disabling
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#security-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Security considerations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#troubleshooting" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Troubleshooting
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="full-text-search">Full text search<a class="headerlink" href="#full-text-search" title="Permanent link">&para;</a></h1>
+<p>Full text search is the optional capability that lets reviewers find documents
+by their content. When enabled, every document Arbiter ingests is also pushed
+into an <strong>OpenSearch</strong> cluster, and the <strong>Search</strong> page in the sidebar plus
+the <a href="../../reference/api/"><code>GET /api/v1/search</code></a> endpoint serve queries from
+that index.</p>
+<p>The feature is <strong>enabled by default</strong> but the connection details to the
+OpenSearch cluster live entirely in the database — there is no environment
+variable to set on first startup.</p>
+<p>The settings panel lives under <strong>Admin → Settings</strong> on the General tab,
+inside the <strong>Full text search</strong> card.</p>
+<h2 id="what-full-text-search-is-used-for">What full text search is used for<a class="headerlink" href="#what-full-text-search-is-used-for" title="Permanent link">&para;</a></h2>
+<ul>
+<li>The <strong>Search</strong> page in the sidebar runs a full-text match over every
+  document the caller is allowed to see. Results outside the caller's group
+  visibility return as <code>restricted: true</code> with content fields nulled, so the
+  caller knows a hit exists without seeing what it is.</li>
+<li>The <code>GET /api/v1/search</code> REST endpoint serves the same query for
+  programmatic clients.</li>
+<li>The <strong>Find similar documents</strong> button on the document review page runs
+  OpenSearch's <code>more_like_this</code> query to surface documents in the same batch
+  whose text resembles the one currently open. The button is hidden on the
+  review page when full text search is disabled.</li>
+</ul>
+<p>What full text search is <strong>not</strong> used for: it does not drive the queue,
+status filtering, dual-approval evaluation, audit log, or any of the
+review-decision pipeline. Disabling full text search affects discovery only;
+ingest, redaction, review, and finalize all continue to function normally.</p>
+<h2 id="enabling-and-configuring-full-text-search">Enabling and configuring full text search<a class="headerlink" href="#enabling-and-configuring-full-text-search" title="Permanent link">&para;</a></h2>
+<p>The Full text search card carries five fields:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Enabled</td>
+<td>yes</td>
+<td>Master on/off switch. <strong>Enabled by default</strong> for new and legacy installs.</td>
+</tr>
+<tr>
+<td>Endpoint</td>
+<td>yes</td>
+<td>Base URL of the OpenSearch cluster, including scheme and port (e.g. <code>http://opensearch:9200</code>).</td>
+</tr>
+<tr>
+<td>Index name</td>
+<td>yes</td>
+<td>Lower-case letters, digits, <code>-</code>, <code>_</code>, <code>+</code>. Defaults to <code>arbiter-documents</code>.</td>
+</tr>
+<tr>
+<td>Username</td>
+<td>no</td>
+<td>Optional HTTP basic-auth username for clusters that require it.</td>
+</tr>
+<tr>
+<td>Password</td>
+<td>no</td>
+<td>Optional basic-auth password. Encrypted at rest with AES-GCM (the same scheme as data-source credentials). Leave blank to keep the previously stored value; tick <strong>Clear stored password</strong> to wipe it back to none.</td>
+</tr>
+</tbody>
+</table>
+<p>Click <strong>Save</strong>. Arbiter immediately tries to reach the cluster and one of
+four things happens:</p>
+<ol>
+<li><strong>The index does not exist</strong> — Arbiter creates it with the canonical
+   mapping (one <code>text</code> field on <code>originalText</code> for full-text matching, plus
+   keyword fields on <code>id</code>, <code>batchId</code>, <code>filename</code>, and <code>status</code> for filters)
+   and the settings are saved. A success banner confirms the new index.</li>
+<li><strong>The index exists with the canonical mapping</strong> — settings are saved
+   without modifying the index. A success banner confirms the reuse.</li>
+<li><strong>The index exists but its mapping differs from canonical</strong> — settings
+   are <strong>not</strong> saved yet. A yellow callout appears below the form with a
+   side-by-side diff of the existing and expected mappings, and two buttons:<ul>
+<li><strong>Continue with existing index</strong> — saves the settings as submitted and
+  uses the existing index as-is. Search may still work but documents
+  that relied on the canonical mapping (e.g. <code>originalText</code> indexed for
+  full-text matching) may not surface as expected. Recommended only when
+  you know exactly why the mapping differs and want to keep it.</li>
+<li><strong>Cancel</strong> — discards the submission. The form is reset and nothing
+  is saved.</li>
+</ul>
+</li>
+<li><strong>OpenSearch is unreachable, or returns a server error</strong> — settings are
+   not saved and an error banner explains why. Fix the connection (or auth)
+   and try again. The probe is intentionally a hard gate when the feature
+   is being <strong>turned on</strong> — saving an endpoint that isn't reachable would
+   only produce a steady stream of failed indexing calls.</li>
+</ol>
+<p>The save event is recorded in the <a href="../audit-log/">audit log</a> as a
+<code>GENERAL_SETTINGS_CHANGE</code> row carrying the previous and new values
+(passwords are never logged, only a <code>passwordChanged</code> boolean).</p>
+<h3 id="choosing-an-index-name">Choosing an index name<a class="headerlink" href="#choosing-an-index-name" title="Permanent link">&para;</a></h3>
+<p>A single OpenSearch cluster can host multiple deployments by giving each
+its own index. Pick a name that is descriptive enough to identify the
+deployment when looking at the cluster directly — e.g. <code>arbiter-staging</code>,
+<code>arbiter-prod-redactions</code>. The index is created on first save; renaming it
+later writes a brand-new empty index, so the search page will be empty
+until enough new documents are ingested.</p>
+<h3 id="mapping-comparison-rules">Mapping comparison rules<a class="headerlink" href="#mapping-comparison-rules" title="Permanent link">&para;</a></h3>
+<p>Arbiter compares only the canonical fields that the search code reads back
+(<code>id</code>, <code>batchId</code>, <code>filename</code>, <code>status</code>, <code>originalText</code>). Extra fields on the
+existing index — added by hand, by another tenant, by a previous Arbiter
+version — are <strong>tolerated</strong>. A mapping is reported as a mismatch only when:</p>
+<ul>
+<li>A canonical field is missing entirely from the existing index.</li>
+<li>A canonical field exists but with a different <code>type</code> (for example, an
+  <code>originalText</code> field that's been declared as <code>keyword</code> rather than
+  <code>text</code> cannot serve full-text match queries).</li>
+</ul>
+<p>This loose comparison keeps the mismatch dialog rare in practice while still
+catching the differences that actually break search.</p>
+<h2 id="disabling-full-text-search">Disabling full text search<a class="headerlink" href="#disabling-full-text-search" title="Permanent link">&para;</a></h2>
+<p>Untick <strong>Enable</strong> on the same form and click <strong>Save</strong>. Disabling does not
+require the cluster to be reachable — Arbiter writes the setting and skips
+the OpenSearch probe entirely. This means you can turn the feature off even
+if the OpenSearch cluster is currently down.</p>
+<p>When disabled:</p>
+<ul>
+<li>New ingests <strong>do not</strong> push the document text to OpenSearch. The text
+  still lives in MongoDB exactly as it did before, and review continues to
+  work normally.</li>
+<li>The <strong>Search</strong> page returns empty results (an informational note explains
+  why). The <code>GET /api/v1/search</code> endpoint behaves the same way.</li>
+<li>The <strong>Find similar documents</strong> button on the review page is <strong>not
+  rendered</strong> — reviewers won't see it at all rather than getting a button
+  that produces empty results.</li>
+<li>The OpenSearch cluster, if you still have one running, is left untouched.
+  No documents are deleted; previously-indexed documents stay in the index
+  so a future re-enable can use them as-is (subject to the mapping
+  comparison above).</li>
+</ul>
+<h3 id="implications-of-disabling">Implications of disabling<a class="headerlink" href="#implications-of-disabling" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Search-by-text becomes unavailable.</strong> Reviewers can still find documents
+  by batch, by status, by priority, by filename (the queue page filters all
+  do this without OpenSearch), and by document ID. They cannot run
+  free-text matches over the body of every document.</li>
+<li><strong>Find similar documents goes away.</strong> This is the only feature that
+  surfaces textually-related documents in the same batch.</li>
+<li><strong>No new documents index.</strong> If you re-enable later, the gap between
+  disable and re-enable will not be back-filled — only documents ingested
+  after re-enable show up in search results. Run a re-index against the
+  cluster yourself if you need full coverage.</li>
+<li><strong>Reports, audit log, and the review queue are unchanged.</strong> None of
+  those depend on OpenSearch.</li>
+</ul>
+<p>Disabling is the right choice when:</p>
+<ul>
+<li>You don't have an OpenSearch cluster available and don't want indexing
+  attempts to flap against <code>localhost:9200</code>.</li>
+<li>Your deployment policy disallows indexing PII-bearing document text in a
+  second store. Note that with full text search <strong>enabled</strong>, the
+  unredacted source text is sent to OpenSearch in plaintext (see
+  <a href="#security-considerations">Security considerations</a> below). If you
+  cannot satisfy the precautions listed there, leave the feature off.</li>
+<li>You're temporarily isolating the deployment from the OpenSearch cluster
+  for maintenance and want clean signals (no warning logs about indexing
+  failures).</li>
+</ul>
+<h2 id="security-considerations">Security considerations<a class="headerlink" href="#security-considerations" title="Permanent link">&para;</a></h2>
+<div class="admonition danger">
+<p class="admonition-title">PII is indexed in OpenSearch when this feature is enabled</p>
+<p>Enabling full text search causes the <strong>complete, unredacted source text</strong>
+of every ingested document to be written to the configured OpenSearch
+cluster — including any PII that document contains (names, email
+addresses, SSNs, phone numbers, account numbers, medical details, …).
+This is the design: OpenSearch needs the raw text to power the
+full-text match query.</p>
+<p>The OpenSearch index sits <strong>outside</strong> the at-rest encryption boundary
+that covers MongoDB. The
+<a href="../../security/#pii-at-rest-in-mongodb"><code>SymmetricCipher</code> field-encryption callbacks</a>
+encrypt PII inside MongoDB before it is written to disk; <strong>no equivalent
+transformation runs on the OpenSearch indexing path.</strong> Documents go
+over the wire to OpenSearch as plaintext and are stored as plaintext.</p>
+<p>Treat the OpenSearch cluster, the network path to it, the basic-auth
+credentials configured below, the disks and snapshots backing it, and
+any backups taken from it as <strong>part of the same security boundary as
+your MongoDB instance</strong>. Anything less and the search index becomes the
+weakest point in your PII handling.</p>
+</div>
+<p>Concretely, the precautions you need to apply to the OpenSearch cluster
+when full text search is enabled:</p>
+<ul>
+<li><strong>Encrypt the OpenSearch data directory at rest.</strong> Use disk-level
+  encryption (LUKS, dm-crypt, EBS encryption, Azure Disk Encryption, GCP
+  CMEK) on every node in the cluster. The same volume and the same key
+  management posture you give your MongoDB data directory.</li>
+<li><strong>Encrypt OpenSearch backups and snapshots.</strong> Snapshots written to S3
+  or another object store carry the full document text. Encrypt the
+  destination bucket and rotate keys on the same schedule as your other
+  PII backups.</li>
+<li><strong>Encrypt the network path.</strong> Use <strong>HTTPS</strong> for the endpoint
+  (<code>https://</code> in the field above) so the document text isn't exposed on
+  the wire between Arbiter and OpenSearch. A <code>http://</code> endpoint is fine
+  only if Arbiter and OpenSearch are co-located on a trusted network
+  segment that isn't shared with anything else — a single Docker bridge
+  network on the same host, for example.</li>
+<li><strong>Require authentication.</strong> Configure OpenSearch's security plugin (or
+  your reverse proxy) to require basic auth, and enter the username and
+  password into this form. Arbiter encrypts the password at rest with the
+  same AES-GCM scheme used for data-source credentials. <strong>Anonymous
+  access to the cluster equals anonymous access to every PII document
+  Arbiter has ever ingested.</strong></li>
+<li><strong>Scope the credential to least privilege.</strong> The user Arbiter logs in
+  as needs only:<ul>
+<li><code>indices:data/write/index</code> and <code>indices:admin/create</code> /
+  <code>indices:admin/get</code> on the configured index name (so Arbiter can
+  create the index on first save and write documents on every ingest).</li>
+<li><code>indices:data/read/search</code> on the same index (so the Search page
+  can run match and <code>more_like_this</code> queries).
+Avoid cluster-wide admin or all-indices grants.</li>
+</ul>
+</li>
+<li><strong>Restrict network reachability.</strong> Bind OpenSearch to a private network
+  interface; don't expose <code>9200</code> on a public IP. Lock the firewall down
+  to the subnets that Arbiter runs on.</li>
+<li><strong>Audit OpenSearch access independently.</strong> Arbiter writes
+  <code>DOCUMENT_PII_SENT_TO_LLM</code> rows when text leaves for an LLM, but it
+  does <strong>not</strong> write a per-document audit row for every OpenSearch index
+  operation (those happen on every ingest and would flood the audit log).
+  Rely on OpenSearch's own audit logging or your network capture tooling
+  to attribute reads of the index.</li>
+<li><strong>Apply the same retention policy as MongoDB.</strong> When a batch is
+  finalized and a finalization policy purges the source text from
+  MongoDB, the OpenSearch document is <strong>not</strong> automatically deleted.
+  Either disable full text search for batches under a delete-immediately
+  policy, or run a periodic reindex/cleanup job against OpenSearch that
+  honors the same retention rules.</li>
+</ul>
+<p>If your deployment policy does not allow PII to live in a second store
+even with all of the above applied, <strong>disable full text search</strong> (see
+<a href="#disabling-full-text-search">Disabling full text search</a> above). With
+the feature off, the document text never leaves MongoDB.</p>
+<p>See <a href="../../security/#pii-at-rest-in-mongodb">Security · PII at rest in MongoDB</a>
+for the broader at-rest story; the section there explicitly calls out
+OpenSearch as needing its own encryption.</p>
+<h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
+<ul>
+<li><strong>"Could not reach OpenSearch at … : Connection refused"</strong> — the cluster
+  is down, or the endpoint URL is wrong. Double-check the scheme and port,
+  and try again.</li>
+<li><strong>"OpenSearch returned HTTP 401"</strong> — the cluster requires authentication
+  but the credentials supplied are missing or wrong. Re-enter the username
+  and password and re-save.</li>
+<li><strong>Mapping mismatch dialog every time</strong> — something is creating the index
+  with a non-canonical mapping (a templated index, an external indexer, or
+  manual <code>curl</code> setup). Either delete the index out-of-band so Arbiter can
+  recreate it, or click <strong>Continue with existing index</strong> and accept the
+  divergence.</li>
+<li><strong>Search page is empty even though documents exist</strong> — the feature was
+  disabled at some point during ingestion. Re-enable, then either re-index
+  against the cluster yourself or accept that only post-re-enable documents
+  will appear.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright 2026 Philterd, LLC.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

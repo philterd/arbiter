@@ -1,0 +1,2233 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="User guide for Arbiter, the human-in-the-loop deidentification tool.">
+      
+      
+        <meta name="author" content="philterd">
+      
+      
+        <link rel="canonical" href="https://philterd.github.io/arbiter/reference/roles/">
+      
+      
+        <link rel="prev" href="../configuration/">
+      
+      
+        <link rel="next" href="../../security/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Roles and permissions - Arbiter</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="red" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#roles-and-permissions" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Arbiter" class="md-header__button md-logo" aria-label="Arbiter" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Arbiter
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Roles and permissions
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/philterd/arbiter" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Arbiter" class="md-nav__button md-logo" aria-label="Arbiter" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Arbiter
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/philterd/arbiter" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Queue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/uploading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adding documents
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/background-jobs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Background jobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/reviewing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reviewing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Personal settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Admin guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/users-and-groups/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Users and groups
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/batches/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Batches
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Approval rule sets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/data-sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/destinations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Destinations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/audit-log/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/reports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/full-text-search/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full text search
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/notifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Notifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../risk-score/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Risk score
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pii-types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PII types
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roles and permissions
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roles and permissions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#why-auditor-exists" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why AUDITOR exists
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-an-auditor-can-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What an AUDITOR can do
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-an-auditor-cannot-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What an AUDITOR cannot do
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#feature-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Feature matrix
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Feature matrix">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#reading-and-reviewing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading and reviewing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reviewing-actions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reviewing actions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#batch-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Batch operations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ingest-and-integrations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ingest and integrations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#administration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Administration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#self-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Self-service
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#group-membership" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Group membership
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#assigning-the-auditor-role" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Assigning the AUDITOR role
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#team-leads" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Team leads
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Team leads">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-team-leads-exist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why team leads exist
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-a-team-lead-can-do-in-groups-they-lead" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What a team lead can do (in groups they lead)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-a-team-lead-cannot-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What a team lead cannot do
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#assigning-a-team-lead" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Assigning a team lead
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#auditing-the-auditors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auditing the auditors
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#why-auditor-exists" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why AUDITOR exists
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-an-auditor-can-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What an AUDITOR can do
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#what-an-auditor-cannot-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What an AUDITOR cannot do
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#feature-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Feature matrix
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Feature matrix">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#reading-and-reviewing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading and reviewing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reviewing-actions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reviewing actions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#batch-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Batch operations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ingest-and-integrations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Ingest and integrations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#administration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Administration
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#self-service" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Self-service
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#group-membership" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Group membership
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#assigning-the-auditor-role" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Assigning the AUDITOR role
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#team-leads" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Team leads
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Team leads">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-team-leads-exist" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why team leads exist
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-a-team-lead-can-do-in-groups-they-lead" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What a team lead can do (in groups they lead)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-a-team-lead-cannot-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What a team lead cannot do
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#assigning-a-team-lead" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Assigning a team lead
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#auditing-the-auditors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Auditing the auditors
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="roles-and-permissions">Roles and permissions<a class="headerlink" href="#roles-and-permissions" title="Permanent link">&para;</a></h1>
+<p>Arbiter has three roles. Every user has exactly one of them.</p>
+<table>
+<thead>
+<tr>
+<th>Role</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong><code>USER</code></strong></td>
+<td>Group-scoped reviewer. Can read and act on batches/documents in groups they belong to. The default for invited users.</td>
+</tr>
+<tr>
+<td><strong><code>ADMIN</code></strong></td>
+<td>Full access. Manages users, groups, integrations, batches, policies, and global settings. Has the <code>Limit to my groups</code> toggle to switch between global and group-scoped views.</td>
+</tr>
+<tr>
+<td><strong><code>AUDITOR</code></strong></td>
+<td><strong>Read-only counterpart to <code>ADMIN</code>.</strong> Sees the same cross-group data an admin sees but cannot mutate state. Intended for compliance, legal, and analyst roles.</td>
+</tr>
+</tbody>
+</table>
+<p>In addition, any <code>USER</code> can be designated a <strong>team lead</strong> for one or more
+groups. Team leadership is a per-group attribute of the group itself — not a
+fourth role. See <a href="#team-leads">Team leads</a> below.</p>
+<h2 id="why-auditor-exists">Why AUDITOR exists<a class="headerlink" href="#why-auditor-exists" title="Permanent link">&para;</a></h2>
+<p>Compliance reviews, internal audits, and after-the-fact incident investigations
+all need someone who can look at every batch, every document's audit trail, and
+every reviewer action — without that person also being able to approve, reject,
+finalize, or reconfigure anything they look at. Granting <code>ADMIN</code> to that person
+puts more authority in their hands than the role requires; granting <code>USER</code> and
+adding them to every group is impractical and grants them write access within
+those groups. <code>AUDITOR</code> is the dedicated role for this case: full read scope,
+zero write scope.</p>
+<h2 id="what-an-auditor-can-do">What an AUDITOR can do<a class="headerlink" href="#what-an-auditor-can-do" title="Permanent link">&para;</a></h2>
+<p>An AUDITOR signs in like any other user and gets the same UI as an ADMIN, with
+write affordances disabled. Specifically, they can:</p>
+<ul>
+<li><strong>See the global Document Queue</strong> across every batch (the <code>Limit to my
+  groups</code> toggle has no effect — auditors aren't in groups).</li>
+<li><strong>Open any batch and any document</strong> for read-only review, including
+  documents in groups they don't belong to.</li>
+<li><strong>Search</strong> across every document body in the system.</li>
+<li><strong>Read every audit-log entry</strong>, including actor emails, and <strong>export</strong> the
+  per-document audit history as CSV.</li>
+<li><strong>Read every reviewer action history</strong> on any span, including which actor
+  approved/rejected and any overturn reasons.</li>
+<li><strong>View the Reports page</strong> — risk-score distribution, throughput, reviewer
+  activity — for the full date range and every group.</li>
+<li><strong>Inspect every Background Job</strong> (data-source ingest progress).</li>
+<li><strong>Browse the Admin → Users, Admin → Groups, Admin → Data Sources,
+  Admin → Destinations, Admin → Philter, Admin → LLM-as-a-Judge,
+  Admin → Compliance Profiles, Admin → Approval Rules, Admin → Weight Sets,
+  Admin → Notifications, Admin → Security, Admin → Audit Log</strong> pages — every
+  page is visible.</li>
+<li><strong>Manage their own account</strong> in Settings — change password, enable / disable
+  2FA, generate or revoke their own API key, set review preferences.</li>
+</ul>
+<h2 id="what-an-auditor-cannot-do">What an AUDITOR cannot do<a class="headerlink" href="#what-an-auditor-cannot-do" title="Permanent link">&para;</a></h2>
+<p>The AUDITOR role refuses every non-self mutation. Concretely:</p>
+<ul>
+<li>Cannot upload a document, ingest from a data source, or queue any new work.</li>
+<li>Cannot approve / reject / finalize / unapprove / unreject a document or a
+  span.</li>
+<li>Cannot create, edit, or close a batch.</li>
+<li>Cannot create, edit, or remove users, groups, data sources, destinations,
+  Philter or Ollama instances, compliance profiles, approval rules, weight
+  sets, or notification settings.</li>
+<li>Cannot edit a Phileas policy.</li>
+<li>Cannot break a document review lock held by someone else.</li>
+<li>Cannot trigger an outbound test probe (e.g. the <strong>Test</strong> buttons on the
+  Data Sources / Destinations / Philter / Ollama admin pages) — these issue
+  POSTs and are blocked.</li>
+</ul>
+<p>If an auditor clicks a write affordance that the UI happens to show them, the
+server returns <strong>HTTP 403</strong> with the message <em>"Auditor accounts have read-only
+access; mutating requests are not permitted."</em> The boundary is enforced
+server-side regardless of what the page renders, so auditor accounts cannot be
+used to write data even by direct API call.</p>
+<h2 id="feature-matrix">Feature matrix<a class="headerlink" href="#feature-matrix" title="Permanent link">&para;</a></h2>
+<p>A check (✓) means the role can do the action; a dash (—) means they cannot.</p>
+<p>The <strong>Team lead</strong> column shows what a <code>USER</code> who has been designated as a lead
+for at least one group can do <em>within the groups they lead</em>. Outside those
+groups, a team lead has the same permissions as the <strong>USER</strong> column.</p>
+<h3 id="reading-and-reviewing">Reading and reviewing<a class="headerlink" href="#reading-and-reviewing" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th style="text-align: center;">USER</th>
+<th style="text-align: center;">Team lead</th>
+<th style="text-align: center;">AUDITOR</th>
+<th style="text-align: center;">ADMIN</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Sign in / sign out</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>See own group's batches and documents</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓ (sees all)</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>See <strong>all</strong> batches and documents (cross-group)</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Search documents (own group)</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓ (all)</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Search documents (cross-group)</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>View document spans, history, certificate</td>
+<td style="text-align: center;">✓ (own group)</td>
+<td style="text-align: center;">✓ (own group)</td>
+<td style="text-align: center;">✓ (all)</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td><strong>Batches</strong> link in the sidebar</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Export per-document audit history as CSV</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Read the global Audit Log</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Read the Reports dashboard</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>See every Background Job</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+</tr>
+</tbody>
+</table>
+<h3 id="reviewing-actions">Reviewing actions<a class="headerlink" href="#reviewing-actions" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th style="text-align: center;">USER</th>
+<th style="text-align: center;">Team lead</th>
+<th style="text-align: center;">AUDITOR</th>
+<th style="text-align: center;">ADMIN</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Approve / reject a span</td>
+<td style="text-align: center;">✓ (own group)</td>
+<td style="text-align: center;">✓ (own group)</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Approve / reject a document</td>
+<td style="text-align: center;">✓ (own group)</td>
+<td style="text-align: center;">✓ (own group)</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Finalize a document</td>
+<td style="text-align: center;">✓ (own group)</td>
+<td style="text-align: center;">✓ (own group)</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Add a manual span</td>
+<td style="text-align: center;">✓ (own group)</td>
+<td style="text-align: center;">✓ (own group)</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Reopen (unapprove / unreject) a document</td>
+<td style="text-align: center;">✓ (own group)</td>
+<td style="text-align: center;">✓ (own group)</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Break someone else's review lock</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Add a comment to a document</td>
+<td style="text-align: center;">✓ (own group)</td>
+<td style="text-align: center;">✓ (own group)</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Request an LLM second opinion</td>
+<td style="text-align: center;">✓ (own group)</td>
+<td style="text-align: center;">✓ (own group)</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+</tbody>
+</table>
+<h3 id="batch-operations">Batch operations<a class="headerlink" href="#batch-operations" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th style="text-align: center;">USER</th>
+<th style="text-align: center;">Team lead</th>
+<th style="text-align: center;">AUDITOR</th>
+<th style="text-align: center;">ADMIN</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Create a batch in a led group</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓ (led groups only)</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Change a batch's Philter instance</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓ (led groups only)</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Change a batch's domain</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓ (led groups only)</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Change a batch's weight set</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓ (led groups only)</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Edit a batch's review thresholds</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓ (led groups only)</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Close a batch</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓ (led groups only)</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Move a batch to a different group</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+</tbody>
+</table>
+<h3 id="ingest-and-integrations">Ingest and integrations<a class="headerlink" href="#ingest-and-integrations" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th style="text-align: center;">USER</th>
+<th style="text-align: center;">Team lead</th>
+<th style="text-align: center;">AUDITOR</th>
+<th style="text-align: center;">ADMIN</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Upload a document via the web form</td>
+<td style="text-align: center;">✓ (own group)</td>
+<td style="text-align: center;">✓ (own group)</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Ingest from a configured data source</td>
+<td style="text-align: center;">✓ (own group)</td>
+<td style="text-align: center;">✓ (own group)</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Configure a data source / destination</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Configure a Philter / Ollama instance</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Test an outbound integration (Test buttons)</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+</tbody>
+</table>
+<h3 id="administration">Administration<a class="headerlink" href="#administration" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th style="text-align: center;">USER</th>
+<th style="text-align: center;">Team lead</th>
+<th style="text-align: center;">AUDITOR</th>
+<th style="text-align: center;">ADMIN</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>View the Admin → Users page</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Invite, edit, delete users</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Promote / demote a user's role</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Manage groups (including assigning leads)</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Edit Phileas redaction policies</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Configure approval rules / weight sets / compliance profiles</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Change global security settings (Require MFA, etc.)</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: center;">✓</td>
+</tr>
+</tbody>
+</table>
+<h3 id="self-service">Self-service<a class="headerlink" href="#self-service" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th style="text-align: center;">USER</th>
+<th style="text-align: center;">Team lead</th>
+<th style="text-align: center;">AUDITOR</th>
+<th style="text-align: center;">ADMIN</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Change own password</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Enable / disable 2FA on own account</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Generate / revoke own API key</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+</tr>
+<tr>
+<td>Set own review preferences</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+<td style="text-align: center;">✓</td>
+</tr>
+</tbody>
+</table>
+<h2 id="group-membership">Group membership<a class="headerlink" href="#group-membership" title="Permanent link">&para;</a></h2>
+<p><code>AUDITOR</code> does not require group membership and group membership does not
+grant an auditor any additional permissions — the role's read-everything
+scope already covers every group. Adding an auditor to a group is harmless
+but pointless.</p>
+<h2 id="assigning-the-auditor-role">Assigning the AUDITOR role<a class="headerlink" href="#assigning-the-auditor-role" title="Permanent link">&para;</a></h2>
+<p>The role lives in the same field as USER and ADMIN. To assign it:</p>
+<ol>
+<li>Sign in as an admin.</li>
+<li>Go to <strong>Admin → Users</strong>.</li>
+<li>On the target user's row, change the <strong>Role</strong> select from User / Admin to
+   <strong>Auditor (read-only)</strong> and click <strong>Save</strong>.</li>
+</ol>
+<p>The new role takes effect on the user's next request — they don't need to log
+out and back in. The change is recorded in the audit log as a <code>USER_UPDATE</code>
+event with the old and new role names.</p>
+<p>The invitation flow currently still presents only an Admin checkbox; to
+invite a new auditor, invite them as a User and edit their role afterwards.</p>
+<h2 id="team-leads">Team leads<a class="headerlink" href="#team-leads" title="Permanent link">&para;</a></h2>
+<p>A team lead is a <code>USER</code> whom an admin has designated as a leader of a specific
+group. Leadership is <em>per-group</em>: a single user can lead group A while being
+just a regular member (or no member at all) of group B. Their elevated
+authority follows them into group A and only group A.</p>
+<h3 id="why-team-leads-exist">Why team leads exist<a class="headerlink" href="#why-team-leads-exist" title="Permanent link">&para;</a></h3>
+<p>Day-to-day batch operations — creating a batch, setting its Philter instance
+or weight set, closing a finalized batch — don't require site-wide admin
+authority, but they do require more than what a typical reviewer needs.
+Routing every such request through an admin makes the admin a bottleneck. A
+team lead is the trusted operational contact for a single group: an admin
+designates them once, and they carry the day-to-day batch authority for that
+group without being able to touch any other group or any global setting.</p>
+<h3 id="what-a-team-lead-can-do-in-groups-they-lead">What a team lead can do (in groups they lead)<a class="headerlink" href="#what-a-team-lead-can-do-in-groups-they-lead" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Create a batch</strong> assigned to a group they lead.</li>
+<li><strong>Change a batch's Philter instance</strong>, <strong>domain</strong>, <strong>weight set</strong>, or
+  <strong>review thresholds</strong>.</li>
+<li><strong>Close</strong> a finalized or rejected batch.</li>
+<li><strong>See the Batches link in the sidebar.</strong> Regular <code>USER</code>s do not see it
+  unless they lead at least one group.</li>
+</ul>
+<p>In groups they don't lead, a team lead has the same permissions as any
+<code>USER</code> — they can read and act on documents in groups they belong to, but
+not perform any of the operations above.</p>
+<h3 id="what-a-team-lead-cannot-do">What a team lead cannot do<a class="headerlink" href="#what-a-team-lead-cannot-do" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Move a batch to a different group.</strong> Reassignment crosses tenant
+  boundaries and is admin-only.</li>
+<li><strong>Anything outside the Batches page.</strong> Team leads cannot manage users,
+  groups, data sources, destinations, Philter or Ollama instances, policies,
+  approval rules, weight sets, or any global setting.</li>
+<li><strong>Lead a group they don't belong to.</strong> Leadership requires group
+  membership; the leader picker on the Admin → Groups page only offers
+  current members of the group as candidates.</li>
+</ul>
+<h3 id="assigning-a-team-lead">Assigning a team lead<a class="headerlink" href="#assigning-a-team-lead" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Sign in as an admin.</li>
+<li>Go to <strong>Admin → Groups</strong> and either create a group or click <strong>Edit</strong> on
+   an existing group.</li>
+<li>In the <strong>Members</strong> section, each row has two checkboxes: <strong>Member</strong> and
+   <strong>Lead</strong>. Tick <strong>Lead</strong> for any user who should lead this group. (Members
+   who are not also marked as leads remain regular users in the group.)</li>
+<li>Save.</li>
+</ol>
+<p>The change takes effect on the leader's next request — they immediately see
+the <strong>Batches</strong> link in the sidebar and can perform the operations above on
+batches assigned to that group.</p>
+<p>To remove a team lead, edit the group and untick the <strong>Lead</strong> checkbox for
+that user. Untick <strong>Member</strong> as well to remove them from the group entirely.</p>
+<h2 id="auditing-the-auditors">Auditing the auditors<a class="headerlink" href="#auditing-the-auditors" title="Permanent link">&para;</a></h2>
+<p>Every AUDITOR action that touches the database — even reads of sensitive
+endpoints like the per-document history CSV — is logged in the
+<a href="../../admin/audit-log/">Audit Log</a> with the auditor's email and timestamp.
+Auditors cannot edit or delete audit log entries. The log itself is the
+authoritative record of what each auditor saw and when.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright 2026 Philterd, LLC.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

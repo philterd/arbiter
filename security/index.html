@@ -1,0 +1,2061 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="User guide for Arbiter, the human-in-the-loop deidentification tool.">
+      
+      
+        <meta name="author" content="philterd">
+      
+      
+        <link rel="canonical" href="https://philterd.github.io/arbiter/security/">
+      
+      
+        <link rel="prev" href="../reference/roles/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Security - Arbiter</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="red" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#security" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Arbiter" class="md-header__button md-logo" aria-label="Arbiter" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Arbiter
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Security
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/philterd/arbiter" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Arbiter" class="md-nav__button md-logo" aria-label="Arbiter" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Arbiter
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/philterd/arbiter" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Queue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/uploading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adding documents
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/background-jobs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Background jobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/reviewing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reviewing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Personal settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Admin guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/users-and-groups/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Users and groups
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/batches/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Batches
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Approval rule sets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/data-sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/destinations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Destinations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/audit-log/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/reports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/full-text-search/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full text search
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/notifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Notifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/risk-score/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Risk score
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/pii-types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PII types
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/roles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roles and permissions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authentication
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Authentication">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#session-storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session storage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multi-factor-authentication-totp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-factor authentication (TOTP)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#authorization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authorization
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#password-storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Password storage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Password storage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#legacy-sha-512-fallback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Legacy SHA-512 fallback
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-key-storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API key storage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#smtp-credentials" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SMTP credentials
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#philter-api-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Philter API keys
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-source-credentials" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data source credentials
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pii-at-rest-in-mongodb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PII at rest in MongoDB
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PII at rest in MongoDB">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-the-encryption-is-applied" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How the encryption is applied
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#backwards-compatibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backwards compatibility
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-not-encrypted" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is not encrypted
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key management
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pii-never-appears-in-application-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PII never appears in application logs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#document-content-integrity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Document content integrity
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#csrf-and-cors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CSRF and CORS
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#audit-visibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit visibility
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authentication
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Authentication">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#session-storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session storage
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#multi-factor-authentication-totp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-factor authentication (TOTP)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#authorization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authorization
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#password-storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Password storage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Password storage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#legacy-sha-512-fallback" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Legacy SHA-512 fallback
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-key-storage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API key storage
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#smtp-credentials" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SMTP credentials
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#philter-api-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Philter API keys
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#data-source-credentials" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Data source credentials
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pii-at-rest-in-mongodb" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PII at rest in MongoDB
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="PII at rest in MongoDB">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#how-the-encryption-is-applied" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How the encryption is applied
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#backwards-compatibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Backwards compatibility
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-is-not-encrypted" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What is not encrypted
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#key-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key management
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#pii-never-appears-in-application-logs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PII never appears in application logs
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#document-content-integrity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Document content integrity
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#csrf-and-cors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CSRF and CORS
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#audit-visibility" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit visibility
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="security">Security<a class="headerlink" href="#security" title="Permanent link">&para;</a></h1>
+<p>This page summarizes the security model: how Arbiter authenticates users,
+how it scopes what they can see, and how it stores secrets.</p>
+<h2 id="authentication">Authentication<a class="headerlink" href="#authentication" title="Permanent link">&para;</a></h2>
+<p>There are two ways to authenticate:</p>
+<ol>
+<li>
+<p><strong>Form login</strong> — POST <code>email</code> and <code>password</code> to <code>/login</code>. On success, a
+   session cookie is set and the user is redirected to <code>/</code>. Failure
+   redirects to <code>/login?error</code>. CSRF protection is enabled for all non-API
+   form posts via Spring Security's default token mechanism.</p>
+</li>
+<li>
+<p><strong>Bearer API key</strong> — send <code>Authorization: Bearer &lt;api-key&gt;</code> on requests
+   to <code>/api/v1/*</code>. Arbiter SHA-512-hashes the incoming key and looks up the
+   user by the hash. API keys carry the same role and group memberships as
+   the owning user.</p>
+</li>
+</ol>
+<p>Both login success and login failure are recorded in the audit log
+(<code>LOGIN</code>, with <code>outcome</code> either <code>SUCCESS</code> or <code>FAILURE</code>). Logout produces a
+<code>LOGOUT</code> entry.</p>
+<h4 id="session-storage">Session storage<a class="headerlink" href="#session-storage" title="Permanent link">&para;</a></h4>
+<p>Form-login sessions live in <strong>Valkey</strong> (Redis-protocol compatible) via
+Spring Session, so multiple Arbiter replicas behind a load balancer all
+read and write the same <code>HttpSession</code>. Two consequences:</p>
+<ul>
+<li>The load balancer doesn't need sticky sessions — any replica can serve
+  any request.</li>
+<li>A signed-in user keeps their session if a replica restarts.</li>
+</ul>
+<p>The connection is configured by <code>spring.data.redis.host</code> /
+<code>spring.data.redis.port</code>; docker-compose ships a <code>valkey</code> service on
+<code>6379</code>. Session timeout is <code>spring.session.timeout</code>, default 30 minutes.</p>
+<h3 id="multi-factor-authentication-totp">Multi-factor authentication (TOTP)<a class="headerlink" href="#multi-factor-authentication-totp" title="Permanent link">&para;</a></h3>
+<p>Arbiter supports TOTP-based MFA as a second factor for form-login sessions. API key
+authentication is unaffected — keys are high-entropy secrets and are not subject to the MFA
+gate.</p>
+<p><strong>Per-user opt-in</strong>: any user can enable MFA from their <a href="../user-guide/settings/#two-factor-authentication">Settings page</a>.
+A shared secret is generated server-side, displayed as a QR code for the user to scan into an
+authenticator app, and stored against their user record in the <code>users</code> collection.</p>
+<p><strong>Login flow when MFA is active</strong>:</p>
+<ol>
+<li>Password verification succeeds but the session is not yet established.</li>
+<li>The pending <code>Authentication</code> object is stored in the HTTP session under the key
+   <code>PENDING_MFA_AUTH</code>; the security context is cleared.</li>
+<li>The user is redirected to <code>/mfa</code>, which requires no authentication.</li>
+<li>The user submits the 6-digit TOTP code. If valid, the pending authentication is promoted
+   into a full Spring Security context (saved to the session via
+   <code>HttpSessionSecurityContextRepository</code>) and the user proceeds to the application.</li>
+<li>An invalid code returns to <code>/mfa</code> with an error; the pending authentication remains in the
+   session for retry.</li>
+</ol>
+<p><strong>Admin-enforced MFA</strong>: administrators can turn on <strong>Require MFA for all users</strong> in
+<a href="../admin/security/">Admin → Security</a>. When this policy is active, any authenticated user who
+has not completed MFA enrollment is intercepted by <code>MfaEnrollmentInterceptor</code> and redirected
+to <code>/settings/mfa/setup?required=true</code>. The interceptor runs on every request and releases the
+user only once their <code>mfaEnabled</code> flag is <code>true</code> in the database.</p>
+<p>MFA setup and removal are recorded in the audit log as <code>MFA_ENABLED</code> and <code>MFA_DISABLED</code>; the
+admin policy change is recorded as <code>SECURITY_SETTINGS_CHANGE</code>.</p>
+<h2 id="authorization">Authorization<a class="headerlink" href="#authorization" title="Permanent link">&para;</a></h2>
+<p>Three roles, applied per-endpoint:</p>
+<ul>
+<li><code>ROLE_USER</code> — default for non-admin accounts. Limited to batches in groups
+  they belong to.</li>
+<li><code>ROLE_ADMIN</code> — required for everything under <code>/admin/**</code>, the batch create
+  and close endpoints, and for the unscoped (<code>myGroupsOnly=false</code>) view on
+  the batches and queue pages.</li>
+<li><code>ROLE_AUDITOR</code> — read-only counterpart to <code>ROLE_ADMIN</code>. Sees the same
+  cross-group data an admin sees but cannot mutate state. Enforced by the
+  <code>AuditorWriteRejectFilter</code>, which 403s any non-safe HTTP method outside a
+  small self-management allow-list (<code>/login</code>, <code>/logout</code>, <code>/mfa</code>, <code>/settings</code>,
+  <code>/invitations</code>). See <a href="../reference/roles/">Roles and permissions</a> for the
+  full feature matrix.</li>
+</ul>
+<p>In addition, any <code>ROLE_USER</code> may be designated a <strong>team lead</strong> for one or
+more groups. Team leadership is a per-group attribute stored on the group
+itself (the leaders are a subset of the group's members), not a separate
+role. The framework matchers therefore do not gate <code>/batches</code> to admins
+alone — that endpoint is open to any authenticated user, and the per-resource
+authorization happens in the controller via <code>BatchAccessService.canLeadBatch</code>,
+which permits the request only if the caller is an admin or leads the
+batch's group. Reassigning a batch to a different group remains admin-only.</p>
+<p><strong>Group scoping</strong> is enforced server-side regardless of the UI. Whenever a
+non-admin attempts to:</p>
+<ul>
+<li>View a batch outside their groups → not in the list.</li>
+<li>View a document whose batch is outside their groups → returns 404 (not
+  403, to avoid leaking existence).</li>
+<li>Modify a span / document outside their groups → 404.</li>
+<li>Ingest into a batch outside their groups → API returns 403.</li>
+</ul>
+<p>The "Limit to my groups" toggle on the queue and batches pages is purely a
+UI affordance for admins; revoking the role at the back end immediately
+re-applies group restrictions.</p>
+<h2 id="password-storage">Password storage<a class="headerlink" href="#password-storage" title="Permanent link">&para;</a></h2>
+<p>User passwords are stored as <strong>BCrypt</strong> hashes (cost 12) using Spring
+Security's <code>DelegatingPasswordEncoder</code>. New hashes carry the <code>{bcrypt}</code>
+prefix so the encoder can route verifications without having to guess the
+algorithm:</p>
+<pre><code>{bcrypt}$2a$12$&lt;22-char-salt&gt;&lt;31-char-hash&gt;
+</code></pre>
+<p>BCrypt's 16-byte salt is generated per-password and embedded in the hash;
+verification is constant-time. The cost factor (12) is the encoder's work
+parameter — raising it makes both encode and verify slower, so it's the
+knob to turn if you want to harden against future hardware. Change the
+constructor argument to <code>BCryptPasswordEncoder</code> in the encoder bean and
+existing hashes are unaffected (BCrypt verification reads the cost from the
+hash itself).</p>
+<p>Every sign-in, password change, admin reset, and invitation redemption
+produces a fresh <code>{bcrypt}</code> hash. The bootstrap admin's password — printed
+to standard output once on first start (see
+<a href="../getting-started/#first-run">Getting started → First run</a>) — is generated
+from a cryptographically secure random source and encoded the same way.
+It is not stored anywhere in plaintext after the start-up banner is
+printed, so capture it from the start-up output and rotate it from
+<strong>Settings → Account</strong> at first opportunity.</p>
+<h3 id="legacy-sha-512-fallback">Legacy SHA-512 fallback<a class="headerlink" href="#legacy-sha-512-fallback" title="Permanent link">&para;</a></h3>
+<p>Earlier versions of Arbiter stored passwords as salted SHA-512 in this
+<strong>unprefixed</strong> form:</p>
+<pre><code>&lt;saltHex&gt;$&lt;sha512Hex(salt + password)&gt;
+</code></pre>
+<p>with a 16-byte (32-hex-char) salt. Hashes already in this form continue to
+verify at login — the <code>DelegatingPasswordEncoder</code> is configured so that a
+hash with no <code>{prefix}</code> is matched against the legacy encoder. The first
+time the user signs in <strong>and changes their password</strong>, or an admin resets
+it, the stored hash transitions to the <code>{bcrypt}</code> form. Plain SHA-512
+hashes are never produced for new passwords.</p>
+<p>Plain salted SHA-512 is fast (and therefore weak against offline brute
+force) compared to a deliberate KDF. The fallback exists only so existing
+deployments don't lock users out at the upgrade boundary; rotate everyone's
+password to migrate them off the legacy scheme.</p>
+<h2 id="api-key-storage">API key storage<a class="headerlink" href="#api-key-storage" title="Permanent link">&para;</a></h2>
+<p>API keys are 256 bits of cryptographic randomness, base64url-encoded. On
+generation Arbiter:</p>
+<ol>
+<li>Stores <code>sha512(key)</code> (no salt — every key is high-entropy by design).</li>
+<li>Returns the plaintext key to the user <strong>once</strong>, in a banner on the
+   settings page.</li>
+</ol>
+<p>Subsequent authentication SHA-512-hashes the incoming bearer token and
+looks up the user record by that hash. Keys cannot be recovered from
+the database; if a user loses theirs they generate a new one (which
+replaces the old).</p>
+<h2 id="smtp-credentials">SMTP credentials<a class="headerlink" href="#smtp-credentials" title="Permanent link">&para;</a></h2>
+<p>The notification settings include an SMTP password used to talk to a mail
+relay. That password is stored as-is in the <code>settings</code> collection so
+Arbiter can present it at send time. Treat the database as sensitive
+storage — encrypt at rest at the storage layer or front it with a secret
+manager if your deployment policy demands it.</p>
+<h2 id="philter-api-keys">Philter API keys<a class="headerlink" href="#philter-api-keys" title="Permanent link">&para;</a></h2>
+<p>Each Philter instance configured under <strong>Admin → Philter</strong> can carry an
+optional API key that Arbiter sends as <code>Authorization: Bearer …</code> on every
+outbound call (and on the per-row Test). The plaintext key is <strong>encrypted
+with AES-GCM</strong> before being written to MongoDB:</p>
+<ul>
+<li>32-byte AES key loaded from the <code>arbiter.crypto.secret</code> property. The
+  property must be a <strong>base64-encoded value of exactly 32 random bytes</strong>
+  — generate one with <code>openssl rand -base64 32</code> (or
+  <code>head -c 32 /dev/urandom | base64</code>).</li>
+<li>12-byte random IV per encryption; ciphertext + GCM auth tag stored as
+  base64.</li>
+</ul>
+<p>Anything else — an unset property, a passphrase, base64 of the wrong
+length — fails fast at startup with a descriptive error. There is no
+silent fallback to a public dev key, and no SHA-256-of-passphrase
+derivation: a leaked database paired with a low-entropy passphrase used
+to be brute-forceable in seconds, so passphrase-style secrets are no
+longer accepted. The plaintext key is never displayed back; the admin UI
+only shows whether a key is configured.</p>
+<h2 id="data-source-credentials">Data source credentials<a class="headerlink" href="#data-source-credentials" title="Permanent link">&para;</a></h2>
+<p>Credentials configured under <strong>Admin → Data Sources</strong> — OpenSearch passwords,
+S3 access and secret keys, and relational-database usernames and passwords —
+are stored using the same AES-GCM encryption scheme described above for
+Philter API keys. The plaintext is never returned by the UI or logged in the
+audit trail; the listing tables show only a status (<code>Configured</code>, <code>Ambient</code>,
+<code>From URL</code>, <code>••••••</code>). The OpenSearch <strong>username</strong> field is the one
+exception: it is stored as plaintext on the document row and visible in raw
+Mongo documents. Local-directory sources have no credentials at all — files
+are read with the application's process identity. See
+<a href="../admin/data-sources/">Data sources</a> for the per-type field list.</p>
+<h2 id="pii-at-rest-in-mongodb">PII at rest in MongoDB<a class="headerlink" href="#pii-at-rest-in-mongodb" title="Permanent link">&para;</a></h2>
+<p>Document text and the individual PII spans detected inside it are <strong>encrypted
+on disk</strong> in the MongoDB collections that hold them. The encryption uses the
+same AES-GCM construction described above for Philter API keys, with the same
+key (<code>arbiter.crypto.secret</code>) — there is no separate per-collection key.</p>
+<p>The fields encrypted at rest are:</p>
+<table>
+<thead>
+<tr>
+<th>Collection</th>
+<th>Field</th>
+<th>What it carries</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>documents</code></td>
+<td><code>originalText</code></td>
+<td>Source document text being redacted — the raw PII.</td>
+</tr>
+<tr>
+<td><code>documents</code></td>
+<td><code>redactedText</code></td>
+<td>Rendered redacted output persisted at finalize time.</td>
+</tr>
+<tr>
+<td><code>documents</code></td>
+<td><code>failureMessage</code></td>
+<td>Error messages may quote spans of the source document.</td>
+</tr>
+<tr>
+<td><code>spans</code></td>
+<td><code>text</code></td>
+<td>The literal PII string detected by Philter (e.g. <code>alice@example.com</code>).</td>
+</tr>
+<tr>
+<td><code>document_comments</code></td>
+<td><code>text</code></td>
+<td>Reviewer-supplied free text that may reference PII.</td>
+</tr>
+</tbody>
+</table>
+<p>Other fields on these documents (status, timestamps, source attribution,
+hashes, lock metadata, span coordinates, reviewer attribution) are stored
+unchanged. Encrypting only the body fields keeps the database queryable for
+status filters, joins, and audits.</p>
+<h3 id="how-the-encryption-is-applied">How the encryption is applied<a class="headerlink" href="#how-the-encryption-is-applied" title="Permanent link">&para;</a></h3>
+<p>Encryption and decryption happen at the persistence layer through Spring Data
+Mongo lifecycle callbacks — application code reads and writes plaintext on
+the in-memory entity, and the callbacks transparently encrypt before save and
+decrypt after load. The on-disk form of an encrypted field carries an
+<code>enc:v1:</code> prefix marker followed by the base64-encoded ciphertext (12-byte
+random IV concatenated with the GCM ciphertext + 16-byte auth tag), e.g.
+<code>enc:v1:bXlJVi4uLg==</code>.</p>
+<h3 id="backwards-compatibility">Backwards compatibility<a class="headerlink" href="#backwards-compatibility" title="Permanent link">&para;</a></h3>
+<p>The marker prefix lets the read path tell encrypted values from values that
+predate the rollout. Any field without the prefix is returned to the
+application as-is, so a database that was populated before this feature was
+turned on continues to read normally. The first save of any such row
+re-writes the affected field as ciphertext. There is no offline migration —
+encryption rolls forward as documents are touched.</p>
+<h3 id="what-is-not-encrypted">What is <strong>not</strong> encrypted<a class="headerlink" href="#what-is-not-encrypted" title="Permanent link">&para;</a></h3>
+<p>The following fields are <strong>not</strong> part of the at-rest encryption boundary:</p>
+<ul>
+<li><strong>Span location</strong> (<code>location.characterStart</code>, <code>location.characterEnd</code>,
+  page, coordinates). The offsets reveal the position of redactions inside
+  the document but contain no PII themselves; keeping them queryable lets
+  the review UI render the highlighted regions without an extra decrypt.</li>
+<li><strong>Reviewer attribution</strong> (<code>statusChangedBy</code>, <code>userEmail</code>, <code>approvedBy</code>,
+  audit-log actors). An admin investigation needs these in plaintext to
+  attribute decisions; they are not PII for our purposes.</li>
+<li><strong>OpenSearch search index</strong>. When OpenSearch indexing is configured the
+  document content is also written to OpenSearch — that store is <strong>outside</strong>
+  the at-rest encryption boundary documented here. If your deployment
+  indexes documents into OpenSearch, configure encryption-at-rest on the
+  OpenSearch cluster as well; the application does not double-encrypt
+  payloads sent over the indexing path.</li>
+</ul>
+<h3 id="key-management">Key management<a class="headerlink" href="#key-management" title="Permanent link">&para;</a></h3>
+<p>The same <code>arbiter.crypto.secret</code> that protects credentials and API keys also
+protects PII at rest. Losing the key means <strong>losing access to every
+encrypted field</strong> — back it up at the same operational tier as your database
+backups. Rotating the key requires re-encrypting every existing row; this is
+intentionally out-of-band today (no UI affordance) so that a sloppy rotation
+does not leave half the corpus unreadable.</p>
+<h2 id="pii-never-appears-in-application-logs">PII never appears in application logs<a class="headerlink" href="#pii-never-appears-in-application-logs" title="Permanent link">&para;</a></h2>
+<p>Arbiter's logging policy is that <strong>document content is never written to a log
+file or to standard out</strong>, regardless of log level. The fields covered are
+the same ones encrypted at rest in MongoDB:</p>
+<ul>
+<li>Document <code>originalText</code> (the source text being redacted) and
+  <code>redactedText</code> (the rendered output).</li>
+<li>Document <code>failureMessage</code> text.</li>
+<li>Span <code>text</code> (the literal PII string detected).</li>
+<li>Comment <code>text</code>.</li>
+<li>User-supplied search queries (a reviewer searching for an email or phone
+  number must not pin that string in the log file).</li>
+</ul>
+<p>Network call sites that interact with stores carrying this content
+(OpenSearch indexing, OpenSearch search, OpenSearch <code>more_like_this</code>,
+OpenSearch and Elasticsearch ingest) deliberately log only metadata —
+status code, body length, document id, batch id, error class — when they
+fail. Response bodies and query strings are summarised by length, never
+echoed verbatim. Exceptions thrown from those layers carry the same
+metadata-only message so a downstream <code>log.warn(..., e.getMessage())</code> does
+not regress this contract.</p>
+<p>If a richer dump is needed for diagnosis, read the <strong>OpenSearch /
+Elasticsearch cluster's own logs</strong> rather than Arbiter's — those stores
+have their own access controls and are part of the same security boundary
+documented above. The bootstrap admin notice on first start is the only
+deliberate write to standard out, and it carries no document PII — just
+the configured admin email and a generated initial password.</p>
+<h2 id="document-content-integrity">Document content integrity<a class="headerlink" href="#document-content-integrity" title="Permanent link">&para;</a></h2>
+<p>Every document Arbiter ingests — whether through the web upload form or
+through <code>POST /api/v1/ingest</code> — has its raw content <strong>SHA-512 hashed</strong> at
+ingest time and the hash recorded on the document row in the <code>documents</code>
+collection (field <code>contentSha512</code>, lowercase hex). The hash is computed from
+the bytes you submitted: UTF-8 bytes for text uploads, the raw file bytes
+for PDFs.</p>
+<p>The hash is set once at ingest and is never overwritten thereafter. Because
+the per-document audit log includes the ingest event with its timestamp and
+the actor, you can pair the two to attest "user X ingested a document with
+this exact content at this time" — useful for chain-of-custody, deduplication,
+and tamper detection against a separately-archived original.</p>
+<p>The hash is <em>not</em> surfaced in the UI today; query MongoDB directly if you
+need it for an out-of-band reconciliation.</p>
+<h2 id="csrf-and-cors">CSRF and CORS<a class="headerlink" href="#csrf-and-cors" title="Permanent link">&para;</a></h2>
+<p>CSRF protection is enabled for HTML form posts and disabled for the
+<code>/api/**</code> paths. The API surface is split into two categories:</p>
+<ul>
+<li><strong>Browser-UI endpoints</strong> (<code>/api/v1/queue</code>, <code>/api/v1/batches</code>,
+  <code>/api/v1/documents/{id}/spans|comments|history|certificate|explain</code>,
+  <code>/api/v1/spans/**</code>, <code>/api/v1/policies/**</code>, <code>/api/v1/ollama/**/models</code>,
+  <code>/api/v1/review/**</code>) accept the same session cookie the surrounding HTML
+  page uses. The in-page JavaScript calls them with <code>fetch</code>. Cross-origin
+  abuse is prevented by the browser's same-origin policy plus the absence
+  of a permissive CORS configuration — Arbiter does not expose
+  <code>Access-Control-Allow-Origin</code> for any other origin, so a malicious page
+  cannot read responses from these endpoints even if it happened to send
+  the user's session cookie.</li>
+<li><strong>Programmatic-only endpoints</strong> (<code>/api/v1/ingest</code>, <code>/api/v1/search</code>,
+  <code>POST /api/v1/documents/{id}/finalize</code>, <code>GET /api/v1/documents/{id}/audit</code>)
+  are Bearer-only: the <code>ApiSessionRejectingFilter</code> drops session-cookie
+  authentication for these paths so they can only be reached with an
+  <code>Authorization: Bearer &lt;api-key&gt;</code> header. This is the canonical defense
+  against a logged-in admin being CSRF-pushed into ingesting fake content
+  or exporting redacted data through their browser.</li>
+</ul>
+<p>There is no CORS configuration shipped — if you front Arbiter with a
+different origin, configure CORS in your reverse proxy or extend
+<code>SecurityConfig</code>.</p>
+<h2 id="audit-visibility">Audit visibility<a class="headerlink" href="#audit-visibility" title="Permanent link">&para;</a></h2>
+<p>Everything that changes server-side state is captured in the
+<a href="../admin/audit-log/">audit log</a> with the actor's email, IP address (honoring
+<code>X-Forwarded-For</code> first hop), the resource type and id, and per-action
+context. Audit writes never include passwords, API keys, or SMTP passwords.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright 2026 Philterd, LLC.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": [], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

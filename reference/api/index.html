@@ -1,0 +1,2741 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="User guide for Arbiter, the human-in-the-loop deidentification tool.">
+      
+      
+        <meta name="author" content="philterd">
+      
+      
+        <link rel="canonical" href="https://philterd.github.io/arbiter/reference/api/">
+      
+      
+        <link rel="prev" href="../pii-types/">
+      
+      
+        <link rel="next" href="../configuration/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>REST API - Arbiter</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="red" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#rest-api" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Arbiter" class="md-header__button md-logo" aria-label="Arbiter" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Arbiter
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              REST API
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/philterd/arbiter" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Arbiter" class="md-nav__button md-logo" aria-label="Arbiter" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Arbiter
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/philterd/arbiter" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Queue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/uploading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adding documents
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/background-jobs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Background jobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/reviewing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reviewing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Personal settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Admin guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/users-and-groups/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Users and groups
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/batches/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Batches
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Approval rule sets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/data-sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/destinations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Destinations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/audit-log/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/reports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/full-text-search/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full text search
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/notifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Notifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../admin/tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../risk-score/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Risk score
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../pii-types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PII types
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authentication
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Authentication">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#programmatic-bearer-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Programmatic (Bearer-only)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#session-allowed-browser-ui-shared" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session-allowed (browser-UI shared)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#document-ingestion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Document ingestion
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Document ingestion">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#post-apiv1ingest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /api/v1/ingest
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#triage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Triage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Triage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1queue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/queue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1batches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/batches
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documents
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Documents">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1documentsidspans" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/documents/{id}/spans
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-apiv1documentsdocumentidspans" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /api/v1/documents/{documentId}/spans
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-apiv1documentsidfinalize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /api/v1/documents/{id}/finalize
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1documentsidaudit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/documents/{id}/audit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1documentsidhistory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/documents/{id}/history
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1documentsidhistorycsv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/documents/{id}/history.csv
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1documentsidcertificate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/documents/{id}/certificate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1documentsidcomments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/documents/{id}/comments
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-apiv1documentsidcomments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /api/v1/documents/{id}/comments
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#spans" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spans
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Spans">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#patch-apiv1spansid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PATCH /api/v1/spans/{id}
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delete-apiv1spansid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DELETE /api/v1/spans/{id}
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-apiv1spansidredact-like" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /api/v1/spans/{id}/redact-like
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-apiv1spansidreset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /api/v1/spans/{id}/reset
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1spansidhistory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/spans/{id}/history
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#search" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Search">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1search" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/search
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#llm-as-a-judge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LLM-as-a-Judge
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="LLM-as-a-Judge">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1ollamainstanceidmodels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/ollama/{instanceId}/models
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-apiv1documentsdocumentidexplain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /api/v1/documents/{documentId}/explain
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-apiv1spansspanidsecond-opinion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /api/v1/spans/{spanId}/second-opinion
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#policies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Policies
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Policies">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1policies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/policies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1policiescontent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/policies/content
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#browser-only-internal-endpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Browser-only internal endpoints
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../roles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roles and permissions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#authentication" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Authentication
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Authentication">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#programmatic-bearer-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Programmatic (Bearer-only)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#session-allowed-browser-ui-shared" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Session-allowed (browser-UI shared)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#document-ingestion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Document ingestion
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Document ingestion">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#post-apiv1ingest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /api/v1/ingest
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#triage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Triage
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Triage">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1queue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/queue
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1batches" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/batches
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#documents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Documents
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Documents">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1documentsidspans" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/documents/{id}/spans
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-apiv1documentsdocumentidspans" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /api/v1/documents/{documentId}/spans
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-apiv1documentsidfinalize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /api/v1/documents/{id}/finalize
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1documentsidaudit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/documents/{id}/audit
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1documentsidhistory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/documents/{id}/history
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1documentsidhistorycsv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/documents/{id}/history.csv
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1documentsidcertificate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/documents/{id}/certificate
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1documentsidcomments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/documents/{id}/comments
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-apiv1documentsidcomments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /api/v1/documents/{id}/comments
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#spans" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Spans
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Spans">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#patch-apiv1spansid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PATCH /api/v1/spans/{id}
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#delete-apiv1spansid" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DELETE /api/v1/spans/{id}
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-apiv1spansidredact-like" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /api/v1/spans/{id}/redact-like
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-apiv1spansidreset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /api/v1/spans/{id}/reset
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1spansidhistory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/spans/{id}/history
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#search" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Search
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Search">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1search" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/search
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#llm-as-a-judge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LLM-as-a-Judge
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="LLM-as-a-Judge">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1ollamainstanceidmodels" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/ollama/{instanceId}/models
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-apiv1documentsdocumentidexplain" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /api/v1/documents/{documentId}/explain
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#post-apiv1spansspanidsecond-opinion" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        POST /api/v1/spans/{spanId}/second-opinion
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#policies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Policies
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Policies">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1policies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/policies
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#get-apiv1policiescontent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GET /api/v1/policies/content
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#browser-only-internal-endpoints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Browser-only internal endpoints
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#errors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Errors
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="rest-api">REST API<a class="headerlink" href="#rest-api" title="Permanent link">&para;</a></h1>
+<p>Arbiter exposes a JSON-over-HTTP API under <code>/api/v1</code>. The API surface is split
+into two categories that authenticate differently.</p>
+<h2 id="authentication">Authentication<a class="headerlink" href="#authentication" title="Permanent link">&para;</a></h2>
+<h3 id="programmatic-bearer-only">Programmatic (Bearer-only)<a class="headerlink" href="#programmatic-bearer-only" title="Permanent link">&para;</a></h3>
+<p>These endpoints are intended for scripts, integrations, and downstream
+consumers. They accept <strong>only</strong> a personal API key sent as a Bearer token —
+session cookies are explicitly stripped by the security filter chain so a
+logged-in admin's browser session cannot be CSRF'd into reaching them. The
+Bearer-only set is small and stable:</p>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Path</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/v1/ingest</code></td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/v1/search</code></td>
+</tr>
+<tr>
+<td><code>POST</code></td>
+<td><code>/api/v1/documents/{id}/finalize</code></td>
+</tr>
+<tr>
+<td><code>GET</code></td>
+<td><code>/api/v1/documents/{id}/audit</code></td>
+</tr>
+</tbody>
+</table>
+<p>To use them, generate an API key from
+<a href="../../user-guide/settings/">Personal settings</a> and send it on every request:</p>
+<pre><code class="language-http">Authorization: Bearer &lt;your-api-key&gt;
+</code></pre>
+<p>Arbiter stores only the SHA-512 hash of the key. The plaintext value is shown
+once at generation and cannot be recovered. Rotate by generating a new key
+(which replaces the old one) or revoke the existing one. Failed authentication
+(no header, malformed header, or unknown key) returns <code>401 Unauthorized</code>.</p>
+<h3 id="session-allowed-browser-ui-shared">Session-allowed (browser-UI shared)<a class="headerlink" href="#session-allowed-browser-ui-shared" title="Permanent link">&para;</a></h3>
+<p>The remaining <code>/api/v1/**</code> endpoints are used by Arbiter's own web UI and
+accept either a Bearer token or the browser's session cookie. Cross-origin
+abuse is blocked by the browser's same-origin policy plus the absence of a
+permissive CORS configuration; Bearer authentication still works for
+programmatic clients that prefer to use them. Endpoints in this category are
+called out below per-section. The API key carries the same role and group
+permissions as the user that owns it; session callers carry whatever role and
+groups their account has.</p>
+<h2 id="document-ingestion">Document ingestion<a class="headerlink" href="#document-ingestion" title="Permanent link">&para;</a></h2>
+<h3 id="post-apiv1ingest"><code>POST /api/v1/ingest</code><a class="headerlink" href="#post-apiv1ingest" title="Permanent link">&para;</a></h3>
+<p>Bearer-only. Submit a plain-text document. Ingestion is <strong>asynchronous</strong>: the document is
+persisted in <code>PENDING</code> and placed on the redaction queue. A background worker
+runs Philter in arrival order; once redaction completes, the document moves to
+<code>REVIEW_REQUIRED</code> (PII detected with low-confidence spans), <code>AUDIT_REQUIRED</code>
+(eligible for auto-approval but sampled for review per the batch's audit
+sampling rate), or <code>AUTO_APPROVED</code>.</p>
+<p>Request body:</p>
+<pre><code class="language-json">{
+  &quot;batchId&quot;:  &quot;string&quot;,
+  &quot;name&quot;:     &quot;string&quot;,
+  &quot;text&quot;:     &quot;string&quot;,
+  &quot;priority&quot;: 2
+}
+</code></pre>
+<p><code>priority</code> is optional. It accepts an integer in <code>1..3</code> (<code>1</code> Low, <code>2</code> Normal,
+<code>3</code> High); omitting it or sending <code>null</code> defaults to Normal. The value is
+stored on the document and surfaced as a chevron icon on the
+<a href="../../user-guide/queue/#priority-column">Document Queue</a>. It does not affect
+ingest ordering — redaction still runs oldest-first.</p>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>202</code></td>
+<td>Accepted; body <code>{"taskId": "..."}</code>. Redaction runs asynchronously.</td>
+</tr>
+<tr>
+<td><code>400</code></td>
+<td><code>batchId</code> does not exist (or required fields missing/invalid, including <code>priority</code> outside <code>1..3</code>).</td>
+</tr>
+<tr>
+<td><code>403</code></td>
+<td>Caller does not have access to that batch.</td>
+</tr>
+<tr>
+<td><code>409</code></td>
+<td>Batch is closed; body includes <code>"closed": true</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>The returned <code>taskId</code> is the document's id. Poll
+<a href="#get-apiv1documentsidspans"><code>GET /api/v1/documents/{id}/spans</code></a> or
+<a href="#get-apiv1queue"><code>GET /api/v1/queue</code></a> to track its progress out of <code>PENDING</code>.</p>
+<p>A SHA-512 hash of the submitted <code>text</code> (UTF-8 bytes) is recorded on the
+document at ingest time — see
+<a href="../../security/#document-content-integrity">Security · Document content integrity</a>.</p>
+<h2 id="triage">Triage<a class="headerlink" href="#triage" title="Permanent link">&para;</a></h2>
+<h3 id="get-apiv1queue"><code>GET /api/v1/queue</code><a class="headerlink" href="#get-apiv1queue" title="Permanent link">&para;</a></h3>
+<p>Session-allowed. List documents the caller can see, paged by sort field.</p>
+<table>
+<thead>
+<tr>
+<th>Query param</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>page</code></td>
+<td><code>0</code></td>
+<td>Zero-indexed page (negative values are clamped to <code>0</code>)</td>
+</tr>
+<tr>
+<td><code>size</code></td>
+<td><code>10</code></td>
+<td>Page size, clamped to the range <code>[1, 100]</code></td>
+</tr>
+<tr>
+<td><code>batchId</code></td>
+<td>—</td>
+<td>Filter to one batch</td>
+</tr>
+<tr>
+<td><code>status</code></td>
+<td>—</td>
+<td>Filter to one status</td>
+</tr>
+<tr>
+<td><code>filename</code></td>
+<td>—</td>
+<td>Substring match on filename, case-insensitive</td>
+</tr>
+<tr>
+<td><code>myGroupsOnly</code></td>
+<td><code>false</code></td>
+<td>Admin opt-in: restrict admins to their own groups</td>
+</tr>
+<tr>
+<td><code>sort</code></td>
+<td><code>riskScore</code></td>
+<td>One of <code>riskScore</code>, <code>status</code>, <code>batchId</code>, <code>filename</code>, <code>priority</code></td>
+</tr>
+<tr>
+<td><code>dir</code></td>
+<td><code>desc</code></td>
+<td><code>asc</code> or <code>desc</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>size</code> is hard-capped at 100 — values above that are silently lowered, and
+values below <code>1</code> are raised to <code>1</code>. Page through larger result sets with
+successive <code>page</code> values rather than a larger <code>size</code>.</p>
+<p>Non-admins are always restricted to their groups; the <code>myGroupsOnly</code> parameter
+only affects admin callers.</p>
+<p>Response is a Spring <code>Page&lt;Map&gt;</code> shape:</p>
+<pre><code class="language-json">{
+  &quot;content&quot;: [
+    {
+      &quot;id&quot;: &quot;string&quot;,
+      &quot;filename&quot;: &quot;string&quot;,
+      &quot;status&quot;: &quot;PENDING|REVIEW_REQUIRED|AUDIT_REQUIRED|AUTO_APPROVED|APPROVED|REJECTED|FAILED&quot;,
+      &quot;riskScore&quot;: 0.0,
+      &quot;batchId&quot;: &quot;string&quot;,
+      &quot;batchName&quot;: &quot;string&quot;,
+      &quot;autoApproved&quot;: false,
+      &quot;documentThreshold&quot;: 0.25,
+      &quot;priority&quot;: 2
+    }
+  ],
+  &quot;totalElements&quot;: 0,
+  &quot;totalPages&quot;: 0,
+  &quot;number&quot;: 0,
+  &quot;size&quot;: 10
+}
+</code></pre>
+<p><code>autoApproved</code> is the <strong>derived</strong> display flag: it's true when the document's
+risk score is at or below <code>documentThreshold</code> and the document is neither in a
+user-decided terminal state (<code>APPROVED</code>, <code>REJECTED</code>, <code>FAILED</code>) nor in
+<code>AUDIT_REQUIRED</code>. The stored <code>status</code> field is independent.</p>
+<h3 id="get-apiv1batches"><code>GET /api/v1/batches</code><a class="headerlink" href="#get-apiv1batches" title="Permanent link">&para;</a></h3>
+<p>Session-allowed. List batches the caller can target. Honors the same
+<code>myGroupsOnly</code> query param. Returns a JSON array of <code>{id, name}</code>.</p>
+<h2 id="documents">Documents<a class="headerlink" href="#documents" title="Permanent link">&para;</a></h2>
+<h3 id="get-apiv1documentsidspans"><code>GET /api/v1/documents/{id}/spans</code><a class="headerlink" href="#get-apiv1documentsidspans" title="Permanent link">&para;</a></h3>
+<p>Session-allowed. Return every <code>Span</code> row in the document. Useful for building
+a custom review client or for reconciling the redactor's output with
+downstream systems.</p>
+<p><code>404</code> if the document doesn't exist or the caller lacks group access.</p>
+<h3 id="post-apiv1documentsdocumentidspans"><code>POST /api/v1/documents/{documentId}/spans</code><a class="headerlink" href="#post-apiv1documentsdocumentidspans" title="Permanent link">&para;</a></h3>
+<p>Session-allowed. Manually create a span at an explicit character range. Used
+by the review UI when a reviewer highlights uncovered PII; the API is also
+available to clients.</p>
+<pre><code class="language-json">{ &quot;type&quot;: &quot;ssn&quot;, &quot;start&quot;: 42, &quot;end&quot;: 53 }
+</code></pre>
+<p><code>type</code> is validated against the <a href="../pii-types/">PII types list</a>. The new span is
+persisted with <code>confidence: 1.0</code>, <code>status: APPROVED</code>, and <code>manuallyCreated:
+true</code>.</p>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>200</code></td>
+<td>Returns the saved <code>Span</code> JSON.</td>
+</tr>
+<tr>
+<td><code>400</code></td>
+<td>Missing/invalid <code>type</code>, <code>start</code>, or <code>end</code>; range exceeds the text.</td>
+</tr>
+<tr>
+<td><code>404</code></td>
+<td>Document not found or caller lacks access.</td>
+</tr>
+<tr>
+<td><code>409</code></td>
+<td>Document is in a terminal state and cannot be edited.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="post-apiv1documentsidfinalize"><code>POST /api/v1/documents/{id}/finalize</code><a class="headerlink" href="#post-apiv1documentsidfinalize" title="Permanent link">&para;</a></h3>
+<p>Bearer-only. Produce the redacted text for a document by sending its approved
+spans to Philter and applying them. The response is the post-redaction string. On
+success, the document is transitioned to <code>FINALIZED</code> and the rendered
+redacted text is persisted on the document so a later download still works
+even if a finalization policy clears the source text.</p>
+<pre><code class="language-json">{ &quot;finalizedText&quot;: &quot;string&quot; }
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Status</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>200</code></td>
+<td>Returns <code>{ "finalizedText": "..." }</code> and the document is now <code>FINALIZED</code>.</td>
+</tr>
+<tr>
+<td><code>404</code></td>
+<td>Document not found, or the caller lacks group access.</td>
+</tr>
+<tr>
+<td><code>409</code></td>
+<td>Document is not in <code>APPROVED</code>, <strong>or</strong> its source text is unavailable (e.g. cleared by a finalization policy on a prior pass) and cannot be re-finalized.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="get-apiv1documentsidaudit"><code>GET /api/v1/documents/{id}/audit</code><a class="headerlink" href="#get-apiv1documentsidaudit" title="Permanent link">&para;</a></h3>
+<p>Bearer-only. Return a redaction audit trail — every span on the document
+with its <code>text</code>, <code>type</code>, <code>confidence</code>, and current <code>status</code>. Useful for
+after-the-fact review or compliance reporting.</p>
+<pre><code class="language-json">[
+  { &quot;text&quot;: &quot;...&quot;, &quot;type&quot;: &quot;ssn&quot;, &quot;confidence&quot;: 0.92, &quot;status&quot;: &quot;APPROVED&quot; }
+]
+</code></pre>
+<p><code>404</code> if the document doesn't exist or the caller lacks group access.</p>
+<h3 id="get-apiv1documentsidhistory"><code>GET /api/v1/documents/{id}/history</code><a class="headerlink" href="#get-apiv1documentsidhistory" title="Permanent link">&para;</a></h3>
+<p>Session-allowed. Return the full audit history for a document — document-level
+events and all span events — as a JSON array sorted newest first. Powers the
+Audit Log popup on the Document Queue.</p>
+<p><strong>Restricted to <code>ROLE_ADMIN</code> or <code>ROLE_AUDITOR</code>.</strong> Returns <code>403</code> for any other
+caller because the history includes raw PII span text.</p>
+<p>Each element:</p>
+<pre><code class="language-json">{
+  &quot;timestamp&quot;: &quot;2026-05-01T12:00:00Z&quot;,
+  &quot;actor&quot;:     &quot;&lt;mongodb-user-id&gt;&quot;,
+  &quot;action&quot;:    &quot;SPAN_UPDATE&quot;,
+  &quot;resourceType&quot;: &quot;Span&quot;,
+  &quot;resourceId&quot;:   &quot;...&quot;,
+  &quot;details&quot;:   {}
+}
+</code></pre>
+<p>The <code>actor</code> field defaults to the MongoDB user ID. Pass <code>?resolveActors=true</code>
+to receive the user's email address instead — this parameter requires
+<code>ROLE_ADMIN</code> or <code>ROLE_AUDITOR</code> and returns <code>403</code> otherwise.</p>
+<h3 id="get-apiv1documentsidhistorycsv"><code>GET /api/v1/documents/{id}/history.csv</code><a class="headerlink" href="#get-apiv1documentsidhistorycsv" title="Permanent link">&para;</a></h3>
+<p>Session-allowed. Download the document's full audit history (document-level
+events plus all events on its spans) as a CSV, sorted newest first. Powers
+the <strong>Download</strong> button on the Document Queue's Audit Log popup. See
+<a href="../../admin/audit-log/#download-csv">Audit log</a> for the column list.</p>
+<p><strong>Restricted to <code>ROLE_ADMIN</code> or <code>ROLE_AUDITOR</code>.</strong> Returns <code>403</code> for any other
+caller. The CSV deliberately omits PII text — span entries include
+<code>spanCharacterStart</code>, <code>spanCharacterEnd</code>, and <code>spanPage</code> instead. The <code>actor</code>
+column contains the actor's email address (the CSV is admin/auditor-only, so
+email exposure is appropriate).</p>
+<h3 id="get-apiv1documentsidcertificate"><code>GET /api/v1/documents/{id}/certificate</code><a class="headerlink" href="#get-apiv1documentsidcertificate" title="Permanent link">&para;</a></h3>
+<p>Session-allowed. Return the redaction certificate for a finalized document —
+a JSON object summarising the document hash, finalize timestamp, and span
+counts. Powers the Certificate popup on the Document Queue. The caller must
+have group access to the document; <code>404</code> is returned if the document doesn't
+exist or the caller lacks access.</p>
+<h3 id="get-apiv1documentsidcomments"><code>GET /api/v1/documents/{id}/comments</code><a class="headerlink" href="#get-apiv1documentsidcomments" title="Permanent link">&para;</a></h3>
+<p>Session-allowed. Return reviewer comments left on the document, oldest first.</p>
+<pre><code class="language-json">[
+  { &quot;id&quot;: &quot;...&quot;, &quot;userEmail&quot;: &quot;user@example.com&quot;,
+    &quot;timestamp&quot;: &quot;2026-05-04T13:00:00Z&quot;, &quot;text&quot;: &quot;...&quot; }
+]
+</code></pre>
+<h3 id="post-apiv1documentsidcomments"><code>POST /api/v1/documents/{id}/comments</code><a class="headerlink" href="#post-apiv1documentsidcomments" title="Permanent link">&para;</a></h3>
+<p>Session-allowed. Add a comment to the document. The request body is a JSON
+object with a single <code>text</code> string (max 4 000 characters; surrounding
+whitespace is trimmed). Returns the saved comment in the same shape the GET
+above produces.</p>
+<pre><code class="language-json">{ &quot;text&quot;: &quot;...&quot; }
+</code></pre>
+<h2 id="spans">Spans<a class="headerlink" href="#spans" title="Permanent link">&para;</a></h2>
+<h3 id="patch-apiv1spansid"><code>PATCH /api/v1/spans/{id}</code><a class="headerlink" href="#patch-apiv1spansid" title="Permanent link">&para;</a></h3>
+<p>Session-allowed. Update a span's status, type, or both.</p>
+<pre><code class="language-json">{
+  &quot;status&quot;:        &quot;APPROVED|REJECTED|PENDING|NEEDS_SECOND_OPINION&quot;,
+  &quot;type&quot;:          &quot;ssn&quot;,
+  &quot;reason&quot;:        &quot;...&quot;,
+  &quot;exemptionCode&quot;: &quot;...&quot;
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>status</code></td>
+<td>optional</td>
+<td>One of the allowed statuses. Sending neither <code>status</code> nor <code>type</code> returns <code>400</code>.</td>
+</tr>
+<tr>
+<td><code>type</code></td>
+<td>optional</td>
+<td>New PII type; validated against the <a href="../pii-types/">PII types list</a>.</td>
+</tr>
+<tr>
+<td><code>reason</code></td>
+<td>optional</td>
+<td>Required when <strong>overturning</strong> another reviewer's prior <code>APPROVED</code> decision (changing status away from <code>APPROVED</code> while the prior approval was recorded by a different actor). Returns <code>409 OVERTURN_REASON_REQUIRED</code> otherwise. Recorded in the audit trail.</td>
+</tr>
+<tr>
+<td><code>exemptionCode</code></td>
+<td>optional</td>
+<td>Free-form string applied only when the new <code>status</code> is <code>APPROVED</code>. Cleared automatically when the span moves out of <code>APPROVED</code>.</td>
+</tr>
+</tbody>
+</table>
+<p>Returns the updated <code>Span</code> object.</p>
+<p><code>409</code> if the parent document is in a terminal state, or if an overturn is
+attempted without a <code>reason</code>.</p>
+<h3 id="delete-apiv1spansid"><code>DELETE /api/v1/spans/{id}</code><a class="headerlink" href="#delete-apiv1spansid" title="Permanent link">&para;</a></h3>
+<p>Session-allowed. Hard-delete a span. <strong>Only manually-created spans can be
+deleted</strong> — for spans the redactor produced, flip status to <code>REJECTED</code>
+instead.</p>
+<pre><code class="language-json">{ &quot;id&quot;: &quot;...&quot;, &quot;deleted&quot;: true }
+</code></pre>
+<p><code>400</code> if the span was redactor-created. <code>409</code> if the parent document is
+terminal.</p>
+<h3 id="post-apiv1spansidredact-like"><code>POST /api/v1/spans/{id}/redact-like</code><a class="headerlink" href="#post-apiv1spansidredact-like" title="Permanent link">&para;</a></h3>
+<p>Session-allowed. Find every other occurrence of the source span's text in the
+parent document and approve each match with the source span's PII type. New
+<code>Span</code> rows are created where matches don't already have one; existing spans
+at exact ranges are flipped to <code>APPROVED</code> and aligned to the source type.
+Overlapping non-exact matches are skipped to avoid duplicate spans.</p>
+<p>Requires <code>Content-Type: application/json</code> (the request body itself is
+ignored; the JSON content type is enforced as a CSRF defence so cross-site
+form posts can't trigger this endpoint).</p>
+<p>Response:</p>
+<pre><code class="language-json">{ &quot;created&quot;: 0, &quot;approved&quot;: 0 }
+</code></pre>
+<p><code>created</code> is the number of new spans inserted. <code>approved</code> is the number of
+existing spans flipped to approved.</p>
+<p><code>400</code> if the source span has empty text. <code>404</code> if the span or its document is
+missing.</p>
+<h3 id="post-apiv1spansidreset"><code>POST /api/v1/spans/{id}/reset</code><a class="headerlink" href="#post-apiv1spansidreset" title="Permanent link">&para;</a></h3>
+<p>Session-allowed. Revert a span back to its previous status. The intended use
+is "I clicked Approve / Reject by mistake" — the endpoint moves a span out of
+its terminal state and back into review. The optional JSON body
+<code>{"originalStatus": "PENDING|REVIEW_REQUIRED"}</code> selects the target status; an
+empty body falls back to the span's prior status as recorded in the audit log.</p>
+<p>Requires <code>Content-Type: application/json</code>. Returns the updated <code>Span</code> JSON.</p>
+<p><code>404</code> if the span doesn't exist or the caller lacks group access. <code>409</code> if
+the parent document is in a terminal state.</p>
+<h3 id="get-apiv1spansidhistory"><code>GET /api/v1/spans/{id}/history</code><a class="headerlink" href="#get-apiv1spansidhistory" title="Permanent link">&para;</a></h3>
+<p>Session-allowed. Return the audit history for a single span as a JSON array
+sorted newest first. Accessible to any authenticated user with group access
+to the span's parent document.</p>
+<pre><code class="language-json">[
+  {
+    &quot;timestamp&quot;:    &quot;2026-05-01T12:00:00Z&quot;,
+    &quot;actor&quot;:        &quot;&lt;mongodb-user-id&gt;&quot;,
+    &quot;action&quot;:       &quot;SPAN_UPDATE&quot;,
+    &quot;resourceType&quot;: &quot;Span&quot;,
+    &quot;resourceId&quot;:   &quot;...&quot;,
+    &quot;details&quot;:      {}
+  }
+]
+</code></pre>
+<p>The <code>actor</code> field defaults to the MongoDB user ID of the actor to avoid
+leaking email addresses to other reviewers. Pass <code>?resolveActors=true</code> to
+receive email addresses instead — this parameter requires <code>ROLE_ADMIN</code> or
+<code>ROLE_AUDITOR</code> and returns <code>403</code> otherwise.</p>
+<p><code>404</code> if the span doesn't exist or the caller lacks group access.</p>
+<h2 id="search">Search<a class="headerlink" href="#search" title="Permanent link">&para;</a></h2>
+<h3 id="get-apiv1search"><code>GET /api/v1/search</code><a class="headerlink" href="#get-apiv1search" title="Permanent link">&para;</a></h3>
+<p>Bearer-only. Full-text search across the OpenSearch index of ingested documents. Each
+document is indexed at ingest time with its filename, batch, status, and full
+original text.</p>
+<table>
+<thead>
+<tr>
+<th>Query param</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>q</code></td>
+<td>—</td>
+<td>Match query (required, runs against the text)</td>
+</tr>
+<tr>
+<td><code>offset</code></td>
+<td><code>0</code></td>
+<td>First hit to return</td>
+</tr>
+<tr>
+<td><code>size</code></td>
+<td><code>10</code></td>
+<td>Max hits per page (capped at 100)</td>
+</tr>
+</tbody>
+</table>
+<p>Response:</p>
+<pre><code class="language-json">{
+  &quot;query&quot;: &quot;...&quot;,
+  &quot;offset&quot;: 0,
+  &quot;size&quot;: 10,
+  &quot;total&quot;: 42,
+  &quot;hits&quot;: [
+    {
+      &quot;id&quot;: &quot;...&quot;,
+      &quot;batchId&quot;: &quot;...&quot;,
+      &quot;filename&quot;: &quot;...&quot;,
+      &quot;status&quot;: &quot;AUTO_APPROVED&quot;,
+      &quot;highlights&quot;: [&quot;… &lt;em&gt;match&lt;/em&gt; snippet …&quot;]
+    }
+  ]
+}
+</code></pre>
+<p>Results are pre-filtered to batches the caller can access. Non-admin callers
+only see hits from their own group's batches; <code>total</code> reflects that filtered
+count, not the full index size. Inaccessible hits are silently excluded — they
+are never returned as placeholder rows.</p>
+<p>If OpenSearch is unreachable, a query returns an empty result set rather than
+failing the request — search is best-effort.</p>
+<h2 id="llm-as-a-judge">LLM-as-a-Judge<a class="headerlink" href="#llm-as-a-judge" title="Permanent link">&para;</a></h2>
+<p>These endpoints proxy a configured Ollama instance to provide an LLM second
+opinion on the redactor's output. Configuration lives under
+<strong>Admin → LLM-as-a-Judge</strong>.</p>
+<div class="admonition warning">
+<p class="admonition-title">PII leaves Arbiter on every call</p>
+<p>Both <code>explain</code> and <code>second-opinion</code> send the full unredacted document text
+and all PII span values to Ollama. Each call is recorded in the audit log
+as <code>DOCUMENT_PII_SENT_TO_LLM</code> <strong>before</strong> the HTTP request is sent, so the
+entry exists even if Ollama is unreachable. Ollama must be deployed with
+request-body logging disabled (<code>OLLAMA_DEBUG=0</code>) to prevent PII from
+appearing in Ollama's logs.</p>
+</div>
+<h3 id="get-apiv1ollamainstanceidmodels"><code>GET /api/v1/ollama/{instanceId}/models</code><a class="headerlink" href="#get-apiv1ollamainstanceidmodels" title="Permanent link">&para;</a></h3>
+<p>Session-allowed. List the models installed on a configured Ollama instance.</p>
+<pre><code class="language-json">{ &quot;instanceId&quot;: &quot;...&quot;, &quot;instanceName&quot;: &quot;...&quot;, &quot;models&quot;: [&quot;llama3&quot;, &quot;mistral&quot;] }
+</code></pre>
+<p><code>404</code> if the instance id is unknown. <code>502</code> if Ollama is unreachable.</p>
+<h3 id="post-apiv1documentsdocumentidexplain"><code>POST /api/v1/documents/{documentId}/explain</code><a class="headerlink" href="#post-apiv1documentsdocumentidexplain" title="Permanent link">&para;</a></h3>
+<p>Session-allowed. Ask the LLM to explain the PII risk in a document.</p>
+<pre><code class="language-json">{ &quot;instanceId&quot;: &quot;...&quot;, &quot;model&quot;: &quot;llama3&quot; }
+</code></pre>
+<p>Response:</p>
+<pre><code class="language-json">{ &quot;instanceName&quot;: &quot;...&quot;, &quot;model&quot;: &quot;llama3&quot;, &quot;response&quot;: &quot;...&quot; }
+</code></pre>
+<h3 id="post-apiv1spansspanidsecond-opinion"><code>POST /api/v1/spans/{spanId}/second-opinion</code><a class="headerlink" href="#post-apiv1spansspanidsecond-opinion" title="Permanent link">&para;</a></h3>
+<p>Session-allowed. Ask the configured Second Opinion default Ollama
+instance/model whether the named span is genuinely PII or a likely false
+positive. The instance and model are chosen from the LLM-as-a-Judge defaults
+— the request body is empty but the <code>Content-Type: application/json</code> header
+is required (CSRF defence).</p>
+<pre><code class="language-json">{ &quot;instanceName&quot;: &quot;...&quot;, &quot;model&quot;: &quot;...&quot;,
+  &quot;sourceText&quot;: &quot;...&quot;, &quot;sourceType&quot;: &quot;ssn&quot;,
+  &quot;response&quot;: &quot;...&quot; }
+</code></pre>
+<p><code>400</code> if no Second Opinion default is configured.</p>
+<h2 id="policies">Policies<a class="headerlink" href="#policies" title="Permanent link">&para;</a></h2>
+<p>These endpoints power the Phileas redaction-policy editor under
+<strong>Admin → Policies</strong>. The framework gates them to <code>ROLE_ADMIN</code> or
+<code>ROLE_AUDITOR</code> for reads — non-admin callers get <code>403</code>.</p>
+<h3 id="get-apiv1policies"><code>GET /api/v1/policies</code><a class="headerlink" href="#get-apiv1policies" title="Permanent link">&para;</a></h3>
+<p>Session-allowed. List the policies installed on a configured Philter
+instance, or on the embedded Phileas runtime when no instance is specified.</p>
+<table>
+<thead>
+<tr>
+<th>Query param</th>
+<th>Default</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>instanceId</code></td>
+<td><code>embedded</code></td>
+<td>Philter instance id, or <code>embedded</code> for the built-in.</td>
+</tr>
+</tbody>
+</table>
+<p>Response:</p>
+<pre><code class="language-json">{ &quot;instanceId&quot;: &quot;embedded&quot;, &quot;policies&quot;: [&quot;Default&quot;, &quot;...&quot;] }
+</code></pre>
+<p><code>502</code> when the named Philter instance is unreachable; <code>404</code> if <code>instanceId</code>
+doesn't match any configured instance.</p>
+<h3 id="get-apiv1policiescontent"><code>GET /api/v1/policies/content</code><a class="headerlink" href="#get-apiv1policiescontent" title="Permanent link">&para;</a></h3>
+<p>Session-allowed. Fetch the JSON content of one named policy on the chosen
+instance. Both query parameters are required.</p>
+<table>
+<thead>
+<tr>
+<th>Query param</th>
+<th>Required</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>instanceId</code></td>
+<td>yes</td>
+<td>Philter instance id, or <code>embedded</code> for the built-in.</td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td>yes</td>
+<td>Policy name; restricted to letters, digits, hyphens, and underscores (1–64 chars).</td>
+</tr>
+</tbody>
+</table>
+<p>Response:</p>
+<pre><code class="language-json">{ &quot;name&quot;: &quot;Default&quot;, &quot;content&quot;: &quot;{ ...JSON policy... }&quot; }
+</code></pre>
+<p><code>content</code> is the raw policy JSON as a string (the embedded runtime stores
+policies as text; remote Philter responses are returned verbatim).</p>
+<p><code>400</code> for malformed names (the regex check rejects path-traversal attempts).
+<code>404</code> when the named policy doesn't exist on the instance. <code>502</code> when the
+remote Philter instance is unreachable.</p>
+<h2 id="browser-only-internal-endpoints">Browser-only internal endpoints<a class="headerlink" href="#browser-only-internal-endpoints" title="Permanent link">&para;</a></h2>
+<p>The following paths exist under <code>/api/v1/**</code> but are intended only for the
+in-page JavaScript that drives the review UI. They are session-callable, do
+nothing harmful in isolation, and are documented here purely so that traffic
+from arbiter's own UI doesn't look surprising in HTTP logs:</p>
+<table>
+<thead>
+<tr>
+<th>Path</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>POST /api/v1/review/{documentId}/pulse</code></td>
+<td>Sliding-expiry heartbeat sent every ~30 s by the review page so the document's pessimistic edit lock doesn't expire while the reviewer is still on the page. Operates on the caller's own lock only.</td>
+</tr>
+<tr>
+<td><code>POST /api/v1/review/{documentId}/release</code></td>
+<td><code>navigator.sendBeacon</code>'d when the reviewer leaves the page. Releases the caller's own lock.</td>
+</tr>
+<tr>
+<td><code>GET /api/v1/review/{documentId}/similar</code></td>
+<td>Backs the "Find similar documents" button on the review page. Returns up to 10 hits filtered to the caller's accessible batches.</td>
+</tr>
+</tbody>
+</table>
+<p>There's no programmatic-API reason to call these — use <code>PATCH /spans/{id}</code> and
+<code>GET /search</code> instead.</p>
+<h2 id="errors">Errors<a class="headerlink" href="#errors" title="Permanent link">&para;</a></h2>
+<p>Error responses have a JSON body with at least an <code>error</code> field describing the
+issue. Status codes follow the table per endpoint above.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright 2026 Philterd, LLC.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

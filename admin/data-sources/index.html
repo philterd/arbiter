@@ -1,0 +1,3034 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="User guide for Arbiter, the human-in-the-loop deidentification tool.">
+      
+      
+        <meta name="author" content="philterd">
+      
+      
+        <link rel="canonical" href="https://philterd.github.io/arbiter/admin/data-sources/">
+      
+      
+        <link rel="prev" href="../rules/">
+      
+      
+        <link rel="next" href="../destinations/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Data sources - Arbiter</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="red" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#data-sources" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Arbiter" class="md-header__button md-logo" aria-label="Arbiter" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Arbiter
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Data sources
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/philterd/arbiter" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Arbiter" class="md-nav__button md-logo" aria-label="Arbiter" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Arbiter
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/philterd/arbiter" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Queue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/uploading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adding documents
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/background-jobs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Background jobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/reviewing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reviewing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Personal settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Admin guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../users-and-groups/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Users and groups
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../batches/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Batches
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Approval rule sets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data sources
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#source-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source types
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Source types">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#opensearch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenSearch
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OpenSearch">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#edit-a-saved-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Edit a saved source
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-the-connection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test the connection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#elasticsearch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Elasticsearch
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#paged-ingest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Paged ingest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#s3-compatible" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        S3-Compatible
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="S3-Compatible">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#recommended-iam-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recommended IAM policy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#relational-database" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Relational Database
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Relational Database">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#read-only-safeguard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read-only safeguard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-rows-map-to-documents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How rows map to documents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#incremental-ingest-with-watermarks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Incremental ingest with watermarks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Incremental ingest with watermarks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changing-the-sql-or-watermark-column-on-an-active-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changing the SQL or watermark column on an active source
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manual-watermark-adjustments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual watermark adjustments
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-not-to-use-a-watermark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When NOT to use a watermark
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running-an-ingest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running an ingest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-sql-queries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example SQL queries
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example SQL queries">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-one-row-per-documents-table-row" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic — one row per documents table row
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#composing-the-text-from-multiple-columns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Composing the text from multiple columns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#joining-a-documents-table-with-a-per-row-metadata-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Joining a documents table with a per-row metadata table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#filtering-by-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Filtering by status
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#incremental-ingest-with-an-integer-primary-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Incremental ingest with an integer primary key
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#incremental-ingest-by-timestamp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Incremental ingest by timestamp
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#using-a-cte-with-clause" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using a CTE / WITH clause
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-not-to-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What NOT to do
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#local-directory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local Directory
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trust-model-and-host-allow-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trust model and host allow-list
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Trust model and host allow-list">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#private-range-default-deny" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Private-range default-deny
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#allow-list-behavior-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Allow-list behavior summary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#master-switch-admin-security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Master switch (Admin → Security)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#credential-encryption" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Credential encryption
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#removing-a-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Removing a source
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#audit-trail" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit trail
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../destinations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Destinations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../audit-log/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../full-text-search/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full text search
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../notifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Notifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/risk-score/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Risk score
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/pii-types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PII types
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/roles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roles and permissions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#source-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Source types
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Source types">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#opensearch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        OpenSearch
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="OpenSearch">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#edit-a-saved-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Edit a saved source
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#test-the-connection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Test the connection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#elasticsearch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Elasticsearch
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#paged-ingest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Paged ingest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#s3-compatible" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        S3-Compatible
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="S3-Compatible">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#recommended-iam-policy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recommended IAM policy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#relational-database" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Relational Database
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Relational Database">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#read-only-safeguard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Read-only safeguard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-rows-map-to-documents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How rows map to documents
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#incremental-ingest-with-watermarks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Incremental ingest with watermarks
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Incremental ingest with watermarks">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#changing-the-sql-or-watermark-column-on-an-active-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Changing the SQL or watermark column on an active source
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manual-watermark-adjustments" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual watermark adjustments
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#when-not-to-use-a-watermark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When NOT to use a watermark
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running-an-ingest" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running an ingest
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-sql-queries" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example SQL queries
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example SQL queries">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-one-row-per-documents-table-row" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic — one row per documents table row
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#composing-the-text-from-multiple-columns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Composing the text from multiple columns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#joining-a-documents-table-with-a-per-row-metadata-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Joining a documents table with a per-row metadata table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#filtering-by-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Filtering by status
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#incremental-ingest-with-an-integer-primary-key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Incremental ingest with an integer primary key
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#incremental-ingest-by-timestamp" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Incremental ingest by timestamp
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#using-a-cte-with-clause" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Using a CTE / WITH clause
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-not-to-do" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What NOT to do
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#local-directory" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Local Directory
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#trust-model-and-host-allow-list" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Trust model and host allow-list
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Trust model and host allow-list">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#private-range-default-deny" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Private-range default-deny
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#allow-list-behavior-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Allow-list behavior summary
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#master-switch-admin-security" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Master switch (Admin → Security)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#credential-encryption" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Credential encryption
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#removing-a-source" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Removing a source
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#audit-trail" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit trail
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="data-sources">Data sources<a class="headerlink" href="#data-sources" title="Permanent link">&para;</a></h1>
+<p>Data sources let admins point Arbiter at an external place where documents
+already live — an OpenSearch or Elasticsearch index, an S3 bucket, a
+relational database, or a local filesystem directory — instead of (or in
+addition to) uploading files one at a time. Once registered, a data source
+becomes selectable on the <strong>Add Documents</strong> page.</p>
+<p>The page is at <code>/admin/data-sources</code>, also reachable from the <strong>Data Sources</strong>
+link in the sidebar's Administration section. ROLE_ADMIN only.</p>
+<p>Data sources are the <em>input</em> half of Arbiter's I/O. For where finalized
+redacted documents go <em>out</em>, see <a href="../destinations/">Destinations</a>.</p>
+<blockquote>
+<p><strong>Status:</strong> All five source types — <strong>OpenSearch</strong>, <strong>Elasticsearch</strong>,
+<strong>S3</strong>, <strong>Relational Database</strong>, and <strong>Local Directory</strong> — are fully wired
+up. Clicking <em>Ingest from …</em> on the Add Documents page kicks off a
+background job that pulls documents into the redaction queue; progress is
+visible on the Background Jobs page.</p>
+</blockquote>
+<h2 id="source-types">Source types<a class="headerlink" href="#source-types" title="Permanent link">&para;</a></h2>
+<p>The page is split into five sections, one per type. Names must be unique
+<em>within</em> a section (case-insensitive) — so an OpenSearch source and an S3
+source can both be named <code>archive</code> without conflict.</p>
+<h3 id="opensearch">OpenSearch<a class="headerlink" href="#opensearch" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Name</td>
+<td>yes</td>
+<td>Display name; unique among OpenSearch sources (case-insensitive)</td>
+</tr>
+<tr>
+<td>Endpoint</td>
+<td>yes</td>
+<td>Cluster URL, e.g. <code>http://localhost:9200</code></td>
+</tr>
+<tr>
+<td>Query</td>
+<td>yes</td>
+<td>Query that returns the documents to import — typically the JSON body of an <code>_search</code> request, prefixed with the index path (e.g. <code>contracts/_search { "query": { "match_all": {} } }</code>). The body's <code>size</code> is <strong>always overridden to 100</strong> for paging — see <a href="#paged-ingest">Paged ingest</a> below.</td>
+</tr>
+<tr>
+<td>Text field</td>
+<td>yes</td>
+<td>Field name within each hit's <code>_source</code> that holds the document text to import (e.g. <code>body</code>, <code>content</code>).</td>
+</tr>
+<tr>
+<td>Filename field</td>
+<td>no</td>
+<td>Optional. Field within each hit's <code>_source</code> whose value is used as the imported document's filename. If blank, the OpenSearch <code>_id</code> is used as the filename.</td>
+</tr>
+<tr>
+<td>Username</td>
+<td>no</td>
+<td>Stored as plaintext on the document row.</td>
+</tr>
+<tr>
+<td>Password</td>
+<td>no</td>
+<td>Encrypted at rest; see <a href="#credential-encryption">Credential encryption</a>.</td>
+</tr>
+</tbody>
+</table>
+<p>The listing table shows <strong>Name</strong>, <strong>Endpoint</strong>, <strong>Text field</strong>, and
+<strong>Actions</strong>. Auth and the saved query are not surfaced inline; the saved
+query is editable through the <strong>Edit</strong> action button on each row.</p>
+<h4 id="edit-a-saved-source">Edit a saved source<a class="headerlink" href="#edit-a-saved-source" title="Permanent link">&para;</a></h4>
+<p>Each row has an <strong>Edit</strong> button that opens a popup pre-filled with the
+saved values (the <strong>Name</strong> is read-only; everything else can be changed).
+The Password field is left blank by default — <strong>leaving it blank keeps the
+existing password</strong>, typing a new value replaces it, and the <strong>Clear the
+stored password</strong> checkbox wipes it. Saving fires an
+<code>OPENSEARCH_DATASOURCE_UPDATE</code> audit event with the new values plus a
+<code>passwordChanged</code> boolean.</p>
+<h4 id="test-the-connection">Test the connection<a class="headerlink" href="#test-the-connection" title="Permanent link">&para;</a></h4>
+<p>Two <strong>Test</strong> buttons are available:</p>
+<ul>
+<li>The <strong>Test</strong> button beside the <strong>Add</strong> button on the form sends the
+  <strong>current form values</strong> (endpoint, query, optional username/password) to
+  Arbiter — handy while you're tuning a new source before saving it.</li>
+<li>A <strong>Test</strong> action button on each saved row sends the stored values
+  (Arbiter decrypts the saved password server-side; the cleartext is never
+  handed back to the browser).</li>
+</ul>
+<p>Either way, Arbiter connects to OpenSearch, runs the query, and shows up to
+the <strong>first 10 hits</strong> in a popup along with the reported total. A green
+<em>Success</em> bar tops the popup when the query worked; otherwise a red error
+bar shows the reason. Test does not save anything, so it's safe to use
+repeatedly.</p>
+<h3 id="elasticsearch">Elasticsearch<a class="headerlink" href="#elasticsearch" title="Permanent link">&para;</a></h3>
+<p>Elasticsearch data sources behave <strong>identically to OpenSearch</strong>: same
+fields, same scrolling ingest, same Test / Edit affordances. They live in
+their own collection, so the same name can be used for one OpenSearch and
+one Elasticsearch source without conflict.</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Name</td>
+<td>yes</td>
+<td>Display name; unique among Elasticsearch sources (case-insensitive)</td>
+</tr>
+<tr>
+<td>Endpoint</td>
+<td>yes</td>
+<td>Cluster URL, e.g. <code>http://localhost:9200</code></td>
+</tr>
+<tr>
+<td>Query</td>
+<td>yes</td>
+<td>Same shape as OpenSearch — <code>&lt;index&gt;/_search { … JSON body … }</code>. The body's <code>size</code> is overridden to 100.</td>
+</tr>
+<tr>
+<td>Text field</td>
+<td>yes</td>
+<td>Field name within each hit's <code>_source</code> that holds the document text.</td>
+</tr>
+<tr>
+<td>Filename field</td>
+<td>no</td>
+<td>Optional. Field within each hit's <code>_source</code> whose value is used as the imported document's filename. If blank, the Elasticsearch <code>_id</code> is used.</td>
+</tr>
+<tr>
+<td>Username</td>
+<td>no</td>
+<td>Stored as plaintext on the document row.</td>
+</tr>
+<tr>
+<td>Password</td>
+<td>no</td>
+<td>Encrypted at rest; see <a href="#credential-encryption">Credential encryption</a>.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="paged-ingest">Paged ingest<a class="headerlink" href="#paged-ingest" title="Permanent link">&para;</a></h3>
+<p>OpenSearch and Elasticsearch ingest jobs use the <strong>scroll API</strong> so they
+can pull arbitrarily large result sets without exhausting memory:</p>
+<ol>
+<li>The first request opens a scroll context (<code>?scroll=1m</code>) with the saved
+   query body, <strong>forcing <code>"size": 100</code></strong> so each page is bounded — even if
+   the saved body says <code>"size": 5000</code>, only 100 hits land per page.</li>
+<li>The worker walks the page, pulls each hit's text-field value, sets
+   traceability fields (see below), and pushes the document onto the
+   Arbiter ingest queue.</li>
+<li>It then asks the server for the next scroll page and keeps going until a
+   page returns zero hits, at which point it deletes the scroll context.</li>
+</ol>
+<p>Each imported document records traceability back to its source: the
+<code>sourceSystem</code> (<code>OPENSEARCH</code> or <code>ELASTICSEARCH</code>), the cluster URL, the
+index the hit came from (preferred from each hit's <code>_index</code>, falling back
+to the configured query path), the OpenSearch / Elasticsearch <code>_id</code>, and an
+<strong>Import Timestamp</strong> of when Arbiter pulled it. Reviewers see all of this
+on the <strong>Document Information</strong> popup on the Review page.</p>
+<p>Job progress is visible in real time on the <strong>Background Jobs</strong> page (under
+the Redaction sidebar group). Each job tracks status (<code>PENDING</code> /
+<code>RUNNING</code> / <code>COMPLETED</code> / <code>FAILED</code>), how many documents have been
+processed vs. the total, and — when individual hits fail — a list of
+per-hit reasons accessible behind a <em>Show failure details</em> disclosure.</p>
+<h3 id="s3-compatible">S3-Compatible<a class="headerlink" href="#s3-compatible" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Name</td>
+<td>yes</td>
+<td>Unique among S3 sources</td>
+</tr>
+<tr>
+<td>Endpoint URL</td>
+<td>no</td>
+<td>S3 API endpoint to target. Leave blank for Amazon S3; set to e.g. <code>http://minio:9000</code> for MinIO, or to the API endpoint published by Cloudflare R2 / Backblaze B2 / any other S3-compatible storage.</td>
+</tr>
+<tr>
+<td>Bucket name</td>
+<td>yes</td>
+<td>The bucket to read from</td>
+</tr>
+<tr>
+<td>Bucket key</td>
+<td>yes</td>
+<td>Object-key prefix under which to look (e.g. <code>archive/2026/</code>). Leave blank to read from the bucket root.</td>
+</tr>
+<tr>
+<td>Filename glob</td>
+<td>yes</td>
+<td>Filter applied within the prefix, e.g. <code>*.txt</code>, <code>**/*.pdf</code></td>
+</tr>
+<tr>
+<td>Access key</td>
+<td>no</td>
+<td>Encrypted at rest</td>
+</tr>
+<tr>
+<td>Secret key</td>
+<td>no</td>
+<td>Encrypted at rest</td>
+</tr>
+</tbody>
+</table>
+<p>Access key and secret key are validated as a pair — provide both or neither.
+Leaving them blank means the runtime will use whatever ambient AWS credentials
+the application process has (environment variables, instance profile, etc.).
+Credentials are not shown in the listing table. The Endpoint URL column shows
+"AWS default" in italics when the field is left blank.</p>
+<p>The shipped Docker compose stack registers a <strong>Demo MinIO (S3-compatible)</strong>
+data source pointing at the bundled <code>minio</code> service (<code>http://minio:9000</code>,
+bucket <code>arbiter-demo</code>) so the S3 path can be exercised without an AWS
+account. See <a href="../../getting-started/">Getting started</a> for the full demo
+layout.</p>
+<h4 id="recommended-iam-policy">Recommended IAM policy<a class="headerlink" href="#recommended-iam-policy" title="Permanent link">&para;</a></h4>
+<p>Grant the configured access key <strong>read-only access scoped to the bucket and
+key prefix</strong> above — and nothing else. Ingestion needs <code>s3:GetObject</code> on the
+objects under the prefix, and <code>s3:ListBucket</code> (constrained by an
+<code>s3:prefix</code> condition) to enumerate them. No write, delete, or bucket-admin
+permissions are required.</p>
+<p>The following policy is a starting point — replace <code>my-bucket</code> and
+<code>archive/2026/</code> with your actual bucket name and key prefix:</p>
+<pre><code class="language-json">{
+  &quot;Version&quot;: &quot;2012-10-17&quot;,
+  &quot;Statement&quot;: [
+    {
+      &quot;Sid&quot;: &quot;ArbiterListPrefix&quot;,
+      &quot;Effect&quot;: &quot;Allow&quot;,
+      &quot;Action&quot;: &quot;s3:ListBucket&quot;,
+      &quot;Resource&quot;: &quot;arn:aws:s3:::my-bucket&quot;,
+      &quot;Condition&quot;: {
+        &quot;StringLike&quot;: {
+          &quot;s3:prefix&quot;: [&quot;archive/2026/*&quot;]
+        }
+      }
+    },
+    {
+      &quot;Sid&quot;: &quot;ArbiterReadObjects&quot;,
+      &quot;Effect&quot;: &quot;Allow&quot;,
+      &quot;Action&quot;: &quot;s3:GetObject&quot;,
+      &quot;Resource&quot;: &quot;arn:aws:s3:::my-bucket/archive/2026/*&quot;
+    }
+  ]
+}
+</code></pre>
+<p>This is a suggestion, not a substitute for AWS's own guidance. For
+authoritative details on writing least-privilege S3 policies — including
+prefix conditions, object-tag conditions, SSE-KMS key access, and the
+permission semantics for non-AWS S3-compatible services (MinIO, Cloudflare
+R2, Backblaze B2, etc.) — refer to the AWS documentation:</p>
+<ul>
+<li><a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-access-control.html">Identity and access management in Amazon S3</a></li>
+<li><a href="https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-iam-policies.html">Bucket policies and user policies</a></li>
+<li><a href="https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazons3.html">Actions, resources, and condition keys for Amazon S3</a></li>
+</ul>
+<p>For non-AWS S3-compatible services, consult that vendor's documentation —
+the action names and ARN format are usually compatible, but the policy
+attachment mechanics differ.</p>
+<h3 id="relational-database">Relational Database<a class="headerlink" href="#relational-database" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Name</td>
+<td>yes</td>
+<td>Unique among RDB sources</td>
+</tr>
+<tr>
+<td>JDBC URL</td>
+<td>yes</td>
+<td>Standard JDBC URL, e.g. <code>jdbc:postgresql://host:5432/dbname</code></td>
+</tr>
+<tr>
+<td>SQL query</td>
+<td>yes</td>
+<td><code>SELECT</code> whose <strong>first column</strong> holds the document text. An optional column named <code>filename</code> (case-insensitive) supplies the per-row filename. See <a href="#how-rows-map-to-documents">How rows map to documents</a> below.</td>
+</tr>
+<tr>
+<td>Watermark column</td>
+<td>no</td>
+<td>Result-column name whose value Arbiter reads from each row and advances the per-source watermark to on a successful run. Pair with a <code>:lastKey</code> placeholder in the SQL above for incremental ingest — see <a href="#incremental-ingest-with-watermarks">Incremental ingest with watermarks</a> below. Leave blank for a full-scan ingest each time.</td>
+</tr>
+<tr>
+<td>Username</td>
+<td>no</td>
+<td>Encrypted at rest</td>
+</tr>
+<tr>
+<td>Password</td>
+<td>no</td>
+<td>Encrypted at rest</td>
+</tr>
+</tbody>
+</table>
+<p>Username and password are validated as a pair — provide both or neither.
+Leaving them blank means the runtime will rely on credentials embedded in the
+JDBC URL or the driver's ambient authentication. Credentials are not shown
+in the listing table.</p>
+<h4 id="read-only-safeguard">Read-only safeguard<a class="headerlink" href="#read-only-safeguard" title="Permanent link">&para;</a></h4>
+<p>Relational data sources are intended for <strong>reading documents</strong>, never
+mutating them. Before saving, Arbiter scans the SQL for the keywords
+<strong><code>DELETE</code></strong>, <strong><code>TRUNCATE</code></strong>, and <strong><code>DROP</code></strong> as whole words
+(case-insensitive). If any of those appear, the data source is <strong>rejected</strong>
+— nothing is saved — and the admin sees an error like <em>"SQL query contains
+disallowed keyword(s) DELETE. Data sources must use read-only queries."</em>
+The matched keywords plus the offending SQL are recorded in the audit log
+under <code>RDB_DANGEROUS_SQL_BLOCKED</code> (see the <a href="#audit-trail">Audit trail</a>
+section below).</p>
+<p>The match is whole-word-only, so legitimate column names like
+<code>dropoff_count</code> or <code>deleted_at</code> do not trigger the safeguard.</p>
+<h4 id="how-rows-map-to-documents">How rows map to documents<a class="headerlink" href="#how-rows-map-to-documents" title="Permanent link">&para;</a></h4>
+<p>Each row in the result set becomes one document. Arbiter reads two
+things from every row:</p>
+<ul>
+<li>
+<p><strong>Document text</strong> — the value of <strong>column 1</strong> of the SELECT list,
+  whatever the admin called it. This is a <em>positional</em> lookup: the
+  column's name is irrelevant; only its position matters. A row whose
+  first column is <code>NULL</code> or empty is recorded as a failure with reason
+  <em>"Row N has a null/empty first column (no document text)"</em> and never
+  becomes a document.</p>
+</li>
+<li>
+<p><strong>Filename</strong> — the value of a column named <code>filename</code>, looked up by
+  name (case-insensitive — <code>Filename</code>, <code>FILENAME</code>, and <code>filename</code> all
+  match). The value is used verbatim — no extension is added, no
+  characters are stripped. When the column is absent, or present but
+  null/empty for that row, the worker synthesises <code>row-1.txt</code>,
+  <code>row-2.txt</code>, … using the 1-based row index within the current run.</p>
+</li>
+</ul>
+<p>The conventional query shape:</p>
+<pre><code class="language-sql">SELECT body, doc_path AS filename, ...
+       ^^^^                          ← text (column 1, name irrelevant)
+              ^^^^^^^^^^^^^^^^^^^^^  ← optional, looked up by name
+FROM documents WHERE imported_at IS NULL
+</code></pre>
+<p>A <code>SELECT *</code> works as long as the schema happens to put the text column
+first; explicit aliasing is safer.</p>
+<blockquote>
+<p><strong>Filenames are the dedupe key.</strong> Arbiter records
+<code>(data-source id, filename)</code> for every imported row and skips
+subsequent rows with the same key. If you rely on the synthesised
+<code>row-N.txt</code> fallback and the underlying table is later reordered or
+rows are inserted in the middle of the existing set, the same
+<em>content</em> will be assigned a <em>different</em> synthesised filename on the
+next run and re-imported. Returning a stable per-row identifier
+(primary key, content hash, etc.) as <code>filename</code> is strongly preferred
+for any source you intend to re-ingest incrementally.</p>
+</blockquote>
+<h4 id="incremental-ingest-with-watermarks">Incremental ingest with watermarks<a class="headerlink" href="#incremental-ingest-with-watermarks" title="Permanent link">&para;</a></h4>
+<p>A source that fills in the <strong>Watermark column</strong> field uses a keyset
+cursor instead of a full table scan. Each run only sees rows the
+previous run hasn't already imported, so a daily-scheduled ingest
+against a 10-million-row table doesn't re-read the whole 10M every
+night — it picks up only what's new.</p>
+<p>The mechanism has three moving parts:</p>
+<ol>
+<li><strong>The <code>:lastKey</code> placeholder in the SQL.</strong> Reference it in a <code>WHERE</code>
+   predicate against the same column you name as the watermark.
+   Arbiter substitutes the stored watermark value at execution time:</li>
+<li>On the <strong>first run</strong> (or after a reset), <code>:lastKey</code> becomes the
+     SQL literal <code>NULL</code>. Use <code>COALESCE(:lastKey, …)</code> to pick a starting
+     floor.</li>
+<li>
+<p>On every <strong>subsequent run</strong>, <code>:lastKey</code> becomes a bound JDBC
+     parameter holding the value of the watermark column from the
+     last row of the previous run.</p>
+</li>
+<li>
+<p><strong>The Watermark column.</strong> Names the result column whose value
+   Arbiter reads from each row. After a successful run completes,
+   the source's stored watermark is advanced to that column's
+   last-seen value (which, given <code>ORDER BY</code> on the same column, is
+   also the largest value seen) and an <code>RDB_WATERMARK_ADVANCE</code> audit
+   row is written. Only successful runs advance the watermark — a
+   crash mid-cursor leaves it untouched, and the next run resumes
+   from where the previous one started.</p>
+</li>
+<li>
+<p><strong>The <code>ORDER BY</code> on the watermark column.</strong> Without it the
+   "last-seen value" is whatever the database happened to emit last,
+   which is undefined for a <code>SELECT</code> without an <code>ORDER BY</code>. Arbiter
+   does not enforce this — it's the admin's responsibility. A missing
+   <code>ORDER BY</code> won't break ingest, but the watermark will advance
+   erratically and miss rows.</p>
+</li>
+</ol>
+<p>The canonical incremental-ingest shape:</p>
+<p>=== "PostgreSQL"
+    <code>sql
+    SELECT body,
+           doc_path                              AS filename,
+           id
+      FROM documents
+     WHERE id &gt; COALESCE(:lastKey::bigint, 0)
+     ORDER BY id</code>
+    Watermark column: <code>id</code>.</p>
+<p>=== "MySQL / MariaDB"
+    <code>sql
+    SELECT body,
+           doc_path                              AS filename,
+           id
+      FROM documents
+     WHERE id &gt; COALESCE(CAST(:lastKey AS UNSIGNED), 0)
+     ORDER BY id</code>
+    Watermark column: <code>id</code>. Note the explicit <code>CAST</code> — MySQL's
+    implicit coercion against a bound <code>String</code> is unreliable for
+    range comparisons against an integer column.</p>
+<p>=== "SQL Server"
+    <code>sql
+    SELECT body,
+           doc_path                              AS filename,
+           id
+      FROM documents
+     WHERE id &gt; COALESCE(CAST(:lastKey AS BIGINT), 0)
+     ORDER BY id</code>
+    Watermark column: <code>id</code>. SQL Server <strong>refuses</strong> implicit
+    String → BIGINT casts, so the explicit <code>CAST</code> is mandatory rather
+    than recommended.</p>
+<p>=== "Oracle"
+    <code>sql
+    SELECT body,
+           doc_path                              AS filename,
+           id
+      FROM documents
+     WHERE id &gt; COALESCE(TO_NUMBER(:lastKey), 0)
+     ORDER BY id</code>
+    Watermark column: <code>id</code>.</p>
+<p>The watermark column doesn't have to be an integer. A monotonic
+timestamp works the same way (<code>WHERE updated_at &gt; COALESCE(:lastKey,
+'1970-01-01')</code>), as does a UUIDv7 PK ordered lexically. The only hard
+requirements are that the column is <strong>strictly monotonic across
+inserts you want to ingest</strong> and that the SQL's <code>ORDER BY</code> matches.</p>
+<h5 id="changing-the-sql-or-watermark-column-on-an-active-source">Changing the SQL or watermark column on an active source<a class="headerlink" href="#changing-the-sql-or-watermark-column-on-an-active-source" title="Permanent link">&para;</a></h5>
+<p>When a source has already advanced its watermark and the admin edits
+either the SQL or the watermark column, Arbiter refuses the save
+until the <strong>Reset watermark</strong> confirmation is checked on the Edit
+form. The reasoning is symmetric:</p>
+<ul>
+<li>If the new SQL keeps the watermark <strong>and</strong> the meaning is
+  unchanged, the old value is still valid and the change shouldn't
+  reset it (so the operator unchecks the confirmation, which can't
+  be done unless they leave the relevant fields alone).</li>
+<li>If the new SQL means something different — different table,
+  different ordering, different predicate — the old watermark would
+  either miss new rows or re-import old ones. The reset is then the
+  right call, and the explicit confirmation is the operator's
+  acknowledgement that they understand.</li>
+</ul>
+<p>The Edit modal shows the confirmation row only when the SQL or
+watermark column has actually changed on a source that has an active
+watermark; URL and credential edits don't require it.</p>
+<h5 id="manual-watermark-adjustments">Manual watermark adjustments<a class="headerlink" href="#manual-watermark-adjustments" title="Permanent link">&para;</a></h5>
+<p>Two operator overrides are available on the Data Sources page:</p>
+<ul>
+<li><strong>Reset watermark</strong> clears the stored value, so the next run starts
+  from scratch (already-imported documents are still skipped via the
+  <code>(source-id, filename)</code> dedupe). Audited as <code>RDB_WATERMARK_RESET</code>.</li>
+<li><strong>Set watermark manually</strong> writes a specific value to the source.
+  Useful for skipping past a known-bad range, or seeding the cursor
+  before the first run so older rows are ignored. Audited as
+  <code>RDB_WATERMARK_SET_MANUAL</code>.</li>
+</ul>
+<h5 id="when-not-to-use-a-watermark">When NOT to use a watermark<a class="headerlink" href="#when-not-to-use-a-watermark" title="Permanent link">&para;</a></h5>
+<p>If your source already filters to "new rows" some other way — e.g.
+the SQL has <code>WHERE imported_flag = 0</code> and your application sets
+<code>imported_flag = 1</code> out of band — leave <strong>Watermark column</strong> blank.
+The two mechanisms are independent; mixing them adds complexity for
+no benefit. The 100,000-row per-run cap still applies, so a source
+that needs to drain a backlog larger than that should use one of the
+two approaches (out-of-band flag or watermark) rather than relying
+on the cap to throttle.</p>
+<h4 id="running-an-ingest">Running an ingest<a class="headerlink" href="#running-an-ingest" title="Permanent link">&para;</a></h4>
+<p>When the user clicks <strong>Ingest from Relational Database</strong> on the Add
+Documents page, the worker opens a JDBC connection using the stored URL
+and credentials, runs the saved SQL, and enqueues one document per row
+according to the column mapping above. The job is subject to:</p>
+<ul>
+<li><strong>Dedupe</strong> keyed on <code>(data-source id, filename)</code>. New rows go in;
+  previously-seen filenames are recorded as <strong>Skipped</strong> rather than
+  re-imported.</li>
+<li><strong>Cap</strong>: at most 100,000 rows per run, enforced via
+  <code>Statement.setMaxRows(…)</code> at the JDBC protocol level so the database
+  doesn't stream more data than the ingest will use.</li>
+<li><strong>Timeouts</strong>: 15s connection timeout, 5min per-statement query timeout.
+  An accidentally-broad query against a huge table can't pin a worker
+  thread indefinitely.</li>
+</ul>
+<p>The job is a <a href="../../user-guide/background-jobs/">Background Job</a> and
+reports <code>Processed N / Failed M / Skipped K</code> the same way every other
+ingest does. If the JDBC connection fails (host unreachable, bad
+credentials, table doesn't exist) the job is marked FAILED with the
+underlying SQLSTATE plus driver message so operators can diagnose without
+hunting through the application log.</p>
+<p>The shipped Docker compose stack registers a <strong>Demo PostgreSQL</strong> data
+source pointing at a bundled <code>postgres</code> container, whose <code>documents</code>
+table is seeded with synthetic PII-shaped rows so the RDB ingest path
+can be exercised without standing up a database by hand. See
+<a href="../../getting-started/">Getting started</a> for the full demo layout.</p>
+<h4 id="example-sql-queries">Example SQL queries<a class="headerlink" href="#example-sql-queries" title="Permanent link">&para;</a></h4>
+<p>The queries below cover the common shapes Arbiter operators reach for.
+Every example follows the two contracts laid out in <a href="#how-rows-map-to-documents">How rows map to
+documents</a>: <strong>column 1 is the document
+text</strong> (positional, name irrelevant), and the optional <strong><code>filename</code>
+column</strong> supplies the per-row filename (named lookup, case-insensitive).</p>
+<h5 id="basic-one-row-per-documents-table-row">Basic — one row per <code>documents</code> table row<a class="headerlink" href="#basic-one-row-per-documents-table-row" title="Permanent link">&para;</a></h5>
+<p>The simplest shape. Use this when there's a column that already holds
+the full document text and a separate column for the filename, and you
+want to ingest the whole table once (no incremental support).</p>
+<pre><code class="language-sql">SELECT body,
+       doc_path AS filename
+  FROM documents
+</code></pre>
+<p>If you want re-runs to skip already-imported rows without a watermark,
+either keep the SQL filter on an out-of-band flag (<code>WHERE imported_at
+IS NULL</code>) and update the flag yourself, or rely on the
+<code>(source-id, filename)</code> dedupe — which only works when <code>filename</code>
+returns stable, distinct values per row.</p>
+<h5 id="composing-the-text-from-multiple-columns">Composing the text from multiple columns<a class="headerlink" href="#composing-the-text-from-multiple-columns" title="Permanent link">&para;</a></h5>
+<p>When the document text lives in several columns (e.g. a CRM ticket
+with separate <code>subject</code>, <code>body</code>, and <code>notes</code>), concatenate them in the
+SELECT. The redactor then sees the full composed text per row.</p>
+<p>=== "PostgreSQL / SQL Server / Oracle (ANSI)"
+    <code>sql
+    SELECT subject || E'\n\n' || body || E'\n\nNotes:\n' || COALESCE(notes, '')
+                                                       AS document_text,
+           ticket_id::text                             AS filename
+      FROM support_tickets
+     WHERE status = 'closed'</code></p>
+<p>=== "MySQL / MariaDB"
+    <code>sql
+    SELECT CONCAT(subject, '\n\n', body, '\n\nNotes:\n', COALESCE(notes, ''))
+                                                       AS document_text,
+           CAST(ticket_id AS CHAR)                     AS filename
+      FROM support_tickets
+     WHERE status = 'closed'</code></p>
+<p>The first column (<code>document_text</code>) is whatever the concatenation
+expression returns; its name and alias are decorative — the worker
+reads column <strong>1</strong> by position.</p>
+<h5 id="joining-a-documents-table-with-a-per-row-metadata-table">Joining a documents table with a per-row metadata table<a class="headerlink" href="#joining-a-documents-table-with-a-per-row-metadata-table" title="Permanent link">&para;</a></h5>
+<p>Sometimes the filename lives elsewhere — e.g. an attachment table
+keyed on <code>document_id</code>. The join is yours to write; Arbiter only
+needs the two contractual columns on the result.</p>
+<pre><code class="language-sql">SELECT d.body,
+       COALESCE(a.original_filename, d.id::text)  AS filename
+  FROM documents d
+  LEFT JOIN attachments a
+    ON a.document_id = d.id AND a.role = 'original'
+ WHERE d.imported_into_arbiter = FALSE
+</code></pre>
+<p>The <code>LEFT JOIN</code> keeps documents without a matching attachment;
+<code>COALESCE</code> falls back to the document id (cast to text) so every row
+has a stable filename for the dedupe key.</p>
+<h5 id="filtering-by-status">Filtering by status<a class="headerlink" href="#filtering-by-status" title="Permanent link">&para;</a></h5>
+<p>To pick up only documents in a particular workflow state, add a <code>WHERE</code>
+clause. The validator allows arbitrary <code>WHERE</code> / <code>JOIN</code> / <code>GROUP BY</code> /
+<code>HAVING</code> / <code>ORDER BY</code> / <code>LIMIT</code> — only <code>INSERT</code>/<code>UPDATE</code>/<code>DELETE</code> and
+their kin are refused.</p>
+<pre><code class="language-sql">SELECT body,
+       case_number AS filename
+  FROM legal_cases
+ WHERE status IN ('NEEDS_REVIEW', 'PENDING_REDACTION')
+   AND created_at &gt;= CURRENT_DATE - INTERVAL '90 days'
+</code></pre>
+<h5 id="incremental-ingest-with-an-integer-primary-key">Incremental ingest with an integer primary key<a class="headerlink" href="#incremental-ingest-with-an-integer-primary-key" title="Permanent link">&para;</a></h5>
+<p>The canonical keyset-paginated shape. Set <strong>Watermark column</strong> to
+<code>id</code>; Arbiter advances it after each successful run. See
+<a href="#incremental-ingest-with-watermarks">Incremental ingest with watermarks</a>
+for the cross-driver variants and the <code>COALESCE</code> first-run idiom.</p>
+<pre><code class="language-sql">SELECT body,
+       doc_path AS filename,
+       id
+  FROM documents
+ WHERE id &gt; COALESCE(:lastKey::bigint, 0)
+ ORDER BY id
+</code></pre>
+<h5 id="incremental-ingest-by-timestamp">Incremental ingest by timestamp<a class="headerlink" href="#incremental-ingest-by-timestamp" title="Permanent link">&para;</a></h5>
+<p>When the table doesn't have a monotonic integer PK but does have a
+reliable <code>updated_at</code> column, use that as the watermark. Set
+<strong>Watermark column</strong> to <code>updated_at</code>. The placeholder substitutes a
+String, so cast it back to the column type in the predicate.</p>
+<p>=== "PostgreSQL"
+    <code>sql
+    SELECT body,
+           filename,
+           updated_at
+      FROM documents
+     WHERE updated_at &gt; COALESCE(:lastKey::timestamptz, '1970-01-01'::timestamptz)
+     ORDER BY updated_at, id        -- tiebreak on id so rows with the same
+                                    -- updated_at advance deterministically</code></p>
+<p>=== "MySQL / MariaDB"
+    <code>sql
+    SELECT body,
+           filename,
+           updated_at
+      FROM documents
+     WHERE updated_at &gt; COALESCE(CAST(:lastKey AS DATETIME), '1970-01-01')
+     ORDER BY updated_at, id</code></p>
+<blockquote>
+<p><strong>Caveat.</strong> A timestamp watermark misses rows whose <code>updated_at</code>
+equals the watermark from the previous run's last row, because the
+predicate is strictly <code>&gt;</code>. The tiebreaker on <code>id</code> only orders the
+rows correctly for the <code>ORDER BY</code>; the next run starts from
+<code>updated_at &gt; X</code>, which skips any other row at exactly time <code>X</code>.
+For tables with multiple rows per timestamp, prefer an integer PK
+watermark, or design the predicate as
+<code>(updated_at, id) &gt; (:lastKey_ts, :lastKey_id)</code> — which Arbiter
+doesn't natively support (only a single <code>:lastKey</code> placeholder
+is substituted), so this is a documented limitation.</p>
+</blockquote>
+<h5 id="using-a-cte-with-clause">Using a CTE / <code>WITH</code> clause<a class="headerlink" href="#using-a-cte-with-clause" title="Permanent link">&para;</a></h5>
+<p>The validator accepts <code>WITH … SELECT</code> as a first-class top-level
+shape. CTEs are useful when the per-row logic is complex enough that
+inlining it as a subquery becomes unreadable.</p>
+<pre><code class="language-sql">WITH redactable AS (
+    SELECT d.id,
+           d.body,
+           d.filename,
+           ROW_NUMBER() OVER (PARTITION BY d.tenant_id ORDER BY d.id) AS rn
+      FROM documents d
+     WHERE d.body IS NOT NULL
+)
+SELECT body, filename, id
+  FROM redactable
+ WHERE rn &lt;= 1000              -- one per tenant per run, oldest first
+ ORDER BY id
+</code></pre>
+<blockquote>
+<p><strong>Note.</strong> Any mutating keyword inside the <code>WITH</code> block (e.g.
+PostgreSQL's <code>WITH d AS (DELETE … RETURNING *) SELECT …</code>) is
+refused by <a href="#read-only-safeguard">the read-only safeguard</a> — the
+CTE-with-DELETE pattern is exactly what the safeguard's
+whole-word keyword scan was built to catch.</p>
+</blockquote>
+<h5 id="what-not-to-do">What NOT to do<a class="headerlink" href="#what-not-to-do" title="Permanent link">&para;</a></h5>
+<pre><code class="language-sql">-- Refused: leading keyword must be SELECT or WITH.
+EXPLAIN SELECT body FROM documents
+
+-- Refused: multi-statement input. Remove the trailing semicolon.
+SELECT body FROM documents;
+
+-- Refused: mutating keyword anywhere in the statement.
+WITH purged AS (DELETE FROM documents RETURNING *)
+SELECT body FROM purged
+
+-- Refused: SQL Server / MySQL write-via-SELECT primitive.
+SELECT body FROM documents INTO OUTFILE '/tmp/exfil.csv'
+
+-- Refused: PostgreSQL filesystem read primitive.
+SELECT pg_read_file('/etc/passwd')
+
+-- Accepted, but you almost certainly didn't mean it: the watermark
+-- column is set but the SQL doesn't reference :lastKey. The
+-- watermark advances after each run but does nothing to filter
+-- the cursor — every run re-reads the entire table (capped at
+-- 100,000 rows) and re-pays the dedupe cost.
+SELECT body, id AS filename FROM documents ORDER BY id
+</code></pre>
+<h3 id="local-directory">Local Directory<a class="headerlink" href="#local-directory" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Required</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Name</td>
+<td>yes</td>
+<td>Unique among local sources</td>
+</tr>
+<tr>
+<td>Directory path</td>
+<td>yes</td>
+<td>Absolute path on the <strong>application server's</strong> filesystem</td>
+</tr>
+<tr>
+<td>Filename glob</td>
+<td>yes</td>
+<td>e.g. <code>*.txt</code> (top level only), <code>**.pdf</code> (any depth — <code>**</code> greedily spans <code>/</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>No credentials — the directory is read with the application's process
+identity, so make sure the path is reachable and readable by that user.</p>
+<p>When the user clicks <strong>Ingest from Local Directory</strong>, the worker walks the
+configured path and queues every regular file whose <strong>relative</strong> path
+matches the configured glob. <code>.pdf</code> files are queued as binary uploads;
+everything else is read as UTF-8 text. The job runs as a
+<a href="../../user-guide/background-jobs/">Background Job</a> and reports progress
+the same way the OpenSearch/Elasticsearch ingests do. If the directory is
+missing, isn't a directory, or isn't readable by the application user, the
+job fails up front with a clear error and no documents are queued.</p>
+<p>Re-running an import is safe: the worker dedupes by
+<code>(directory path, relative file path)</code>, so files that have already been
+imported from the same directory are recorded as <strong>Skipped</strong> and not
+re-enqueued.</p>
+<h2 id="trust-model-and-host-allow-list">Trust model and host allow-list<a class="headerlink" href="#trust-model-and-host-allow-list" title="Permanent link">&para;</a></h2>
+<p>Data sources are administered by users with <code>ROLE_ADMIN</code>. The product
+intentionally <strong>trusts admins</strong> to point Arbiter at internal services —
+that's what the feature is for — and the Test buttons issue HTTP / JDBC
+calls to whatever URL the admin types. In a typical deployment this is
+fine: admins run Arbiter and have at least as much network access as the
+application process.</p>
+<p>In a multi-tenant or zero-trust deployment where the application server
+has access to internal hosts that the admin role should <em>not</em> be able to
+reach (the <a href="https://owasp.org/www-community/attacks/Server_Side_Request_Forgery">SSRF</a>
+risk), there is a defense-in-depth setting that pins acceptable hosts:</p>
+<pre><code class="language-properties"># application.properties / arbiter-webapp
+arbiter.data-sources.allowed-hosts=opensearch.internal,*.search.example.com
+</code></pre>
+<p>The format is a comma-separated list. Each entry is either an exact
+hostname or a leading-wildcard pattern (<code>*.foo.com</code>) that matches one-or-
+more left-side labels (so <code>a.foo.com</code> and <code>a.b.foo.com</code> both match) and
+also the bare apex (<code>foo.com</code>).</p>
+<p>When configured, every URL on every admin <strong>Test</strong> click and every
+saved-source ingest job is checked against the list. This covers OpenSearch
+/ Elasticsearch data sources, Philter instance endpoints
+(<strong>Admin → Philter</strong>), and Ollama instance endpoints
+(<strong>Admin → LLM-as-a-Judge</strong>). A non-matching host is rejected with the
+error <em>"Endpoint host is not permitted."</em> The check applies even to
+<strong>already-saved</strong> instances: if a host is removed from the allow-list
+later, a Test click on an existing row is also rejected.</p>
+<h3 id="private-range-default-deny">Private-range default-deny<a class="headerlink" href="#private-range-default-deny" title="Permanent link">&para;</a></h3>
+<p>Private-range addresses are blocked by default. Arbiter resolves the
+configured hostname and rejects it if it resolves to a loopback address
+(<code>127.x.x.x</code>), an RFC-1918 private range (<code>10.x.x.x</code>, <code>172.16–31.x.x</code>,
+<code>192.168.x.x</code>), or a link-local address (<code>169.254.x.x</code>). This applies to
+both admin form submissions and Test clicks. Numeric IP addresses in the
+URL are evaluated directly using <code>InetAddress.getByName(...)</code>, so a
+literal private IP (e.g. <code>http://127.0.0.1:9200</code> or
+<code>http://169.254.169.254/</code>) cannot bypass the check by skipping DNS
+resolution.</p>
+<p>The reason this exists by default — even before any operator has set
+<code>arbiter.data-sources.allowed-hosts</code> — is <strong>server-side request forgery
+(SSRF)</strong>. The application process can usually reach private addresses
+the operator does not intend to expose through admin-supplied URLs:
+cloud instance-metadata endpoints (<code>169.254.169.254</code> on AWS / GCP /
+Azure, which can leak role credentials), MongoDB / Redis / Philter on
+loopback, intranet HTTP services on RFC-1918, and other tenants on the
+same VPC. The default-deny on private ranges closes that surface
+without requiring any configuration.</p>
+<p>The default-deny is <strong>not absolute</strong>. There are two ways to admit a
+private host:</p>
+<ol>
+<li><strong>Add it to <code>arbiter.data-sources.allowed-hosts</code>.</strong> When the
+   property is set, Arbiter checks the resolved host against every
+   pattern — including private addresses. So
+   <code>arbiter.data-sources.allowed-hosts=opensearch.internal,192.168.1.100</code>
+   admits exactly those two hosts (one of which is private). Hostnames
+   that resolve to a private address are admitted the same way, as long
+   as the hostname matches a pattern. This is the supported way to
+   reach a legitimate internal OpenSearch / Elasticsearch / Philter /
+   Ollama from the data-source UI.</li>
+<li><strong>Disable the allow-list from Admin → Security.</strong> The master switch
+   bypasses both the pattern check <em>and</em> the private-range default-deny
+   for every outbound call. This is documented as not recommended — see
+   <a href="#master-switch-admin-security">Master switch (Admin → Security)</a>
+   below and the
+   <a href="../security/#data-source-host-allow-list">Security settings explanation</a>
+   for the SSRF rationale.</li>
+</ol>
+<h3 id="allow-list-behavior-summary">Allow-list behavior summary<a class="headerlink" href="#allow-list-behavior-summary" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th><code>arbiter.data-sources.allowed-hosts</code></th>
+<th>Public host</th>
+<th>Private host</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>unset / blank (default)</td>
+<td>accepted</td>
+<td>rejected</td>
+</tr>
+<tr>
+<td>set, host matches a pattern</td>
+<td>accepted</td>
+<td>accepted</td>
+</tr>
+<tr>
+<td>set, host doesn't match</td>
+<td>rejected</td>
+<td>rejected</td>
+</tr>
+</tbody>
+</table>
+<p>Use the property to restrict which public hosts are reachable in
+multi-tenant or zero-trust deployments, or to admit specific private
+hosts (an internal OpenSearch, a bastion-routed Philter) the operator
+genuinely needs to reach.</p>
+<h3 id="master-switch-admin-security">Master switch (Admin → Security)<a class="headerlink" href="#master-switch-admin-security" title="Permanent link">&para;</a></h3>
+<p>The whole allow-list — both the property-driven host patterns <em>and</em> the
+private-range default-deny — can be turned off from
+<strong>Admin → Security → Enable host allow-list</strong>. The setting is stored on
+the global settings document, defaults to <strong>enabled</strong>, and is read at
+request time, so a toggle takes effect on the next outbound check
+without restarting.</p>
+<p>Disabling the master switch is documented as <strong>not recommended</strong>: it
+re-opens the SSRF surface that this allow-list closes. See
+<a href="../security/#data-source-host-allow-list">Security settings → Data-source host allow-list</a>
+for the rationale and the audit-trail entry that records each toggle.</p>
+<h2 id="credential-encryption">Credential encryption<a class="headerlink" href="#credential-encryption" title="Permanent link">&para;</a></h2>
+<p>Every credential that admins type into the Data Sources page is encrypted with
+AES-GCM before being written to MongoDB. The same scheme protects Philter API
+keys — see <a href="../../security/#philter-api-keys">Security · Philter API keys</a> for
+the full description (key derivation, IV format, base64 layout, and the
+<code>arbiter.crypto.secret</code> property). The plaintext is never displayed back; the
+table only shows a status (<code>Configured</code> / <code>Ambient</code> / <code>From URL</code> /
+<code>••••••</code>).</p>
+<p>The OpenSearch <strong>username</strong> is the one credential field stored as plaintext
+on the document row. Treat it as you would any other identifier in the
+database — Mongo-level encryption-at-rest still applies, but the value is
+visible in raw documents.</p>
+<h2 id="removing-a-source">Removing a source<a class="headerlink" href="#removing-a-source" title="Permanent link">&para;</a></h2>
+<p>Each row has a <strong>Remove</strong> button that deletes the source after a confirmation
+prompt. Removal is hard-delete; nothing is moved to a trash collection.</p>
+<h2 id="audit-trail">Audit trail<a class="headerlink" href="#audit-trail" title="Permanent link">&para;</a></h2>
+<p>Every change is recorded in the <a href="../audit-log/">audit log</a> with the actor's
+email and the affected source's id and name:</p>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Resource</th>
+<th>When fired</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>OPENSEARCH_DATASOURCE_CREATE</code></td>
+<td><code>OpenSearchDataSource</code></td>
+<td>OpenSearch source added</td>
+</tr>
+<tr>
+<td><code>OPENSEARCH_DATASOURCE_UPDATE</code></td>
+<td><code>OpenSearchDataSource</code></td>
+<td>OpenSearch source edited (payload includes a <code>passwordChanged</code> boolean)</td>
+</tr>
+<tr>
+<td><code>OPENSEARCH_DATASOURCE_DELETE</code></td>
+<td><code>OpenSearchDataSource</code></td>
+<td>OpenSearch source removed</td>
+</tr>
+<tr>
+<td><code>ELASTICSEARCH_DATASOURCE_CREATE</code></td>
+<td><code>ElasticsearchDataSource</code></td>
+<td>Elasticsearch source added</td>
+</tr>
+<tr>
+<td><code>ELASTICSEARCH_DATASOURCE_UPDATE</code></td>
+<td><code>ElasticsearchDataSource</code></td>
+<td>Elasticsearch source edited</td>
+</tr>
+<tr>
+<td><code>ELASTICSEARCH_DATASOURCE_DELETE</code></td>
+<td><code>ElasticsearchDataSource</code></td>
+<td>Elasticsearch source removed</td>
+</tr>
+<tr>
+<td><code>S3_DATASOURCE_CREATE</code></td>
+<td><code>S3DataSource</code></td>
+<td>S3 source added</td>
+</tr>
+<tr>
+<td><code>S3_DATASOURCE_DELETE</code></td>
+<td><code>S3DataSource</code></td>
+<td>S3 source removed</td>
+</tr>
+<tr>
+<td><code>RDB_DATASOURCE_CREATE</code></td>
+<td><code>RelationalDbDataSource</code></td>
+<td>Relational database source added. Payload includes <code>watermarkColumn</code> (empty when watermarking is off).</td>
+</tr>
+<tr>
+<td><code>RDB_DATASOURCE_UPDATE</code></td>
+<td><code>RelationalDbDataSource</code></td>
+<td>Relational database source edited. Payload includes <code>credentialsChanged</code>, <code>credentialsSet</code>, <code>watermarkColumn</code>, and a <code>watermarkReset</code> boolean (true when the edit changed the SQL or watermark column on an already-advanced source).</td>
+</tr>
+<tr>
+<td><code>RDB_DATASOURCE_DELETE</code></td>
+<td><code>RelationalDbDataSource</code></td>
+<td>Relational database source removed</td>
+</tr>
+<tr>
+<td><code>RDB_WATERMARK_ADVANCE</code></td>
+<td><code>RelationalDbDataSource</code></td>
+<td>Auto-advanced after a successful incremental run. Payload includes <code>from</code>, <code>to</code>, and the row count processed in this run.</td>
+</tr>
+<tr>
+<td><code>RDB_WATERMARK_RESET</code></td>
+<td><code>RelationalDbDataSource</code></td>
+<td>Operator-initiated reset via the <strong>Reset watermark</strong> button. Payload includes the <code>previousKey</code>.</td>
+</tr>
+<tr>
+<td><code>RDB_WATERMARK_SET_MANUAL</code></td>
+<td><code>RelationalDbDataSource</code></td>
+<td>Operator-initiated manual override of the watermark value. Payload includes <code>from</code> and <code>to</code>.</td>
+</tr>
+<tr>
+<td><code>RDB_DANGEROUS_SQL_BLOCKED</code></td>
+<td><code>RelationalDbDataSource</code></td>
+<td>RDB source rejected for containing <code>DELETE</code>, <code>TRUNCATE</code>, or <code>DROP</code> in the SQL — entityId is <code>null</code> because nothing was saved. The payload includes the data-source name, JDBC URL, matched <code>keywords</code>, and the offending <code>sqlQuery</code>.</td>
+</tr>
+<tr>
+<td><code>RDB_DANGEROUS_JDBC_URL_BLOCKED</code></td>
+<td><code>RelationalDbDataSource</code></td>
+<td>RDB source rejected by <code>JdbcUrlValidator</code> (driver-level RCE primitive, dangerous parameter, embedded credentials, host not on the allow-list, …). entityId is <code>null</code> on create; on edit it carries the existing source id.</td>
+</tr>
+<tr>
+<td><code>LOCAL_DATASOURCE_CREATE</code></td>
+<td><code>LocalDirectoryDataSource</code></td>
+<td>Local directory source added</td>
+</tr>
+<tr>
+<td><code>LOCAL_DATASOURCE_DELETE</code></td>
+<td><code>LocalDirectoryDataSource</code></td>
+<td>Local directory source removed</td>
+</tr>
+</tbody>
+</table>
+<p>The <code>*_CREATE</code> and <code>*_UPDATE</code> entries record the connection details
+(endpoint / bucket / URL / path, query, table, glob, plus <strong>text field</strong>
+and <strong>filename field</strong> for OpenSearch and Elasticsearch) along with a
+boolean <code>credentialsSet</code> / <code>passwordSet</code> flag. The encrypted credential
+values themselves are <strong>never logged</strong>. The <strong>Test</strong> actions do not
+produce their own audit event — they don't save anything.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright 2026 Philterd, LLC.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

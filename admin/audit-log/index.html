@@ -1,0 +1,1841 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="User guide for Arbiter, the human-in-the-loop deidentification tool.">
+      
+      
+        <meta name="author" content="philterd">
+      
+      
+        <link rel="canonical" href="https://philterd.github.io/arbiter/admin/audit-log/">
+      
+      
+        <link rel="prev" href="../destinations/">
+      
+      
+        <link rel="next" href="../reports/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Audit log - Arbiter</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="red" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#audit-log" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="Arbiter" class="md-header__button md-logo" aria-label="Arbiter" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Arbiter
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Audit log
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/philterd/arbiter" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="Arbiter" class="md-nav__button md-logo" aria-label="Arbiter" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Arbiter
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/philterd/arbiter" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../workflow/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Queue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/uploading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adding documents
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/background-jobs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Background jobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/reviewing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reviewing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../user-guide/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Personal settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" checked>
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Admin guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../users-and-groups/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Users and groups
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../batches/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Batches
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Approval rule sets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../destinations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Destinations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit log
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-gets-logged" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What gets logged
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#per-document-audit-log" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-document audit log
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Per-document audit log">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#download-csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Download CSV
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#llm-as-a-judge-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LLM-as-a-Judge events
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#storage-and-retention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Storage and retention
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#failure-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Failure modes
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../full-text-search/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full text search
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../notifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Notifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/risk-score/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Risk score
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/pii-types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PII types
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../reference/roles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roles and permissions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#what-gets-logged" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What gets logged
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#export" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#per-document-audit-log" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-document audit log
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Per-document audit log">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#download-csv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Download CSV
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#llm-as-a-judge-events" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        LLM-as-a-Judge events
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#storage-and-retention" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Storage and retention
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#failure-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Failure modes
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="audit-log">Audit log<a class="headerlink" href="#audit-log" title="Permanent link">&para;</a></h1>
+<p>Every state-changing action in Arbiter is recorded in the <strong><code>audit_log</code></strong>
+collection in MongoDB. There are two ways to view and export it:</p>
+<ul>
+<li><strong>Admin → Audit log</strong> (<code>/admin/audit</code>) — filtered slices across the whole
+  system, exported as JSON or CSV. Admins only.</li>
+<li><strong>Audit Log popup</strong> on the Document Queue — the full history for a single
+  document (document-level events plus all of its span events), shown inline
+  in a modal. <strong>Admin only</strong> — the underlying
+  <code>GET /api/v1/documents/{id}/history</code> endpoint requires <code>ROLE_ADMIN</code>.
+  Admins can also download the history as CSV from the popup.</li>
+</ul>
+<h2 id="what-gets-logged">What gets logged<a class="headerlink" href="#what-gets-logged" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Action</th>
+<th>Resource</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>LOGIN</code> (success / failure)</td>
+<td>User</td>
+<td>Authentication outcome. Every form-login attempt produces one row regardless of result. A failure row carries a <code>reason</code> detail naming the underlying exception (e.g. <code>BadCredentialsException</code>, <code>LockedException</code>, <code>UsernameNotFoundException</code>) so an operator can tell wrong-password from unknown-user from rate-limited at a glance. The attempted email is always recorded, even when the email doesn't match a known account.</td>
+</tr>
+<tr>
+<td><code>LOGOUT</code></td>
+<td>User</td>
+<td>Manual sign-out</td>
+</tr>
+<tr>
+<td><code>BATCH_CREATE</code></td>
+<td>Batch</td>
+<td>Includes name, group, thresholds</td>
+</tr>
+<tr>
+<td><code>BATCH_GROUP_CHANGE</code></td>
+<td>Batch</td>
+<td>Old → new group</td>
+</tr>
+<tr>
+<td><code>BATCH_THRESHOLDS_CHANGE</code></td>
+<td>Batch</td>
+<td>Both PII and Document threshold deltas</td>
+</tr>
+<tr>
+<td><code>BATCH_WEIGHTS_CHANGE</code></td>
+<td>Batch</td>
+<td>Override map</td>
+</tr>
+<tr>
+<td><code>BATCH_WEIGHTS_RESET</code></td>
+<td>Batch</td>
+<td>All overrides cleared</td>
+</tr>
+<tr>
+<td><code>BATCH_CLOSE</code></td>
+<td>Batch</td>
+<td>Records who closed it and when</td>
+</tr>
+<tr>
+<td><code>DOCUMENT_UPLOAD</code></td>
+<td>Document</td>
+<td>Web upload</td>
+</tr>
+<tr>
+<td><code>DOCUMENT_INGEST</code></td>
+<td>Document</td>
+<td>API ingest (<code>POST /api/v1/ingest</code>)</td>
+</tr>
+<tr>
+<td><code>DOCUMENT_IMPORT</code></td>
+<td>Document</td>
+<td>One row per document pulled in by a data-import background job. Outcome is <code>SUCCESS</code> for newly-imported documents and <code>SKIPPED</code> for placeholders written when the source row already had a Document. Details include the import <code>jobId</code> and the source attribution (<code>sourceSystem</code>, <code>sourceUrl</code>, <code>sourceIndex</code>, <code>sourceDocId</code>) so the document can be traced back to the OpenSearch / Elasticsearch hit, S3 object, or local file it came from.</td>
+</tr>
+<tr>
+<td><code>DATA_IMPORT_STARTED</code></td>
+<td>BackgroundJob</td>
+<td>Fired when a data-import job is promoted from PENDING to RUNNING by the dispatcher. Details include the job's <code>type</code>, <code>sourceId</code>, <code>batchId</code>, and friendly names.</td>
+</tr>
+<tr>
+<td><code>DATA_IMPORT_COMPLETED</code></td>
+<td>BackgroundJob</td>
+<td>Terminal SUCCESS row for a data-import job. Details include <code>processed</code>, <code>failed</code>, <code>skipped</code> counters.</td>
+</tr>
+<tr>
+<td><code>DATA_IMPORT_FAILED</code></td>
+<td>BackgroundJob</td>
+<td>Terminal FAILURE row for a data-import job (validation failure at queue time, or runtime error during the run). Carries the same counters plus an <code>error</code> string.</td>
+</tr>
+<tr>
+<td><code>DOCUMENT_STATUS_CHANGE</code></td>
+<td>Document</td>
+<td>Generic status transition; also fires on Approve / Unapprove / Unreject</td>
+</tr>
+<tr>
+<td><code>DOCUMENT_APPROVAL</code></td>
+<td>Document</td>
+<td>Reviewer approved a document; payload includes <code>approvedBy</code>, <code>acquired</code>, and <code>required</code> approval counts</td>
+</tr>
+<tr>
+<td><code>DOCUMENT_REJECT</code></td>
+<td>Document</td>
+<td>Reviewer rejected a document; payload includes <code>previous</code> status and <code>rejectedBy</code></td>
+</tr>
+<tr>
+<td><code>DOCUMENT_UNAPPROVE</code></td>
+<td>Document</td>
+<td>Approval rescinded and document returned to review</td>
+</tr>
+<tr>
+<td><code>DOCUMENT_UNREJECT</code></td>
+<td>Document</td>
+<td>Rejection rescinded and document returned to review</td>
+</tr>
+<tr>
+<td><code>DOCUMENT_FINALIZE</code></td>
+<td>Document</td>
+<td>Document finalized; includes <code>certificateId</code> and <code>documentHash</code></td>
+</tr>
+<tr>
+<td><code>DOCUMENT_DOWNLOAD</code></td>
+<td>Document</td>
+<td>Reviewer downloaded a finalized redacted document</td>
+</tr>
+<tr>
+<td><code>DOCUMENT_AUDIT_EXPORT</code></td>
+<td>Document</td>
+<td>Admin downloaded the per-document audit log as CSV</td>
+</tr>
+<tr>
+<td><code>DOCUMENT_PII_SENT_TO_LLM</code></td>
+<td>Document</td>
+<td>Fired <strong>before</strong> each outbound Ollama LLM call (Explain or Second Opinion). Records the Ollama instance, model, and span count. Written before the HTTP request so the entry exists even if Ollama is unreachable or returns an error. See <a href="#llm-as-a-judge-events">LLM-as-a-Judge</a>.</td>
+</tr>
+<tr>
+<td><code>DOCUMENT_LOCK_BROKEN</code></td>
+<td>Document</td>
+<td>Admin forcibly cleared a review lock held by another user</td>
+</tr>
+<tr>
+<td><code>FINALIZATION_POLICY_APPLIED</code></td>
+<td>Document</td>
+<td>A finalization policy ran after document finalize; payload includes <code>policyId</code>, <code>policyName</code>, <code>option</code>, and <code>action</code></td>
+</tr>
+<tr>
+<td><code>SPAN_UPDATE</code></td>
+<td>Span</td>
+<td>Status and/or type change</td>
+</tr>
+<tr>
+<td><code>SPAN_REDACT_LIKE</code></td>
+<td>Span</td>
+<td>Counts of new-and-approved spans</td>
+</tr>
+<tr>
+<td><code>USER_CREATE</code> / <code>_UPDATE</code> / <code>_DELETE</code></td>
+<td>User</td>
+<td>Admin user management</td>
+</tr>
+<tr>
+<td><code>GROUP_CREATE</code> / <code>_UPDATE</code> / <code>_DELETE</code></td>
+<td>Group</td>
+<td>Admin group management</td>
+</tr>
+<tr>
+<td><code>API_KEY_GENERATE</code> / <code>_REVOKE</code></td>
+<td>User</td>
+<td>Per-user API key lifecycle</td>
+</tr>
+<tr>
+<td><code>PASSWORD_CHANGE</code></td>
+<td>User</td>
+<td>Self-service password change</td>
+</tr>
+<tr>
+<td><code>NOTIFICATION_SETTINGS_CHANGE</code></td>
+<td>Settings</td>
+<td>SMTP settings save (excluding the password value)</td>
+</tr>
+<tr>
+<td><code>INBOX_MESSAGE_READ</code></td>
+<td>InboxMessage</td>
+<td>User marked an inbox notification as read</td>
+</tr>
+<tr>
+<td><code>INBOX_MESSAGE_ARCHIVED</code></td>
+<td>InboxMessage</td>
+<td>User archived an inbox notification</td>
+</tr>
+<tr>
+<td><code>OPENSEARCH_DATASOURCE_CREATE</code> / <code>_UPDATE</code> / <code>_DELETE</code></td>
+<td>OpenSearchDataSource</td>
+<td>Data source registered, edited (with <code>passwordChanged</code> boolean), or removed (see <a href="../data-sources/">Data sources</a>)</td>
+</tr>
+<tr>
+<td><code>ELASTICSEARCH_DATASOURCE_CREATE</code> / <code>_UPDATE</code> / <code>_DELETE</code></td>
+<td>ElasticsearchDataSource</td>
+<td>Same shape as OpenSearch — separate collection, separate audit lineage</td>
+</tr>
+<tr>
+<td><code>S3_DATASOURCE_CREATE</code> / <code>_DELETE</code></td>
+<td>S3DataSource</td>
+<td>S3 data source registered or removed</td>
+</tr>
+<tr>
+<td><code>RDB_DATASOURCE_CREATE</code> / <code>_DELETE</code></td>
+<td>RelationalDbDataSource</td>
+<td>Relational database data source registered or removed</td>
+</tr>
+<tr>
+<td><code>RDB_DANGEROUS_SQL_BLOCKED</code></td>
+<td>RelationalDbDataSource</td>
+<td>An RDB save was rejected because the SQL contains a disallowed keyword (<code>DELETE</code>, <code>TRUNCATE</code>, <code>DROP</code>). Payload includes the matched keywords and offending SQL; entityId is <code>null</code> because nothing was saved.</td>
+</tr>
+<tr>
+<td><code>LOCAL_DATASOURCE_CREATE</code> / <code>_DELETE</code></td>
+<td>LocalDirectoryDataSource</td>
+<td>Local directory data source registered or removed</td>
+</tr>
+</tbody>
+</table>
+<p>Each entry stores:</p>
+<ul>
+<li><code>timestamp</code> (UTC <code>Instant</code>)</li>
+<li><code>userEmail</code> and <code>userId</code> (when the actor is signed in)</li>
+<li><code>action</code>, <code>resourceType</code>, <code>resourceId</code></li>
+<li><code>outcome</code> (<code>SUCCESS</code> / <code>FAILURE</code>)</li>
+<li><code>ipAddress</code> (honors <code>X-Forwarded-For</code> first hop)</li>
+<li><code>details</code> (per-action contextual map; never includes secrets)</li>
+</ul>
+<h2 id="export">Export<a class="headerlink" href="#export" title="Permanent link">&para;</a></h2>
+<p>The form has:</p>
+<ul>
+<li><strong>Start time</strong> / <strong>End time</strong> — required, interpreted in the <strong>server's</strong>
+  local timezone. The page pre-fills the past 24 hours.</li>
+<li><strong>User email</strong> — optional exact match.</li>
+<li><strong>Resource type</strong> — optional, one of User / Group / Batch / Document /
+  Span (or "All").</li>
+<li><strong>Resource ID</strong> — optional exact match.</li>
+<li><strong>Preview</strong> — runs the same query as the export and shows the first 10
+  matching entries inline so you can sanity-check filters before committing
+  to a download. If the preview is empty, the download will be empty too —
+  widen the time range or relax filters.</li>
+<li><strong>Download JSON</strong> / <strong>Download CSV</strong> — same filters, two formats.</li>
+</ul>
+<p>Both formats include every column above. CSV embeds the per-action <code>details</code>
+map as a JSON-encoded string in a single quoted column so spreadsheet readers
+preserve it.</p>
+<p>The export is capped at 100,000 rows per request. Narrow the time range or
+filters if you hit the cap.</p>
+<h2 id="per-document-audit-log">Per-document audit log<a class="headerlink" href="#per-document-audit-log" title="Permanent link">&para;</a></h2>
+<p>Every row in the <strong>Document Queue</strong> (<code>/queue</code>) has an <strong>Audit Log</strong> button
+that opens a modal showing the full history for that one document. This
+includes both document-level events (ingest, status changes, finalization)
+and all events on spans that belong to the document (status changes, type
+changes, manual creation, deletion, second-opinion requests). Entries are
+sorted <strong>newest first</strong> and paginated 10 per page.</p>
+<p><strong>Admin only.</strong> The underlying <code>GET /api/v1/documents/{id}/history</code> endpoint
+requires <code>ROLE_ADMIN</code> because the history includes raw PII span text. Non-admin
+reviewers receive <code>403</code> if they call the endpoint directly; the popup button
+is hidden for non-admins in the UI.</p>
+<h3 id="download-csv">Download CSV<a class="headerlink" href="#download-csv" title="Permanent link">&para;</a></h3>
+<p>The popup has a <strong>Download</strong> button that exports the document's full audit
+history (not just the page currently shown) as a CSV file, sorted newest to
+oldest. The file is named <code>audit-log-&lt;documentId&gt;.csv</code>.</p>
+<p><strong>Only administrators can download the audit log.</strong> For non-admin users the
+Download button is rendered disabled with a tooltip explaining the
+restriction; the underlying API endpoint
+(<code>GET /api/v1/documents/{id}/history.csv</code>) also rejects non-admin requests
+with HTTP 403.</p>
+<p>The export itself is audited. Before generating the CSV, Arbiter writes a
+<code>DOCUMENT_AUDIT_EXPORT</code> entry capturing the admin who initiated the
+download and the timestamp. Because the entry is recorded <em>before</em> the
+audit log is queried, and the CSV is sorted newest-first, the export event
+appears as the top row of every downloaded file — so each export is
+self-attesting.</p>
+<p>The CSV is intended as a chain-of-custody artifact and is <strong>redacted on
+export</strong>: the PII text of each span is omitted. Instead, span entries
+include the span's <strong>location</strong> so you can correlate the entry back to the
+original document without leaking the PII value itself.</p>
+<p>Columns:</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>timestamp</code></td>
+<td>ISO-8601 UTC instant</td>
+</tr>
+<tr>
+<td><code>actor</code></td>
+<td>Email address of the user who performed the action (blank if system). The CSV always uses the email address; the JSON history endpoints (<code>GET …/history</code> and <code>GET …/spans/{id}/history</code>) use the MongoDB user ID by default — pass <code>?resolveActors=true</code> (admin only) to receive email addresses there instead.</td>
+</tr>
+<tr>
+<td><code>action</code></td>
+<td>The action code (e.g. <code>SPAN_UPDATE</code>, <code>DOCUMENT_INGEST</code>)</td>
+</tr>
+<tr>
+<td><code>resourceType</code></td>
+<td><code>Document</code> or <code>Span</code></td>
+</tr>
+<tr>
+<td><code>resourceId</code></td>
+<td>The document or span ID</td>
+</tr>
+<tr>
+<td><code>spanType</code></td>
+<td>PII type — populated only for span entries</td>
+</tr>
+<tr>
+<td><code>spanCharacterStart</code></td>
+<td>Inclusive start offset in the document text (span entries)</td>
+</tr>
+<tr>
+<td><code>spanCharacterEnd</code></td>
+<td>Exclusive end offset in the document text (span entries)</td>
+</tr>
+<tr>
+<td><code>spanPage</code></td>
+<td>1-based page number for PDF documents (span entries)</td>
+</tr>
+<tr>
+<td><code>details</code></td>
+<td>The per-action <code>details</code> map, JSON-encoded in a quoted field</td>
+</tr>
+</tbody>
+</table>
+<p><code>spanText</code> is <strong>never</strong> present in the CSV. If you need to correlate an
+entry back to the actual PII value, do so against your secured copy of the
+original document using the character offsets and page number.</p>
+<h2 id="llm-as-a-judge-events">LLM-as-a-Judge events<a class="headerlink" href="#llm-as-a-judge-events" title="Permanent link">&para;</a></h2>
+<p>Every call that sends document content to an Ollama instance produces a
+<code>DOCUMENT_PII_SENT_TO_LLM</code> entry. The event is written <strong>before</strong> the HTTP
+request leaves Arbiter so the record exists even when Ollama is unreachable
+or returns an error.</p>
+<table>
+<thead>
+<tr>
+<th>Field in <code>details</code></th>
+<th>Content</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>instanceId</code></td>
+<td>MongoDB ID of the Ollama instance</td>
+</tr>
+<tr>
+<td><code>instanceName</code></td>
+<td>Display name of the Ollama instance</td>
+</tr>
+<tr>
+<td><code>model</code></td>
+<td>Model name sent to Ollama (e.g. <code>llama3</code>)</td>
+</tr>
+<tr>
+<td><code>spanCount</code></td>
+<td>Number of PII spans included in the prompt (Explain calls only)</td>
+</tr>
+<tr>
+<td><code>spanId</code></td>
+<td>ID of the span being evaluated (Second Opinion calls only)</td>
+</tr>
+<tr>
+<td><code>spanType</code></td>
+<td>PII type of that span (Second Opinion calls only)</td>
+</tr>
+</tbody>
+</table>
+<p>The resource type is always <code>Document</code> and the resource ID is the parent
+document's ID — even for Second Opinion calls, which originate from a span —
+because the full document text is always included in the prompt.</p>
+<div class="admonition warning">
+<p class="admonition-title">Ollama logging</p>
+<p>Arbiter sends the full unredacted document text and all PII span values
+to Ollama in the request body. <strong>Ollama must be deployed with request-body
+logging disabled.</strong> If <code>OLLAMA_DEBUG=1</code> is set or your Ollama deployment
+forwards request bodies to an external logging sink, PII will appear in
+logs outside Arbiter's security boundary. See
+<a href="../security/">Admin → LLM-as-a-Judge</a> for configuration
+requirements.</p>
+</div>
+<h2 id="storage-and-retention">Storage and retention<a class="headerlink" href="#storage-and-retention" title="Permanent link">&para;</a></h2>
+<p>Audit entries are stored in MongoDB and are indexed by timestamp, the actor's
+email, action, resource type, and resource ID so the Audit Log search remains
+fast as the collection grows. Arbiter does not automatically expire entries —
+set up a database-level TTL on the timestamp field or a periodic deletion job
+if you need bounded retention.</p>
+<h2 id="failure-modes">Failure modes<a class="headerlink" href="#failure-modes" title="Permanent link">&para;</a></h2>
+<p>If writing an audit entry fails (e.g., MongoDB is unavailable for a moment),
+the action it describes still succeeds — the audit service swallows the
+exception and logs a warning. This trades audit completeness for application
+availability; review logs from the Arbiter process for any
+"Failed to write audit log entry" warnings.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright 2026 Philterd, LLC.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": [], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>

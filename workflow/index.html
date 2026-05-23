@@ -1,0 +1,1985 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="User guide for Arbiter, the human-in-the-loop deidentification tool.">
+      
+      
+        <meta name="author" content="philterd">
+      
+      
+        <link rel="canonical" href="https://philterd.github.io/arbiter/workflow/">
+      
+      
+        <link rel="prev" href="../concepts/">
+      
+      
+        <link rel="next" href="../user-guide/queue/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Workflow - Arbiter</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="red" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#workflow" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="Arbiter" class="md-header__button md-logo" aria-label="Arbiter" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            Arbiter
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Workflow
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+    
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/philterd/arbiter" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="Arbiter" class="md-nav__button md-logo" aria-label="Arbiter" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    Arbiter
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/philterd/arbiter" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GitHub
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflow
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-big-picture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The big picture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-configure-philter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Configure Philter
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Configure Philter">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#registering-an-external-philter-admin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Registering an external Philter (admin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#default-instance-pre-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Default-instance pre-selection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-create-pii-redaction-policies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Create PII redaction policies
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-create-a-batch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Create a batch
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-upload-documents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Upload documents
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Upload documents">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#through-the-web-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Through the web UI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#through-the-rest-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Through the REST API
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-happens-after-upload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What happens after upload
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-work-the-queue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Work the queue
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-review-a-document" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Review a document
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Review a document">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#per-span-actions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-span actions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#document-level-actions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Document-level actions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-typical-end-to-end-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A typical end-to-end run
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-to-go-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where to go next
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    User guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Queue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/uploading/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Adding documents
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/background-jobs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Background jobs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/reviewing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reviewing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../user-guide/settings/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Personal settings
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Admin guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Admin guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/users-and-groups/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Users and groups
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/batches/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Batches
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/rules/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Approval rule sets
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/data-sources/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data sources
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/destinations/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Destinations
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/audit-log/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Audit log
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/reports/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reports
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/full-text-search/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Full text search
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/notifications/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Notifications
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../admin/tools/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tools
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
+        
+          
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/risk-score/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Risk score
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/pii-types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PII types
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    REST API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../reference/roles/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Roles and permissions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../security/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Security
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#the-big-picture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The big picture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-configure-philter" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Configure Philter
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Configure Philter">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#registering-an-external-philter-admin" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Registering an external Philter (admin)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#default-instance-pre-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Default-instance pre-selection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-create-pii-redaction-policies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Create PII redaction policies
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-create-a-batch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Create a batch
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-upload-documents" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Upload documents
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Upload documents">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#through-the-web-ui" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Through the web UI
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#through-the-rest-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Through the REST API
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-happens-after-upload" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What happens after upload
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-work-the-queue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Work the queue
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-review-a-document" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Review a document
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Review a document">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#per-span-actions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Per-span actions
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#document-level-actions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Document-level actions
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#a-typical-end-to-end-run" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A typical end-to-end run
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#where-to-go-next" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Where to go next
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="workflow">Workflow<a class="headerlink" href="#workflow" title="Permanent link">&para;</a></h1>
+<p>This page walks through how Arbiter is used end-to-end: how an administrator
+sets it up, how documents flow through it, and how reviewers approve or reject
+the redactions Arbiter proposes. If you have not yet read
+<a href="../concepts/">Concepts</a>, start there for the vocabulary used below.</p>
+<h2 id="the-big-picture">The big picture<a class="headerlink" href="#the-big-picture" title="Permanent link">&para;</a></h2>
+<p>Arbiter is a <strong>human-in-the-loop deidentification reviewer</strong>. It does not
+detect PII on its own — that is Philter's job. Arbiter coordinates the work:</p>
+<ol>
+<li><strong>An admin configures a Philter instance</strong> Arbiter can call (or chooses the
+   built-in <em>Embedded Philter</em>).</li>
+<li><strong>An admin authors policies.</strong> A policy tells Philter what counts as PII
+   and how to redact each type.</li>
+<li><strong>An admin creates a batch</strong> for a group of related documents and points it
+   at a Philter instance and a policy.</li>
+<li><strong>A reviewer uploads documents</strong> to the batch. Each document is sent to the
+   batch's Philter instance using its policy. Detected PII is stored as
+   <em>spans</em>.</li>
+<li><strong>A reviewer works the queue.</strong> Documents that need attention surface at
+   the top, sorted by risk score. Each document is opened in the side-by-side
+   review UI.</li>
+<li><strong>The reviewer accepts or rejects each span</strong>, then approves or rejects
+   the document as a whole. Decisions are captured in the audit log.</li>
+</ol>
+<p>Everything in Arbiter is built around that flow.</p>
+<h2 id="1-configure-philter">1. Configure Philter<a class="headerlink" href="#1-configure-philter" title="Permanent link">&para;</a></h2>
+<p>A <strong>Philter instance</strong> is the redaction engine Arbiter calls to find PII.
+Each batch is associated with exactly one Philter instance.</p>
+<p>There are two kinds:</p>
+<ul>
+<li><strong>Embedded Philter</strong> — Arbiter ships with a built-in redaction engine
+  (Phileas) that runs as part of the Arbiter process itself. There is nothing
+  to install or configure: it is always available, always reachable, and uses
+  the policies stored in Arbiter's database. It is the right choice for
+  development, demos, and small single-node deployments.</li>
+<li><strong>External Philter</strong> — a separately running <a href="https://philterd.ai">Philter</a>
+  service that Arbiter reaches over HTTP. Use this for production
+  deployments, for shared instances across multiple Arbiters, when policies
+  are managed centrally on the Philter server, or when the redactor needs to
+  scale independently of the Arbiter web tier.</li>
+</ul>
+<p>You can register any number of external Philter instances. A batch picks one
+of them (or Embedded Philter) at create time, and that choice can be changed
+later.</p>
+<h3 id="registering-an-external-philter-admin">Registering an external Philter (admin)<a class="headerlink" href="#registering-an-external-philter-admin" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Sign in as an administrator.</li>
+<li>Go to <strong>Admin → Philter</strong>.</li>
+<li>Use <strong>Add Philter instance</strong> and fill in:<ul>
+<li><strong>Name</strong> — a unique label (e.g. <code>philter-prod</code>).</li>
+<li><strong>Endpoint</strong> — host or IP (e.g. <code>philter</code> or <code>192.168.1.20</code>).</li>
+<li><strong>Port</strong> — the Philter port (default <code>8080</code>).</li>
+</ul>
+</li>
+<li>Click <strong>Add</strong>. The instance is saved to MongoDB.</li>
+<li>Click <strong>Test</strong> on the row to confirm Arbiter can reach it. The test hits
+   the instance's <code>/api/status</code> endpoint and reports the HTTP response.</li>
+<li>Optionally set the row as the <strong>default</strong> so newly created batches start
+   with it pre-selected. The Embedded Philter is the default if no other
+   default is set.</li>
+</ol>
+<p>Removing an instance is allowed even if batches reference it; affected
+batches will fail to redact until they are reassigned to another instance or
+to Embedded Philter.</p>
+<h3 id="default-instance-pre-selection">Default-instance pre-selection<a class="headerlink" href="#default-instance-pre-selection" title="Permanent link">&para;</a></h3>
+<p>The "Default Philter instance" setting on <strong>Admin → Philter</strong> controls which
+option is pre-selected in the <strong>Create Batch</strong> dialog's Philter dropdown. It
+does not force all batches to use that instance — each batch makes its own
+choice.</p>
+<h2 id="2-create-pii-redaction-policies">2. Create PII redaction policies<a class="headerlink" href="#2-create-pii-redaction-policies" title="Permanent link">&para;</a></h2>
+<p>A <strong>policy</strong> is a JSON document Philter uses to identify and redact PII. It
+declares which PII types to look for and what to do with each
+(<code>REDACT</code>, <code>MASK</code>, <code>REPLACE</code>, etc.). For the policy schema and examples, see
+the <a href="https://philterd.github.io/philter/">Philter documentation</a>.</p>
+<p>Where the policy lives depends on the Philter instance:</p>
+<ul>
+<li><strong>Embedded Philter</strong> — policies live in Arbiter's MongoDB <code>policies</code>
+  collection. Manage them under <strong>Policies</strong> in the left-side menu.</li>
+<li><strong>External Philter</strong> — policies live on the Philter server. Arbiter can
+  list them (read-only) by calling the Philter instance's <code>/api/policies</code>
+  endpoint, but creation, edit, and delete must happen on the Philter server.</li>
+</ul>
+<p>The Policies page presents both modes with the same UI:</p>
+<ol>
+<li>Click <strong>Policies</strong> in the left-side menu.</li>
+<li>Choose a Philter instance from the dropdown — <strong>Embedded Philter</strong> is the
+   default option.</li>
+<li>The table lists the policies available on that instance.</li>
+<li>For Embedded:<ul>
+<li>Use <strong>Add policy</strong> to register a new one. The JSON is validated before
+  saving. Names are unique (case-insensitive).</li>
+<li><strong>View</strong> opens any policy's JSON in a popup.</li>
+<li><strong>Edit</strong> opens the JSON in an editable popup. The policy name is shown
+  as read-only — once a policy exists, its name cannot be renamed via the
+  UI or the API.</li>
+<li><strong>Remove</strong> deletes the policy. A policy that is currently referenced by
+  one or more batches cannot be deleted; the error names the offending
+  batches.</li>
+</ul>
+</li>
+<li>For external Philter instances the table is read-only (View only).</li>
+</ol>
+<p>Arbiter's demo data seeds a policy named <strong>Default</strong> in the Embedded Philter
+collection so the system is usable out of the box.</p>
+<h2 id="3-create-a-batch">3. Create a batch<a class="headerlink" href="#3-create-a-batch" title="Permanent link">&para;</a></h2>
+<p>A <strong>batch</strong> is the unit of organisation in Arbiter. Every document belongs
+to exactly one batch. A batch carries:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Name</td>
+<td>Human-readable label (unique).</td>
+</tr>
+<tr>
+<td>Group</td>
+<td>Which user group can see and act on this batch (visibility scope).</td>
+</tr>
+<tr>
+<td>Philter instance</td>
+<td>Which Philter instance redacts documents in this batch.</td>
+</tr>
+<tr>
+<td>Policy</td>
+<td>Which policy on that Philter instance to apply.</td>
+</tr>
+<tr>
+<td>PII Threshold</td>
+<td>Per-span confidence floor for auto-accepting detections.</td>
+</tr>
+<tr>
+<td>Document Threshold</td>
+<td>Risk-score ceiling for auto-approving whole documents.</td>
+</tr>
+<tr>
+<td>PII type weights</td>
+<td>Per-type sensitivity used in the risk score.</td>
+</tr>
+<tr>
+<td>Closed flag</td>
+<td>A closed batch refuses new documents.</td>
+</tr>
+</tbody>
+</table>
+<p>Only administrators can create, modify, or close a batch. To create one:</p>
+<ol>
+<li>Sign in as an administrator and open <strong>Batches</strong>.</li>
+<li>Click <strong>Create Batch</strong> to open the create dialog and fill it out:<ul>
+<li><strong>Name</strong> and <strong>Group</strong> are required.</li>
+<li><strong>Philter</strong> defaults to Embedded Philter (or to the system default if
+  one is configured).</li>
+<li><strong>Policy</strong> populates dynamically based on the chosen Philter instance.
+  Selecting a different Philter reloads the policy list.</li>
+<li><strong>PII Threshold</strong> (default <code>0.80</code>) — spans whose confidence is at or
+  above this value are auto-accepted. Lower values give the redactor
+  more autonomy; higher values send more spans to the reviewer.</li>
+<li><strong>Document Threshold</strong> (default <code>0.25</code>) — documents whose risk score
+  is at or below this value are auto-approved without human review.</li>
+</ul>
+</li>
+<li>Click <strong>Create</strong> in the dialog footer.</li>
+</ol>
+<p>After creation, anyone with access to the batch can adjust the group,
+thresholds, and weights. The Philter instance and policy can be changed
+together via the <strong>Change…</strong> link in the <strong>Philter / Policy</strong> column —
+choosing a Philter reloads the policy list inside the modal so the two
+stay in sync. Only admins can close a batch.</p>
+<p>For more on batch settings see the
+<a href="../admin/batches/">Batches admin guide</a>.</p>
+<h2 id="4-upload-documents">4. Upload documents<a class="headerlink" href="#4-upload-documents" title="Permanent link">&para;</a></h2>
+<p>Documents enter Arbiter through one of two paths.</p>
+<h3 id="through-the-web-ui">Through the web UI<a class="headerlink" href="#through-the-web-ui" title="Permanent link">&para;</a></h3>
+<ol>
+<li>Click <strong>Upload</strong> in the left-side menu.</li>
+<li>Choose a <strong>Batch</strong> from the dropdown — only open batches in groups you
+   belong to are listed. The "Create a new batch." link below the dropdown
+   takes you to the Batches page if you need a new one.</li>
+<li>Choose a file with <strong>Document</strong>. Supported formats are <code>.txt</code> and
+   searchable PDF (<code>.pdf</code>). Scanned PDFs are not OCR'd.</li>
+<li>Click <strong>Redact Document</strong>.</li>
+</ol>
+<p>Arbiter sends the file to the batch's Philter instance using the batch's
+policy, persists the document, creates a span for each detection, and
+computes the document's risk score. You then land on a preview page where
+you can download the redacted text or PDF.</p>
+<h3 id="through-the-rest-api">Through the REST API<a class="headerlink" href="#through-the-rest-api" title="Permanent link">&para;</a></h3>
+<p>Programmatic ingestion uses <code>POST /api/v1/ingest</code> with a JSON body
+containing the batch ID, a filename, and the text. Authentication is by
+session or by API key issued from <strong>Personal settings</strong>. See the
+<a href="../reference/api/">REST API reference</a>.</p>
+<p>The API path is admin-or-group-member-only; it returns HTTP 409 when the
+batch is closed.</p>
+<h3 id="what-happens-after-upload">What happens after upload<a class="headerlink" href="#what-happens-after-upload" title="Permanent link">&para;</a></h3>
+<p>Ingestion is <strong>asynchronous</strong>. The upload (or <code>POST /api/v1/ingest</code>) persists
+the document in <code>PENDING</code> and returns immediately; a background worker drains
+the redaction queue oldest-first. Multiple Arbiter replicas can run side by
+side: each document is claimed atomically (<code>PENDING → PROCESSING</code>) so it is
+never processed twice. Admins watch the queue at <strong>Admin → Ingest Queue</strong>.</p>
+<p>When the worker picks up a document, for each one:</p>
+<ol>
+<li>Spans are extracted by Philter, scored by confidence.</li>
+<li>Each span's initial status is set from the batch's PII Threshold:<ul>
+<li><code>confidence ≥ threshold</code> → <code>APPROVED</code> (auto-accepted).</li>
+<li><code>confidence &lt; threshold</code> → <code>PENDING</code> (needs review).</li>
+</ul>
+</li>
+<li>The document's risk score is computed using the batch's PII weights and
+   the count of unresolved spans.</li>
+<li>The document's status is set:<ul>
+<li>Any <code>PENDING</code> span → <code>REVIEW_REQUIRED</code>.</li>
+<li>Otherwise the worker rolls the batch's <strong>Audit Sampling Rate</strong>:<ul>
+<li>sampled in → <code>AUDIT_REQUIRED</code> (sent to review for spot-check).</li>
+<li>not sampled → <code>AUTO_APPROVED</code>.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>The document is indexed in OpenSearch (full original text + metadata) and
+   appears in the queue.</li>
+</ol>
+<p>A document whose risk score is at or below the batch's Document Threshold
+and that isn't in <code>AUDIT_REQUIRED</code> is shown with the <code>AUTO_APPROVED</code> label
+even before human review; re-tuning the threshold relabels existing rows on
+the next page load.</p>
+<p>If Philter fails for any reason the document moves to <code>FAILED</code> and the
+exception is captured both in the Arbiter logs and in a <code>failureMessage</code>
+field on the document — admins can view the failure detail from the
+<strong>View log</strong> link in the Recent failures table on Ingest Queue.</p>
+<p>For more detail see <a href="../user-guide/uploading/">Adding documents</a>.</p>
+<h2 id="5-work-the-queue">5. Work the queue<a class="headerlink" href="#5-work-the-queue" title="Permanent link">&para;</a></h2>
+<p>The <strong>Queue</strong> at <code>/queue</code> is the reviewer's home page. It lists every
+document the user has access to, ordered by risk score (highest first), so
+the riskiest material lands at the top.</p>
+<p>A reviewer typically:</p>
+<ol>
+<li>Optionally filters by <strong>Batch</strong> or <strong>Status</strong> — <code>REVIEW_REQUIRED</code> first if
+   you want to focus on documents needing attention.</li>
+<li>Clicks <strong>Review</strong> on a row to open the side-by-side review UI.</li>
+<li>Works through pending spans (see the next section).</li>
+<li>Approves or rejects the document.</li>
+<li>Returns to the queue and repeats.</li>
+</ol>
+<p>Admins see an extra <strong>Limit to my groups</strong> checkbox that toggles between
+their group-scoped view and a global view. Pagination is 10 documents per
+page. For a column-by-column reference see <a href="../user-guide/queue/">Queue</a>.</p>
+<h2 id="6-review-a-document">6. Review a document<a class="headerlink" href="#6-review-a-document" title="Permanent link">&para;</a></h2>
+<p>The review page (<code>/review/{id}</code>) has three panes:</p>
+<ol>
+<li><strong>Original</strong> — the source text with each detected span highlighted.</li>
+<li><strong>Redacted</strong> — the same text with each accepted span replaced by a
+   <code>&lt;&lt;TYPE&gt;&gt;</code> marker.</li>
+<li><strong>PII Navigator</strong> — one entry per span, sorted by position.</li>
+</ol>
+<p>The Original and Redacted panes scroll together. Clicking a span anywhere
+focuses the matching navigator entry and vice versa.</p>
+<h3 id="per-span-actions">Per-span actions<a class="headerlink" href="#per-span-actions" title="Permanent link">&para;</a></h3>
+<p>Each navigator entry exposes:</p>
+<ul>
+<li>A <strong>type pill</strong> that doubles as a dropdown to change the detected type
+  (e.g. flip a span from <code>ssn</code> to <code>phone-number</code>).</li>
+<li>The matched <strong>text</strong> and the redactor's <strong>confidence</strong>.</li>
+<li>A status pill — <strong>Accepted</strong> or <strong>Refused</strong> — that toggles on click. A
+  refused span is removed from the Redacted pane and struck through in the
+  navigator.</li>
+<li><strong>Redact All Like This</strong> — finds every other case-sensitive occurrence
+  of the exact text in the document and updates them to match. Useful for
+  unambiguous strings (project names, email addresses); use with care on
+  short or substring-prone text.</li>
+</ul>
+<h3 id="document-level-actions">Document-level actions<a class="headerlink" href="#document-level-actions" title="Permanent link">&para;</a></h3>
+<p>The header has <strong>Approve</strong>, <strong>Reject</strong>, and (for already-approved
+documents) <strong>Unapprove</strong>:</p>
+<ul>
+<li><strong>Approve</strong> moves the document to <code>APPROVED</code> and returns to the queue.</li>
+<li><strong>Reject</strong> moves the document to <code>REJECTED</code> and returns to the queue.</li>
+<li><strong>Unapprove</strong> flips an approved document back to <code>REVIEW_REQUIRED</code>.</li>
+</ul>
+<p>Approve / Reject are hidden once the document is in a terminal state
+(<code>APPROVED</code>, <code>REJECTED</code>, <code>FAILED</code>). Every action is captured in the audit
+log with the actor, timestamp, and the change made.</p>
+<p>For more detail see <a href="../user-guide/reviewing/">Reviewing a document</a>.</p>
+<h2 id="a-typical-end-to-end-run">A typical end-to-end run<a class="headerlink" href="#a-typical-end-to-end-run" title="Permanent link">&para;</a></h2>
+<p>Putting all the pieces together:</p>
+<ol>
+<li><strong>Admin</strong> stands up Arbiter and MongoDB. Embedded Philter is available
+   immediately.</li>
+<li><strong>Admin</strong> opens <strong>Admin → Philter</strong>, optionally registers an external
+   Philter for production use, and clicks <strong>Test</strong> to confirm reachability.</li>
+<li><strong>Admin</strong> opens <strong>Policies</strong>, picks Embedded Philter (or the new external
+   instance), and reviews the Default policy. They edit it or add a new one
+   tuned to their data.</li>
+<li><strong>Admin</strong> creates a user group under <strong>Admin → Groups</strong> and adds the
+   relevant reviewers to it.</li>
+<li><strong>Admin</strong> opens <strong>Batches</strong>, creates <code>Q3-onboarding-forms</code>, picks the
+   group, picks the Philter instance, picks a policy, and accepts the
+   default thresholds.</li>
+<li><strong>Reviewer</strong> signs in, lands on the <strong>Dashboard</strong>, and sees the new batch
+   under "Manage batches" and the documents-needing-review widget.</li>
+<li><strong>Reviewer</strong> uses <strong>Upload</strong> to send a document into the batch — it lands
+   in the queue with status <code>REVIEW_REQUIRED</code> and a non-zero risk score.</li>
+<li><strong>Reviewer</strong> opens the queue, clicks <strong>Review</strong>, accepts the spans that
+   are correct, refuses or retypes the ones that are wrong, and clicks
+   <strong>Approve</strong>.</li>
+<li>The document moves to <code>APPROVED</code>. Risk score, span decisions, and the
+   approval are now in the audit log.</li>
+<li>When <code>Q3-onboarding-forms</code> is finished, <strong>Admin</strong> clicks <strong>Close</strong> on
+    the batch to lock it against new uploads. Existing documents in the
+    batch stay reviewable forever.</li>
+</ol>
+<h2 id="where-to-go-next">Where to go next<a class="headerlink" href="#where-to-go-next" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../concepts/">Concepts</a> — the underlying vocabulary.</li>
+<li><a href="../user-guide/uploading/">Adding documents</a>, <a href="../user-guide/queue/">Queue</a>,
+  <a href="../user-guide/reviewing/">Reviewing a document</a> — page-by-page reference
+  for reviewers.</li>
+<li><a href="../admin/batches/">Batches</a>, <a href="../admin/users-and-groups/">Users and groups</a>,
+  <a href="../admin/audit-log/">Audit log</a> — admin reference.</li>
+<li><a href="../reference/risk-score/">Risk score</a>, <a href="../reference/pii-types/">PII types</a>,
+  <a href="../reference/api/">REST API</a> — reference material.</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright 2026 Philterd, LLC.
+    </div>
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": [], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+        <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+      
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+      
+    
+  </body>
+</html>
