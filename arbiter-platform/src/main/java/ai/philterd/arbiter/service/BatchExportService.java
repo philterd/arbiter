@@ -29,11 +29,11 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -44,9 +44,9 @@ import java.util.UUID;
 
 /**
  * Builds an export payload for the APPROVED documents of a batch and pushes it to a
- * configured destination. Currently supports the JSONL data format (one JSON object
- * per line, see {@link JsonlExportRenderer} for the schema). Future formats will
- * plug in here without changing the destination-write or audit-logging machinery.
+ * configured destination. Supports the {@link Format#JSONL}, {@link Format#PHEYE}, and
+ * {@link Format#BIO} data formats. Further formats plug in here without changing the
+ * destination-write or audit-logging machinery.
  *
  * <p>Exports run as {@link BackgroundJob#TYPE_BATCH_EXPORT} background jobs. The
  * controller calls {@link #enqueueExport} which validates the request and persists
@@ -76,9 +76,12 @@ public class BatchExportService {
      *   <li>{@link #BIO} — one document per file, token-per-line BIO format
      *       (see {@link BioExportRenderer}). The destination receives a
      *       file-per-document fan-out instead of a single combined file.</li>
+     *   <li>{@link #PHEYE}: the same single combined JSONL file as {@link #JSONL}, in the leaner
+     *       PhEye model-training shape {@code {"text","spans":[{start,end,label}]}}
+     *       (see {@link PheyeJsonlExportRenderer}).</li>
      * </ul>
      */
-    public enum Format { JSONL, BIO }
+    public enum Format { JSONL, BIO, PHEYE }
 
     public enum DestinationKind { LOCAL, S3 }
 
@@ -89,6 +92,7 @@ public class BatchExportService {
     private final S3DestinationRepository s3DestinationRepository;
     private final JsonlExportRenderer jsonlRenderer;
     private final BioExportRenderer bioRenderer;
+    private final PheyeJsonlExportRenderer pheyeRenderer;
     private final DestinationWriter destinationWriter;
     private final AuditLogService auditLogService;
     private final BackgroundJobRepository backgroundJobRepository;
@@ -100,6 +104,7 @@ public class BatchExportService {
                               final S3DestinationRepository s3DestinationRepository,
                               final JsonlExportRenderer jsonlRenderer,
                               final BioExportRenderer bioRenderer,
+                              final PheyeJsonlExportRenderer pheyeRenderer,
                               final DestinationWriter destinationWriter,
                               final AuditLogService auditLogService,
                               final BackgroundJobRepository backgroundJobRepository) {
@@ -110,6 +115,7 @@ public class BatchExportService {
         this.s3DestinationRepository = s3DestinationRepository;
         this.jsonlRenderer = jsonlRenderer;
         this.bioRenderer = bioRenderer;
+        this.pheyeRenderer = pheyeRenderer;
         this.destinationWriter = destinationWriter;
         this.auditLogService = auditLogService;
         this.backgroundJobRepository = backgroundJobRepository;
@@ -208,9 +214,17 @@ public class BatchExportService {
         }
 
         switch (format) {
-            case JSONL -> runJsonlJob(job, batch, kind);
+            case JSONL -> runCombinedJob(job, batch, kind, Format.JSONL, jsonlRenderer::render);
+            case PHEYE -> runCombinedJob(job, batch, kind, Format.PHEYE, pheyeRenderer::render);
             case BIO   -> runBioJob(job, batch, kind);
         }
+    }
+
+    /** Renders one document to a single JSONL line. Both the JSONL and PHEYE formats are combined,
+     * single-file exports that differ only in this per-line shape. */
+    @FunctionalInterface
+    interface LineRenderer {
+        String render(Document document, List<Span> spans) throws JsonProcessingException;
     }
 
     /**
@@ -218,44 +232,55 @@ public class BatchExportService {
      * and ship it as one upload. Best for downstream pipelines that expect a
      * single combined artifact per export run.
      */
-    private void runJsonlJob(final BackgroundJob job, final Batch batch, final DestinationKind kind) {
-        final RenderedPayload rendered;
+    private void runCombinedJob(final BackgroundJob job, final Batch batch, final DestinationKind kind,
+                                final Format format, final LineRenderer lineRenderer) {
+        final RenderedFile rendered;
         try {
-            rendered = renderJsonl(job);
+            rendered = renderCombined(job, lineRenderer);
         } catch (IOException e) {
-            LOG.warn("Failed to render JSONL for job {}: {}", job.getId(), e.toString());
+            LOG.warn("Failed to render {} for job {}: {}", format.name(), job.getId(), e.toString());
             finish(job, BackgroundJob.STATUS_FAILED,
-                    "Could not render JSONL: " + e.getMessage());
-            return;
-        }
-        if (rendered.documentCount == 0) {
-            finish(job, BackgroundJob.STATUS_FAILED,
-                    "Batch \"" + batch.getName() + "\" had no exportable documents at write time.");
+                    "Could not render " + format.name() + ": " + e.getMessage());
             return;
         }
 
-        final String filename = filenameFor(batch, Format.JSONL);
-        final DestinationWriter.Result writeResult = ship(kind, job.getDestinationId(), filename, rendered.bytes);
+        // The rendered output lives in a temp file (not in memory); always remove it once shipped.
+        try {
+            if (rendered.documentCount == 0) {
+                finish(job, BackgroundJob.STATUS_FAILED,
+                        "Batch \"" + batch.getName() + "\" had no exportable documents at write time.");
+                return;
+            }
 
-        final Map<String, Object> auditDetails = new LinkedHashMap<>();
-        auditDetails.put("batchName", batch.getName() == null ? "" : batch.getName());
-        auditDetails.put("format", Format.JSONL.name());
-        auditDetails.put("destinationKind", kind.name());
-        auditDetails.put("destinationId", job.getDestinationId());
-        auditDetails.put("documentCount", rendered.documentCount);
-        auditDetails.put("bytes", rendered.bytes.length);
-        auditDetails.put("filename", filename);
+            final String filename = filenameFor(batch, format);
+            final DestinationWriter.Result writeResult = shipFile(kind, job.getDestinationId(), filename, rendered.file);
 
-        if (!writeResult.isOk()) {
-            auditDetails.put("error", writeResult.getError());
+            final Map<String, Object> auditDetails = new LinkedHashMap<>();
+            auditDetails.put("batchName", batch.getName() == null ? "" : batch.getName());
+            auditDetails.put("format", format.name());
+            auditDetails.put("destinationKind", kind.name());
+            auditDetails.put("destinationId", job.getDestinationId());
+            auditDetails.put("documentCount", rendered.documentCount);
+            auditDetails.put("bytes", rendered.bytes);
+            auditDetails.put("filename", filename);
+
+            if (!writeResult.isOk()) {
+                auditDetails.put("error", writeResult.getError());
+                auditLogService.log("BATCH_EXPORT", "Batch", job.getBatchId(), auditDetails);
+                finish(job, BackgroundJob.STATUS_FAILED, writeResult.getError());
+                return;
+            }
+
+            auditDetails.put("location", writeResult.getMessage());
             auditLogService.log("BATCH_EXPORT", "Batch", job.getBatchId(), auditDetails);
-            finish(job, BackgroundJob.STATUS_FAILED, writeResult.getError());
-            return;
+            finishSuccess(job, rendered.documentCount, writeResult.getMessage());
+        } finally {
+            try {
+                Files.deleteIfExists(rendered.file);
+            } catch (IOException e) {
+                LOG.warn("Could not delete temp export file {}: {}", rendered.file, e.toString());
+            }
         }
-
-        auditDetails.put("location", writeResult.getMessage());
-        auditLogService.log("BATCH_EXPORT", "Batch", job.getBatchId(), auditDetails);
-        finishSuccess(job, rendered.documentCount, writeResult.getMessage());
     }
 
     /**
@@ -358,11 +383,17 @@ public class BatchExportService {
         }
     }
 
-    private RenderedPayload renderJsonl(final BackgroundJob job) throws IOException {
-        final ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+    /**
+     * Renders the batch's approved documents into a temporary file on disk, one JSONL line per
+     * document, reading documents a page at a time. Only one page of documents and a single write
+     * buffer are held in memory at once, so the whole corpus is never loaded into memory; the file is
+     * then streamed to the destination by the caller and deleted.
+     */
+    private RenderedFile renderCombined(final BackgroundJob job, final LineRenderer lineRenderer) throws IOException {
+        final Path tempFile = Files.createTempFile("arbiter-export-", ".jsonl");
         int written = 0;
         long failed = 0;
-        try (Writer writer = new OutputStreamWriter(buffer, StandardCharsets.UTF_8)) {
+        try (Writer writer = Files.newBufferedWriter(tempFile, StandardCharsets.UTF_8)) {
             int page = 0;
             while (true) {
                 final Page<Document> slice = documentRepository.findByBatchIdAndStatus(
@@ -373,9 +404,9 @@ public class BatchExportService {
                     final List<Span> spans = spanRepository.findByDocumentId(doc.getId());
                     final String line;
                     try {
-                        line = jsonlRenderer.render(doc, spans);
+                        line = lineRenderer.render(doc, spans);
                     } catch (JsonProcessingException e) {
-                        // Skip the bad row but keep going — one corrupt document
+                        // Skip the bad row but keep going. One corrupt document
                         // shouldn't sink the whole export. Counters bumped + a
                         // sample failure message attached so the operator can
                         // see what went wrong from the Jobs page.
@@ -397,8 +428,12 @@ public class BatchExportService {
                 if (!slice.hasNext()) break;
                 page++;
             }
+        } catch (IOException | RuntimeException e) {
+            // The caller only deletes the temp file on a normal return; clean it up if rendering blew up.
+            Files.deleteIfExists(tempFile);
+            throw e;
         }
-        return new RenderedPayload(buffer.toByteArray(), written);
+        return new RenderedFile(tempFile, written, Files.size(tempFile));
     }
 
     // Package-private for direct R2-F9 unit testing — the rule "no exception
@@ -482,13 +517,41 @@ public class BatchExportService {
         }
     }
 
+    /** Ships a rendered file to the destination, streaming it from disk rather than buffering it. */
+    private DestinationWriter.Result shipFile(final DestinationKind kind,
+                                              final String destinationId,
+                                              final String filename,
+                                              final Path source) {
+        switch (kind) {
+            case LOCAL: {
+                final Optional<LocalDirectoryDestination> opt = localDestinationRepository.findById(destinationId);
+                if (opt.isEmpty()) {
+                    return DestinationWriter.Result.failure("Local directory destination not found: " + destinationId);
+                }
+                return destinationWriter.writeLocal(opt.get(), filename, source);
+            }
+            case S3: {
+                final Optional<S3Destination> opt = s3DestinationRepository.findById(destinationId);
+                if (opt.isEmpty()) {
+                    return DestinationWriter.Result.failure("S3 destination not found: " + destinationId);
+                }
+                return destinationWriter.writeS3(opt.get(), filename, source);
+            }
+            default:
+                return DestinationWriter.Result.failure("Unsupported destination kind: " + kind);
+        }
+    }
+
     private static String filenameFor(final Batch batch, final Format format) {
         // {batch-slug}-{epochSeconds}.{ext} — a stable, sortable name that doesn't
         // collide if the same batch is exported twice in the same minute. The slug
         // is lowercased ASCII so it's safe across local FS and S3 keys.
         final String slug = slugify(batch.getName());
-        final String ext = format == Format.JSONL ? "jsonl" : format.name().toLowerCase(Locale.ROOT);
-        return slug + "-" + Instant.now().getEpochSecond() + "." + ext;
+        // PHEYE is also JSONL on disk; a -pheye infix keeps it distinguishable from a plain JSONL
+        // export in the same destination.
+        final String ext = format == Format.BIO ? "bio" : "jsonl";
+        final String infix = format == Format.PHEYE ? "-pheye" : "";
+        return slug + infix + "-" + Instant.now().getEpochSecond() + "." + ext;
     }
 
     private static String slugify(final String s) {
@@ -509,7 +572,7 @@ public class BatchExportService {
         return sb.toString();
     }
 
-    private record RenderedPayload(byte[] bytes, int documentCount) { }
+    private record RenderedFile(Path file, int documentCount, long bytes) { }
 
     /**
      * Outcome of {@link #enqueueExport}. Successful enqueue carries the new

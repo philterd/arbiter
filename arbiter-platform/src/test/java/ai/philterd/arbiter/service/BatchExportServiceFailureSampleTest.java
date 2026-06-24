@@ -39,6 +39,7 @@ class BatchExportServiceFailureSampleTest {
                 mock(ai.philterd.arbiter.repository.S3DestinationRepository.class),
                 mock(JsonlExportRenderer.class),
                 mock(BioExportRenderer.class),
+                mock(PheyeJsonlExportRenderer.class),
                 mock(DestinationWriter.class),
                 mock(AuditLogService.class),
                 mock(ai.philterd.arbiter.repository.BackgroundJobRepository.class));

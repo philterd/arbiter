@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
 
 /**
  * Writes a finished export payload (e.g. a JSONL file) to a configured destination.
@@ -57,47 +58,88 @@ public class DestinationWriter {
     public Result writeLocal(final LocalDirectoryDestination destination,
                              final String filename,
                              final byte[] payload) {
+        final LocalTarget t = resolveLocalTarget(destination, filename);
+        if (t.error != null) {
+            return Result.failure(t.error);
+        }
+        try {
+            Files.write(t.target, payload);
+            return Result.success("Wrote " + payload.length + " bytes to " + t.target);
+        } catch (IOException e) {
+            return localWriteFailure(t.target, e);
+        }
+    }
+
+    /**
+     * Streams {@code source} (a file on disk) into the destination directory as {@code filename},
+     * so a large export is copied without holding its bytes in memory.
+     */
+    public Result writeLocal(final LocalDirectoryDestination destination,
+                             final String filename,
+                             final Path source) {
+        final LocalTarget t = resolveLocalTarget(destination, filename);
+        if (t.error != null) {
+            return Result.failure(t.error);
+        }
+        try {
+            Files.copy(source, t.target, StandardCopyOption.REPLACE_EXISTING);
+            return Result.success("Wrote " + Files.size(t.target) + " bytes to " + t.target);
+        } catch (IOException e) {
+            return localWriteFailure(t.target, e);
+        }
+    }
+
+    private Result localWriteFailure(final Path target, final IOException e) {
+        LOG.warn("Local export write failed for {}: {}", target, e.toString());
+        if (e instanceof java.nio.file.NoSuchFileException) {
+            // NoSuchFileException's getMessage() is just the path, which leads to messages like
+            // "Could not write to /a/b: /a/b". Translate it into something an operator can act on.
+            return Result.failure("Could not write to " + target
+                    + ": parent directory does not exist or is not writable.");
+        }
+        return Result.failure("Could not write to " + target + ": " + e.getMessage());
+    }
+
+    /** Validates the destination directory and resolves (and creates the parent of) the target path. */
+    private LocalTarget resolveLocalTarget(final LocalDirectoryDestination destination, final String filename) {
         if (destination == null || destination.getDirectoryPath() == null
                 || destination.getDirectoryPath().isBlank()) {
-            return Result.failure("Local directory destination is missing a directory path.");
+            return LocalTarget.fail("Local directory destination is missing a directory path.");
         }
         final Path dir = Paths.get(destination.getDirectoryPath()).toAbsolutePath().normalize();
         if (!Files.exists(dir)) {
-            return Result.failure("Directory does not exist: " + dir);
+            return LocalTarget.fail("Directory does not exist: " + dir);
         }
         if (!Files.isDirectory(dir)) {
-            return Result.failure("Path is not a directory: " + dir);
+            return LocalTarget.fail("Path is not a directory: " + dir);
         }
         final Path target = dir.resolve(filename).normalize();
-        // Path-traversal defence: a filename like "../etc/passwd" would resolve
-        // outside the configured destination directory. Refuse anything that
-        // doesn't ultimately live under the operator-configured root.
+        // Path-traversal defence: a filename like "../etc/passwd" would resolve outside the configured
+        // destination directory. Refuse anything that doesn't ultimately live under the configured root.
         if (!target.startsWith(dir)) {
-            return Result.failure("Refusing to write outside the destination directory: " + filename);
+            return LocalTarget.fail("Refusing to write outside the destination directory: " + filename);
         }
-        try {
-            // The BIO export uses "<batch-slug>/<doc-slug>.bio" which needs the
-            // per-batch subdirectory to exist before Files.write can create the
-            // file. createDirectories is a no-op when the directory already
-            // exists. The startsWith check above guarantees we only mkdir
-            // inside the operator-configured destination root.
-            final Path parent = target.getParent();
-            if (parent != null && !parent.equals(dir)) {
+        // The BIO export uses "<batch-slug>/<doc-slug>.bio" which needs the per-batch subdirectory to
+        // exist first. createDirectories is a no-op when it already exists; the startsWith check above
+        // guarantees we only mkdir inside the configured destination root.
+        final Path parent = target.getParent();
+        if (parent != null && !parent.equals(dir)) {
+            try {
                 Files.createDirectories(parent);
+            } catch (IOException e) {
+                return LocalTarget.fail("Could not create destination subdirectory " + parent + ": " + e.getMessage());
             }
-            Files.write(target, payload);
-            return Result.success("Wrote " + payload.length + " bytes to " + target);
-        } catch (java.nio.file.NoSuchFileException e) {
-            // NoSuchFileException's getMessage() is just the path, which leads
-            // to messages like "Could not write to /a/b: /a/b". Translate it
-            // into something an operator can act on.
-            LOG.warn("Local export write failed for {}: {}", target, e.toString());
-            return Result.failure("Could not write to " + target
-                    + ": parent directory does not exist or is not writable.");
-        } catch (IOException e) {
-            LOG.warn("Local export write failed for {}: {}", target, e.toString());
-            return Result.failure("Could not write to " + target + ": " + e.getMessage());
         }
+        return LocalTarget.ok(target);
+    }
+
+    /** Either a resolved target path or the reason it could not be resolved. */
+    private static final class LocalTarget {
+        private final Path target;
+        private final String error;
+        private LocalTarget(final Path target, final String error) { this.target = target; this.error = error; }
+        static LocalTarget ok(final Path target) { return new LocalTarget(target, null); }
+        static LocalTarget fail(final String error) { return new LocalTarget(null, error); }
     }
 
     /**
@@ -108,6 +150,27 @@ public class DestinationWriter {
     public Result writeS3(final S3Destination destination,
                           final String filename,
                           final byte[] payload) {
+        return putS3(destination, filename, RequestBody.fromBytes(payload), payload.length);
+    }
+
+    /**
+     * Uploads {@code source} (a file on disk) to S3, streaming it from disk rather than holding its
+     * bytes in memory. The content length is taken from the file, so no multipart upload is needed.
+     */
+    public Result writeS3(final S3Destination destination,
+                          final String filename,
+                          final Path source) {
+        final long bytes;
+        try {
+            bytes = Files.size(source);
+        } catch (IOException e) {
+            return Result.failure("Could not read export file for upload: " + e.getMessage());
+        }
+        return putS3(destination, filename, RequestBody.fromFile(source), bytes);
+    }
+
+    private Result putS3(final S3Destination destination, final String filename,
+                         final RequestBody body, final long bytes) {
         if (destination == null) {
             return Result.failure("S3 destination is missing.");
         }
@@ -126,8 +189,8 @@ public class DestinationWriter {
                             .bucket(destination.getBucketName())
                             .key(objectKey)
                             .build(),
-                    RequestBody.fromBytes(payload));
-            return Result.success("Uploaded " + payload.length + " bytes to s3://"
+                    body);
+            return Result.success("Uploaded " + bytes + " bytes to s3://"
                     + destination.getBucketName() + "/" + objectKey);
         } catch (Exception e) {
             LOG.warn("S3 export write failed for s3://{}/{}: {}",

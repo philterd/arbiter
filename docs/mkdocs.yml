@@ -37,6 +37,7 @@ nav:
       - Approval rule sets: admin/rules.md
       - Data sources: admin/data-sources.md
       - Destinations: admin/destinations.md
+      - Exporting annotations: admin/exporting.md
       - Audit log: admin/audit-log.md
       - Reports: admin/reports.md
       - Full text search: admin/full-text-search.md
