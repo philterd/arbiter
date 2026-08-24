@@ -142,6 +142,12 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/login", "/mfa", "/invitations/**",
                                 "/css/**", "/js/**", "/images/**", "/webjars/**", "/docs/**", "/error").permitAll()
+                        // Liveness probe. Unauthenticated so a container runtime or load
+                        // balancer can call it before any credential exists. It returns only
+                        // status and the build version, never any deployment or document
+                        // state; treat the exposed version as a reason to keep Arbiter's
+                        // port on an internal network.
+                        .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
                         // OpenAPI / Swagger UI is admin-only (R2-F2). Previously
                         // permitAll(), which let any unauthenticated caller enumerate
                         // every admin endpoint and DTO shape — free reconnaissance.

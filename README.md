@@ -43,6 +43,30 @@ account is `admin@philterd.ai` with the password set in
 `ARBITER_ADMIN_INITIAL_PASSWORD` in `docker-compose.yaml`. Arbiter refuses
 to start if that variable is missing or shorter than 12 characters.
 
+## Building the Docker image
+
+`build-image.sh` builds the image for `linux/amd64` and `linux/arm64`.
+`push-image.sh` publishes it to
+[`philterd/arbiter`](https://hub.docker.com/r/philterd/arbiter) on Docker
+Hub. Both take an optional version, defaulting to `latest`.
+
+```shell
+./build-image.sh 1.0.0
+./push-image.sh 1.0.0
+```
+
+`build-image.sh` loads each architecture under its own tag (`1.0.0-amd64`,
+`1.0.0-arm64`), so both are available locally to run and test.
+`push-image.sh` pushes those two tags and joins them into the `1.0.0` tag
+that users pull. It builds nothing, so what is published is what was built
+and tested.
+
+Set `ARCHES` to build a single architecture:
+
+```shell
+ARCHES=amd64 ./build-image.sh
+```
+
 ## Related Philterd open source projects
 
 Arbiter is part of a wider family of open source data-privacy tools from

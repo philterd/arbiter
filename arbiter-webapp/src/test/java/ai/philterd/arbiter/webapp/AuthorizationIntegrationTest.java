@@ -66,6 +66,7 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -91,6 +92,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         PolicyController.class,
         ReportingController.class,
         RedactionController.class,
+        ai.philterd.arbiter.api.controller.HealthController.class,
 })
 @Import({SecurityConfig.class, MongoUserDetailsService.class,
         ai.philterd.arbiter.service.BatchAccessService.class,
@@ -167,6 +169,23 @@ public class AuthorizationIntegrationTest {
         mockMvc.perform(get("/api/v1/policies")).andExpect(status().isUnauthorized());
         mockMvc.perform(get("/api/v1/policies/content?instanceId=embedded&name=Default"))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void anonymousCanReachHealth() throws Exception {
+        // The one /api/** path deliberately open to unauthenticated callers, so a container
+        // runtime or load balancer can probe liveness. No BuildProperties bean exists in this
+        // slice, so the version falls back to "unknown".
+        mockMvc.perform(get("/api/health"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("UP"))
+                .andExpect(jsonPath("$.applicationVersion").value("unknown"));
+    }
+
+    @Test
+    void healthRejectsNonGetMethods() throws Exception {
+        // permitAll covers GET only; anything else falls through to authenticated().
+        mockMvc.perform(post("/api/health")).andExpect(status().isUnauthorized());
     }
 
     // ---------------------------------------------------------------------

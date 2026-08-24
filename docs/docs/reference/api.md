@@ -1,7 +1,8 @@
 # REST API
 
 Arbiter exposes a JSON-over-HTTP API under `/api/v1`. The API surface is split
-into two categories that authenticate differently.
+into two categories that authenticate differently. One endpoint sits outside
+both: the unauthenticated [health probe](#get-apihealth).
 
 ## Authentication
 
@@ -42,6 +43,31 @@ programmatic clients that prefer to use them. Endpoints in this category are
 called out below per-section. The API key carries the same role and group
 permissions as the user that owns it; session callers carry whatever role and
 groups their account has.
+
+## Health
+
+### `GET /api/health`
+
+Liveness probe. The only API path reachable without authentication, so a
+container runtime, load balancer, or uptime monitor can call it before any
+credential exists. It sits outside `/api/v1` because it is not a versioned
+business endpoint, and it accepts `GET` only.
+
+```json
+{
+  "status": "UP",
+  "applicationVersion": "1.0.0-SNAPSHOT"
+}
+```
+
+`applicationVersion` is the build version recorded in the jar at package time.
+It reads `unknown` when Arbiter runs from classes built outside Maven (an IDE,
+for example), where no build metadata file exists.
+
+The response carries no deployment or document state, but it does disclose the
+running build version to anyone who can reach the port. Keep Arbiter's port on
+an internal network, or block the path at your reverse proxy if you do not want
+that version visible.
 
 ## Document ingestion
 
