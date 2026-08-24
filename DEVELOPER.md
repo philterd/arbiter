@@ -22,14 +22,16 @@ covers `ai.philterd.arbiter` regardless of where a class compiles from.
 mvn package                 # full reactor build
 mvn test                    # all modules
 docker compose -f docker-compose.yaml up --build   # full stack: Mongo + OpenSearch + ES + Valkey + app on :8080
-./build-image.sh 1.0.0      # multi-arch (amd64 + arm64) release image
-./push-image.sh 1.0.0       # publish it to philterd/arbiter, by hand
+./build-image.sh            # multi-arch (amd64 + arm64) image, tagged with the pom version
+./push-image.sh             # publish it to philterd/arbiter, by hand
 ```
 
 `build-image.sh` loads `philterd/arbiter:<version>-amd64` and
 `-arm64` locally; `push-image.sh` pushes those two and joins them into the
-plain `<version>` tag in the registry. Nothing publishes an image
-automatically: run `push-image.sh` yourself from a machine holding the
+plain `<version>` tag in the registry. Both take a version argument; with
+none they read the Maven project version from the root `pom.xml`, so the
+tag matches what the jar reports at `/api/health`. Nothing publishes an
+image automatically: run `push-image.sh` yourself from a machine holding the
 Docker Hub credential. Set `ARCHES=amd64` to build just one architecture.
 
 Running the webapp from the IDE needs at least Mongo and Valkey reachable:

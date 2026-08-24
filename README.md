@@ -48,7 +48,9 @@ to start if that variable is missing or shorter than 12 characters.
 `build-image.sh` builds the image for `linux/amd64` and `linux/arm64`.
 `push-image.sh` publishes it to
 [`philterd/arbiter`](https://hub.docker.com/r/philterd/arbiter) on Docker
-Hub. Both take an optional version, defaulting to `latest`.
+Hub. Both take a version as their first argument; with none, they use the
+Maven project version from `pom.xml`, so an unversioned build is tagged with
+what it actually contains.
 
 ```shell
 ./build-image.sh 1.0.0
@@ -65,6 +67,13 @@ Set `ARCHES` to build a single architecture:
 
 ```shell
 ARCHES=amd64 ./build-image.sh
+```
+
+Pass `latest` explicitly to publish under that tag:
+
+```shell
+./build-image.sh latest
+./push-image.sh latest
 ```
 
 ## Related Philterd open source projects

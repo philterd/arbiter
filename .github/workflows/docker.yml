@@ -1,0 +1,44 @@
+name: Docker
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+# Builds the image so a broken Dockerfile fails the pull request. It is never
+# pushed: images are published by hand with push-image.sh from a machine holding
+# the Docker Hub credential, so no registry token exists in this repository.
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: philterd/arbiter:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      # Starting with no arbiter.crypto.secret must fail fast rather than boot a
+      # deployment with no at-rest encryption key. Running the image proves the jar
+      # was assembled correctly and reaches Spring context startup, and it needs no
+      # MongoDB or Valkey to do it.
+      - name: Smoke test the image
+        run: |
+          output=$(docker run --rm philterd/arbiter:ci 2>&1) && status=0 || status=$?
+          if [ "$status" -eq 0 ]; then
+            echo "Expected a non-zero exit with no crypto secret configured." >&2
+            exit 1
+          fi
+          echo "$output" | grep -q "arbiter.crypto.secret is not set" || {
+            echo "Did not see the expected crypto-secret startup failure. Output was:" >&2
+            echo "$output" >&2
+            exit 1
+          }
+          echo "Image OK: fails fast without arbiter.crypto.secret."
