@@ -87,6 +87,10 @@ public class RedactionControllerTest {
     @MockBean
     private ai.philterd.arbiter.service.ApiKeyHashingService apiKeyHashingService;
 
+    /** HealthController lands in this slice and needs an endpoint @WebMvcTest does not provide. */
+    @MockBean
+    private org.springframework.boot.actuate.health.HealthEndpoint healthEndpoint;
+
     @MockBean
     private RedactionService redactionService;
 

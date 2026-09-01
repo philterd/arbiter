@@ -10,37 +10,52 @@
 package ai.philterd.arbiter.api.controller;
 
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.boot.actuate.health.HealthEndpoint;
+import org.springframework.boot.actuate.health.Status;
 import org.springframework.boot.info.BuildProperties;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
 
 /**
- * {@code GET /api/health} - liveness probe, matching the contract Philter and Philter
- * Router expose. Sits outside {@code /api/v1} because it is not a versioned business
- * endpoint, and is the one API path reachable without authentication so a container
- * runtime or load balancer can probe it.
+ * {@code GET /api/health} - the health endpoint every Philterd product exposes:
+ * {@code {"status": ..., "applicationVersion": ...}}, 200 when {@code UP} and 503 when not.
+ * Unauthenticated, and outside {@code /api/v1} because it is not versioned business API.
+ *
+ * <p>The status is Actuator's aggregate, so a broken dependency shows here instead of being
+ * masked by the process still serving pages. Adds the build version {@code /actuator/health}
+ * does not carry.
  */
 @RestController
 public class HealthController {
 
+    private final HealthEndpoint healthEndpoint;
+
     private final String version;
 
     /**
-     * The version comes from META-INF/build-info.properties, written by the build-info goal
-     * of the Spring Boot Maven plugin. Running from classes built outside Maven (an IDE, for
-     * example) has no such file and therefore no BuildProperties bean, so the version reports
+     * The version comes from META-INF/build-info.properties, written by the Spring Boot Maven
+     * plugin. Classes built outside Maven (an IDE) have no such file, so the version reports
      * as unknown rather than failing startup.
      */
-    public HealthController(final ObjectProvider<BuildProperties> buildProperties) {
+    public HealthController(final HealthEndpoint healthEndpoint,
+                            final ObjectProvider<BuildProperties> buildProperties) {
+        this.healthEndpoint = healthEndpoint;
         final BuildProperties build = buildProperties.getIfAvailable();
         this.version = build != null ? build.getVersion() : "unknown";
     }
 
     @GetMapping("/api/health")
-    public Map<String, String> health() {
-        return Map.of("status", "UP", "applicationVersion", version);
+    public ResponseEntity<Map<String, String>> health() {
+        final Status status = healthEndpoint.health().getStatus();
+        final boolean up = Status.UP.getCode().equals(status.getCode());
+        // Status only: which dependency is down is for the logs, not an anonymous caller.
+        return ResponseEntity
+                .status(up ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of("status", status.getCode(), "applicationVersion", version));
     }
 
 }

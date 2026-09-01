@@ -104,6 +104,34 @@ The "Limit to my groups" toggle on the queue and batches pages is purely a
 UI affordance for admins; revoking the role at the back end immediately
 re-applies group restrictions.
 
+## Unauthenticated endpoints
+
+Three `GET` paths answer without a credential, so that a container runtime,
+load balancer, or Prometheus scraper can reach Arbiter before any account
+exists: `/api/health`, `/actuator/health`, and `/actuator/prometheus`. Every
+other path, API and UI alike, requires authentication.
+
+What they disclose:
+
+- The build version (`/api/health`), which tells a caller which release is
+  running and therefore which published issues apply to it.
+- An aggregate health status, never the components behind it. Which
+  dependency is down, and the addresses of MongoDB, Valkey, and OpenSearch,
+  stay out of the response.
+- JVM and HTTP request metrics. Request URIs are route templates
+  (`/documents/{id}`), so no document identifier, document text, entity
+  value, or user identity is exported, but request volumes and error rates
+  are visible.
+
+No other Actuator endpoint is exposed; `env`, `configprops`, `beans`,
+`loggers`, and `heapdump` all return `404`, as do the `/actuator` links page
+and the per-component paths under `/actuator/health/`.
+
+Keep Arbiter's port on an internal network. Where the deployment terminates
+TLS at a reverse proxy, block `/actuator` there unless your monitoring needs
+it, and restrict `/api/health` to the monitors that call it if the build
+version should not be visible.
+
 ## Password storage
 
 User passwords are stored as **BCrypt** hashes (cost 12) using Spring

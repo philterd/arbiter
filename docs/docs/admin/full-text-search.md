@@ -132,6 +132,12 @@ When disabled:
   cluster yourself if you need full coverage.
 - **Reports, audit log, and the review queue are unchanged.** None of
   those depend on OpenSearch.
+- **Health stops reporting the cluster.** With the feature enabled, an
+  unreachable cluster makes `/api/health` and `/actuator/health` report
+  `DOWN`, because search and indexing are degraded. With it disabled, no
+  cluster is expected and health ignores OpenSearch entirely. If you do not
+  run a cluster, turn the feature off rather than leaving health down. See
+  [REST API → Health and metrics](../reference/api.md#health-and-metrics).
 
 Disabling is the right choice when:
 
@@ -238,6 +244,10 @@ OpenSearch as needing its own encryption.
   manual `curl` setup). Either delete the index out-of-band so Arbiter can
   recreate it, or click **Continue with existing index** and accept the
   divergence.
+- **Health reports `DOWN` and every other dependency looks fine** — full
+  text search is enabled but the cluster is not answering. Fix the endpoint
+  or the credentials, or untick **Enable** if this deployment has no
+  cluster.
 - **Search page is empty even though documents exist** — the feature was
   disabled at some point during ingestion. Re-enable, then either re-index
   against the cluster yourself or accept that only post-re-enable documents

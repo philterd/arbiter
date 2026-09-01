@@ -38,11 +38,18 @@ public class OpenSearchIndexService {
 
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
+    /** Shorter than {@link #REQUEST_TIMEOUT}: a health caller is waiting on this request. */
+    private static final Duration PROBE_TIMEOUT = Duration.ofSeconds(3);
+    private static final Duration PROBE_CONNECT_TIMEOUT = Duration.ofSeconds(2);
 
     private final GeneralSettingsService generalSettingsService;
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(CONNECT_TIMEOUT)
+            .build();
+    /** Separate client so a probe against a black-holed host fails in seconds. */
+    private final HttpClient probeClient = HttpClient.newBuilder()
+            .connectTimeout(PROBE_CONNECT_TIMEOUT)
             .build();
 
     public OpenSearchIndexService(final GeneralSettingsService generalSettingsService) {
@@ -303,6 +310,43 @@ public class OpenSearchIndexService {
         } catch (Exception e) {
             log.warn("OpenSearch findSimilar failed for document {} at {}: {}", documentId, url, e.getMessage());
             return empty;
+        }
+    }
+
+    /** Outcome of the cluster probe behind the health endpoint. */
+    public enum ClusterState {
+        /** Full-text search is off, so no cluster is expected. */
+        DISABLED,
+        /** The cluster answered. */
+        REACHABLE,
+        /** The cluster did not answer, or answered non-2xx. */
+        UNREACHABLE
+    }
+
+    /**
+     * Ask the cluster whether it is answering, for the health endpoint. Sends no document data
+     * and discards the body, so it cannot leak PII. Feature off is {@code DISABLED}, not a
+     * fault; feature on with no cluster means search and indexing are degraded.
+     */
+    public ClusterState probeCluster() {
+        if (!isFullTextSearchEnabled()) return ClusterState.DISABLED;
+        final String endpoint = endpoint();
+        if (endpoint == null) return ClusterState.DISABLED;
+        try {
+            final HttpRequest req = applyAuth(HttpRequest.newBuilder()
+                    .uri(URI.create(endpoint + "/"))
+                    .timeout(PROBE_TIMEOUT)
+                    .GET())
+                    .build();
+            final HttpResponse<Void> resp = probeClient.send(req, HttpResponse.BodyHandlers.discarding());
+            return resp.statusCode() / 100 == 2 ? ClusterState.REACHABLE : ClusterState.UNREACHABLE;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return ClusterState.UNREACHABLE;
+        } catch (Exception e) {
+            // DEBUG, not WARN: runs on every health poll. DOWN is the operator signal.
+            log.debug("OpenSearch health probe failed for {}: {}", endpoint, e.getMessage());
+            return ClusterState.UNREACHABLE;
         }
     }
 

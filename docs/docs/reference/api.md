@@ -1,8 +1,8 @@
 # REST API
 
 Arbiter exposes a JSON-over-HTTP API under `/api/v1`. The API surface is split
-into two categories that authenticate differently. One endpoint sits outside
-both: the unauthenticated [health probe](#get-apihealth).
+into two categories that authenticate differently. A few paths sit outside
+both: the unauthenticated [health and metrics endpoints](#health-and-metrics).
 
 ## Authentication
 
@@ -44,14 +44,17 @@ called out below per-section. The API key carries the same role and group
 permissions as the user that owns it; session callers carry whatever role and
 groups their account has.
 
-## Health
+## Health and metrics
+
+Arbiter serves three unauthenticated paths for monitoring: `/api/health`,
+`/actuator/health`, and `/actuator/prometheus`. All three accept `GET` only.
+They are reachable before any credential exists so a container runtime, load
+balancer, uptime monitor, or Prometheus scraper can call them.
 
 ### `GET /api/health`
 
-Liveness probe. The only API path reachable without authentication, so a
-container runtime, load balancer, or uptime monitor can call it before any
-credential exists. It sits outside `/api/v1` because it is not a versioned
-business endpoint, and it accepts `GET` only.
+The health endpoint every Philterd product exposes. It sits outside `/api/v1`
+because it is not a versioned business endpoint.
 
 ```json
 {
@@ -60,14 +63,85 @@ business endpoint, and it accepts `GET` only.
 }
 ```
 
+`status` is Arbiter's aggregate health, so a broken dependency is visible here
+rather than being masked by the fact that the process still answers. `UP`
+returns `200`; any other status returns `503` with that status in the body, so
+a monitor that reads only the status code still sees the fault.
+
+These contribute to the aggregate:
+
+| Component | Reports `DOWN` when |
+|---|---|
+| MongoDB | the database does not answer a ping |
+| OpenSearch | full text search is enabled and the cluster does not answer |
+| Disk space | free space on the data partition is nearly exhausted |
+| Valkey | the session store does not answer |
+
+One caveat on timing: when MongoDB itself is unreachable, the health endpoints
+answer `503` only after the MongoDB driver's server-selection timeout (30
+seconds by default), because that is how long the driver waits before it
+declares the server unusable. Monitors with a shorter timeout see the request
+time out, which they should also treat as unhealthy. Add
+`?serverSelectionTimeoutMS=5000` to `spring.data.mongodb.uri` if you want a
+faster answer, keeping in mind it applies to every Arbiter query, not just
+health.
+
+A deployment that runs with full text search turned off is not marked down for
+having no OpenSearch cluster. One that leaves it on without a reachable cluster
+is: search and indexing are degraded, so turn the feature off under **Admin →
+Settings** if you do not run a cluster. See
+[Full text search](../admin/full-text-search.md).
+
 `applicationVersion` is the build version recorded in the jar at package time.
 It reads `unknown` when Arbiter runs from classes built outside Maven (an IDE,
 for example), where no build metadata file exists.
 
-The response carries no deployment or document state, but it does disclose the
-running build version to anyone who can reach the port. Keep Arbiter's port on
-an internal network, or block the path at your reverse proxy if you do not want
-that version visible.
+The response names no component behind the status and carries no deployment or
+document state, but it does disclose the running build version to anyone who
+can reach the port. Keep Arbiter's port on an internal network, or block the
+path at your reverse proxy if you do not want that version visible.
+
+### `GET /actuator/health`
+
+Spring Boot Actuator's own view of the same aggregate, for tooling that already
+speaks Actuator:
+
+```json
+{
+  "status": "UP"
+}
+```
+
+`200` when the status is `UP`, `503` when it is `DOWN`. It carries no
+`applicationVersion`, so monitoring that wants the running version should call
+`/api/health` instead. Per-component detail is switched off, so an
+unauthenticated caller never learns which dependency is down or what address it
+sits at; read the application log for that.
+
+### `GET /actuator/prometheus`
+
+Metrics in Prometheus text exposition format, for a scrape config:
+
+```
+# HELP jvm_memory_used_bytes The amount of used memory
+# TYPE jvm_memory_used_bytes gauge
+jvm_memory_used_bytes{area="heap",id="G1 Eden Space"} 1.34217728E8
+http_server_requests_seconds_count{method="GET",status="200",uri="/api/health"} 42.0
+```
+
+The metrics are JVM gauges and HTTP request counts and timings. Request URIs
+appear as route templates (`/documents/{id}`), never as the concrete paths a
+reviewer visited, and no document text, entity value, or user identity is
+exported.
+
+Scraping it does disclose how Arbiter is being used: request volumes, error
+rates, and which routes are exercised. Treat the endpoint as internal, and
+block `/actuator` at your reverse proxy if your scraper does not need it.
+
+Health and `prometheus` are the only Actuator endpoints Arbiter exposes.
+Everything else Actuator can serve, including `env`, `configprops`, `beans`,
+`loggers`, and `heapdump`, returns `404`, as do the `/actuator` links page and
+the per-component paths under `/actuator/health/`.
 
 ## Document ingestion
 

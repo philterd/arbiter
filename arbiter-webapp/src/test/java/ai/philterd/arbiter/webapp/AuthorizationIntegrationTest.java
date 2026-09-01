@@ -52,8 +52,11 @@ import ai.philterd.arbiter.webapp.controllers.RedactionController;
 import ai.philterd.arbiter.webapp.controllers.ReportingController;
 import ai.philterd.arbiter.webapp.security.MongoUserDetailsService;
 import ai.philterd.arbiter.webapp.security.SecurityConfig;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.actuate.health.Health;
+import org.springframework.boot.actuate.health.HealthEndpoint;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
@@ -61,6 +64,7 @@ import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -102,6 +106,14 @@ public class AuthorizationIntegrationTest {
     @Autowired private MockMvc mockMvc;
 
     @MockBean private ai.philterd.arbiter.service.ApiKeyHashingService apiKeyHashingService;
+
+    /** The slice does not auto-configure Actuator, so the aggregate HealthController reads is mocked. */
+    @MockBean private HealthEndpoint healthEndpoint;
+
+    @BeforeEach
+    void healthIsUp() {
+        when(healthEndpoint.health()).thenReturn(Health.up().build());
+    }
 
     // Repositories — Spring Data interfaces, all mockable.
     @MockBean private RedactionService redactionService;
@@ -174,12 +186,27 @@ public class AuthorizationIntegrationTest {
     @Test
     void anonymousCanReachHealth() throws Exception {
         // The one /api/** path deliberately open to unauthenticated callers, so a container
-        // runtime or load balancer can probe liveness. No BuildProperties bean exists in this
-        // slice, so the version falls back to "unknown".
+        // runtime, load balancer, or the appliance console can probe it. No BuildProperties
+        // bean exists in this slice, so the version falls back to "unknown".
         mockMvc.perform(get("/api/health"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("UP"))
                 .andExpect(jsonPath("$.applicationVersion").value("unknown"));
+    }
+
+    @Test
+    void anonymousIsNotBlockedFromActuator() throws Exception {
+        // Actuator is not mapped in this slice, so this asserts the security matcher only: the
+        // request reaches the dispatcher and 404s rather than being bounced to /login.
+        // ActuatorExposureTest covers which endpoints exist.
+        mockMvc.perform(get("/actuator/health")).andExpect(status().isNotFound());
+        mockMvc.perform(get("/actuator/prometheus")).andExpect(status().isNotFound());
+    }
+
+    @Test
+    void actuatorRejectsNonGetMethods() throws Exception {
+        // permitAll covers GET only, matching the /api/health rule.
+        mockMvc.perform(post("/actuator/health").with(csrf())).andExpect(notOk());
     }
 
     @Test

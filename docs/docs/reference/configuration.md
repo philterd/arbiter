@@ -116,6 +116,42 @@ directory.
 
 Set `arbiter.demo-data.enabled=false` for production deployments.
 
+## Monitoring and metrics
+
+```
+management.endpoints.web.exposure.include=health,prometheus
+management.endpoints.web.discovery.enabled=false
+management.endpoint.health.show-details=never
+management.endpoint.health.show-components=never
+management.health.redis.enabled=${MANAGEMENT_HEALTH_REDIS_ENABLED:false}
+```
+
+Arbiter serves `/api/health`, `/actuator/health`, and `/actuator/prometheus`,
+all unauthenticated and `GET`-only. See
+[REST API → Health and metrics](api.md#health-and-metrics) for the response
+shapes and what they disclose.
+
+The exposure list is a security control, not a convenience. Both exposed
+endpoints are reachable without a credential, so adding `env`, `configprops`,
+`beans`, `loggers`, or `heapdump` to it would hand configuration or memory
+contents to anything that can reach the port. Everything not on the list
+returns `404`, and the `/actuator` links page is switched off as well.
+
+`show-details` and `show-components` are pinned off so an unauthenticated
+caller gets the aggregate status and never learns which dependency is down or
+what address it sits at.
+
+MongoDB, Valkey, disk space, and (when full text search is enabled) OpenSearch
+contribute to the aggregate. Nothing needs to be configured for them. Note that
+an unreachable MongoDB delays the health response by the driver's
+server-selection timeout; see
+[REST API → Health and metrics](api.md#health-and-metrics).
+
+Valkey counts because Arbiter stores sessions in it and cannot serve a page
+without it, so an unreachable Valkey is a genuine outage rather than a
+degradation. `MANAGEMENT_HEALTH_REDIS_ENABLED=false` drops it from health if
+your deployment has some other reason to leave it out.
+
 ## Philter integration
 
 Philter instances are managed at runtime under **Admin → Philter** rather than
