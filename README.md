@@ -9,6 +9,10 @@ For full documentation — installation, configuration, user and admin
 guides, REST API reference, and more — see
 <https://philterd.github.io/arbiter>.
 
+Questions, feedback, or want to contribute? [Join the Philterd Slack
+workspace](https://philterd.ai/slack/) to connect with other users and
+developers.
+
 ![Arbiter](arbiter.png)
 
 ## Quick start
