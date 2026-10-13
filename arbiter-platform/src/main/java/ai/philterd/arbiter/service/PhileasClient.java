@@ -40,6 +40,7 @@ import ai.philterd.phileas.services.filters.filtering.PlainTextFilterService;
 import ai.philterd.phileas.services.filters.filtering.PdfFilterService;
 import ai.philterd.arbiter.core.model.Redaction;
 import ai.philterd.arbiter.core.model.RedactionResponse;
+import ai.philterd.arbiter.philter.ApprovedSpans;
 import ai.philterd.arbiter.philter.PhilterClient;
 import org.springframework.stereotype.Service;
 
@@ -277,16 +278,7 @@ public class PhileasClient implements PhilterClient {
 
     @Override
     public String redact(final String text, final String context, final List<ai.philterd.arbiter.core.model.Redaction> approvedSpans) throws IOException {
-        // Mocking manual redaction for Phileas local
-        final StringBuilder sb = new StringBuilder(text);
-        final List<ai.philterd.arbiter.core.model.Redaction> sortedSpans = new ArrayList<>(approvedSpans);
-        sortedSpans.sort((a, b) -> b.getStart() - a.getStart());
-
-        for (ai.philterd.arbiter.core.model.Redaction span : sortedSpans) {
-            sb.replace(span.getStart(), span.getEnd(), span.getType().toUpperCase());
-        }
-
-        return sb.toString();
+        return ApprovedSpans.apply(text, approvedSpans);
     }
 
 }

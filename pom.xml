@@ -37,7 +37,7 @@
     </modules>
     <properties>
         <java.version>21</java.version>
-        <philter.sdk.version>1.5.0</philter.sdk.version>
+        <philter.sdk.version>2.0.0-SNAPSHOT</philter.sdk.version>
         <phileas.version>3.3.0</phileas.version>
         <commons-lang3.version>3.18.0</commons-lang3.version>
         <awssdk.version>2.25.50</awssdk.version>
@@ -62,6 +62,11 @@
                 <version>${phileas.version}</version>
             </dependency>
             <dependency>
+                <groupId>ai.philterd</groupId>
+                <artifactId>philter-sdk-java</artifactId>
+                <version>${philter.sdk.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>ai.philterd.arbiter</groupId>
                 <artifactId>arbiter-domain</artifactId>
                 <version>${project.version}</version>
@@ -73,6 +78,20 @@
             </dependency>
         </dependencies>
     </dependencyManagement>
+    <repositories>
+        <!-- Philter SDK 2.x development builds until 2.x is released. -->
+        <repository>
+            <id>central-snapshots</id>
+            <name>Central Portal Snapshots</name>
+            <url>https://central.sonatype.com/repository/maven-snapshots/</url>
+            <releases>
+                <enabled>false</enabled>
+            </releases>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
     <build>
         <pluginManagement>
             <plugins>

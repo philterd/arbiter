@@ -24,7 +24,12 @@ import ai.philterd.arbiter.repository.PolicyRepository;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.AuthUtils;
 import ai.philterd.arbiter.service.GeneralSettingsService;
-import com.fasterxml.jackson.databind.JsonNode;
+import ai.philterd.arbiter.service.PhilterInstanceClients;
+import ai.philterd.arbiter.philter.PhilterClients;
+import ai.philterd.philter.model.ListOptions;
+import ai.philterd.philter.model.Page;
+import ai.philterd.philter.model.exceptions.ClientException;
+import ai.philterd.philter.model.exceptions.PhilterError;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,10 +56,6 @@ import org.springframework.data.domain.Sort;
 import java.net.URI;
 import java.util.regex.Pattern;
 import java.time.LocalDateTime;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -69,8 +70,7 @@ public class PolicyController {
     private static final String EMBEDDED = "embedded";
     private static final Pattern POLICY_NAME_PATTERN = Pattern.compile("[a-zA-Z0-9_\\-]{1,64}");
 
-    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
-    private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(10);
+    private static final int POLICY_PAGE_SIZE = 100;
 
     private final PolicyRepository policyRepository;
     private final PhilterInstanceRepository philterInstanceRepository;
@@ -79,9 +79,7 @@ public class PolicyController {
     private final ObjectMapper objectMapper;
     private final GeneralSettingsService generalSettingsService;
     private final ai.philterd.arbiter.repository.FinalizationPolicyRepository finalizationPolicyRepository;
-    private final HttpClient httpClient = HttpClient.newBuilder()
-            .connectTimeout(CONNECT_TIMEOUT)
-            .build();
+    private final PhilterInstanceClients philterInstanceClients;
 
     public PolicyController(final PolicyRepository policyRepository,
                             final PhilterInstanceRepository philterInstanceRepository,
@@ -89,7 +87,8 @@ public class PolicyController {
                             final AuditLogService auditLogService,
                             final ObjectMapper objectMapper,
                             final GeneralSettingsService generalSettingsService,
-                            final ai.philterd.arbiter.repository.FinalizationPolicyRepository finalizationPolicyRepository) {
+                            final ai.philterd.arbiter.repository.FinalizationPolicyRepository finalizationPolicyRepository,
+                            final PhilterInstanceClients philterInstanceClients) {
         this.policyRepository = policyRepository;
         this.philterInstanceRepository = philterInstanceRepository;
         this.batchRepository = batchRepository;
@@ -97,6 +96,7 @@ public class PolicyController {
         this.objectMapper = objectMapper;
         this.generalSettingsService = generalSettingsService;
         this.finalizationPolicyRepository = finalizationPolicyRepository;
+        this.philterInstanceClients = philterInstanceClients;
     }
 
     @GetMapping("/policies")
@@ -402,9 +402,10 @@ public class PolicyController {
             try {
                 names = fetchRemotePolicyNames(instance);
             } catch (Exception e) {
-                log.warn("Failed to fetch policies from {}: {}", instance.getName(), e.getMessage());
+                final String detail = describe(e);
+                log.warn("Failed to fetch policies from {}: {}", instance.getName(), detail);
                 throw new ResponseStatusException(BAD_GATEWAY,
-                        "Could not reach Philter instance \"" + instance.getName() + "\": " + e.getMessage());
+                        "Could not reach Philter instance \"" + instance.getName() + "\": " + detail);
             }
         }
         final Map<String, Object> out = new java.util.LinkedHashMap<>();
@@ -437,27 +438,20 @@ public class PolicyController {
         final PhilterInstance instance = philterInstanceRepository.findById(instanceId)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Philter instance not found."));
         try {
-            final HttpRequest req = HttpRequest.newBuilder()
-                    .uri(URI.create(baseUrl(instance) + "/api/policies/" + name))
-                    .timeout(REQUEST_TIMEOUT)
-                    .GET()
-                    .build();
-            final HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
-            if (resp.statusCode() == 404) {
+            final String content = philterInstanceClients.client(instance).getPolicy(name);
+            return Map.of("name", name, "content", content == null ? "" : content);
+        } catch (ClientException e) {
+            if (e.getStatusCode() == 404) {
                 throw new ResponseStatusException(NOT_FOUND, "Policy \"" + name + "\" not found on instance \""
                         + instance.getName() + "\".");
             }
-            if (resp.statusCode() / 100 != 2) {
-                throw new ResponseStatusException(BAD_GATEWAY,
-                        "Philter returned HTTP " + resp.statusCode() + " from /api/policies/" + name);
-            }
-            return Map.of("name", name, "content", resp.body() == null ? "" : resp.body());
-        } catch (ResponseStatusException e) {
-            throw e;
-        } catch (Exception e) {
-            log.warn("Failed to fetch policy {} from {}: {}", name, instance.getName(), e.getMessage());
             throw new ResponseStatusException(BAD_GATEWAY,
-                    "Could not reach Philter instance \"" + instance.getName() + "\": " + e.getMessage());
+                    "Philter returned " + describe(e) + " for policy " + name);
+        } catch (Exception e) {
+            final String detail = describe(e);
+            log.warn("Failed to fetch policy {} from {}: {}", name, instance.getName(), detail);
+            throw new ResponseStatusException(BAD_GATEWAY,
+                    "Could not reach Philter instance \"" + instance.getName() + "\": " + detail);
         }
     }
 
@@ -518,39 +512,22 @@ public class PolicyController {
     }
 
     private List<String> fetchRemotePolicyNames(final PhilterInstance instance) throws Exception {
-        final HttpRequest req = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl(instance) + "/api/policies"))
-                .timeout(REQUEST_TIMEOUT)
-                .GET()
-                .build();
-        final HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
-        if (resp.statusCode() / 100 != 2) {
-            throw new RuntimeException("HTTP " + resp.statusCode() + " from /api/policies");
-        }
-        final JsonNode root = objectMapper.readTree(resp.body());
+        final ai.philterd.philter.PhilterClient client = philterInstanceClients.client(instance);
         final List<String> names = new ArrayList<>();
-        if (root.isArray()) {
-            for (JsonNode node : root) {
-                if (node.isTextual()) {
-                    names.add(node.asText());
-                } else {
-                    final JsonNode nameNode = node.get("name");
-                    if (nameNode != null && !nameNode.asText().isBlank()) {
-                        names.add(nameNode.asText());
-                    }
-                }
-            }
-        }
+        Page<String> page;
+        do {
+            page = client.listPolicies(null, new ListOptions().offset(names.size()).limit(POLICY_PAGE_SIZE));
+            names.addAll(page.getItems());
+        } while (!page.getItems().isEmpty() && names.size() < page.getTotal());
         names.sort(String.CASE_INSENSITIVE_ORDER);
         return names;
     }
 
-    private static String baseUrl(final PhilterInstance instance) {
-        String host = instance.getEndpoint();
-        if (host == null) host = "localhost";
-        if (!host.startsWith("http://") && !host.startsWith("https://")) {
-            host = "http://" + host;
+    /** A failed Philter call's status, or the exception's own message when Philter wasn't reached. */
+    private static String describe(final Exception e) {
+        if (e instanceof PhilterError) {
+            return PhilterClients.describe(e);
         }
-        return host + ":" + instance.getPort();
+        return e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
     }
 }

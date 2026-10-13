@@ -17,175 +17,116 @@ package ai.philterd.arbiter.philter;
 
 import ai.philterd.arbiter.core.model.Redaction;
 import ai.philterd.arbiter.core.model.RedactionResponse;
+import ai.philterd.philter.model.ExplainResponse;
+import ai.philterd.philter.model.Span;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+/**
+ * {@link PhilterClient} backed by the Philter SDK, for remote Philter instances.
+ */
 public class PhilterClientImpl implements PhilterClient {
 
     private static final Logger log = LoggerFactory.getLogger(PhilterClientImpl.class);
 
-    private final RestTemplate restTemplate;
-    private final String philterUrl;
-    private final String apiKey;
+    private final ai.philterd.philter.PhilterClient client;
+    private final String policyName;
 
-    public PhilterClientImpl(final RestTemplate restTemplate, final String philterUrl) {
-        this(restTemplate, philterUrl, null);
-    }
-
-    public PhilterClientImpl(final RestTemplate restTemplate, final String philterUrl, final String apiKey) {
-        this.restTemplate = restTemplate;
-        this.philterUrl = philterUrl;
-        this.apiKey = apiKey;
-    }
-
-    /** Add an Authorization header to the supplied headers when this instance has an API key. */
-    private void applyAuth(final HttpHeaders headers) {
-        if (apiKey != null && !apiKey.isBlank()) {
-            headers.set(HttpHeaders.AUTHORIZATION, "Bearer " + apiKey);
-        }
+    public PhilterClientImpl(final ai.philterd.philter.PhilterClient client, final String policyName) {
+        this.client = client;
+        this.policyName = blankToNull(policyName);
     }
 
     @Override
     public RedactionResponse redactPdf(final byte[] pdfBytes, final String context) throws IOException {
-        // TODO: Call the actual remote-Philter PDF redaction endpoint. Casting raw PDF
-        // bytes to a String and running text redaction over them produces garbage for any
-        // non-trivial PDF (binary stream content, font tables, compressed objects). Pairs
-        // with the matching TODO in RedactionServiceImpl.getRedactedPdf — both must be
-        // implemented before remote-Philter PDF redaction can be exposed in the UI.
-        final String text = new String(pdfBytes);
-        return redact(text, context);
+        // TODO: Philter's PDF endpoints return a redacted PDF but no spans, so there is nothing
+        // to review. Pairs with the TODO in RedactionServiceImpl.getRedactedPdf.
+        throw new IOException("PDF review is not supported with a remote Philter instance; "
+                + "use Embedded Philter for this batch.");
     }
 
     @Override
     public Map<String, Object> explain(final String text, final String context) throws IOException {
-        final String explainUrl = philterUrl + "/api/explain?context=" + context;
-        final HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.TEXT_PLAIN);
-        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
-        applyAuth(headers);
-
-        final HttpEntity<String> explainRequest = new HttpEntity<>(text, headers);
-
-        try {
-            return restTemplate.postForObject(explainUrl, explainRequest, Map.class);
-        } catch (Exception e) {
-            log.error("Error calling Philter explain API", e);
-            throw new IOException("Failed to explain text via Philter", e);
+        final List<Map<String, Object>> explanation = new ArrayList<>();
+        for (Span span : appliedSpans(callExplain(text, context))) {
+            final Map<String, Object> map = new HashMap<>();
+            map.put("text", span.getText());
+            map.put("type", span.getFilterType());
+            map.put("characterStart", span.getCharacterStart());
+            map.put("characterEnd", span.getCharacterEnd());
+            map.put("confidence", span.getConfidence());
+            explanation.add(map);
         }
+        final Map<String, Object> result = new HashMap<>();
+        result.put("explanation", explanation);
+        return result;
     }
 
     @Override
-    public String redact(final String text, final String context, final List<ai.philterd.arbiter.core.model.Redaction> approvedSpans) throws IOException {
-        // In a real Philter API, we might send the spans to be redacted.
-        // Philter's /api/filter accepts an optional list of spans to redact OR we just let Philter do its thing.
-        // But for HITL, we only want to redact the APPROVED spans.
-        // Philter has an endpoint where you can provide the spans.
-        
-        // For this implementation, let's assume we send a POST to /api/filter with the spans in a specific format if supported,
-        // or we manually redact them if the API doesn't support passing specific spans.
-        
-        // Let's assume Philter has a /api/redact endpoint that takes text and a list of spans.
-        final String redactUrl = philterUrl + "/api/redact?context=" + context;
-        final HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        applyAuth(headers);
-
-        final Map<String, Object> body = Map.of(
-                "text", text,
-                "spans", approvedSpans
-        );
-
-        final HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-        
-        try {
-            return restTemplate.postForObject(redactUrl, request, String.class);
-        } catch (Exception e) {
-            log.error("Error calling Philter redact API", e);
-            throw new IOException("Failed to redact text via Philter", e);
-        }
+    public String redact(final String text, final String context, final List<Redaction> approvedSpans) {
+        // The reviewers have already decided what to redact, so apply their spans here rather
+        // than asking Philter to detect again.
+        return ApprovedSpans.apply(text, approvedSpans);
     }
 
     @Override
     public RedactionResponse redact(final String text, final String context) throws IOException {
-        final String url = philterUrl + "/api/filter?context=" + context;
+        final List<Span> spans = new ArrayList<>(appliedSpans(callExplain(text, context)));
+        spans.sort(Comparator.comparingInt(Span::getCharacterStart));
 
-        final HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.TEXT_PLAIN);
-        applyAuth(headers);
+        final List<Redaction> redactions = new ArrayList<>();
+        final StringBuilder sb = new StringBuilder(text);
+        int offset = 0;
+        for (Span span : spans) {
+            final String type = span.getFilterType();
+            final String replacement = type.toUpperCase();
+            final int start = span.getCharacterStart();
+            final int end = span.getCharacterEnd();
 
-        final HttpEntity<String> request = new HttpEntity<>(text, headers);
+            final int startInFinal = start + offset;
+            sb.replace(startInFinal, end + offset, replacement);
 
-        // Philter returns the redacted text in the body and redactions in the x-philter-explanation header if requested,
-        // but by default, we can also use the explain API or just handle the basic redaction.
-        // For Arbiter, we need both the redacted text AND the list of redactions to show them in the UI.
-        
-        // Actually, Philter's /api/filter returns redacted text.
-        // To get redactions (explanation), we might need to call /api/explain or use headers.
-        // Let's assume we use /api/filter and it might provide explanations via a header or we use a separate call.
-        // Standard Philter API: POST /api/filter returns redacted text.
-        // If we want the spans, we should use the 'explain' feature.
-        
-        // Let's use /api/filter with Query Parameter 'explain=true' if supported, 
-        // or call /api/explain which returns JSON with both.
-        
-        final String explainUrl = philterUrl + "/api/explain?context=" + context;
-        headers.setContentType(MediaType.TEXT_PLAIN);
-        headers.setAccept(List.of(MediaType.APPLICATION_JSON));
+            final Redaction r = new Redaction();
+            r.setId(UUID.randomUUID().toString());
+            r.setText(span.getText());
+            r.setStart(startInFinal);
+            r.setEnd(startInFinal + replacement.length());
+            r.setType(type);
+            r.setConfidence(span.getConfidence());
+            redactions.add(r);
 
-        final HttpEntity<String> explainRequest = new HttpEntity<>(text, headers);
-        
-        try {
-            final Map<String, Object> response = restTemplate.postForObject(explainUrl, explainRequest, Map.class);
-
-            final String redactedText = (String) response.get("filteredText");
-            final List<Map<String, Object>> explanations = (List<Map<String, Object>>) response.get("explanation");
-
-            final List<Redaction> redactions = new ArrayList<>();
-            final StringBuilder sb = new StringBuilder(text);
-            int offset = 0;
-
-            if (explanations != null) {
-                // Sort explanations by start index to process sequentially
-                final List<Map<String, Object>> sortedExplanations = new ArrayList<>(explanations);
-                sortedExplanations.sort((a, b) -> (Integer) a.get("characterStart") - (Integer) b.get("characterStart"));
-
-                for (Map<String, Object> exp : sortedExplanations) {
-                    final String type = (String) exp.get("type");
-                    final String replacement = type.toUpperCase();
-                    final int start = (Integer) exp.get("characterStart");
-                    final int end = (Integer) exp.get("characterEnd");
-
-                    final int startInFinal = start + offset;
-                    sb.replace(startInFinal, end + offset, replacement);
-
-                    final Redaction r = new Redaction();
-                    r.setId(UUID.randomUUID().toString());
-                    r.setText((String) exp.get("text"));
-                    r.setStart(startInFinal);
-                    r.setEnd(startInFinal + replacement.length());
-                    r.setType(type);
-                    r.setConfidence((Double) exp.getOrDefault("confidence", 0.0));
-                    redactions.add(r);
-
-                    offset += (replacement.length() - (end - start));
-                }
-            }
-            
-            return new RedactionResponse(text, sb.toString(), redactions);
-            
-        } catch (Exception e) {
-            log.error("Error calling Philter API", e);
-            throw new IOException("Failed to redact text via Philter", e);
+            offset += replacement.length() - (end - start);
         }
+        return new RedactionResponse(text, sb.toString(), redactions);
+    }
+
+    private ExplainResponse callExplain(final String text, final String context) throws IOException {
+        try {
+            return client.explain(blankToNull(context), policyName, text);
+        } catch (IOException | RuntimeException e) {
+            final String detail = PhilterClients.describe(e);
+            log.error("Philter explain call failed: {}", detail);
+            throw new IOException("Philter explain call failed: " + detail);
+        }
+    }
+
+    private static List<Span> appliedSpans(final ExplainResponse response) {
+        if (response == null || response.getExplanation() == null
+                || response.getExplanation().getAppliedSpans() == null) {
+            return List.of();
+        }
+        return response.getExplanation().getAppliedSpans();
+    }
+
+    private static String blankToNull(final String s) {
+        return s == null || s.isBlank() ? null : s;
     }
 }

@@ -62,7 +62,7 @@ class PolicyControllerTest {
                 mock(ai.philterd.arbiter.repository.FinalizationPolicyRepository.class);
         controller = new PolicyController(policyRepository, philterInstanceRepository,
                 batchRepository, auditLogService, new ObjectMapper(), generalSettingsService,
-                finalizationPolicyRepository);
+                finalizationPolicyRepository, mock(ai.philterd.arbiter.service.PhilterInstanceClients.class));
     }
 
     private RedirectAttributes flash() {

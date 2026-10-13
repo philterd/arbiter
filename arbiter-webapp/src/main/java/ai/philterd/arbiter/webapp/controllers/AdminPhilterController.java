@@ -21,6 +21,11 @@ import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.DataSourceHostAllowList;
 import ai.philterd.arbiter.service.PhilterDefaultsService;
+import ai.philterd.arbiter.service.PhilterInstanceClients;
+import ai.philterd.arbiter.philter.PhilterClients;
+import ai.philterd.philter.model.StatusResponse;
+import ai.philterd.philter.model.exceptions.PhilterError;
+import ai.philterd.philter.model.exceptions.UnauthorizedException;
 import ai.philterd.arbiter.service.SymmetricCipher;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Controller;
@@ -35,12 +40,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
-import java.net.URI;
 import java.time.LocalDateTime;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
-import java.time.Duration;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -50,28 +50,25 @@ import java.util.UUID;
 @RequestMapping("/admin/philter")
 public class AdminPhilterController {
 
-    private static final Duration TEST_CONNECT_TIMEOUT = Duration.ofSeconds(5);
-    private static final Duration TEST_REQUEST_TIMEOUT = Duration.ofSeconds(10);
-
     private final PhilterInstanceRepository repository;
     private final AuditLogService auditLogService;
     private final PhilterDefaultsService defaultsService;
     private final SymmetricCipher symmetricCipher;
     private final DataSourceHostAllowList hostAllowList;
-    private final HttpClient httpClient = HttpClient.newBuilder()
-            .connectTimeout(TEST_CONNECT_TIMEOUT)
-            .build();
+    private final PhilterInstanceClients philterInstanceClients;
 
     public AdminPhilterController(final PhilterInstanceRepository repository,
                                   final AuditLogService auditLogService,
                                   final PhilterDefaultsService defaultsService,
                                   final SymmetricCipher symmetricCipher,
-                                  final DataSourceHostAllowList hostAllowList) {
+                                  final DataSourceHostAllowList hostAllowList,
+                                  final PhilterInstanceClients philterInstanceClients) {
         this.repository = repository;
         this.auditLogService = auditLogService;
         this.defaultsService = defaultsService;
         this.symmetricCipher = symmetricCipher;
         this.hostAllowList = hostAllowList;
+        this.philterInstanceClients = philterInstanceClients;
     }
 
     @GetMapping
@@ -121,6 +118,7 @@ public class AdminPhilterController {
                          final RedirectAttributes redirectAttributes) {
         final String trimmedName = name == null ? "" : name.trim();
         final String trimmedEndpoint = endpoint == null ? "" : endpoint.trim();
+        final String trimmedKey = apiKey == null ? "" : apiKey.trim();
 
         if (trimmedName.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Name is required.");
@@ -132,6 +130,10 @@ public class AdminPhilterController {
         }
         if (port < 1 || port > 65535) {
             redirectAttributes.addFlashAttribute("error", "Port must be between 1 and 65535.");
+            return "redirect:/admin/philter";
+        }
+        if (trimmedKey.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "API key is required.");
             return "redirect:/admin/philter";
         }
         if (repository.findByName(trimmedName).isPresent()) {
@@ -155,10 +157,7 @@ public class AdminPhilterController {
         instance.setName(trimmedName);
         instance.setEndpoint(trimmedEndpoint);
         instance.setPort(port);
-        final String trimmedKey = apiKey == null ? "" : apiKey.trim();
-        if (!trimmedKey.isEmpty()) {
-            instance.setEncryptedApiKey(symmetricCipher.encrypt(trimmedKey));
-        }
+        instance.setEncryptedApiKey(symmetricCipher.encrypt(trimmedKey));
 
         try {
             repository.save(instance);
@@ -170,7 +169,7 @@ public class AdminPhilterController {
 
         auditLogService.log("PHILTER_INSTANCE_CREATE", "PhilterInstance", instance.getId(),
                 Map.of("name", trimmedName, "endpoint", trimmedEndpoint, "port", port,
-                        "apiKeyConfigured", !trimmedKey.isEmpty()));
+                        "apiKeyConfigured", true));
         redirectAttributes.addFlashAttribute("success",
                 "Philter instance \"" + trimmedName + "\" added.");
         return "redirect:/admin/philter";
@@ -186,22 +185,21 @@ public class AdminPhilterController {
             return "redirect:/admin/philter";
         }
         final String trimmed = apiKey == null ? "" : apiKey.trim();
+        if (trimmed.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "API key is required.");
+            return "redirect:/admin/philter";
+        }
         final boolean previouslyConfigured = instance.getEncryptedApiKey() != null
                 && !instance.getEncryptedApiKey().isBlank();
-        if (trimmed.isEmpty()) {
-            instance.setEncryptedApiKey(null);
-        } else {
-            instance.setEncryptedApiKey(symmetricCipher.encrypt(trimmed));
-        }
+        instance.setEncryptedApiKey(symmetricCipher.encrypt(trimmed));
         repository.save(instance);
         auditLogService.log("PHILTER_INSTANCE_API_KEY_CHANGE", "PhilterInstance", id,
                 Map.of(
                         "name", instance.getName() == null ? "" : instance.getName(),
                         "previouslyConfigured", previouslyConfigured,
-                        "currentlyConfigured", !trimmed.isEmpty()));
-        redirectAttributes.addFlashAttribute("success", trimmed.isEmpty()
-                ? "API key cleared for \"" + instance.getName() + "\"."
-                : "API key updated for \"" + instance.getName() + "\".");
+                        "currentlyConfigured", true));
+        redirectAttributes.addFlashAttribute("success",
+                "API key updated for \"" + instance.getName() + "\".");
         return "redirect:/admin/philter";
     }
 
@@ -235,7 +233,7 @@ public class AdminPhilterController {
             return "redirect:/admin/philter";
         }
 
-        final String url = baseUrl(instance) + "/api/status";
+        final String url = PhilterInstanceClients.baseUrl(instance);
         if (!hostAllowList.isAllowed(url)) {
             redirectAttributes.addFlashAttribute("error",
                     "Endpoint host is not permitted. Update or remove this instance.");
@@ -244,27 +242,29 @@ public class AdminPhilterController {
         boolean ok = false;
         int status = 0;
         String detail;
-        String apiKey = null;
         try {
-            apiKey = symmetricCipher.decrypt(instance.getEncryptedApiKey());
-        } catch (Exception ignored) {
-            // If the key can't be decrypted (e.g. crypto secret rotated), continue unauthenticated.
-        }
-        try {
-            final HttpRequest.Builder reqBuilder = HttpRequest.newBuilder()
-                    .uri(URI.create(url))
-                    .timeout(TEST_REQUEST_TIMEOUT)
-                    .GET();
-            if (apiKey != null && !apiKey.isBlank()) {
-                reqBuilder.header("Authorization", "Bearer " + apiKey);
+            final ai.philterd.philter.PhilterClient client = philterInstanceClients.client(instance);
+            final StatusResponse health = client.health();
+            detail = "Philter " + (health == null || health.getApplicationVersion() == null
+                    ? "(unknown version)" : health.getApplicationVersion());
+            if (philterInstanceClients.hasApiKey(instance)) {
+                // health() is unauthenticated, so make an authenticated call to check the key.
+                client.getCurrentUser();
+                detail += ", API key accepted";
+            } else {
+                detail += ", no API key set";
             }
-            final HttpRequest req = reqBuilder.build();
-            final HttpResponse<String> resp = httpClient.send(req, HttpResponse.BodyHandlers.ofString());
-            status = resp.statusCode();
             ok = true;
-            detail = "HTTP " + status;
+        } catch (UnauthorizedException e) {
+            status = e.getStatusCode();
+            detail = "API key rejected (" + PhilterClients.describe(e) + ")";
         } catch (Exception e) {
-            detail = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+            if (e instanceof PhilterError error) {
+                status = error.getStatusCode();
+                detail = PhilterClients.describe(e);
+            } else {
+                detail = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+            }
         }
 
         auditLogService.log("PHILTER_INSTANCE_TEST", "PhilterInstance", id,
@@ -280,16 +280,10 @@ public class AdminPhilterController {
                             + detail + ") at " + url + ".");
         } else {
             redirectAttributes.addFlashAttribute("error",
-                    "Philter instance \"" + instance.getName() + "\" did not respond at "
+                    "Philter instance \"" + instance.getName() + "\" failed the test at "
                             + url + ": " + detail);
         }
         return "redirect:/admin/philter";
-    }
-
-    private static String baseUrl(final PhilterInstance instance) {
-        return buildInstanceUrl(
-                instance.getEndpoint() == null ? "localhost" : instance.getEndpoint(),
-                instance.getPort());
     }
 
     private static String buildInstanceUrl(final String endpoint, final int port) {

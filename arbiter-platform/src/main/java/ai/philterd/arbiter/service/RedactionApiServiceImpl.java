@@ -94,9 +94,9 @@ public class RedactionApiServiceImpl implements RedactionApiService {
         } catch (Exception e) {
             log.warn("Could not decrypt API key for Philter instance \"{}\": {}",
                     pi.getName(), e.getMessage());
-            return philterClientFactory.create(url);
+            return philterClientFactory.create(url, null, batch.getPolicyName());
         }
-        return philterClientFactory.create(url, apiKey);
+        return philterClientFactory.create(url, apiKey, batch.getPolicyName());
     }
 
     private static String baseUrl(final PhilterInstance instance) {

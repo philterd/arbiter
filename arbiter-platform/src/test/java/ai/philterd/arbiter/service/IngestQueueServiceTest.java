@@ -156,7 +156,7 @@ class IngestQueueServiceTest {
         when(batchRepository.findById("b1")).thenReturn(Optional.of(batch("b1")));
         when(pendingUploadRepository.findById("doc-42")).thenReturn(Optional.empty());
         // Force the redact path to throw so we hit the catch branch under test.
-        when(redactionService.redactText(anyString(), any(), any()))
+        when(redactionService.redactText(anyString(), any(), any(), any()))
                 .thenThrow(new RuntimeException("upstream Philter timed out"));
 
         service.processOne(doc);

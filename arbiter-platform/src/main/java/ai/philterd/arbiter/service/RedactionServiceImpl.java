@@ -55,7 +55,7 @@ public class RedactionServiceImpl implements RedactionService {
         this.hostAllowList = hostAllowList;
     }
 
-    private PhilterClient getClient(final String philterInstanceId) throws IOException {
+    private PhilterClient getClient(final String philterInstanceId, final String policyName) throws IOException {
         if (philterInstanceId != null && !philterInstanceId.isBlank()) {
             final Optional<PhilterInstance> instance = philterInstanceRepository.findById(philterInstanceId);
             if (instance.isPresent()) {
@@ -74,7 +74,7 @@ public class RedactionServiceImpl implements RedactionService {
                 }
                 log.info("Using Philter remote instance \"{}\" at {} (api key {})",
                         pi.getName(), url, (apiKey != null && !apiKey.isBlank() ? "set" : "not set"));
-                return philterClientFactory.create(url, apiKey);
+                return philterClientFactory.create(url, apiKey, policyName);
             }
             log.warn("Philter instance {} not found; falling back to local Phileas.", philterInstanceId);
         }
@@ -102,14 +102,16 @@ public class RedactionServiceImpl implements RedactionService {
     }
 
     @Override
-    public RedactionResponse redactText(final String text, final String philterInstanceId, final String context) throws IOException {
-        return getClient(philterInstanceId).redact(text, context == null ? "" : context);
+    public RedactionResponse redactText(final String text, final String philterInstanceId, final String policyName,
+                                        final String context) throws IOException {
+        return getClient(philterInstanceId, policyName).redact(text, context == null ? "" : context);
     }
 
     @Override
-    public RedactionResponse redactPdf(final InputStream inputStream, final String philterInstanceId, final String context) throws IOException {
+    public RedactionResponse redactPdf(final InputStream inputStream, final String philterInstanceId, final String policyName,
+                                       final String context) throws IOException {
         final byte[] bytes = inputStream.readAllBytes();
-        return getClient(philterInstanceId).redactPdf(bytes, context == null ? "" : context);
+        return getClient(philterInstanceId, policyName).redactPdf(bytes, context == null ? "" : context);
     }
 
     @Override
@@ -118,7 +120,7 @@ public class RedactionServiceImpl implements RedactionService {
         // Apply redactions back to the PDF.
         final byte[] pdfBytes = originalPdf.readAllBytes();
 
-        final PhilterClient client = getClient(philterInstanceId);
+        final PhilterClient client = getClient(philterInstanceId, null);
         if (client == phileasClient) {
             try {
                 final Properties properties = new Properties();

@@ -16,24 +16,12 @@
 package ai.philterd.arbiter.philter;
 
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 
 @Service
 public class DefaultPhilterClientFactory implements PhilterClientFactory {
 
-    private final RestTemplate restTemplate;
-
-    public DefaultPhilterClientFactory(final RestTemplate restTemplate) {
-        this.restTemplate = restTemplate;
-    }
-
     @Override
-    public PhilterClient create(final String philterUrl) {
-        return new PhilterClientImpl(restTemplate, philterUrl, null);
-    }
-
-    @Override
-    public PhilterClient create(final String philterUrl, final String apiKey) {
-        return new PhilterClientImpl(restTemplate, philterUrl, apiKey);
+    public PhilterClient create(final String philterUrl, final String apiKey, final String policyName) {
+        return new PhilterClientImpl(PhilterClients.build(philterUrl, apiKey), policyName);
     }
 }

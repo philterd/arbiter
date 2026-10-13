@@ -137,6 +137,7 @@ public class AuthorizationIntegrationTest {
     @MockBean private S3DestinationRepository s3DestinationRepository;
     @MockBean private DestinationTester destinationTester;
     @MockBean private PhilterInstanceRepository philterInstanceRepository;
+    @MockBean private ai.philterd.arbiter.service.PhilterInstanceClients philterInstanceClients;
     @MockBean private PhilterDefaultsRepository philterDefaultsRepository;
     @MockBean private PolicyRepository policyRepository;
     @MockBean private DocumentCommentRepository documentCommentRepository;

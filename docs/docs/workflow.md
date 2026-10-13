@@ -57,9 +57,14 @@ later.
     - **Name** — a unique label (e.g. `philter-prod`).
     - **Endpoint** — host or IP (e.g. `philter` or `192.168.1.20`).
     - **Port** — the Philter port (default `8080`).
+    - **API key**: the Philter API key Arbiter sends as a bearer token.
+      Required, since Philter 4 needs one for redaction. It is stored
+      encrypted. You can change it later from the instance row but not clear it.
 4. Click **Add**. The instance is saved to MongoDB.
-5. Click **Test** on the row to confirm Arbiter can reach it. The test hits
-   the instance's `/api/status` endpoint and reports the HTTP response.
+5. Click **Test** on the row to confirm Arbiter can reach it. The test calls
+   the instance's health endpoint and reports its Philter version, then, when
+   an API key is set, makes an authenticated call to confirm Philter accepts
+   the key.
 6. Optionally set the row as the **default** so newly created batches start
    with it pre-selected. The Embedded Philter is the default if no other
    default is set.
@@ -87,8 +92,15 @@ Where the policy lives depends on the Philter instance:
 - **Embedded Philter** — policies live in Arbiter's MongoDB `policies`
   collection. Manage them under **Policies** in the left-side menu.
 - **External Philter** — policies live on the Philter server. Arbiter can
-  list them (read-only) by calling the Philter instance's `/api/policies`
-  endpoint, but creation, edit, and delete must happen on the Philter server.
+  list them (read-only) through the Philter API using the instance's API key,
+  but creation, edit, and delete must happen on the Philter server. A batch
+  with no policy selected uses Philter's default policy.
+
+Arbiter talks to external Philter instances through the
+[Philter SDK for Java](https://github.com/philterd/philter-sdk-java) and
+requires Philter 4.0.0 or later. PDF uploads can be reviewed only with
+Embedded Philter; a batch that uses an external Philter instance accepts
+plain-text documents.
 
 The Policies page presents both modes with the same UI:
 

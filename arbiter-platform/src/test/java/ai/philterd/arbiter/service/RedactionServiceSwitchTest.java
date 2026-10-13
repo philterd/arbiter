@@ -74,12 +74,12 @@ public class RedactionServiceSwitchTest {
         instance.setPort(8080);
 
         when(philterInstanceRepository.findById("philter-1")).thenReturn(Optional.of(instance));
-        when(philterClientFactory.create(eq("http://philter:8080"), any())).thenReturn(remotePhilterClient);
+        when(philterClientFactory.create(eq("http://philter:8080"), any(), eq("claims"))).thenReturn(remotePhilterClient);
 
         final RedactionResponse philterResponse = new RedactionResponse("test", "philter", new ArrayList<>());
         when(remotePhilterClient.redact(anyString(), anyString())).thenReturn(philterResponse);
 
-        final RedactionResponse response = redactionService.redactText("test", "philter-1", "");
+        final RedactionResponse response = redactionService.redactText("test", "philter-1", "claims", "");
 
         assertEquals("philter", response.getRedactedText());
         verify(remotePhilterClient, times(1)).redact(anyString(), anyString());
@@ -91,11 +91,11 @@ public class RedactionServiceSwitchTest {
         final RedactionResponse phileasResponse = new RedactionResponse("test", "phileas", new ArrayList<>());
         when(phileasClient.redact(anyString(), anyString())).thenReturn(phileasResponse);
 
-        final RedactionResponse response = redactionService.redactText("test", null, "");
+        final RedactionResponse response = redactionService.redactText("test", null, null, "");
 
         assertEquals("phileas", response.getRedactedText());
         verify(phileasClient, times(1)).redact(anyString(), anyString());
-        verify(philterClientFactory, never()).create(anyString());
+        verify(philterClientFactory, never()).create(any(), any(), any());
     }
 
     @Test
@@ -105,10 +105,10 @@ public class RedactionServiceSwitchTest {
         final RedactionResponse phileasResponse = new RedactionResponse("test", "phileas", new ArrayList<>());
         when(phileasClient.redact(anyString(), anyString())).thenReturn(phileasResponse);
 
-        final RedactionResponse response = redactionService.redactText("test", "ghost", "");
+        final RedactionResponse response = redactionService.redactText("test", "ghost", null, "");
 
         assertEquals("phileas", response.getRedactedText());
         verify(phileasClient, times(1)).redact(anyString(), anyString());
-        verify(philterClientFactory, never()).create(anyString());
+        verify(philterClientFactory, never()).create(any(), any(), any());
     }
 }
