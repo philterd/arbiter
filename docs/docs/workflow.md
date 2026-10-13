@@ -55,12 +55,16 @@ later.
 2. Go to **Admin → Philter**.
 3. Use **Add Philter instance** and fill in:
     - **Name** — a unique label (e.g. `philter-prod`).
-    - **Endpoint** — host or IP (e.g. `philter` or `192.168.1.20`).
+    - **Endpoint**: host or IP (e.g. `philter` or `192.168.1.20`). Arbiter
+      uses HTTP unless the endpoint starts with `https://` (e.g.
+      `https://philter.internal`). For HTTPS with a private certificate
+      authority, or mutual TLS, see
+      [Philter integration](reference/configuration.md#philter-integration).
     - **Port** — the Philter port (default `8080`).
     - **API key**: the Philter API key Arbiter sends as a bearer token.
       Required, since Philter 4 needs one for redaction. It is stored
       encrypted. You can change it later from the instance row but not clear it.
-4. Click **Add**. The instance is saved to MongoDB.
+4. Click **Add**. The instance is saved to Arbiter's database.
 5. Click **Test** on the row to confirm Arbiter can reach it. The test calls
    the instance's health endpoint and reports its Philter version, then, when
    an API key is set, makes an authenticated call to confirm Philter accepts
@@ -89,8 +93,8 @@ the [Philter documentation](https://philterd.github.io/philter/).
 
 Where the policy lives depends on the Philter instance:
 
-- **Embedded Philter** — policies live in Arbiter's MongoDB `policies`
-  collection. Manage them under **Policies** in the left-side menu.
+- **Embedded Philter**: policies live in the `policies` collection of
+  Arbiter's database. Manage them under **Policies** in the left-side menu.
 - **External Philter** — policies live on the Philter server. Arbiter can
   list them (read-only) through the Philter API using the instance's API key,
   but creation, edit, and delete must happen on the Philter server. A batch
@@ -294,7 +298,7 @@ For more detail see [Reviewing a document](user-guide/reviewing.md).
 
 Putting all the pieces together:
 
-1. **Admin** stands up Arbiter and MongoDB. Embedded Philter is available
+1. **Admin** stands up Arbiter and its database. Embedded Philter is available
    immediately.
 2. **Admin** opens **Admin → Philter**, optionally registers an external
    Philter for production use, and clicks **Test** to confirm reachability.

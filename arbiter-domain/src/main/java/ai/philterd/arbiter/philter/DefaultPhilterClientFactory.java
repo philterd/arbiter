@@ -15,13 +15,27 @@
  */
 package ai.philterd.arbiter.philter;
 
+import ai.philterd.arbiter.util.Hashing;
 import org.springframework.stereotype.Service;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class DefaultPhilterClientFactory implements PhilterClientFactory {
 
+    // One SDK client (and its HTTP connection pool) per instance and key, reused across documents.
+    private final Map<String, ai.philterd.philter.PhilterClient> clients = new ConcurrentHashMap<>();
+    private final PhilterTlsConfig tls;
+
+    public DefaultPhilterClientFactory(final PhilterTlsConfig tls) {
+        this.tls = tls;
+    }
+
     @Override
     public PhilterClient create(final String philterUrl, final String apiKey, final String policyName) {
-        return new PhilterClientImpl(PhilterClients.build(philterUrl, apiKey), policyName);
+        final String cacheKey = philterUrl + "\n" + (apiKey == null ? "" : Hashing.sha512Hex(apiKey));
+        return new PhilterClientImpl(
+                clients.computeIfAbsent(cacheKey, k -> PhilterClients.build(philterUrl, apiKey, tls)), policyName);
     }
 }

@@ -12,11 +12,10 @@ package ai.philterd.arbiter.repository;
 import ai.philterd.arbiter.model.DataImportLogEntry;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.util.List;
 
-public interface DataImportLogEntryRepository extends MongoRepository<DataImportLogEntry, String> {
+public interface DataImportLogEntryRepository extends ArbiterRepository<DataImportLogEntry, String> {
 
     /**
      * Return every log entry for one import job, ordered oldest-first so the UI renders

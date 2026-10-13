@@ -17,6 +17,7 @@ package ai.philterd.arbiter.service;
 
 import ai.philterd.arbiter.model.PhilterInstance;
 import ai.philterd.arbiter.philter.PhilterClients;
+import ai.philterd.arbiter.philter.PhilterTlsConfig;
 import ai.philterd.philter.PhilterClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,11 +35,14 @@ public class PhilterInstanceClients {
 
     private final SymmetricCipher symmetricCipher;
     private final DataSourceHostAllowList hostAllowList;
+    private final PhilterTlsConfig tls;
 
     public PhilterInstanceClients(final SymmetricCipher symmetricCipher,
-                                  final DataSourceHostAllowList hostAllowList) {
+                                  final DataSourceHostAllowList hostAllowList,
+                                  final PhilterTlsConfig tls) {
         this.symmetricCipher = symmetricCipher;
         this.hostAllowList = hostAllowList;
+        this.tls = tls;
     }
 
     /** The instance's base URL, such as {@code http://philter:8080}. */
@@ -62,7 +66,7 @@ public class PhilterInstanceClients {
                     + "\" host is not on the data-source allow-list "
                     + "(arbiter.data-sources.allowed-hosts).");
         }
-        return PhilterClients.build(url, apiKey(instance));
+        return PhilterClients.build(url, apiKey(instance), tls);
     }
 
     /** True when the instance has an API key that decrypts. */

@@ -1,4 +1,5 @@
 .idea/
 target/
 .env
-CLAUDE.md
+CLAUDE.md# SQLite store (arbiter.store=sqlite) default location
+/data/

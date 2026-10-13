@@ -10,12 +10,11 @@
 package ai.philterd.arbiter.repository;
 
 import ai.philterd.arbiter.model.FinalizationPolicy;
-import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
 @Repository
-public interface FinalizationPolicyRepository extends MongoRepository<FinalizationPolicy, String> {
+public interface FinalizationPolicyRepository extends ArbiterRepository<FinalizationPolicy, String> {
     Optional<FinalizationPolicy> findByName(String name);
 }

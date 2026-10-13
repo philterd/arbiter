@@ -16,17 +16,13 @@ import ai.philterd.arbiter.model.PendingUpload;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.PendingUploadRepository;
+import ai.philterd.arbiter.store.DocumentQueueStore;
 import ai.philterd.arbiter.service.RedactionService;
 import ai.philterd.arbiter.util.Hashing;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.mongodb.core.FindAndModifyOptions;
-import org.springframework.data.mongodb.core.MongoOperations;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -63,7 +59,7 @@ public class IngestQueueService {
     private final BatchRepository batchRepository;
     private final RedactionService redactionService;
     private final RedactionPersistenceService persistenceService;
-    private final MongoOperations mongoOperations;
+    private final DocumentQueueStore queueStore;
     private final AtomicBoolean processing = new AtomicBoolean(false);
 
     public IngestQueueService(final DocumentRepository documentRepository,
@@ -71,13 +67,13 @@ public class IngestQueueService {
                               final BatchRepository batchRepository,
                               final RedactionService redactionService,
                               final RedactionPersistenceService persistenceService,
-                              final MongoOperations mongoOperations) {
+                              final DocumentQueueStore queueStore) {
         this.documentRepository = documentRepository;
         this.pendingUploadRepository = pendingUploadRepository;
         this.batchRepository = batchRepository;
         this.redactionService = redactionService;
         this.persistenceService = persistenceService;
-        this.mongoOperations = mongoOperations;
+        this.queueStore = queueStore;
     }
 
     /**
@@ -162,21 +158,7 @@ public class IngestQueueService {
      * document is no longer PENDING for any other reason).
      */
     Document claim(final String documentId) {
-        if (mongoOperations == null) {
-            // Defensive fallback for tests where MongoOperations isn't wired. Best-effort only.
-            final Document doc = documentRepository.findById(documentId).orElse(null);
-            if (doc == null || !STATUS_PENDING.equals(doc.getStatus())) return null;
-            doc.changeStatus(STATUS_PROCESSING);
-            documentRepository.save(doc);
-            return doc;
-        }
-        final Query q = Query.query(Criteria.where("_id").is(documentId)
-                .and("status").is(STATUS_PENDING));
-        final Update u = new Update()
-                .set("status", STATUS_PROCESSING)
-                .set("statusChangedAt", LocalDateTime.now());
-        return mongoOperations.findAndModify(q, u,
-                FindAndModifyOptions.options().returnNew(true), Document.class);
+        return queueStore.claimPending(documentId);
     }
 
     /**
@@ -185,15 +167,9 @@ public class IngestQueueService {
      * worker's lease has expired and the work is fair game again.
      */
     private void recoverStuckClaims() {
-        if (mongoOperations == null) return;
         final LocalDateTime cutoff = LocalDateTime.now().minus(STUCK_CLAIM_TTL);
-        final Query q = Query.query(Criteria.where("status").is(STATUS_PROCESSING)
-                .and("statusChangedAt").lt(cutoff));
-        final Update u = new Update()
-                .set("status", STATUS_PENDING)
-                .set("statusChangedAt", LocalDateTime.now());
         try {
-            final long n = mongoOperations.updateMulti(q, u, Document.class).getModifiedCount();
+            final long n = queueStore.requeueProcessingBefore(cutoff);
             if (n > 0) {
                 log.info("Reclaimed {} stuck PROCESSING document(s) older than {}", n, STUCK_CLAIM_TTL);
             }

@@ -10,6 +10,7 @@
 package ai.philterd.arbiter.model;
 
 import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
@@ -26,6 +27,7 @@ public class Span {
 
     @Id
     private String id;
+    @Indexed
     private String documentId;
     private String type;
     private String text;

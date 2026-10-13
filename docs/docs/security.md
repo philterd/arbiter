@@ -238,10 +238,10 @@ Mongo documents. Local-directory sources have no credentials at all — files
 are read with the application's process identity. See
 [Data sources](admin/data-sources.md) for the per-type field list.
 
-## PII at rest in MongoDB
+## PII at rest
 
 Document text and the individual PII spans detected inside it are **encrypted
-on disk** in the MongoDB collections that hold them. The encryption uses the
+on disk** in the collections that hold them, in MongoDB or SQLite alike. The encryption uses the
 same AES-GCM construction described above for Philter API keys, with the same
 key (`arbiter.crypto.secret`) — there is no separate per-collection key.
 
@@ -254,6 +254,8 @@ The fields encrypted at rest are:
 | `documents`        | `failureMessage` | Error messages may quote spans of the source document.                |
 | `spans`            | `text`           | The literal PII string detected by Philter (e.g. `alice@example.com`).|
 | `document_comments`| `text`           | Reviewer-supplied free text that may reference PII.                   |
+| `redaction_certificates` | `documentFilename` | Filenames often carry names or record numbers.          |
+| `redaction_certificates` | overturned span text | The literal PII on each overturned decision.             |
 
 Other fields on these documents (status, timestamps, source attribution,
 hashes, lock metadata, span coordinates, reviewer attribution) are stored
@@ -262,8 +264,9 @@ status filters, joins, and audits.
 
 ### How the encryption is applied
 
-Encryption and decryption happen at the persistence layer through Spring Data
-Mongo lifecycle callbacks — application code reads and writes plaintext on
+Encryption and decryption happen at the persistence layer: through Spring Data
+Mongo lifecycle callbacks with MongoDB, and around every write and read in the
+SQLite store. Application code reads and writes plaintext on
 the in-memory entity, and the callbacks transparently encrypt before save and
 decrypt after load. The on-disk form of an encrypted field carries an
 `enc:v1:` prefix marker followed by the base64-encoded ciphertext (12-byte

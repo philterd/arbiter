@@ -2,7 +2,9 @@
 
 ## Prerequisites
 
-- A running MongoDB instance Arbiter can reach
+- A running MongoDB instance Arbiter can reach, or nothing extra with the
+  SQLite store (see [Database](reference/database.md))
+- A running Valkey instance for sessions
 - A running OpenSearch instance Arbiter can reach (for full-text search)
 - A running Philter / Phileas redaction service Arbiter can call (the
   built-in redaction engine works out of the box for development)
@@ -15,6 +17,8 @@ full reference. The settings most operators need to set are:
 
 | Property                                  | Purpose                                                |
 | ----------------------------------------- | ------------------------------------------------------ |
+| `arbiter.store`                           | `mongodb` (default) or `sqlite`. See [Database](reference/database.md). |
+| `arbiter.sqlite.path`                     | The SQLite database file, with `arbiter.store=sqlite` (default `./data/arbiter.db`) |
 | `spring.data.mongodb.uri`                 | Connection URI for MongoDB                             |
 | `spring.data.mongodb.database`            | Database name (default: `arbiter`)                     |
 | `arbiter.crypto.secret`                   | **Required.** Base64-encoded 32 random bytes used as the AES-256 key for encrypting Philter API keys and data-source credentials at rest. Generate with `openssl rand -base64 32`. Arbiter refuses to start if this is unset, not valid base64, or doesn't decode to exactly 32 bytes. |

@@ -7,7 +7,7 @@
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  */
-package ai.philterd.arbiter.service;
+package ai.philterd.arbiter.store.mongo;
 
 import ai.philterd.arbiter.model.Document;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,15 +33,15 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-class DocumentLockServiceTest {
+class MongoDocumentLockServiceTest {
 
     private MongoOperations mongoOperations;
-    private DocumentLockService service;
+    private MongoDocumentLockService service;
 
     @BeforeEach
     void setUp() {
         mongoOperations = mock(MongoOperations.class);
-        service = new DocumentLockService(mongoOperations);
+        service = new MongoDocumentLockService(mongoOperations);
     }
 
     private static Document docWithLock(final String holder) {

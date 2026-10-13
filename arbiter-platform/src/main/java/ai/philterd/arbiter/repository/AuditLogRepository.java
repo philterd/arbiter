@@ -10,11 +10,10 @@
 package ai.philterd.arbiter.repository;
 
 import ai.philterd.arbiter.model.AuditLog;
-import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface AuditLogRepository extends MongoRepository<AuditLog, String> {
+public interface AuditLogRepository extends ArbiterRepository<AuditLog, String> {
 
     /**
      * Audit entries whose action is in {@code actions} with timestamp in [start, end] (inclusive).

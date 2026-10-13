@@ -15,11 +15,9 @@ import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.PendingUploadRepository;
 import ai.philterd.arbiter.service.AuditLogService;
+import ai.philterd.arbiter.store.DocumentQueueStore;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
-import org.springframework.data.mongodb.core.MongoOperations;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -47,18 +45,18 @@ public class AdminIngestQueueController {
     private final DocumentRepository documentRepository;
     private final BatchRepository batchRepository;
     private final PendingUploadRepository pendingUploadRepository;
-    private final MongoOperations mongoOperations;
+    private final DocumentQueueStore queueStore;
     private final AuditLogService auditLogService;
 
     public AdminIngestQueueController(final DocumentRepository documentRepository,
                                       final BatchRepository batchRepository,
                                       final PendingUploadRepository pendingUploadRepository,
-                                      final MongoOperations mongoOperations,
+                                      final DocumentQueueStore queueStore,
                                       final AuditLogService auditLogService) {
         this.documentRepository = documentRepository;
         this.batchRepository = batchRepository;
         this.pendingUploadRepository = pendingUploadRepository;
-        this.mongoOperations = mongoOperations;
+        this.queueStore = queueStore;
         this.auditLogService = auditLogService;
     }
 
@@ -105,26 +103,17 @@ public class AdminIngestQueueController {
         // own "now" — not the timestamp captured at the top of view() before the row
         // queries ran. The window is [now-24h, now], inclusive on the upper end so a
         // document created at the request instant is counted.
-        //
-        // Using MongoOperations directly because Spring Data's method-name derivation
-        // can't compose two predicates on the same property (Mongo's BSON Document
-        // can hold only one key per field) — the Criteria builder, in contrast, lets
-        // gt() and lte() coexist on a single property.
         final LocalDateTime windowEnd = LocalDateTime.now();
         final LocalDateTime windowStart = windowEnd.minusHours(24);
-        final long last24hTotal = mongoOperations.count(
-                Query.query(Criteria.where("createdAt").gt(windowStart).lte(windowEnd)),
-                Document.class);
+        final long last24hTotal = queueStore.countCreatedBetween(windowStart, windowEnd);
         model.addAttribute("last24hTotal", last24hTotal);
 
         // Throughput: documents that have moved out of the PENDING/PROCESSING queue with
         // a statusChangedAt inside the same 24-hour window, divided by 24 for an hourly
         // average. This uses statusChangedAt rather than createdAt so a backlog being
         // worked off lights up the meter even if intake has slowed.
-        final long processedLast24h = mongoOperations.count(
-                Query.query(Criteria.where("statusChangedAt").gt(windowStart).lte(windowEnd)
-                        .and("status").nin("PENDING", "PROCESSING")),
-                Document.class);
+        final long processedLast24h = queueStore.countStatusChangedBetween(windowStart, windowEnd,
+                List.of("PENDING", "PROCESSING"));
         model.addAttribute("throughputPerHour", processedLast24h / 24.0);
         return "admin-ingest-queue";
     }
@@ -175,8 +164,7 @@ public class AdminIngestQueueController {
     public String remove(@PathVariable("id") final String id,
                          final Authentication authentication,
                          final RedirectAttributes redirectAttributes) {
-        final Query q = Query.query(Criteria.where("_id").is(id).and("status").is("PENDING"));
-        final Document removed = mongoOperations.findAndRemove(q, Document.class);
+        final Document removed = queueStore.removeIfStatus(id, "PENDING");
         if (removed == null) {
             redirectAttributes.addFlashAttribute("error",
                     "Document not found in the ingest queue, or it has already started processing.");
@@ -208,8 +196,7 @@ public class AdminIngestQueueController {
     public String clearFailure(@PathVariable("id") final String id,
                                final Authentication authentication,
                                final RedirectAttributes redirectAttributes) {
-        final Query q = Query.query(Criteria.where("_id").is(id).and("status").is("FAILED"));
-        final Document removed = mongoOperations.findAndRemove(q, Document.class);
+        final Document removed = queueStore.removeIfStatus(id, "FAILED");
         if (removed == null) {
             redirectAttributes.addFlashAttribute("error",
                     "Document not found in the failures list (it may have been re-processed).");
@@ -237,13 +224,8 @@ public class AdminIngestQueueController {
     @PostMapping("/failures/clear")
     public String clearAllFailures(final Authentication authentication,
                                    final RedirectAttributes redirectAttributes) {
-        final Query q = Query.query(Criteria.where("status").is("FAILED"));
-        // Capture ids first so we can clean up sidecars and produce a useful audit-log entry.
-        final List<Document> failed = mongoOperations.find(q, Document.class);
-        final List<String> ids = new ArrayList<>();
-        for (Document d : failed) ids.add(d.getId());
-
-        final long removed = mongoOperations.remove(q, Document.class).getDeletedCount();
+        final List<String> ids = queueStore.removeAllWithStatus("FAILED");
+        final long removed = ids.size();
         for (String id : ids) {
             try { pendingUploadRepository.deleteById(id); } catch (Exception ignored) {}
         }

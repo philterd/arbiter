@@ -99,7 +99,7 @@ relabeling so the audit sample stays visible.
 
 Newly received documents (whether uploaded through the UI or submitted via the
 [REST API](reference/api.md)) are persisted as `PENDING` and placed on a
-shared, MongoDB-backed redaction queue. A background worker drains the queue
+shared redaction queue kept in Arbiter's database. A background worker drains the queue
 oldest-first, claiming each document atomically (`PENDING → PROCESSING`) so
 multiple replicas can run safely. Once Philter completes, the worker writes
 the spans, computes the risk score, and transitions the document to its final
@@ -243,6 +243,6 @@ on the [Full text search](admin/full-text-search.md) admin page.
 
 Every state-changing action — login, logout, batch changes, span and document
 updates, settings changes — is written to the `audit_log` collection in
-MongoDB with the actor's email, the resource touched, a timestamp, and
+Arbiter's database with the actor's email, the resource touched, a timestamp, and
 context-specific details. Admins can browse and export the log under
 **Admin → Audit log**.

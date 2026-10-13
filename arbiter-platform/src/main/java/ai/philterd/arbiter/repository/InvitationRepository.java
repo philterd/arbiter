@@ -10,14 +10,13 @@
 package ai.philterd.arbiter.repository;
 
 import ai.philterd.arbiter.model.Invitation;
-import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
 import java.time.Instant;
 import java.util.Optional;
 
 @Repository
-public interface InvitationRepository extends MongoRepository<Invitation, String> {
+public interface InvitationRepository extends ArbiterRepository<Invitation, String> {
 
     /**
      * Token-hash lookup. Used at redemption time to find the invitation matching the

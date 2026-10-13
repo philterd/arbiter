@@ -14,6 +14,7 @@ import ai.philterd.arbiter.model.Document;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.PendingUploadRepository;
+import ai.philterd.arbiter.store.DocumentQueueStore;
 import ai.philterd.arbiter.service.RedactionService;
 import ai.philterd.arbiter.util.Hashing;
 import ch.qos.logback.classic.Level;
@@ -25,7 +26,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.http.MediaType;
 
 import java.util.Optional;
@@ -51,7 +51,7 @@ class IngestQueueServiceTest {
     private BatchRepository batchRepository;
     private RedactionService redactionService;
     private RedactionPersistenceService persistenceService;
-    private MongoOperations mongoOperations;
+    private DocumentQueueStore queueStore;
     private IngestQueueService service;
 
     @BeforeEach
@@ -61,9 +61,9 @@ class IngestQueueServiceTest {
         batchRepository = mock(BatchRepository.class);
         redactionService = mock(RedactionService.class);
         persistenceService = mock(RedactionPersistenceService.class);
-        mongoOperations = mock(MongoOperations.class);
+        queueStore = mock(DocumentQueueStore.class);
         service = new IngestQueueService(documentRepository, pendingUploadRepository,
-                batchRepository, redactionService, persistenceService, mongoOperations);
+                batchRepository, redactionService, persistenceService, queueStore);
     }
 
     private static Batch batch(final String id) {

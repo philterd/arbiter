@@ -10,12 +10,11 @@
 package ai.philterd.arbiter.repository;
 
 import ai.philterd.arbiter.model.RedactionCertificate;
-import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
 
 @Repository
-public interface RedactionCertificateRepository extends MongoRepository<RedactionCertificate, String> {
+public interface RedactionCertificateRepository extends ArbiterRepository<RedactionCertificate, String> {
     List<RedactionCertificate> findByDocumentIdOrderByFinalizedAtDesc(String documentId);
 }

@@ -27,13 +27,17 @@ public final class PhilterClients {
 
     /**
      * Build an SDK client for the instance at {@code baseUrl}. A non-blank {@code apiKey} is sent as a
-     * bearer token.
+     * bearer token, and {@code tls} supplies any client certificate and trust store.
      */
-    public static ai.philterd.philter.PhilterClient build(final String baseUrl, final String apiKey) {
+    public static ai.philterd.philter.PhilterClient build(final String baseUrl, final String apiKey,
+                                                          final PhilterTlsConfig tls) {
         final ai.philterd.philter.PhilterClient.PhilterClientBuilder builder =
                 new ai.philterd.philter.PhilterClient.PhilterClientBuilder().withEndpoint(baseUrl);
         if (apiKey != null && !apiKey.isBlank()) {
             builder.withApiKey("Bearer " + apiKey);
+        }
+        if (tls != null && tls.sslContext() != null) {
+            builder.withSslContext(tls.sslContext());
         }
         return builder.build();
     }

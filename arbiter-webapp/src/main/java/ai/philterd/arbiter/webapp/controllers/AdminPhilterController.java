@@ -248,8 +248,8 @@ public class AdminPhilterController {
             detail = "Philter " + (health == null || health.getApplicationVersion() == null
                     ? "(unknown version)" : health.getApplicationVersion());
             if (philterInstanceClients.hasApiKey(instance)) {
-                // health() is unauthenticated, so make an authenticated call to check the key.
-                client.getCurrentUser();
+                // health() is unauthenticated; getLimits() accepts any valid key, whatever its scopes.
+                client.getLimits();
                 detail += ", API key accepted";
             } else {
                 detail += ", no API key set";

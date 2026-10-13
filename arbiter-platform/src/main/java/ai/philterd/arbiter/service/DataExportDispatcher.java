@@ -11,17 +11,12 @@ package ai.philterd.arbiter.service;
 
 import ai.philterd.arbiter.model.BackgroundJob;
 import ai.philterd.arbiter.repository.BackgroundJobRepository;
+import ai.philterd.arbiter.store.BackgroundJobStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.mongodb.core.FindAndModifyOptions;
-import org.springframework.data.mongodb.core.MongoOperations;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -51,15 +46,15 @@ public class DataExportDispatcher {
     private static final int MAX_CONCURRENT_EXPORTS = 2;
 
     private final BackgroundJobRepository jobRepository;
-    private final MongoOperations mongoOperations;
+    private final BackgroundJobStore jobStore;
     private final BatchExportService batchExportService;
     private final ExecutorService workerPool;
 
     public DataExportDispatcher(final BackgroundJobRepository jobRepository,
-                                final MongoOperations mongoOperations,
+                                final BackgroundJobStore jobStore,
                                 final BatchExportService batchExportService) {
         this.jobRepository = jobRepository;
-        this.mongoOperations = mongoOperations;
+        this.jobStore = jobStore;
         this.batchExportService = batchExportService;
         this.workerPool = Executors.newFixedThreadPool(MAX_CONCURRENT_EXPORTS, r -> {
             final Thread t = new Thread(r, "data-export-worker");
@@ -77,10 +72,7 @@ public class DataExportDispatcher {
                         List.of(BackgroundJob.TYPE_BATCH_EXPORT));
         if (pending.isEmpty()) return;
 
-        final long currentRunning = mongoOperations.count(
-                Query.query(Criteria.where("status").is(BackgroundJob.STATUS_RUNNING)
-                        .and("type").is(BackgroundJob.TYPE_BATCH_EXPORT)),
-                BackgroundJob.class);
+        final long currentRunning = jobStore.countRunning(List.of(BackgroundJob.TYPE_BATCH_EXPORT));
         int slotsRemaining = (int) Math.max(0L, MAX_CONCURRENT_EXPORTS - currentRunning);
         if (slotsRemaining == 0) return;
 
@@ -95,13 +87,7 @@ public class DataExportDispatcher {
     }
 
     private BackgroundJob tryClaim(final String jobId) {
-        final Query q = Query.query(Criteria.where("_id").is(jobId)
-                .and("status").is(BackgroundJob.STATUS_PENDING));
-        final Update u = new Update()
-                .set("status", BackgroundJob.STATUS_RUNNING)
-                .set("startedAt", Instant.now());
-        return mongoOperations.findAndModify(q, u,
-                FindAndModifyOptions.options().returnNew(true), BackgroundJob.class);
+        return jobStore.claimPending(jobId);
     }
 
     private void runClaimed(final BackgroundJob job) {

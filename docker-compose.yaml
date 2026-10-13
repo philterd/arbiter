@@ -8,6 +8,11 @@ services:
     ports:
       - "8080:8080"
     environment:
+      # Database: SQLite, in the arbiter-data volume. To use MongoDB instead:
+      #
+      # ARBITER_STORE=mongodb docker compose --profile mongodb up
+      - ARBITER_STORE=${ARBITER_STORE:-sqlite}
+      - ARBITER_SQLITE_PATH=/app/data/arbiter.db
       - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/arbiter
       - SPRING_DATA_REDIS_HOST=valkey
       - SPRING_DATA_REDIS_PORT=6379
@@ -39,9 +44,13 @@ services:
       # the host's /tmp so finalized exports land somewhere easy to inspect.
       # Mounted read-write so the application can actually write export files.
       - /tmp:/app/output
+      # The SQLite database, kept across container rebuilds.
+      - arbiter-data:/app/data
     depends_on:
       mongodb:
         condition: service_healthy
+        # Only started with --profile mongodb.
+        required: false
       opensearch:
         condition: service_healthy
       elasticsearch:
@@ -74,6 +83,7 @@ services:
   mongodb:
     image: mongo:latest
     container_name: arbiter-mongodb
+    profiles: ["mongodb"]
     ports:
       - "27017:27017"
     healthcheck:
@@ -212,3 +222,6 @@ services:
 networks:
   arbiter:
     driver: bridge
+
+volumes:
+  arbiter-data:

@@ -11,6 +11,7 @@ package ai.philterd.arbiter.model;
 
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Version;
+import org.springframework.data.mongodb.core.index.Indexed;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -35,6 +36,7 @@ public class Document {
     @Version
     private Long version;
 
+    @Indexed
     private String batchId;
     private String filename;
     private String storagePath;
@@ -65,6 +67,7 @@ public class Document {
     private String sourceDocId;
     /** When the document was imported from its external source. Null for direct uploads. */
     private LocalDateTime importedAt;
+    @Indexed
     private String status;
     private double riskScore;
     private String philterContextId;

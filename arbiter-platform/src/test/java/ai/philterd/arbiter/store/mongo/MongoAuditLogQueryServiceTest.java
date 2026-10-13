@@ -7,8 +7,9 @@
  *
  *     http://www.apache.org/licenses/LICENSE-2.0
  */
-package ai.philterd.arbiter.service;
+package ai.philterd.arbiter.store.mongo;
 
+import ai.philterd.arbiter.service.AuditLogQueryService;
 import ai.philterd.arbiter.model.AuditLog;
 import org.bson.Document;
 import org.junit.jupiter.api.BeforeEach;
@@ -40,17 +41,17 @@ import static org.mockito.Mockito.when;
  * Inspecting the BSON keeps the tests independent of internal Spring Data field names —
  * the on-the-wire query is what actually reaches Mongo, so that's what we assert.
  */
-class AuditLogQueryServiceTest {
+class MongoAuditLogQueryServiceTest {
 
     private MongoOperations mongo;
-    private AuditLogQueryService service;
+    private MongoAuditLogQueryService service;
 
     @BeforeEach
     void setUp() {
         mongo = mock(MongoOperations.class);
         when(mongo.find(any(Query.class), eq(AuditLog.class))).thenReturn(List.of());
         when(mongo.count(any(Query.class), eq(AuditLog.class))).thenReturn(0L);
-        service = new AuditLogQueryService(mongo);
+        service = new MongoAuditLogQueryService(mongo);
     }
 
     // ---------- find(): the simple investigation path ----------

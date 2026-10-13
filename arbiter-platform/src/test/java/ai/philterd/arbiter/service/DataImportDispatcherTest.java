@@ -12,20 +12,15 @@ package ai.philterd.arbiter.service;
 import ai.philterd.arbiter.model.BackgroundJob;
 import ai.philterd.arbiter.model.GeneralSettings;
 import ai.philterd.arbiter.repository.BackgroundJobRepository;
+import ai.philterd.arbiter.store.BackgroundJobStore;
 import ai.philterd.arbiter.service.GeneralSettingsService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.dao.DuplicateKeyException;
-import org.springframework.data.mongodb.core.FindAndModifyOptions;
-import org.springframework.data.mongodb.core.MongoOperations;
-import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
 
 import java.time.Instant;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.atMost;
 import static org.mockito.Mockito.mock;
@@ -41,7 +36,7 @@ import static org.mockito.Mockito.when;
 class DataImportDispatcherTest {
 
     private BackgroundJobRepository jobRepository;
-    private MongoOperations mongoOperations;
+    private BackgroundJobStore jobStore;
     private OpenSearchIngestJobService osService;
     private ElasticsearchIngestJobService esService;
     private LocalDirectoryIngestJobService localService;
@@ -53,7 +48,7 @@ class DataImportDispatcherTest {
     @BeforeEach
     void setUp() {
         jobRepository = mock(BackgroundJobRepository.class);
-        mongoOperations = mock(MongoOperations.class);
+        jobStore = mock(BackgroundJobStore.class);
         osService = mock(OpenSearchIngestJobService.class);
         esService = mock(ElasticsearchIngestJobService.class);
         localService = mock(LocalDirectoryIngestJobService.class);
@@ -62,7 +57,7 @@ class DataImportDispatcherTest {
         settingsService = mock(GeneralSettingsService.class);
         // Default: limit = 5 unless a test overrides.
         when(settingsService.load()).thenReturn(settingsWithLimit(5));
-        dispatcher = new DataImportDispatcher(jobRepository, mongoOperations,
+        dispatcher = new DataImportDispatcher(jobRepository, jobStore,
                 osService, esService, localService, s3Service, rdbService, settingsService);
     }
 
@@ -89,9 +84,7 @@ class DataImportDispatcherTest {
 
         dispatcher.dispatch();
 
-        verify(mongoOperations, never())
-                .findAndModify(any(Query.class), any(Update.class),
-                        any(FindAndModifyOptions.class), eq(BackgroundJob.class));
+        verify(jobStore, never()).claimPending(any());
     }
 
     @Test
@@ -103,9 +96,8 @@ class DataImportDispatcherTest {
         when(settingsService.load()).thenReturn(settingsWithLimit(2));
         when(jobRepository.findByStatusAndTypeInOrderByCreatedAtAsc(any(), any()))
                 .thenReturn(List.of(a, b, c));
-        when(mongoOperations.count(any(Query.class), eq(BackgroundJob.class))).thenReturn(0L);
-        when(mongoOperations.findAndModify(any(Query.class), any(Update.class),
-                any(FindAndModifyOptions.class), eq(BackgroundJob.class)))
+        when(jobStore.countRunning(any())).thenReturn(0L);
+        when(jobStore.claimPending(any()))
                 .thenAnswer(inv -> {
                     // Echo back a RUNNING job so the worker has something to dispatch on.
                     final BackgroundJob running = pendingJob("claimed", "batchA",
@@ -116,10 +108,8 @@ class DataImportDispatcherTest {
 
         dispatcher.dispatch();
 
-        verify(mongoOperations, atMost(2)).findAndModify(any(Query.class), any(Update.class),
-                any(FindAndModifyOptions.class), eq(BackgroundJob.class));
-        verify(mongoOperations, atLeastOnce()).findAndModify(any(Query.class), any(Update.class),
-                any(FindAndModifyOptions.class), eq(BackgroundJob.class));
+        verify(jobStore, atMost(2)).claimPending(any());
+        verify(jobStore, atLeastOnce()).claimPending(any());
     }
 
     @Test
@@ -129,12 +119,11 @@ class DataImportDispatcherTest {
         when(settingsService.load()).thenReturn(settingsWithLimit(3));
         when(jobRepository.findByStatusAndTypeInOrderByCreatedAtAsc(any(), any()))
                 .thenReturn(List.of(a));
-        when(mongoOperations.count(any(Query.class), eq(BackgroundJob.class))).thenReturn(3L);
+        when(jobStore.countRunning(any())).thenReturn(3L);
 
         dispatcher.dispatch();
 
-        verify(mongoOperations, never()).findAndModify(any(Query.class), any(Update.class),
-                any(FindAndModifyOptions.class), eq(BackgroundJob.class));
+        verify(jobStore, never()).claimPending(any());
     }
 
     @Test
@@ -145,9 +134,8 @@ class DataImportDispatcherTest {
         when(settingsService.load()).thenReturn(settingsWithLimit(10));
         when(jobRepository.findByStatusAndTypeInOrderByCreatedAtAsc(any(), any()))
                 .thenReturn(List.of(a1, a2));
-        when(mongoOperations.count(any(Query.class), eq(BackgroundJob.class))).thenReturn(0L);
-        when(mongoOperations.findAndModify(any(Query.class), any(Update.class),
-                any(FindAndModifyOptions.class), eq(BackgroundJob.class)))
+        when(jobStore.countRunning(any())).thenReturn(0L);
+        when(jobStore.claimPending(any()))
                 .thenAnswer(inv -> {
                     final BackgroundJob running = pendingJob("a1", "batchA",
                             BackgroundJob.TYPE_OPENSEARCH_INGEST);
@@ -157,23 +145,20 @@ class DataImportDispatcherTest {
 
         dispatcher.dispatch();
 
-        verify(mongoOperations).findAndModify(any(Query.class), any(Update.class),
-                any(FindAndModifyOptions.class), eq(BackgroundJob.class));
+        verify(jobStore).claimPending(any());
     }
 
     @Test
-    void duplicateKeyExceptionLeavesJobPending() {
-        // Mongo throws on the partial unique index — dispatcher must swallow it and not
-        // submit anything to the worker pool. (Without the catch this would propagate
-        // out of the @Scheduled method, which Spring would log noisily.)
+    void refusedClaimLeavesJobPending() {
+        // The store refuses the claim when another import is RUNNING for the batch;
+        // nothing is submitted to the worker pool.
         final BackgroundJob a = pendingJob("a", "batchA", BackgroundJob.TYPE_OPENSEARCH_INGEST);
         when(settingsService.load()).thenReturn(settingsWithLimit(5));
         when(jobRepository.findByStatusAndTypeInOrderByCreatedAtAsc(any(), any()))
                 .thenReturn(List.of(a));
-        when(mongoOperations.count(any(Query.class), eq(BackgroundJob.class))).thenReturn(0L);
-        when(mongoOperations.findAndModify(any(Query.class), any(Update.class),
-                any(FindAndModifyOptions.class), eq(BackgroundJob.class)))
-                .thenThrow(new DuplicateKeyException("E11000 duplicate key"));
+        when(jobStore.countRunning(any())).thenReturn(0L);
+        when(jobStore.claimPending(any()))
+                .thenReturn(null);
 
         dispatcher.dispatch();
 
@@ -187,9 +172,8 @@ class DataImportDispatcherTest {
         when(settingsService.load()).thenReturn(settingsWithLimit(5));
         when(jobRepository.findByStatusAndTypeInOrderByCreatedAtAsc(any(), any()))
                 .thenReturn(List.of(a));
-        when(mongoOperations.count(any(Query.class), eq(BackgroundJob.class))).thenReturn(0L);
-        when(mongoOperations.findAndModify(any(Query.class), any(Update.class),
-                any(FindAndModifyOptions.class), eq(BackgroundJob.class)))
+        when(jobStore.countRunning(any())).thenReturn(0L);
+        when(jobStore.claimPending(any()))
                 .thenAnswer(inv -> {
                     final BackgroundJob running = pendingJob("a", "batchA",
                             BackgroundJob.TYPE_ELASTICSEARCH_INGEST);

@@ -41,6 +41,8 @@
         <phileas.version>3.3.0</phileas.version>
         <commons-lang3.version>3.18.0</commons-lang3.version>
         <awssdk.version>2.25.50</awssdk.version>
+        <!-- Newer than Spring Boot's managed version, for SQLite security fixes. -->
+        <sqlite-jdbc.version>3.53.4.0</sqlite-jdbc.version>
     </properties>
     <dependencyManagement>
         <dependencies>

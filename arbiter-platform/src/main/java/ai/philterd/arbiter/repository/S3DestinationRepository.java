@@ -10,12 +10,11 @@
 package ai.philterd.arbiter.repository;
 
 import ai.philterd.arbiter.model.S3Destination;
-import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
 @Repository
-public interface S3DestinationRepository extends MongoRepository<S3Destination, String> {
+public interface S3DestinationRepository extends ArbiterRepository<S3Destination, String> {
     Optional<S3Destination> findFirstByNameIgnoreCase(String name);
 }

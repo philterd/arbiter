@@ -40,7 +40,7 @@ class PhilterClientImplTest {
 
     private static final String EXPLAIN_BODY = """
             {"filteredText":"SSN {{{REDACTED-ssn}}} here","context":"ctx","documentId":"d1",
-             "explanation":{"appliedSpans":[{"characterStart":4,"characterEnd":15,"filterType":"ssn",
+             "explanation":{"appliedSpans":[{"characterStart":4,"characterEnd":15,"filterType":"SSN",
              "confidence":0.9,"text":"123-45-6789"}],"ignoredSpans":[]}}
             """;
 
@@ -71,7 +71,7 @@ class PhilterClientImplTest {
     }
 
     private PhilterClient client(final String apiKey, final String policy) {
-        return new DefaultPhilterClientFactory()
+        return new DefaultPhilterClientFactory(PhilterTlsConfig.none())
                 .create("http://127.0.0.1:" + server.getAddress().getPort(), apiKey, policy);
     }
 
@@ -122,6 +122,34 @@ class PhilterClientImplTest {
         assertTrue(e.getMessage().contains("policy_not_found"));
         assertFalse(e.getMessage().contains("no\""));
         assertEquals(null, e.getCause());
+    }
+
+    @Test
+    void philterEnumNamesMapToPhileasTypes() {
+        assertEquals("ip-address", PhilterClientImpl.type(span("IP_ADDRESS")));
+        assertEquals("id", PhilterClientImpl.type(span("IDENTIFIER")));
+        assertEquals("person", PhilterClientImpl.type(span("PERSON")));
+        assertEquals("new-type", PhilterClientImpl.type(span("NEW_TYPE")));
+        assertEquals("other", PhilterClientImpl.type(span(null)));
+    }
+
+    @Test
+    void factoryReusesSdkClientPerInstanceAndKey() throws IOException {
+        final DefaultPhilterClientFactory factory = new DefaultPhilterClientFactory(PhilterTlsConfig.none());
+        final String url = "http://127.0.0.1:" + server.getAddress().getPort();
+        factory.create(url, "a", "p1").explain(TEXT, "ctx");
+        assertEquals("Bearer a", authorization.get());
+        factory.create(url, "b", "p1").explain(TEXT, "ctx");
+        assertEquals("Bearer b", authorization.get());
+        factory.create(url, "a", "p2").explain(TEXT, "ctx");
+        assertEquals("Bearer a", authorization.get());
+        assertTrue(query.get().contains("p=p2"));
+    }
+
+    private static ai.philterd.philter.model.Span span(final String filterType) {
+        final ai.philterd.philter.model.Span span = new ai.philterd.philter.model.Span();
+        span.setFilterType(filterType);
+        return span;
     }
 
     @Test

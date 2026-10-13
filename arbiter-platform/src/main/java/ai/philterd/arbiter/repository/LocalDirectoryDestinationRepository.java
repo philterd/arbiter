@@ -10,12 +10,11 @@
 package ai.philterd.arbiter.repository;
 
 import ai.philterd.arbiter.model.LocalDirectoryDestination;
-import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
 
 @Repository
-public interface LocalDirectoryDestinationRepository extends MongoRepository<LocalDirectoryDestination, String> {
+public interface LocalDirectoryDestinationRepository extends ArbiterRepository<LocalDirectoryDestination, String> {
     Optional<LocalDirectoryDestination> findFirstByNameIgnoreCase(String name);
 }

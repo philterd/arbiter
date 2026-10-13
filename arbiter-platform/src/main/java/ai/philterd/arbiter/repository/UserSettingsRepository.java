@@ -10,9 +10,8 @@
 package ai.philterd.arbiter.repository;
 
 import ai.philterd.arbiter.model.UserSettings;
-import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.stereotype.Repository;
 
 @Repository
-public interface UserSettingsRepository extends MongoRepository<UserSettings, String> {
+public interface UserSettingsRepository extends ArbiterRepository<UserSettings, String> {
 }

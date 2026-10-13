@@ -52,7 +52,14 @@ business logic. The runtime per-request upload limit lives under
 **Admin → General**; that limit is the one operators normally adjust. The
 ceiling here only kicks in if an admin raises the runtime limit above 100 MB.
 
-## MongoDB
+## Database
+
+### `arbiter.store`
+
+Which database Arbiter uses: `mongodb` (the default) or `sqlite`. The SQLite
+settings (`arbiter.sqlite.path`, `arbiter.sqlite.pool-size`,
+`arbiter.sqlite.busy-timeout-ms`, `arbiter.sqlite.synchronous`) are described
+in [Database](database.md#sqlite). The settings below apply to MongoDB.
 
 ### `spring.data.mongodb.uri`
 
@@ -159,6 +166,32 @@ through configuration. When no default instance is configured, Arbiter falls
 back to its bundled redaction engine. There is nothing to set in
 `application.properties` to enable or disable this — it is driven entirely by
 the admin UI.
+
+### TLS and client certificates
+
+When an instance's endpoint starts with `https://`, Arbiter verifies Philter's
+certificate, including that it names the endpoint's host. Two optional
+settings apply to every Philter instance:
+
+| Property | Purpose |
+| -------- | ------- |
+| `arbiter.philter.tls.trust-store` | A PKCS12 or JKS trust store holding the certificate authority (or self-signed certificate) to trust for Philter, in place of the JVM's default trust store. |
+| `arbiter.philter.tls.trust-store-password` | The trust store's password, if it has one. |
+| `arbiter.philter.tls.key-store` | A PKCS12 or JKS keystore holding a client certificate and its private key, presented to Philter for mutual TLS. |
+| `arbiter.philter.tls.key-store-password` | The keystore's password, which must also be the private key's password. Leave it empty only for a keystore without one; a missing or wrong password stops Arbiter at startup. |
+
+Set the passwords through environment variables (for example
+`ARBITER_PHILTER_TLS_KEY_STORE_PASSWORD`) or a secrets mechanism rather than
+in `application.properties`. Mount the store files read-only.
+
+Arbiter reads the stores when it starts and refuses to start if a file is
+missing, can't be opened with its password, or holds no usable key or
+certificate. The error names the file, never the password. Build a trust store
+with `keytool -importcert`; a PKCS12 trust store made with `openssl pkcs12`
+reads as empty in Java.
+
+Mutual TLS is enforced on the Philter side, by Philter or by a TLS proxy in
+front of it that requires client certificates.
 
 ## Data-source allow-list
 

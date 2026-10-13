@@ -11,19 +11,13 @@ package ai.philterd.arbiter.service;
 
 import ai.philterd.arbiter.model.BackgroundJob;
 import ai.philterd.arbiter.repository.BackgroundJobRepository;
+import ai.philterd.arbiter.store.BackgroundJobStore;
 import ai.philterd.arbiter.service.GeneralSettingsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DuplicateKeyException;
-import org.springframework.data.mongodb.core.FindAndModifyOptions;
-import org.springframework.data.mongodb.core.MongoOperations;
-import org.springframework.data.mongodb.core.query.Criteria;
-import org.springframework.data.mongodb.core.query.Query;
-import org.springframework.data.mongodb.core.query.Update;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -36,9 +30,9 @@ import java.util.concurrent.Executors;
  * each waiting for the prior to finish.
  *
  * <p>The dispatcher runs on a periodic poll. For each PENDING data-import job
- * (oldest first) it attempts a {@code findAndModify} from PENDING to RUNNING. The
- * {@code uniq_running_data_import_per_batch} partial unique index on
- * {@link BackgroundJob} causes the update to fail with {@code DuplicateKeyException}
+ * (oldest first) it attempts an atomic PENDING to RUNNING claim through
+ * {@link BackgroundJobStore}. The {@code uniq_running_data_import_per_batch} partial
+ * unique index on {@link BackgroundJob} makes the store refuse the claim
  * when another RUNNING job already exists for that batch — the job simply remains
  * PENDING and the dispatcher tries again on the next tick. This pattern is
  * multi-replica safe: any number of replicas can run the dispatcher and the index
@@ -57,7 +51,7 @@ public class DataImportDispatcher {
             BackgroundJob.TYPE_RDB_INGEST);
 
     private final BackgroundJobRepository jobRepository;
-    private final MongoOperations mongoOperations;
+    private final BackgroundJobStore jobStore;
     private final OpenSearchIngestJobService osService;
     private final ElasticsearchIngestJobService esService;
     private final LocalDirectoryIngestJobService localService;
@@ -72,7 +66,7 @@ public class DataImportDispatcher {
     private final ExecutorService workerPool;
 
     public DataImportDispatcher(final BackgroundJobRepository jobRepository,
-                                final MongoOperations mongoOperations,
+                                final BackgroundJobStore jobStore,
                                 final OpenSearchIngestJobService osService,
                                 final ElasticsearchIngestJobService esService,
                                 final LocalDirectoryIngestJobService localService,
@@ -80,7 +74,7 @@ public class DataImportDispatcher {
                                 final RdbIngestJobService rdbService,
                                 final GeneralSettingsService generalSettingsService) {
         this.jobRepository = jobRepository;
-        this.mongoOperations = mongoOperations;
+        this.jobStore = jobStore;
         this.osService = osService;
         this.esService = esService;
         this.localService = localService;
@@ -104,13 +98,10 @@ public class DataImportDispatcher {
         if (pending.isEmpty()) return;
 
         // The admin-controlled global ceiling on concurrent data-import jobs. Any
-        // RUNNING jobs already in flight count against the budget. Counting via Mongo
+        // RUNNING jobs already in flight count against the budget. Counting in the store
         // (rather than an in-memory tally) keeps this multi-replica safe.
         final int limit = generalSettingsService.load().getMaxConcurrentDataImports();
-        final long currentRunning = mongoOperations.count(
-                Query.query(Criteria.where("status").is(BackgroundJob.STATUS_RUNNING)
-                        .and("type").in(DATA_IMPORT_TYPES)),
-                BackgroundJob.class);
+        final long currentRunning = jobStore.countRunning(DATA_IMPORT_TYPES);
         int slotsRemaining = (int) Math.max(0L, limit - currentRunning);
         if (slotsRemaining == 0) return;
 
@@ -141,19 +132,11 @@ public class DataImportDispatcher {
      * rejects the transition because another job is already RUNNING for the batch.
      */
     private BackgroundJob tryClaim(final String jobId) {
-        try {
-            final Query q = Query.query(Criteria.where("_id").is(jobId)
-                    .and("status").is(BackgroundJob.STATUS_PENDING));
-            final Update u = new Update()
-                    .set("status", BackgroundJob.STATUS_RUNNING)
-                    .set("startedAt", Instant.now());
-            return mongoOperations.findAndModify(q, u,
-                    FindAndModifyOptions.options().returnNew(true), BackgroundJob.class);
-        } catch (DuplicateKeyException e) {
-            log.debug("Job {} could not be claimed — another RUNNING import exists for the batch.",
-                    jobId);
-            return null;
+        final BackgroundJob claimed = jobStore.claimPending(jobId);
+        if (claimed == null) {
+            log.debug("Job {} was not claimed: already taken, or another import is RUNNING for the batch.", jobId);
         }
+        return claimed;
     }
 
     private void runClaimed(final BackgroundJob job) {

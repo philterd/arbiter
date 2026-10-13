@@ -17,6 +17,7 @@ package ai.philterd.arbiter.philter;
 
 import ai.philterd.arbiter.core.model.Redaction;
 import ai.philterd.arbiter.core.model.RedactionResponse;
+import ai.philterd.phileas.model.filtering.FilterType;
 import ai.philterd.philter.model.ExplainResponse;
 import ai.philterd.philter.model.Span;
 import org.slf4j.Logger;
@@ -59,7 +60,7 @@ public class PhilterClientImpl implements PhilterClient {
         for (Span span : appliedSpans(callExplain(text, context))) {
             final Map<String, Object> map = new HashMap<>();
             map.put("text", span.getText());
-            map.put("type", span.getFilterType());
+            map.put("type", type(span));
             map.put("characterStart", span.getCharacterStart());
             map.put("characterEnd", span.getCharacterEnd());
             map.put("confidence", span.getConfidence());
@@ -86,7 +87,7 @@ public class PhilterClientImpl implements PhilterClient {
         final StringBuilder sb = new StringBuilder(text);
         int offset = 0;
         for (Span span : spans) {
-            final String type = span.getFilterType();
+            final String type = type(span);
             final String replacement = type.toUpperCase();
             final int start = span.getCharacterStart();
             final int end = span.getCharacterEnd();
@@ -124,6 +125,19 @@ public class PhilterClientImpl implements PhilterClient {
             return List.of();
         }
         return response.getExplanation().getAppliedSpans();
+    }
+
+    /** Philter sends the enum name ({@code IP_ADDRESS}); Arbiter uses the Phileas type ({@code ip-address}). */
+    static String type(final Span span) {
+        final String name = span.getFilterType();
+        if (name == null) {
+            return FilterType.OTHER.getType();
+        }
+        try {
+            return FilterType.valueOf(name).getType();
+        } catch (IllegalArgumentException e) {
+            return name.toLowerCase(java.util.Locale.ROOT).replace('_', '-');
+        }
     }
 
     private static String blankToNull(final String s) {

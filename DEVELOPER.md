@@ -10,7 +10,7 @@ Three Maven modules, dependency order top-to-bottom:
 | Module             | Owns                                                                  |
 | ------------------ | --------------------------------------------------------------------- |
 | `arbiter-domain`   | POJOs: `model/`, `dto/`, `util/`, `core/model/`, `philter/`           |
-| `arbiter-platform` | Spring services and Mongo repositories. No controllers                |
+| `arbiter-platform` | Spring services, repositories, and the MongoDB and SQLite stores. No controllers |
 | `arbiter-webapp`   | Spring Boot entry point, MVC + REST controllers, security, templates  |
 
 Module boundaries are organisational, not visibility — `@ComponentScan`
@@ -21,7 +21,8 @@ covers `ai.philterd.arbiter` regardless of where a class compiles from.
 ```sh
 mvn package                 # full reactor build
 mvn test                    # all modules
-docker compose -f docker-compose.yaml up --build   # full stack: Mongo + OpenSearch + ES + Valkey + app on :8080
+docker compose -f docker-compose.yaml up --build   # full stack: OpenSearch + ES + Valkey + app on :8080, SQLite store
+ARBITER_STORE=mongodb docker compose -f docker-compose.yaml --profile mongodb up --build   # same, on MongoDB
 ./build-image.sh            # multi-arch (amd64 + arm64) image, tagged with the pom version
 ./push-image.sh             # publish it to philterd/arbiter, by hand
 ```
@@ -34,16 +35,19 @@ tag matches what the jar reports at `/api/health`. Nothing publishes an
 image automatically: run `push-image.sh` yourself from a machine holding the
 Docker Hub credential. Set `ARCHES=amd64` to build just one architecture.
 
-Running the webapp from the IDE needs at least Mongo and Valkey reachable:
+Running the webapp from the IDE needs Valkey reachable, plus MongoDB unless
+you set `ARBITER_STORE=sqlite`:
 
 ```sh
-docker compose -f docker-compose.yaml up -d mongodb valkey
-# then run ai.philterd.arbiter.webapp.ArbiterApplication
+docker compose -f docker-compose.yaml up -d valkey
+# then run ai.philterd.arbiter.webapp.ArbiterApplication with ARBITER_STORE=sqlite,
+# or start MongoDB too and keep the default store:
+docker compose -f docker-compose.yaml --profile mongodb up -d mongodb valkey
 ```
 
 Defaults in `arbiter-webapp/src/main/resources/application.properties`
 point at `localhost`; the only env vars worth knowing about are
-`SPRING_DATA_MONGODB_URI`, `SPRING_DATA_REDIS_HOST`/`_PORT`, and
+`ARBITER_STORE`, `SPRING_DATA_MONGODB_URI`, `SPRING_DATA_REDIS_HOST`/`_PORT`, and
 **`arbiter.crypto.secret`** (now required: base64 of 32 random bytes,
 e.g. `openssl rand -base64 32`; Arbiter refuses to start if it isn't
 set or has the wrong shape). The OpenSearch endpoint used for
@@ -63,10 +67,18 @@ A few patterns that bite:
   `auto-index-creation=true`, Spring tries to create every repo's
   indexes on context load and fails if one is unmocked. Copy the list
   from `AuthorizationIntegrationTest`.
-- **Spring Data Mongo can't compose two predicates on the same
-  property** in method-name queries (`...AfterAndPropertyLessThanEqual`
-  fails at runtime). Use the Criteria builder for ranges:
-  `Criteria.where("createdAt").gt(start).lte(end)`.
+- **Repositories must work on both stores.** They extend
+  `ArbiterRepository` and declare derived queries only; a MongoDB
+  `@Query` string is refused by the SQLite store. Anything a derived query
+  can't express (ranges on one field, atomic status flips, partial updates)
+  goes in a store interface under `store/` with a MongoDB implementation in
+  `store/mongo` and a SQLite one in `store/sqlite`. `SqliteRepositoriesTest`
+  creates every repository on a real SQLite file, so an unsupported derived
+  query fails the build.
+- **Changing an index definition needs a new index name.** Both stores read
+  `@Indexed` and `@CompoundIndex`, and the SQLite store creates indexes with
+  `CREATE INDEX IF NOT EXISTS`, so an existing index keeps its old
+  definition until it is renamed (or dropped by hand).
 - For executor-driven verifications, prefer
   `verify(mock, timeout(2000)).method(...)` over `Thread.sleep`.
 
@@ -75,9 +87,10 @@ A few patterns that bite:
 When adding similar functionality, follow the existing patterns —
 they're load-bearing.
 
-- **Atomic Mongo claims** for shared queues: see `IngestQueueService`
-  and `DataImportDispatcher`. `findAndModify` flips a status field;
-  multi-replica safe.
+- **Atomic claims** for shared queues: see `DocumentQueueStore` and
+  `BackgroundJobStore`. A single conditional update flips a status field
+  (`findAndModify` on MongoDB, `UPDATE ... RETURNING` on SQLite), so
+  concurrent workers never both win.
 - **Partial unique indexes** for "at most one in-flight" rules: see
   `BackgroundJob`'s `uniq_running_data_import_per_batch`. Race-collide
   on the index, catch `DuplicateKeyException`, treat as "someone else

@@ -17,7 +17,10 @@ import ai.philterd.arbiter.model.Span;
 import org.springframework.data.mongodb.core.mapping.event.AfterConvertCallback;
 import org.springframework.data.mongodb.core.mapping.event.AfterSaveCallback;
 import org.springframework.data.mongodb.core.mapping.event.BeforeConvertCallback;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+
+import java.util.function.UnaryOperator;
 
 /**
  * Field-level encryption for PII-bearing values stored in MongoDB. The classes in this
@@ -40,19 +43,15 @@ import org.springframework.stereotype.Component;
  * </ul>
  *
  * <h3>How it works</h3>
- * <p>Each of the three callback classes registered below implements three Spring Data
- * Mongo lifecycle callbacks:
+ * <p>{@link #encrypt} and {@link #decrypt} hold the field list and are store-neutral.
+ * Each store calls them around its writes and reads; for MongoDB, the callback classes
+ * below do so from Spring Data's lifecycle callbacks:
  * <ul>
- *     <li><strong>BeforeConvertCallback</strong> — fires on save just before the entity is
- *         turned into BSON. The callback substitutes encrypted ciphertext into the entity
- *         so the wire format Mongo writes is the encrypted blob.</li>
- *     <li><strong>AfterSaveCallback</strong> — fires after the write completes. The
- *         callback restores plaintext on the in-memory entity so the caller's reference
- *         is still usable for further reads (it would otherwise hold the ciphertext that
- *         BeforeConvert wrote into it).</li>
- *     <li><strong>AfterConvertCallback</strong> — fires after a Mongo find completes and
- *         BSON has been turned back into an entity. The callback decrypts the stored
- *         fields so callers see plaintext as if encryption never happened.</li>
+ *     <li><strong>BeforeConvertCallback</strong> encrypts just before the entity is turned
+ *         into BSON, so Mongo writes ciphertext.</li>
+ *     <li><strong>AfterSaveCallback</strong> restores plaintext on the caller's entity, which
+ *         would otherwise hold the ciphertext written into it.</li>
+ *     <li><strong>AfterConvertCallback</strong> decrypts every entity read back.</li>
  * </ul>
  *
  * <h3>Backwards compatibility</h3>
@@ -66,76 +65,90 @@ public final class PiiFieldEncryption {
 
     private PiiFieldEncryption() {}
 
-    /** Lifecycle callbacks that wrap Document save/load with PII encryption. */
-    @Component
-    public static class DocumentCallbacks
-            implements BeforeConvertCallback<Document>,
-                       AfterSaveCallback<Document>,
-                       AfterConvertCallback<Document> {
+    /**
+     * Encrypt the PII fields of {@code entity} in place. Entities with no PII fields are left
+     * alone. Every store calls this before writing an entity.
+     */
+    public static void encrypt(final SymmetricCipher cipher, final Object entity) {
+        apply(entity, cipher::encryptField);
+    }
+
+    /** Decrypt the PII fields of {@code entity} in place. Every store calls this after reading or writing an entity. */
+    public static void decrypt(final SymmetricCipher cipher, final Object entity) {
+        apply(entity, cipher::decryptField);
+    }
+
+    private static void apply(final Object entity, final UnaryOperator<String> f) {
+        if (entity instanceof Document d) {
+            d.setOriginalText(f.apply(d.getOriginalText()));
+            d.setRedactedText(f.apply(d.getRedactedText()));
+            d.setFailureMessage(f.apply(d.getFailureMessage()));
+        } else if (entity instanceof Span sp) {
+            sp.setText(f.apply(sp.getText()));
+        } else if (entity instanceof GeneralSettings g) {
+            g.setOpensearchPassword(f.apply(g.getOpensearchPassword()));
+        } else if (entity instanceof DocumentComment c) {
+            c.setText(f.apply(c.getText()));
+        } else if (entity instanceof RedactionCertificate rc) {
+            rc.setDocumentFilename(f.apply(rc.getDocumentFilename()));
+            if (rc.getOverturns() != null) {
+                for (RedactionCertificate.OverturnEntry o : rc.getOverturns()) {
+                    o.setSpanText(f.apply(o.getSpanText()));
+                }
+            }
+        }
+    }
+
+    /**
+     * MongoDB lifecycle callbacks around {@link #encrypt} and {@link #decrypt}: encrypt before
+     * the entity is turned into BSON, then restore plaintext on the caller's entity after the
+     * save, and decrypt every entity read back.
+     */
+    abstract static class MongoCallbacks<T>
+            implements BeforeConvertCallback<T>, AfterSaveCallback<T>, AfterConvertCallback<T> {
 
         private final SymmetricCipher cipher;
 
-        public DocumentCallbacks(final SymmetricCipher cipher) {
+        MongoCallbacks(final SymmetricCipher cipher) {
             this.cipher = cipher;
         }
 
         @Override
-        public Document onBeforeConvert(final Document entity, final String collection) {
-            entity.setOriginalText(cipher.encryptField(entity.getOriginalText()));
-            entity.setRedactedText(cipher.encryptField(entity.getRedactedText()));
-            entity.setFailureMessage(cipher.encryptField(entity.getFailureMessage()));
+        public T onBeforeConvert(final T entity, final String collection) {
+            encrypt(cipher, entity);
             return entity;
         }
 
         @Override
-        public Document onAfterSave(final Document entity, final org.bson.Document document, final String collection) {
-            // The save mutated the entity to ciphertext via BeforeConvert; restore the
-            // plaintext view so a caller that re-reads the same reference sees what they
-            // originally set.
-            entity.setOriginalText(cipher.decryptField(entity.getOriginalText()));
-            entity.setRedactedText(cipher.decryptField(entity.getRedactedText()));
-            entity.setFailureMessage(cipher.decryptField(entity.getFailureMessage()));
+        public T onAfterSave(final T entity, final org.bson.Document document, final String collection) {
+            decrypt(cipher, entity);
             return entity;
         }
 
         @Override
-        public Document onAfterConvert(final Document entity, final org.bson.Document document, final String collection) {
-            entity.setOriginalText(cipher.decryptField(entity.getOriginalText()));
-            entity.setRedactedText(cipher.decryptField(entity.getRedactedText()));
-            entity.setFailureMessage(cipher.decryptField(entity.getFailureMessage()));
+        public T onAfterConvert(final T entity, final org.bson.Document document, final String collection) {
+            decrypt(cipher, entity);
             return entity;
+        }
+    }
+
+    /** Lifecycle callbacks that wrap Document save/load with PII encryption. */
+    @Component
+    @ConditionalOnProperty(prefix = "arbiter", name = "store", havingValue = "mongodb", matchIfMissing = true)
+    public static class DocumentCallbacks extends MongoCallbacks<Document> {
+
+        public DocumentCallbacks(final SymmetricCipher cipher) {
+            super(cipher);
         }
     }
 
     /** Lifecycle callbacks that wrap Span save/load with PII encryption. */
     @Component
-    public static class SpanCallbacks
-            implements BeforeConvertCallback<Span>,
-                       AfterSaveCallback<Span>,
-                       AfterConvertCallback<Span> {
-
-        private final SymmetricCipher cipher;
+    @ConditionalOnProperty(prefix = "arbiter", name = "store", havingValue = "mongodb", matchIfMissing = true)
+    public static class SpanCallbacks extends MongoCallbacks<Span> {
 
         public SpanCallbacks(final SymmetricCipher cipher) {
-            this.cipher = cipher;
-        }
-
-        @Override
-        public Span onBeforeConvert(final Span entity, final String collection) {
-            entity.setText(cipher.encryptField(entity.getText()));
-            return entity;
-        }
-
-        @Override
-        public Span onAfterSave(final Span entity, final org.bson.Document document, final String collection) {
-            entity.setText(cipher.decryptField(entity.getText()));
-            return entity;
-        }
-
-        @Override
-        public Span onAfterConvert(final Span entity, final org.bson.Document document, final String collection) {
-            entity.setText(cipher.decryptField(entity.getText()));
-            return entity;
+            super(cipher);
         }
     }
 
@@ -146,65 +159,21 @@ public final class PiiFieldEncryption {
      * same {@code enc:v1:} marker-prefix scheme.
      */
     @Component
-    public static class GeneralSettingsCallbacks
-            implements BeforeConvertCallback<GeneralSettings>,
-                       AfterSaveCallback<GeneralSettings>,
-                       AfterConvertCallback<GeneralSettings> {
-
-        private final SymmetricCipher cipher;
+    @ConditionalOnProperty(prefix = "arbiter", name = "store", havingValue = "mongodb", matchIfMissing = true)
+    public static class GeneralSettingsCallbacks extends MongoCallbacks<GeneralSettings> {
 
         public GeneralSettingsCallbacks(final SymmetricCipher cipher) {
-            this.cipher = cipher;
-        }
-
-        @Override
-        public GeneralSettings onBeforeConvert(final GeneralSettings entity, final String collection) {
-            entity.setOpensearchPassword(cipher.encryptField(entity.getOpensearchPassword()));
-            return entity;
-        }
-
-        @Override
-        public GeneralSettings onAfterSave(final GeneralSettings entity, final org.bson.Document document, final String collection) {
-            entity.setOpensearchPassword(cipher.decryptField(entity.getOpensearchPassword()));
-            return entity;
-        }
-
-        @Override
-        public GeneralSettings onAfterConvert(final GeneralSettings entity, final org.bson.Document document, final String collection) {
-            entity.setOpensearchPassword(cipher.decryptField(entity.getOpensearchPassword()));
-            return entity;
+            super(cipher);
         }
     }
 
     /** Lifecycle callbacks that wrap DocumentComment save/load with PII encryption. */
     @Component
-    public static class DocumentCommentCallbacks
-            implements BeforeConvertCallback<DocumentComment>,
-                       AfterSaveCallback<DocumentComment>,
-                       AfterConvertCallback<DocumentComment> {
-
-        private final SymmetricCipher cipher;
+    @ConditionalOnProperty(prefix = "arbiter", name = "store", havingValue = "mongodb", matchIfMissing = true)
+    public static class DocumentCommentCallbacks extends MongoCallbacks<DocumentComment> {
 
         public DocumentCommentCallbacks(final SymmetricCipher cipher) {
-            this.cipher = cipher;
-        }
-
-        @Override
-        public DocumentComment onBeforeConvert(final DocumentComment entity, final String collection) {
-            entity.setText(cipher.encryptField(entity.getText()));
-            return entity;
-        }
-
-        @Override
-        public DocumentComment onAfterSave(final DocumentComment entity, final org.bson.Document document, final String collection) {
-            entity.setText(cipher.decryptField(entity.getText()));
-            return entity;
-        }
-
-        @Override
-        public DocumentComment onAfterConvert(final DocumentComment entity, final org.bson.Document document, final String collection) {
-            entity.setText(cipher.decryptField(entity.getText()));
-            return entity;
+            super(cipher);
         }
     }
 
@@ -218,48 +187,11 @@ public final class PiiFieldEncryption {
      * envelope for the denormalised copy. R2-F6 fix.
      */
     @Component
-    public static class RedactionCertificateCallbacks
-            implements BeforeConvertCallback<RedactionCertificate>,
-                       AfterSaveCallback<RedactionCertificate>,
-                       AfterConvertCallback<RedactionCertificate> {
-
-        private final SymmetricCipher cipher;
+    @ConditionalOnProperty(prefix = "arbiter", name = "store", havingValue = "mongodb", matchIfMissing = true)
+    public static class RedactionCertificateCallbacks extends MongoCallbacks<RedactionCertificate> {
 
         public RedactionCertificateCallbacks(final SymmetricCipher cipher) {
-            this.cipher = cipher;
-        }
-
-        @Override
-        public RedactionCertificate onBeforeConvert(final RedactionCertificate entity, final String collection) {
-            entity.setDocumentFilename(cipher.encryptField(entity.getDocumentFilename()));
-            if (entity.getOverturns() != null) {
-                for (RedactionCertificate.OverturnEntry o : entity.getOverturns()) {
-                    o.setSpanText(cipher.encryptField(o.getSpanText()));
-                }
-            }
-            return entity;
-        }
-
-        @Override
-        public RedactionCertificate onAfterSave(final RedactionCertificate entity, final org.bson.Document document, final String collection) {
-            entity.setDocumentFilename(cipher.decryptField(entity.getDocumentFilename()));
-            if (entity.getOverturns() != null) {
-                for (RedactionCertificate.OverturnEntry o : entity.getOverturns()) {
-                    o.setSpanText(cipher.decryptField(o.getSpanText()));
-                }
-            }
-            return entity;
-        }
-
-        @Override
-        public RedactionCertificate onAfterConvert(final RedactionCertificate entity, final org.bson.Document document, final String collection) {
-            entity.setDocumentFilename(cipher.decryptField(entity.getDocumentFilename()));
-            if (entity.getOverturns() != null) {
-                for (RedactionCertificate.OverturnEntry o : entity.getOverturns()) {
-                    o.setSpanText(cipher.decryptField(o.getSpanText()));
-                }
-            }
-            return entity;
+            super(cipher);
         }
     }
 }
