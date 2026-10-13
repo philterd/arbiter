@@ -66,7 +66,7 @@ later.
       encrypted. You can change it later from the instance row but not clear it.
 4. Click **Add**. The instance is saved to Arbiter's database.
 5. Click **Test** on the row to confirm Arbiter can reach it. The test calls
-   the instance's health endpoint and reports its Philter version, then, when
+   the instance's `/api/health` endpoint and reports its Philter version, then, when
    an API key is set, makes an authenticated call to confirm Philter accepts
    the key.
 6. Optionally set the row as the **default** so newly created batches start

@@ -191,7 +191,10 @@ with `keytool -importcert`; a PKCS12 trust store made with `openssl pkcs12`
 reads as empty in Java.
 
 Mutual TLS is enforced on the Philter side, by Philter or by a TLS proxy in
-front of it that requires client certificates.
+front of it that requires client certificates. To have Philter require them
+itself, see [Client certificates (mutual TLS)](https://philterd.github.io/philter/latest/settings.html#client-certificates-mutual-tls)
+in Philter's settings. A client certificate does not replace Arbiter's Philter
+API key: Philter still requires the key on every request.
 
 ## Data-source allow-list
 
