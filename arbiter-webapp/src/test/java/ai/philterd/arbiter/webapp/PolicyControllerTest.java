@@ -10,13 +10,19 @@
 package ai.philterd.arbiter.webapp;
 
 import ai.philterd.arbiter.model.Batch;
+import ai.philterd.arbiter.model.PhilterInstance;
 import ai.philterd.arbiter.model.Policy;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import ai.philterd.arbiter.repository.PolicyRepository;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.GeneralSettingsService;
+import ai.philterd.arbiter.service.PhilterInstanceClients;
 import ai.philterd.arbiter.webapp.controllers.PolicyController;
+import ai.philterd.philter.PhilterClient;
+import ai.philterd.philter.model.ListOptions;
+import ai.philterd.philter.model.Page;
+import ai.philterd.philter.model.PolicySummary;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -36,8 +42,11 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.argThat;
+import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -49,6 +58,7 @@ class PolicyControllerTest {
     private AuditLogService auditLogService;
     private GeneralSettingsService generalSettingsService;
     private ai.philterd.arbiter.repository.FinalizationPolicyRepository finalizationPolicyRepository;
+    private PhilterInstanceClients philterInstanceClients;
     private PolicyController controller;
 
     @BeforeEach
@@ -60,9 +70,10 @@ class PolicyControllerTest {
         generalSettingsService = mock(GeneralSettingsService.class);
         finalizationPolicyRepository =
                 mock(ai.philterd.arbiter.repository.FinalizationPolicyRepository.class);
+        philterInstanceClients = mock(PhilterInstanceClients.class);
         controller = new PolicyController(policyRepository, philterInstanceRepository,
                 batchRepository, auditLogService, new ObjectMapper(), generalSettingsService,
-                finalizationPolicyRepository, mock(ai.philterd.arbiter.service.PhilterInstanceClients.class));
+                finalizationPolicyRepository, philterInstanceClients);
     }
 
     private RedirectAttributes flash() {
@@ -305,5 +316,34 @@ class PolicyControllerTest {
 
         final java.util.Map<String, String> result = controller.content("embedded", "my-policy_v2", adminAuth());
         assertEquals("my-policy_v2", result.get("name"));
+    }
+
+    // ---------- remote policy listing ----------
+
+    private static PolicySummary summary(final String name) {
+        final PolicySummary policy = new PolicySummary();
+        policy.setName(name);
+        return policy;
+    }
+
+    @Test
+    void listJsonPagesThroughRemotePolicyNames() throws Exception {
+        final PhilterInstance instance = new PhilterInstance();
+        instance.setId("remote-1");
+        instance.setName("Remote");
+        when(philterInstanceRepository.findById("remote-1")).thenReturn(Optional.of(instance));
+
+        final PhilterClient client = mock(PhilterClient.class);
+        when(philterInstanceClients.client(instance)).thenReturn(client);
+        when(client.listPolicies(isNull(), argThat(o -> o != null && Integer.valueOf(0).equals(o.getOffset()))))
+                .thenReturn(new Page<>(List.of(summary("zeta"), summary("Alpha")), 3));
+        when(client.listPolicies(isNull(), argThat(o -> o != null && Integer.valueOf(2).equals(o.getOffset()))))
+                .thenReturn(new Page<>(List.of(summary("beta")), 3));
+
+        final java.util.Map<String, Object> result = controller.listJson("remote-1", adminAuth());
+
+        assertEquals("remote-1", result.get("instanceId"));
+        assertEquals(List.of("Alpha", "beta", "zeta"), result.get("policies"));
+        verify(client, times(2)).listPolicies(isNull(), any(ListOptions.class));
     }
 }

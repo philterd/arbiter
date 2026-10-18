@@ -28,6 +28,7 @@ import ai.philterd.arbiter.service.PhilterInstanceClients;
 import ai.philterd.arbiter.philter.PhilterClients;
 import ai.philterd.philter.model.ListOptions;
 import ai.philterd.philter.model.Page;
+import ai.philterd.philter.model.PolicySummary;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.PhilterError;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -514,10 +515,12 @@ public class PolicyController {
     private List<String> fetchRemotePolicyNames(final PhilterInstance instance) throws Exception {
         final ai.philterd.philter.PhilterClient client = philterInstanceClients.client(instance);
         final List<String> names = new ArrayList<>();
-        Page<String> page;
+        Page<PolicySummary> page;
         do {
             page = client.listPolicies(null, new ListOptions().offset(names.size()).limit(POLICY_PAGE_SIZE));
-            names.addAll(page.getItems());
+            for (PolicySummary policy : page.getItems()) {
+                names.add(policy.getName());
+            }
         } while (!page.getItems().isEmpty() && names.size() < page.getTotal());
         names.sort(String.CASE_INSENSITIVE_ORDER);
         return names;
