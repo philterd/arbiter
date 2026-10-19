@@ -23,8 +23,10 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class MongoBackgroundJobStoreTest {
@@ -37,6 +39,22 @@ class MongoBackgroundJobStoreTest {
                 .thenThrow(new DuplicateKeyException("E11000 duplicate key"));
 
         assertNull(new MongoBackgroundJobStore(mongo).claimPending("j1"));
+    }
+
+    @Test
+    void s3ClaimRefusedByUniqueIndexStaysPending() {
+        // MongoDB rejects the RUNNING flip with E11000 when the batch already has a running import;
+        // the claim reports no winner and leaves the S3 job PENDING for a later tick.
+        final MongoOperations mongo = mock(MongoOperations.class);
+        when(mongo.findAndModify(any(Query.class), any(Update.class),
+                any(FindAndModifyOptions.class), eq(BackgroundJob.class)))
+                .thenThrow(new DuplicateKeyException("E11000 duplicate key error collection: arbiter.background_jobs "
+                        + "index: uniq_running_data_import_per_batch_v2 dup key: { batchId: \"b1\" }"));
+
+        assertNull(new MongoBackgroundJobStore(mongo).claimPending("s3-job"));
+        verify(mongo).findAndModify(argThat((Query q) -> "s3-job".equals(q.getQueryObject().get("_id"))
+                        && BackgroundJob.STATUS_PENDING.equals(q.getQueryObject().get("status"))),
+                any(Update.class), any(FindAndModifyOptions.class), eq(BackgroundJob.class));
     }
 
     @Test

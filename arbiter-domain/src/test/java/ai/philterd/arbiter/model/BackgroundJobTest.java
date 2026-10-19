@@ -10,8 +10,17 @@
 package ai.philterd.arbiter.model;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.Arrays;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class BackgroundJobTest {
 
@@ -60,5 +69,27 @@ class BackgroundJobTest {
         assertEquals(0, job.getFailureMessages().size());
         job.getFailureMessages().add("ok"); // proves it's mutable, not a sentinel
         assertEquals(1, job.getFailureMessages().size());
+    }
+
+    @Test
+    void runningImportIndexCoversEveryDataImportType() throws Exception {
+        final Set<String> dataImportTypes = new TreeSet<>();
+        for (Field f : BackgroundJob.class.getFields()) {
+            if (Modifier.isStatic(f.getModifiers()) && f.getName().startsWith("TYPE_")) {
+                final String type = (String) f.get(null);
+                if (BackgroundJob.CATEGORY_DATA_IMPORT.equals(BackgroundJob.categoryFor(type))) {
+                    dataImportTypes.add(type);
+                }
+            }
+        }
+        assertTrue(dataImportTypes.contains(BackgroundJob.TYPE_S3_INGEST));
+
+        final String filter = BackgroundJob.class.getAnnotation(CompoundIndex.class).partialFilter();
+        final String list = filter.substring(filter.indexOf('[') + 1, filter.indexOf(']'));
+        final Set<String> indexed = Arrays.stream(list.split(","))
+                .map(v -> v.trim().replace("'", ""))
+                .collect(Collectors.toCollection(TreeSet::new));
+
+        assertEquals(dataImportTypes, indexed);
     }
 }

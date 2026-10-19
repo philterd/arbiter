@@ -30,14 +30,19 @@ import java.time.Instant;
  * promotes them to RUNNING one at a time. Completed/failed rows are excluded so
  * historical jobs never collide. Supported by MongoDB 6.0+ (where {@code $in}
  * became valid in {@code partialFilterExpression}).
+ *
+ * <p>The filter must list every type whose {@link #categoryFor} is {@link #CATEGORY_DATA_IMPORT}.
+ * Both stores create an index only when its name is missing, so a changed filter needs a new
+ * name: {@code _v2} replaced {@code uniq_running_data_import_per_batch}, which left out
+ * {@code S3_INGEST}.</p>
  */
 @Document(collection = "background_jobs")
-@CompoundIndex(name = "uniq_running_data_import_per_batch",
+@CompoundIndex(name = "uniq_running_data_import_per_batch_v2",
         def = "{'batchId': 1}",
         unique = true,
         partialFilter = "{ 'status': 'RUNNING', "
                 + "'type': { $in: ['OPENSEARCH_INGEST', 'ELASTICSEARCH_INGEST', "
-                + "'LOCAL_DIRECTORY_INGEST', 'RDB_INGEST'] } }")
+                + "'LOCAL_DIRECTORY_INGEST', 'S3_INGEST', 'RDB_INGEST'] } }")
 public class BackgroundJob {
 
     public static final String STATUS_PENDING = "PENDING";

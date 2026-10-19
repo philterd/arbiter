@@ -107,6 +107,72 @@ SELECT json_extract(doc, '$.status'), COUNT(*) FROM documents GROUP BY 1;
 Change data through Arbiter rather than by editing the file. Arbiter relies on
 the `version` column to detect conflicting edits.
 
+## Upgrading
+
+### One running import per batch
+
+Arbiter runs at most one data import per batch at a time, enforced by a
+unique index on running import jobs. Earlier versions left S3 imports out of
+that index (`uniq_running_data_import_per_batch`). The corrected index is named
+`uniq_running_data_import_per_batch_v2` (`ix_background_jobs_uniq_running_data_import_per_batch_v2`
+in SQLite), and both stores create it on startup.
+
+Arbiter cannot create the new index, and does not start, if a batch already
+has more than one running import, which the old index allowed when one of them
+was an S3 import. Before upgrading, stop every Arbiter instance and look for
+such batches.
+
+MongoDB:
+
+```
+db.background_jobs.aggregate([
+  { $match: { status: "RUNNING", type: { $in: ["OPENSEARCH_INGEST", "ELASTICSEARCH_INGEST",
+      "LOCAL_DIRECTORY_INGEST", "S3_INGEST", "RDB_INGEST"] } } },
+  { $group: { _id: "$batchId", jobs: { $push: "$_id" }, count: { $sum: 1 } } },
+  { $match: { count: { $gt: 1 } } }
+])
+```
+
+SQLite:
+
+```
+SELECT json_extract(doc, '$.batchId') AS batch, group_concat(id) AS jobs
+FROM background_jobs
+WHERE json_extract(doc, '$.status') = 'RUNNING'
+  AND json_extract(doc, '$.type') IN ('OPENSEARCH_INGEST', 'ELASTICSEARCH_INGEST',
+      'LOCAL_DIRECTORY_INGEST', 'S3_INGEST', 'RDB_INGEST')
+GROUP BY batch HAVING COUNT(*) > 1;
+```
+
+With every instance stopped, none of these jobs is still running, and a job
+left marked running would keep blocking its batch's imports. Mark each listed
+job failed, replacing `<job id>`:
+
+```
+db.background_jobs.updateOne({ _id: "<job id>" },
+  { $set: { status: "FAILED", errorMessage: "Interrupted; marked failed before upgrading." } })
+```
+
+```
+UPDATE background_jobs
+SET doc = json_set(doc, '$.status', 'FAILED', '$.errorMessage', 'Interrupted; marked failed before upgrading.')
+WHERE id = '<job id>';
+```
+
+Run the import again from **Add Documents** if it is still needed (see
+[Adding from a data source](../user-guide/uploading.md#adding-from-a-data-source)).
+
+The old index stays in place after the upgrade. It enforces a subset of the
+new one, so it is harmless, and you can drop it:
+
+```
+db.background_jobs.dropIndex("uniq_running_data_import_per_batch")
+```
+
+```
+DROP INDEX IF EXISTS "ix_background_jobs_uniq_running_data_import_per_batch";
+```
+
 ## Switching stores
 
 Changing `arbiter.store` does not move data. An instance switched from MongoDB

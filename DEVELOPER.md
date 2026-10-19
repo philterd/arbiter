@@ -92,7 +92,7 @@ they're load-bearing.
   (`findAndModify` on MongoDB, `UPDATE ... RETURNING` on SQLite), so
   concurrent workers never both win.
 - **Partial unique indexes** for "at most one in-flight" rules: see
-  `BackgroundJob`'s `uniq_running_data_import_per_batch`. Race-collide
+  `BackgroundJob`'s `uniq_running_data_import_per_batch_v2`. Race-collide
   on the index, catch `DuplicateKeyException`, treat as "someone else
   got there first."
 - **AES-GCM at-rest encryption** for credentials via `SymmetricCipher`.

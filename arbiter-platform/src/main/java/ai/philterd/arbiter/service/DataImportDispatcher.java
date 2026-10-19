@@ -31,7 +31,7 @@ import java.util.concurrent.Executors;
  *
  * <p>The dispatcher runs on a periodic poll. For each PENDING data-import job
  * (oldest first) it attempts an atomic PENDING to RUNNING claim through
- * {@link BackgroundJobStore}. The {@code uniq_running_data_import_per_batch} partial
+ * {@link BackgroundJobStore}. The {@code uniq_running_data_import_per_batch_v2} partial
  * unique index on {@link BackgroundJob} makes the store refuse the claim
  * when another RUNNING job already exists for that batch — the job simply remains
  * PENDING and the dispatcher tries again on the next tick. This pattern is

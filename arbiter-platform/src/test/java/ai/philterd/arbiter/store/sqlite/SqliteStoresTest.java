@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -150,6 +151,55 @@ class SqliteStoresTest {
         assertNotNull(jobs.claimPending(other.getId()));
         assertNotNull(jobs.claimPending(export.getId()));
         assertEquals(2, jobs.countRunning(List.of(BackgroundJob.TYPE_OPENSEARCH_INGEST, BackgroundJob.TYPE_RDB_INGEST)));
+    }
+
+    @Test
+    void s3ImportIsRefusedWhileAnotherImportRunsForTheBatch() {
+        final SqliteBackgroundJobStore jobs = new SqliteBackgroundJobStore(db.store);
+        final BackgroundJob running = db.store.save(job("b1", BackgroundJob.TYPE_OPENSEARCH_INGEST));
+        final BackgroundJob s3 = db.store.save(job("b1", BackgroundJob.TYPE_S3_INGEST));
+        final BackgroundJob secondS3 = db.store.save(job("b1", BackgroundJob.TYPE_S3_INGEST));
+
+        assertNotNull(jobs.claimPending(running.getId()));
+        assertNull(jobs.claimPending(s3.getId()));
+        assertEquals("PENDING", db.store.findById(BackgroundJob.class, s3.getId()).orElseThrow().getStatus());
+
+        db.store.updateOne(BackgroundJob.class, Where.eq("id", running.getId()),
+                Map.of("status", BackgroundJob.STATUS_COMPLETED), List.of());
+        assertNotNull(jobs.claimPending(s3.getId()));
+        assertNull(jobs.claimPending(secondS3.getId()), "a second S3 import waits for the first");
+    }
+
+    @Test
+    void s3ImportsForDifferentBatchesRunTogether() {
+        final SqliteBackgroundJobStore jobs = new SqliteBackgroundJobStore(db.store);
+        final BackgroundJob b1 = db.store.save(job("b1", BackgroundJob.TYPE_S3_INGEST));
+        final BackgroundJob b2 = db.store.save(job("b2", BackgroundJob.TYPE_S3_INGEST));
+
+        assertNotNull(jobs.claimPending(b1.getId()));
+        assertNotNull(jobs.claimPending(b2.getId()));
+        assertEquals(2, jobs.countRunning(List.of(BackgroundJob.TYPE_S3_INGEST)));
+    }
+
+    @Test
+    void existingDatabaseWithTheOldIndexGetsTheNewOne() throws Exception {
+        // A database created before the rename: the table and the old index, which left out S3_INGEST.
+        db.jdbc.execute("CREATE TABLE background_jobs (id TEXT PRIMARY KEY NOT NULL, version INTEGER, doc TEXT NOT NULL) STRICT");
+        db.jdbc.execute("CREATE UNIQUE INDEX \"ix_background_jobs_uniq_running_data_import_per_batch\" "
+                + "ON background_jobs (json_extract(doc, '$.batchId')) WHERE json_extract(doc, '$.status') = 'RUNNING' "
+                + "AND json_extract(doc, '$.type') IN ('OPENSEARCH_INGEST', 'ELASTICSEARCH_INGEST', "
+                + "'LOCAL_DIRECTORY_INGEST', 'RDB_INGEST')");
+
+        final SqliteBackgroundJobStore jobs = new SqliteBackgroundJobStore(db.store);
+        final BackgroundJob running = db.store.save(job("b1", BackgroundJob.TYPE_RDB_INGEST));
+        final BackgroundJob s3 = db.store.save(job("b1", BackgroundJob.TYPE_S3_INGEST));
+
+        assertNotNull(jobs.claimPending(running.getId()));
+        assertNull(jobs.claimPending(s3.getId()));
+        assertEquals(List.of("ix_background_jobs_uniq_running_data_import_per_batch",
+                        "ix_background_jobs_uniq_running_data_import_per_batch_v2"),
+                db.jdbc.queryForList("SELECT name FROM sqlite_master WHERE type = 'index' "
+                        + "AND name LIKE 'ix_background_jobs_uniq%' ORDER BY name", String.class));
     }
 
     @Test
