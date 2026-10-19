@@ -225,6 +225,12 @@ to be brute-forceable in seconds, so passphrase-style secrets are no
 longer accepted. The plaintext key is never displayed back; the admin UI
 only shows whether a key is configured.
 
+A Philter instance's own client certificate keystore and trust store, and
+their passwords, are encrypted the same way. The admin UI shows only whether
+each is set, and the audit log records that a store was added, replaced, or
+removed, never its contents or password. Arbiter decrypts the stores in
+memory when it connects and never writes them to disk decrypted.
+
 ## Data source credentials
 
 Credentials configured under **Admin → Data Sources** — OpenSearch passwords,

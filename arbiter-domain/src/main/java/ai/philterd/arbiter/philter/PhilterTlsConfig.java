@@ -15,13 +15,16 @@
  */
 package ai.philterd.arbiter.philter;
 
-import ai.philterd.philter.PhilterTls;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import javax.net.ssl.KeyManager;
 import javax.net.ssl.SSLContext;
+import javax.net.ssl.TrustManager;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -29,6 +32,9 @@ import java.nio.file.Path;
  * TLS, and a trust store for a Philter (or a proxy in front of it) whose certificate comes from a
  * private certificate authority. Both are optional. Without either, the JVM's default trust store
  * is used and no client certificate is presented.
+ *
+ * <p>These are the global settings. A Philter instance may carry its own client certificate or trust
+ * store, each of which replaces the global one for that instance; see {@link #sslContext(KeyManager[], TrustManager[])}.</p>
  *
  * <p>The stores are read once at startup, so a missing file or wrong password stops Arbiter
  * instead of failing the first redaction.</p>
@@ -38,6 +44,8 @@ public class PhilterTlsConfig {
 
     private static final Logger log = LoggerFactory.getLogger(PhilterTlsConfig.class);
 
+    private final KeyManager[] keyManagers;
+    private final TrustManager[] trustManagers;
     private final SSLContext sslContext;
 
     public PhilterTlsConfig(@Value("${arbiter.philter.tls.key-store:}") final String keyStore,
@@ -46,21 +54,21 @@ public class PhilterTlsConfig {
                             @Value("${arbiter.philter.tls.trust-store-password:}") final String trustStorePassword) {
         final Path key = blank(keyStore) ? null : Path.of(keyStore.trim());
         final Path trust = blank(trustStore) ? null : Path.of(trustStore.trim());
-        if (key == null && trust == null) {
-            this.sslContext = null;
-            return;
-        }
         try {
-            this.sslContext = PhilterTls.sslContext(
-                    key, key == null ? null : keyStorePassword.toCharArray(),
-                    trust, blank(trustStorePassword) ? null : trustStorePassword.toCharArray());
+            this.keyManagers = key == null ? null
+                    : PhilterKeyStores.keyManagers(read(key), chars(keyStorePassword), key.toString());
+            this.trustManagers = trust == null ? null
+                    : PhilterKeyStores.trustManagers(read(trust), chars(trustStorePassword), trust.toString());
         } catch (IllegalArgumentException e) {
-            // The SDK's message names the file, never the password.
+            // The message names the file, never the password.
             throw new IllegalStateException("Philter TLS settings (arbiter.philter.tls.*) are not usable: "
                     + e.getMessage(), e);
         }
-        log.info("Philter connections: client certificate {}, trust store {}",
-                key == null ? "not set" : "set", trust == null ? "JVM default" : "set");
+        this.sslContext = key == null && trust == null ? null : PhilterKeyStores.sslContext(keyManagers, trustManagers);
+        if (sslContext != null) {
+            log.info("Philter connections: client certificate {}, trust store {}",
+                    key == null ? "not set" : "set", trust == null ? "JVM default" : "set");
+        }
     }
 
     /** No client certificate and the JVM's default trust store. */
@@ -71,6 +79,32 @@ public class PhilterTlsConfig {
     /** The TLS context for Philter connections, or {@code null} for the SDK's default. */
     public SSLContext sslContext() {
         return sslContext;
+    }
+
+    /**
+     * The TLS context for an instance with its own client certificate ({@code ownKeys}) and/or trust store
+     * ({@code ownTrust}). Either one left {@code null} falls back to the global setting. With neither, this is
+     * {@link #sslContext()}.
+     */
+    public SSLContext sslContext(final KeyManager[] ownKeys, final TrustManager[] ownTrust) {
+        if (ownKeys == null && ownTrust == null) {
+            return sslContext;
+        }
+        return PhilterKeyStores.sslContext(ownKeys != null ? ownKeys : keyManagers,
+                ownTrust != null ? ownTrust : trustManagers);
+    }
+
+    private static byte[] read(final Path path) {
+        try {
+            return Files.readAllBytes(path);
+        } catch (IOException e) {
+            throw new IllegalArgumentException("The file " + path + " could not be read: "
+                    + e.getClass().getSimpleName(), e);
+        }
+    }
+
+    private static char[] chars(final String password) {
+        return password == null ? new char[0] : password.toCharArray();
     }
 
     private static boolean blank(final String s) {

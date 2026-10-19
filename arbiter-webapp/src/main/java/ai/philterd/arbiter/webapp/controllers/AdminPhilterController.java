@@ -22,6 +22,7 @@ import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.DataSourceHostAllowList;
 import ai.philterd.arbiter.service.PhilterDefaultsService;
 import ai.philterd.arbiter.service.PhilterInstanceClients;
+import ai.philterd.arbiter.service.PhilterInstanceTls;
 import ai.philterd.arbiter.philter.PhilterClients;
 import ai.philterd.philter.model.StatusResponse;
 import ai.philterd.philter.model.exceptions.PhilterError;
@@ -35,11 +36,13 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.Comparator;
 import java.util.List;
@@ -56,19 +59,25 @@ public class AdminPhilterController {
     private final SymmetricCipher symmetricCipher;
     private final DataSourceHostAllowList hostAllowList;
     private final PhilterInstanceClients philterInstanceClients;
+    private final PhilterInstanceTls instanceTls;
+
+    /** Keystores are a few kilobytes; anything larger is not one. */
+    private static final long MAX_STORE_BYTES = 256 * 1024;
 
     public AdminPhilterController(final PhilterInstanceRepository repository,
                                   final AuditLogService auditLogService,
                                   final PhilterDefaultsService defaultsService,
                                   final SymmetricCipher symmetricCipher,
                                   final DataSourceHostAllowList hostAllowList,
-                                  final PhilterInstanceClients philterInstanceClients) {
+                                  final PhilterInstanceClients philterInstanceClients,
+                                  final PhilterInstanceTls instanceTls) {
         this.repository = repository;
         this.auditLogService = auditLogService;
         this.defaultsService = defaultsService;
         this.symmetricCipher = symmetricCipher;
         this.hostAllowList = hostAllowList;
         this.philterInstanceClients = philterInstanceClients;
+        this.instanceTls = instanceTls;
     }
 
     @GetMapping
@@ -201,6 +210,94 @@ public class AdminPhilterController {
         redirectAttributes.addFlashAttribute("success",
                 "API key updated for \"" + instance.getName() + "\".");
         return "redirect:/admin/philter";
+    }
+
+    @PostMapping("/{id}/tls")
+    public String setTls(@PathVariable final String id,
+                         @RequestParam(value = "keyStore", required = false) final MultipartFile keyStore,
+                         @RequestParam(value = "keyStorePassword", required = false) final String keyStorePassword,
+                         @RequestParam(value = "trustStore", required = false) final MultipartFile trustStore,
+                         @RequestParam(value = "trustStorePassword", required = false) final String trustStorePassword,
+                         final RedirectAttributes redirectAttributes) {
+        final PhilterInstance instance = repository.findById(id).orElse(null);
+        if (instance == null) {
+            redirectAttributes.addFlashAttribute("error", "Philter instance not found.");
+            return "redirect:/admin/philter";
+        }
+        final boolean hasKeyStore = keyStore != null && !keyStore.isEmpty();
+        final boolean hasTrustStore = trustStore != null && !trustStore.isEmpty();
+        if (!hasKeyStore && !hasTrustStore) {
+            redirectAttributes.addFlashAttribute("error", "Choose a client certificate keystore, a trust store, or both.");
+            return "redirect:/admin/philter";
+        }
+        final boolean hadKeyStore = PhilterInstanceTls.hasKeyStore(instance);
+        final boolean hadTrustStore = PhilterInstanceTls.hasTrustStore(instance);
+        try {
+            if (hasKeyStore) {
+                if (keyStorePassword == null || keyStorePassword.isEmpty()) {
+                    throw new IllegalArgumentException("The client certificate keystore needs its password.");
+                }
+                instanceTls.setKeyStore(instance, read(keyStore, "client certificate keystore"), keyStorePassword);
+            }
+            if (hasTrustStore) {
+                instanceTls.setTrustStore(instance, read(trustStore, "trust store"), trustStorePassword);
+            }
+        } catch (IllegalArgumentException e) {
+            // The message names the store and the problem, never the password.
+            redirectAttributes.addFlashAttribute("error", "TLS settings for \"" + instance.getName()
+                    + "\" were not saved. " + e.getMessage());
+            return "redirect:/admin/philter";
+        }
+        repository.save(instance);
+        auditLogService.log("PHILTER_INSTANCE_TLS_CHANGE", "PhilterInstance", id,
+                Map.of("name", str(instance.getName()),
+                        "keyStore", hasKeyStore ? (hadKeyStore ? "replaced" : "added") : "unchanged",
+                        "trustStore", hasTrustStore ? (hadTrustStore ? "replaced" : "added") : "unchanged"));
+        redirectAttributes.addFlashAttribute("success",
+                "TLS settings updated for \"" + instance.getName() + "\".");
+        return "redirect:/admin/philter";
+    }
+
+    @PostMapping("/{id}/tls/remove")
+    public String removeTls(@PathVariable final String id,
+                            @RequestParam("store") final String store,
+                            final RedirectAttributes redirectAttributes) {
+        final PhilterInstance instance = repository.findById(id).orElse(null);
+        if (instance == null) {
+            redirectAttributes.addFlashAttribute("error", "Philter instance not found.");
+            return "redirect:/admin/philter";
+        }
+        final String removed;
+        if ("keyStore".equals(store) && PhilterInstanceTls.hasKeyStore(instance)) {
+            instanceTls.clearKeyStore(instance);
+            removed = "client certificate";
+        } else if ("trustStore".equals(store) && PhilterInstanceTls.hasTrustStore(instance)) {
+            instanceTls.clearTrustStore(instance);
+            removed = "trust store";
+        } else {
+            redirectAttributes.addFlashAttribute("error", "That TLS setting is not set on this instance.");
+            return "redirect:/admin/philter";
+        }
+        repository.save(instance);
+        auditLogService.log("PHILTER_INSTANCE_TLS_CHANGE", "PhilterInstance", id,
+                Map.of("name", str(instance.getName()),
+                        "keyStore", "keyStore".equals(store) ? "removed" : "unchanged",
+                        "trustStore", "trustStore".equals(store) ? "removed" : "unchanged"));
+        redirectAttributes.addFlashAttribute("success", "Removed the " + removed + " from \""
+                + instance.getName() + "\"; it now uses the global setting.");
+        return "redirect:/admin/philter";
+    }
+
+    private static byte[] read(final MultipartFile file, final String what) {
+        if (file.getSize() > MAX_STORE_BYTES) {
+            throw new IllegalArgumentException("The " + what + " is larger than a keystore can be ("
+                    + (MAX_STORE_BYTES / 1024) + " KB at most).");
+        }
+        try {
+            return file.getBytes();
+        } catch (IOException e) {
+            throw new IllegalArgumentException("The " + what + " could not be read from the upload.", e);
+        }
     }
 
     @PostMapping("/{id}/delete")

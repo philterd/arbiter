@@ -80,7 +80,8 @@ class RedactionApiServiceImplFinalizeTest {
         // wrangle, so finalize tests focus on the document-state contract.
         service = new RedactionApiServiceImpl(phileasClient, philterClientFactory,
                 philterInstanceRepository, documentRepository, spanRepository, batchRepository,
-                openSearchIndexService, cipher, new DataSourceHostAllowList(""));
+                openSearchIndexService, cipher, new DataSourceHostAllowList(""),
+                new PhilterInstanceTls(cipher, ai.philterd.arbiter.philter.PhilterTlsConfig.none()));
     }
 
     private static Document approvedDoc(final String id, final String text) {

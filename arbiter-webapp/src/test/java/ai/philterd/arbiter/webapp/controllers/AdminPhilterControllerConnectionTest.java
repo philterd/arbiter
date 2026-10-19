@@ -16,6 +16,7 @@ import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.DataSourceHostAllowList;
 import ai.philterd.arbiter.service.PhilterDefaultsService;
 import ai.philterd.arbiter.service.PhilterInstanceClients;
+import ai.philterd.arbiter.service.PhilterInstanceTls;
 import ai.philterd.arbiter.service.SymmetricCipher;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
@@ -75,7 +76,8 @@ class AdminPhilterControllerConnectionTest {
         final DataSourceHostAllowList allowList = new DataSourceHostAllowList("127.0.0.1");
         controller = new AdminPhilterController(repository, mock(AuditLogService.class),
                 mock(PhilterDefaultsService.class), cipher, allowList,
-                new PhilterInstanceClients(cipher, allowList, PhilterTlsConfig.none()));
+                new PhilterInstanceClients(cipher, allowList, new PhilterInstanceTls(cipher, PhilterTlsConfig.none())),
+                new PhilterInstanceTls(cipher, PhilterTlsConfig.none()));
     }
 
     @AfterEach

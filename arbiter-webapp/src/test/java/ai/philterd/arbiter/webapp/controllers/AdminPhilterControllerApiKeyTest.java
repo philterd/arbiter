@@ -44,7 +44,8 @@ class AdminPhilterControllerApiKeyTest {
         when(repository.findByName(any())).thenReturn(Optional.empty());
         controller = new AdminPhilterController(repository, mock(AuditLogService.class),
                 mock(PhilterDefaultsService.class), cipher,
-                new DataSourceHostAllowList("philter.example.com"), mock(PhilterInstanceClients.class));
+                new DataSourceHostAllowList("philter.example.com"), mock(PhilterInstanceClients.class),
+                mock(ai.philterd.arbiter.service.PhilterInstanceTls.class));
     }
 
     private static Object error(final RedirectAttributes ra) {

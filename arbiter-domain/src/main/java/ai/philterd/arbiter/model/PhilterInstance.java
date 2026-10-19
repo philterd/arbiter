@@ -35,6 +35,16 @@ public class PhilterInstance {
      */
     private String encryptedApiKey;
 
+    /**
+     * This instance's own client certificate keystore (PKCS12 or JKS) and trust store, each base64-encoded and
+     * then encrypted like the API key, with their encrypted passwords. Either store left null falls back to the
+     * global {@code arbiter.philter.tls.*} setting.
+     */
+    private String encryptedKeyStore;
+    private String encryptedKeyStorePassword;
+    private String encryptedTrustStore;
+    private String encryptedTrustStorePassword;
+
     private LocalDateTime createdAt;
 
     public PhilterInstance() {
@@ -57,4 +67,16 @@ public class PhilterInstance {
 
     public String getEncryptedApiKey() { return encryptedApiKey; }
     public void setEncryptedApiKey(final String encryptedApiKey) { this.encryptedApiKey = encryptedApiKey; }
+
+    public String getEncryptedKeyStore() { return encryptedKeyStore; }
+    public void setEncryptedKeyStore(final String encryptedKeyStore) { this.encryptedKeyStore = encryptedKeyStore; }
+
+    public String getEncryptedKeyStorePassword() { return encryptedKeyStorePassword; }
+    public void setEncryptedKeyStorePassword(final String encryptedKeyStorePassword) { this.encryptedKeyStorePassword = encryptedKeyStorePassword; }
+
+    public String getEncryptedTrustStore() { return encryptedTrustStore; }
+    public void setEncryptedTrustStore(final String encryptedTrustStore) { this.encryptedTrustStore = encryptedTrustStore; }
+
+    public String getEncryptedTrustStorePassword() { return encryptedTrustStorePassword; }
+    public void setEncryptedTrustStorePassword(final String encryptedTrustStorePassword) { this.encryptedTrustStorePassword = encryptedTrustStorePassword; }
 }

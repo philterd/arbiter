@@ -62,7 +62,9 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.test.web.servlet.MockMvc;
+import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -759,5 +761,62 @@ public class AuthorizationIntegrationTest {
                 body.contains("nonce=\"" + nonce + "\""),
                 "rendered body missing nonce=\"" + nonce + "\". body excerpt: "
                         + body.substring(0, Math.min(body.length(), 800)));
+    }
+
+    // ---------------------------------------------------------------------
+    // Per-instance Philter TLS (Admin -> Philter).
+    // ---------------------------------------------------------------------
+
+    private ai.philterd.arbiter.model.PhilterInstance philterInstanceWithOwnCertificate() {
+        final ai.philterd.arbiter.model.PhilterInstance instance = new ai.philterd.arbiter.model.PhilterInstance();
+        instance.setId("p1");
+        instance.setName("enclave-philter");
+        instance.setEndpoint("https://philter.example.com");
+        instance.setEncryptedKeyStore("enc:keystore-ciphertext-marker");
+        instance.setEncryptedKeyStorePassword("enc:password-ciphertext-marker");
+        return instance;
+    }
+
+    @Test
+    void adminPhilterPageShowsInstanceTlsWithoutSecrets() throws Exception {
+        when(philterInstanceRepository.findAll(org.mockito.ArgumentMatchers.any(org.springframework.data.domain.Pageable.class)))
+                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(philterInstanceWithOwnCertificate())));
+
+        final String body = mockMvc.perform(get("/admin/philter").with(user("a").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertTrue(body.contains("enctype=\"multipart/form-data\""));
+        assertTrue(body.contains("Remove client certificate"));
+        assertFalse(body.contains("Remove trust store"), "the instance has no trust store of its own");
+        assertFalse(body.contains("keystore-ciphertext-marker"));
+        assertFalse(body.contains("password-ciphertext-marker"));
+    }
+
+    @Test
+    void philterTlsUploadRequiresCsrf() throws Exception {
+        when(philterInstanceRepository.findById("p1")).thenReturn(java.util.Optional.of(philterInstanceWithOwnCertificate()));
+        final org.springframework.mock.web.MockMultipartFile store = new org.springframework.mock.web.MockMultipartFile(
+                "trustStore", "ca.p12", "application/octet-stream", "not a keystore".getBytes());
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/admin/philter/p1/tls")
+                        .file(store).with(user("a").roles("ADMIN")))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/admin/philter/p1/tls")
+                        .file(store).with(user("a").roles("ADMIN")).with(csrf()))
+                .andExpect(redirectedUrl("/admin/philter"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash()
+                        .attribute("error", org.hamcrest.Matchers.containsString("trust store")));
+    }
+
+    @Test
+    void auditorCannotChangePhilterTls() throws Exception {
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/admin/philter/p1/tls")
+                        .file(new org.springframework.mock.web.MockMultipartFile("trustStore", new byte[]{1}))
+                        .with(user("a").roles("AUDITOR")).with(csrf()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/admin/philter/p1/tls/remove").param("store", "keyStore")
+                        .with(user("a").roles("AUDITOR")).with(csrf()))
+                .andExpect(status().isForbidden());
     }
 }

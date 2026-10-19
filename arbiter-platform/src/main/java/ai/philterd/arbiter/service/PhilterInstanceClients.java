@@ -17,7 +17,6 @@ package ai.philterd.arbiter.service;
 
 import ai.philterd.arbiter.model.PhilterInstance;
 import ai.philterd.arbiter.philter.PhilterClients;
-import ai.philterd.arbiter.philter.PhilterTlsConfig;
 import ai.philterd.philter.PhilterClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,14 +34,14 @@ public class PhilterInstanceClients {
 
     private final SymmetricCipher symmetricCipher;
     private final DataSourceHostAllowList hostAllowList;
-    private final PhilterTlsConfig tls;
+    private final PhilterInstanceTls instanceTls;
 
     public PhilterInstanceClients(final SymmetricCipher symmetricCipher,
                                   final DataSourceHostAllowList hostAllowList,
-                                  final PhilterTlsConfig tls) {
+                                  final PhilterInstanceTls instanceTls) {
         this.symmetricCipher = symmetricCipher;
         this.hostAllowList = hostAllowList;
-        this.tls = tls;
+        this.instanceTls = instanceTls;
     }
 
     /** The instance's base URL, such as {@code http://philter:8080}. */
@@ -56,8 +55,9 @@ public class PhilterInstanceClients {
     }
 
     /**
-     * An SDK client for the instance, authenticated with its API key when one is set. Refuses an
-     * instance whose host is not on the data-source allow-list.
+     * An SDK client for the instance, authenticated with its API key when one is set and using the
+     * instance's own TLS settings where it has them. Refuses an instance whose host is not on the
+     * data-source allow-list.
      */
     public PhilterClient client(final PhilterInstance instance) throws IOException {
         final String url = baseUrl(instance);
@@ -66,7 +66,7 @@ public class PhilterInstanceClients {
                     + "\" host is not on the data-source allow-list "
                     + "(arbiter.data-sources.allowed-hosts).");
         }
-        return PhilterClients.build(url, apiKey(instance), tls);
+        return PhilterClients.build(url, apiKey(instance), instanceTls.sslContext(instance));
     }
 
     /** True when the instance has an API key that decrypts. */

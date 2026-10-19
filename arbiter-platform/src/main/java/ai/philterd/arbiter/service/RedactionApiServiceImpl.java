@@ -50,6 +50,7 @@ public class RedactionApiServiceImpl implements RedactionApiService {
     private final OpenSearchIndexService openSearchIndexService;
     private final SymmetricCipher symmetricCipher;
     private final DataSourceHostAllowList hostAllowList;
+    private final PhilterInstanceTls instanceTls;
 
     public RedactionApiServiceImpl(@Qualifier("phileasClient") final PhilterClient phileasClient,
                                    final PhilterClientFactory philterClientFactory,
@@ -59,7 +60,8 @@ public class RedactionApiServiceImpl implements RedactionApiService {
                                    final BatchRepository batchRepository,
                                    final OpenSearchIndexService openSearchIndexService,
                                    final SymmetricCipher symmetricCipher,
-                                   final DataSourceHostAllowList hostAllowList) {
+                                   final DataSourceHostAllowList hostAllowList,
+                                   final PhilterInstanceTls instanceTls) {
         this.phileasClient = phileasClient;
         this.philterClientFactory = philterClientFactory;
         this.philterInstanceRepository = philterInstanceRepository;
@@ -69,6 +71,7 @@ public class RedactionApiServiceImpl implements RedactionApiService {
         this.openSearchIndexService = openSearchIndexService;
         this.symmetricCipher = symmetricCipher;
         this.hostAllowList = hostAllowList;
+        this.instanceTls = instanceTls;
     }
 
     private PhilterClient philterClient(final Batch batch) throws IOException {
@@ -88,15 +91,16 @@ public class RedactionApiServiceImpl implements RedactionApiService {
         // Re-validate at call time so a stored endpoint that has fallen off the allow-list
         // since it was saved is refused before we open a connection.
         final String url = requireAllowedBaseUrl(pi);
+        final javax.net.ssl.SSLContext sslContext = instanceTls.sslContext(pi);
         final String apiKey;
         try {
             apiKey = symmetricCipher.decrypt(pi.getEncryptedApiKey());
         } catch (Exception e) {
             log.warn("Could not decrypt API key for Philter instance \"{}\": {}",
                     pi.getName(), e.getMessage());
-            return philterClientFactory.create(url, null, batch.getPolicyName());
+            return philterClientFactory.create(url, null, sslContext, batch.getPolicyName());
         }
-        return philterClientFactory.create(url, apiKey, batch.getPolicyName());
+        return philterClientFactory.create(url, apiKey, sslContext, batch.getPolicyName());
     }
 
     private static String baseUrl(final PhilterInstance instance) {

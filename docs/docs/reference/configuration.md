@@ -171,7 +171,8 @@ the admin UI.
 
 When an instance's endpoint starts with `https://`, Arbiter verifies Philter's
 certificate, including that it names the endpoint's host. Two optional
-settings apply to every Philter instance:
+settings apply to every Philter instance that does not have its own (see
+[Per-instance client certificates and trust stores](#per-instance-client-certificates-and-trust-stores)):
 
 | Property | Purpose |
 | -------- | ------- |
@@ -195,6 +196,28 @@ front of it that requires client certificates. To have Philter require them
 itself, see [Client certificates (mutual TLS)](https://philterd.github.io/philter/latest/settings.html#client-certificates-mutual-tls)
 in Philter's settings. A client certificate does not replace Arbiter's Philter
 API key: Philter still requires the key on every request.
+
+### Per-instance client certificates and trust stores
+
+An instance can carry its own client certificate keystore, trust store, or
+both, attached under **Admin → Philter** (see
+[Registering an external Philter](../workflow.md#registering-an-external-philter-admin)).
+Use this when instances need different certificates, for example a Philter in
+another enclave behind a proxy that trusts a different certificate authority.
+
+Each store falls back on its own: an instance with only its own trust store
+still presents the global client certificate from
+`arbiter.philter.tls.key-store`, and an instance with only its own client
+certificate still trusts `arbiter.philter.tls.trust-store` (or the JVM's
+default trust store). An instance with neither uses the global settings.
+
+The stores and their passwords are encrypted with `arbiter.crypto.secret`
+before they are saved and are never shown again. Arbiter validates a store
+when it is attached, with the same checks as the global settings, and rejects
+it with a message naming the problem, never the password. If an attached store
+later can't be decrypted, for example after `arbiter.crypto.secret` changes,
+calls to that instance fail with an error naming the instance rather than
+falling back to the global settings. Attach the stores again to fix it.
 
 ## Data-source allow-list
 

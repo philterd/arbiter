@@ -62,7 +62,8 @@ public class RedactionServiceSwitchTest {
         final DataSourceHostAllowList hostAllowList = new DataSourceHostAllowList("philter");
         redactionService = new RedactionServiceImpl(phileasClient, philterClientFactory,
                 philterInstanceRepository, new ai.philterd.arbiter.service.SymmetricCipher(key),
-                hostAllowList);
+                hostAllowList, new PhilterInstanceTls(new ai.philterd.arbiter.service.SymmetricCipher(key),
+                        ai.philterd.arbiter.philter.PhilterTlsConfig.none()));
     }
 
     @Test
@@ -74,7 +75,7 @@ public class RedactionServiceSwitchTest {
         instance.setPort(8080);
 
         when(philterInstanceRepository.findById("philter-1")).thenReturn(Optional.of(instance));
-        when(philterClientFactory.create(eq("http://philter:8080"), any(), eq("claims"))).thenReturn(remotePhilterClient);
+        when(philterClientFactory.create(eq("http://philter:8080"), any(), any(), eq("claims"))).thenReturn(remotePhilterClient);
 
         final RedactionResponse philterResponse = new RedactionResponse("test", "philter", new ArrayList<>());
         when(remotePhilterClient.redact(anyString(), anyString())).thenReturn(philterResponse);
@@ -95,7 +96,7 @@ public class RedactionServiceSwitchTest {
 
         assertEquals("phileas", response.getRedactedText());
         verify(phileasClient, times(1)).redact(anyString(), anyString());
-        verify(philterClientFactory, never()).create(any(), any(), any());
+        verify(philterClientFactory, never()).create(any(), any(), any(), any());
     }
 
     @Test
@@ -109,6 +110,6 @@ public class RedactionServiceSwitchTest {
 
         assertEquals("phileas", response.getRedactedText());
         verify(phileasClient, times(1)).redact(anyString(), anyString());
-        verify(philterClientFactory, never()).create(any(), any(), any());
+        verify(philterClientFactory, never()).create(any(), any(), any(), any());
     }
 }

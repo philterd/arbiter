@@ -59,17 +59,32 @@ later.
       uses HTTP unless the endpoint starts with `https://` (e.g.
       `https://philter.internal`). For HTTPS with a private certificate
       authority, or mutual TLS, see
-      [Philter integration](reference/configuration.md#philter-integration).
+      [Philter integration](reference/configuration.md#philter-integration)
+      and the **TLS** column below.
     - **Port** — the Philter port (default `8080`).
     - **API key**: the Philter API key Arbiter sends as a bearer token.
       Required, since Philter 4 needs one for redaction. It is stored
       encrypted. You can change it later from the instance row but not clear it.
 4. Click **Add**. The instance is saved to Arbiter's database.
-5. Click **Test** on the row to confirm Arbiter can reach it. The test calls
-   the instance's `/api/health` endpoint and reports its Philter version, then, when
-   an API key is set, makes an authenticated call to confirm Philter accepts
-   the key.
-6. Optionally set the row as the **default** so newly created batches start
+5. Optionally, under **TLS** on the row, choose **Set / change** to attach a
+   client certificate keystore, a trust store, or both, each a PKCS12 or JKS
+   file with its password. The keystore's password must also be its private
+   key's password. Give a trust store's password if it has one, as a trust
+   store made with `keytool` does. A store you attach
+   replaces the global `arbiter.philter.tls.*` setting for this instance only,
+   and a store you leave empty keeps its current setting. The column shows
+   **Own** or **Global** for each store. Stores and passwords are stored
+   encrypted and never shown again; a store that can't be read with its
+   password is rejected when you save. **Remove client certificate** and
+   **Remove trust store** return the instance to the global setting. Every
+   change is recorded in the audit log as `PHILTER_INSTANCE_TLS_CHANGE`,
+   without secret material. See
+   [Per-instance client certificates and trust stores](reference/configuration.md#per-instance-client-certificates-and-trust-stores).
+6. Click **Test** on the row to confirm Arbiter can reach it. The test uses the
+   instance's TLS settings, calls the instance's `/api/health` endpoint and
+   reports its Philter version, then, when an API key is set, makes an
+   authenticated call to confirm Philter accepts the key.
+7. Optionally set the row as the **default** so newly created batches start
    with it pre-selected. The Embedded Philter is the default if no other
    default is set.
 

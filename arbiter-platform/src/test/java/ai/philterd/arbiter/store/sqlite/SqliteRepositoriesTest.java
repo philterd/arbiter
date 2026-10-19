@@ -90,6 +90,25 @@ class SqliteRepositoriesTest {
     }
 
     @Test
+    void philterInstanceTlsFieldsRoundTrip() {
+        final ai.philterd.arbiter.repository.PhilterInstanceRepository instances =
+                db.repository(ai.philterd.arbiter.repository.PhilterInstanceRepository.class);
+        final ai.philterd.arbiter.model.PhilterInstance instance = new ai.philterd.arbiter.model.PhilterInstance();
+        instance.setName("enclave-philter");
+        instance.setEncryptedKeyStore("ks");
+        instance.setEncryptedKeyStorePassword("ksp");
+        instance.setEncryptedTrustStore("ts");
+        instance.setEncryptedTrustStorePassword("tsp");
+        instances.save(instance);
+
+        final ai.philterd.arbiter.model.PhilterInstance read = instances.findById(instance.getId()).orElseThrow();
+        assertEquals("ks", read.getEncryptedKeyStore());
+        assertEquals("ksp", read.getEncryptedKeyStorePassword());
+        assertEquals("ts", read.getEncryptedTrustStore());
+        assertEquals("tsp", read.getEncryptedTrustStorePassword());
+    }
+
+    @Test
     void versionedSaveRefusesAStaleCopy() {
         final UserRepository users = db.repository(UserRepository.class);
         final User u = new User();

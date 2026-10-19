@@ -18,6 +18,8 @@ package ai.philterd.arbiter.philter;
 import ai.philterd.arbiter.util.Hashing;
 import org.springframework.stereotype.Service;
 
+import javax.net.ssl.SSLContext;
+
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -25,7 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class DefaultPhilterClientFactory implements PhilterClientFactory {
 
     // One SDK client (and its HTTP connection pool) per instance and key, reused across documents.
-    private final Map<String, ai.philterd.philter.PhilterClient> clients = new ConcurrentHashMap<>();
+    private final Map<ClientKey, ai.philterd.philter.PhilterClient> clients = new ConcurrentHashMap<>();
     private final PhilterTlsConfig tls;
 
     public DefaultPhilterClientFactory(final PhilterTlsConfig tls) {
@@ -34,8 +36,20 @@ public class DefaultPhilterClientFactory implements PhilterClientFactory {
 
     @Override
     public PhilterClient create(final String philterUrl, final String apiKey, final String policyName) {
-        final String cacheKey = philterUrl + "\n" + (apiKey == null ? "" : Hashing.sha512Hex(apiKey));
+        return create(philterUrl, apiKey, null, policyName);
+    }
+
+    @Override
+    public PhilterClient create(final String philterUrl, final String apiKey, final SSLContext sslContext,
+                                final String policyName) {
+        final SSLContext context = sslContext == null ? tls.sslContext() : sslContext;
+        // An instance's own context is cached by its caller until its stores change, and SSLContext compares
+        // by identity, so the key tells one instance's TLS settings from another's and from a replaced certificate.
+        final ClientKey cacheKey = new ClientKey(philterUrl, apiKey == null ? "" : Hashing.sha512Hex(apiKey), context);
         return new PhilterClientImpl(
-                clients.computeIfAbsent(cacheKey, k -> PhilterClients.build(philterUrl, apiKey, tls)), policyName);
+                clients.computeIfAbsent(cacheKey, k -> PhilterClients.build(philterUrl, apiKey, context)), policyName);
+    }
+
+    private record ClientKey(String url, String apiKeyHash, SSLContext sslContext) {
     }
 }

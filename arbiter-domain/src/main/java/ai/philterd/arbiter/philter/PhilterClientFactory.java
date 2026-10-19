@@ -15,6 +15,8 @@
  */
 package ai.philterd.arbiter.philter;
 
+import javax.net.ssl.SSLContext;
+
 public interface PhilterClientFactory {
 
     /**
@@ -23,4 +25,10 @@ public interface PhilterClientFactory {
      * {@code null} to use Philter's default policy.
      */
     PhilterClient create(String philterUrl, String apiKey, String policyName);
+
+    /**
+     * As {@link #create(String, String, String)}, over TLS from {@code sslContext}: the context for an instance
+     * with its own client certificate or trust store, or {@code null} for the global Philter TLS settings.
+     */
+    PhilterClient create(String philterUrl, String apiKey, SSLContext sslContext, String policyName);
 }

@@ -17,6 +17,8 @@ package ai.philterd.arbiter.philter;
 
 import ai.philterd.philter.model.exceptions.PhilterError;
 
+import javax.net.ssl.SSLContext;
+
 /**
  * Builds Philter SDK clients for remote Philter instances.
  */
@@ -31,13 +33,22 @@ public final class PhilterClients {
      */
     public static ai.philterd.philter.PhilterClient build(final String baseUrl, final String apiKey,
                                                           final PhilterTlsConfig tls) {
+        return build(baseUrl, apiKey, tls == null ? null : tls.sslContext());
+    }
+
+    /**
+     * Build an SDK client for the instance at {@code baseUrl} that uses {@code sslContext}, or the SDK's
+     * default TLS when it is {@code null}.
+     */
+    public static ai.philterd.philter.PhilterClient build(final String baseUrl, final String apiKey,
+                                                          final SSLContext sslContext) {
         final ai.philterd.philter.PhilterClient.PhilterClientBuilder builder =
                 new ai.philterd.philter.PhilterClient.PhilterClientBuilder().withEndpoint(baseUrl);
         if (apiKey != null && !apiKey.isBlank()) {
             builder.withApiKey("Bearer " + apiKey);
         }
-        if (tls != null && tls.sslContext() != null) {
-            builder.withSslContext(tls.sslContext());
+        if (sslContext != null) {
+            builder.withSslContext(sslContext);
         }
         return builder.build();
     }

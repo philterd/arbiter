@@ -42,17 +42,20 @@ public class RedactionServiceImpl implements RedactionService {
     private final PhilterInstanceRepository philterInstanceRepository;
     private final ai.philterd.arbiter.service.SymmetricCipher symmetricCipher;
     private final DataSourceHostAllowList hostAllowList;
+    private final PhilterInstanceTls instanceTls;
 
     public RedactionServiceImpl(@Qualifier("phileasClient") final PhilterClient phileasClient,
                                 final PhilterClientFactory philterClientFactory,
                                 final PhilterInstanceRepository philterInstanceRepository,
                                 final ai.philterd.arbiter.service.SymmetricCipher symmetricCipher,
-                                final DataSourceHostAllowList hostAllowList) {
+                                final DataSourceHostAllowList hostAllowList,
+                                final PhilterInstanceTls instanceTls) {
         this.phileasClient = phileasClient;
         this.philterClientFactory = philterClientFactory;
         this.philterInstanceRepository = philterInstanceRepository;
         this.symmetricCipher = symmetricCipher;
         this.hostAllowList = hostAllowList;
+        this.instanceTls = instanceTls;
     }
 
     private PhilterClient getClient(final String philterInstanceId, final String policyName) throws IOException {
@@ -74,7 +77,7 @@ public class RedactionServiceImpl implements RedactionService {
                 }
                 log.info("Using Philter remote instance \"{}\" at {} (api key {})",
                         pi.getName(), url, (apiKey != null && !apiKey.isBlank() ? "set" : "not set"));
-                return philterClientFactory.create(url, apiKey, policyName);
+                return philterClientFactory.create(url, apiKey, instanceTls.sslContext(pi), policyName);
             }
             log.warn("Philter instance {} not found; falling back to local Phileas.", philterInstanceId);
         }
