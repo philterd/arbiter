@@ -37,7 +37,7 @@
     </modules>
     <properties>
         <java.version>21</java.version>
-        <philter.sdk.version>2.0.0-SNAPSHOT</philter.sdk.version>
+        <philter.sdk.version>3.0.0</philter.sdk.version>
         <phileas.version>3.3.0</phileas.version>
         <commons-lang3.version>3.18.0</commons-lang3.version>
         <awssdk.version>2.25.50</awssdk.version>
