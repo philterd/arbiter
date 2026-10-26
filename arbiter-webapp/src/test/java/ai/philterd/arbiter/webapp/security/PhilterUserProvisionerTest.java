@@ -96,4 +96,25 @@ class PhilterUserProvisionerTest {
         assertNull(user.getApiKey());
         verify(userRepository).save(user);
     }
+
+    @Test
+    void roleChangeInPhilterUpdatesOnlyAnExistingRecord() {
+        when(userRepository.findByEmail("jdoe")).thenReturn(Optional.empty());
+        provisioner.applyPhilterRole("jdoe", "admin");
+        verify(userRepository, never()).save(any());
+
+        final User user = existing(Roles.AUDITOR);
+        when(userRepository.findByEmail("jdoe")).thenReturn(Optional.of(user));
+        provisioner.applyPhilterRole("jdoe", "admin");
+        assertEquals(Set.of(Roles.ADMIN), user.getRoles());
+    }
+
+    @Test
+    void arbiterRoleOfAPhilterAdminStaysAdmin() {
+        when(userRepository.findByEmail("jdoe")).thenReturn(Optional.empty());
+        when(userRepository.save(any())).thenAnswer(i -> i.getArgument(0));
+
+        assertEquals(Set.of(Roles.AUDITOR), provisioner.setArbiterRole("jdoe", "user", true).getRoles());
+        assertEquals(Set.of(Roles.ADMIN), provisioner.setArbiterRole("jdoe", "admin", true).getRoles());
+    }
 }

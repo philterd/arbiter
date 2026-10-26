@@ -78,9 +78,10 @@ Philter keeps the passwords, MFA, lockout, and rate limiting; see Philter's
   recorded on batches, documents, and the audit log. It holds no password
   or MFA secret.
 - **What changes in Arbiter.** Arbiter's own password rules, lockout, TOTP
-  enrollment, require-MFA setting, and invitations do not apply. Users are
-  added, and passwords reset, in Philter (see
-  [Users and groups](admin/users-and-groups.md)).
+  enrollment, require-MFA setting, and invitations do not apply. The Users
+  page manages Philter's users through its Users API, with the signed-in
+  administrator's session key (see
+  [Users when people sign in through Philter](admin/users-and-groups.md#users-when-people-sign-in-through-philter)).
 - **No Arbiter API keys.** Arbiter refuses Bearer API keys and Settings
   offers none. A key is checked only against Arbiter's record, so it would
   keep working after the person is deactivated or loses a role in Philter.

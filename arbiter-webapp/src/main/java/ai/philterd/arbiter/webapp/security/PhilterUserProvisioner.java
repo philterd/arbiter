@@ -61,6 +61,36 @@ public class PhilterUserProvisioner {
         return role;
     }
 
+    /** After a role change in Philter, updates the person's record if they have one; creates none. */
+    public void applyPhilterRole(final String username, final String philterRole) {
+        userRepository.findByEmail(username).ifPresent(user -> {
+            final String role = roleFor(philterRole, user.getRoles());
+            if (!Set.of(role).equals(user.getRoles())) {
+                user.setRoles(Set.of(role));
+                userRepository.save(user);
+            }
+        });
+    }
+
+    /**
+     * Sets the Arbiter role of a Philter {@code user}, creating their record if they have none, and
+     * returns the record. A Philter {@code admin} stays an Arbiter {@code ADMIN} whatever is asked.
+     */
+    public User setArbiterRole(final String username, final String philterRole, final boolean auditor) {
+        final User user = userRepository.findByEmail(username).orElseGet(() -> {
+            final User created = new User();
+            created.setId(UUID.randomUUID().toString());
+            created.setEmail(username);
+            created.setCreatedAt(LocalDateTime.now());
+            return created;
+        });
+        final String role = PHILTER_ADMIN_ROLE.equalsIgnoreCase(philterRole) ? Roles.ADMIN
+                : auditor ? Roles.AUDITOR : Roles.USER;
+        user.setRoles(Set.of(role));
+        user.setApiKey(null);
+        return userRepository.save(user);
+    }
+
     static String roleFor(final String philterRole, final Set<String> current) {
         if (PHILTER_ADMIN_ROLE.equalsIgnoreCase(philterRole)) {
             return Roles.ADMIN;

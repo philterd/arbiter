@@ -85,7 +85,7 @@ public class PhilterSignInService {
      * A client that sends the address of the person whose request is being served, so Philter's audit
      * log records it for every call made on their behalf, not only sign-in.
      */
-    private PhilterClient client(final String encryptedKey) {
+    PhilterClient client(final String encryptedKey) {
         final String key = encryptedKey == null ? null : cipher.decrypt(encryptedKey);
         return PhilterClients.build(settings.philterUrl(), key, tls.sslContext(),
                 PhilterSignInService::currentClientAddress);
