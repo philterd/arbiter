@@ -309,6 +309,11 @@
                                 </span>
                                 <span th:unless="${i.encryptedApiKey != null and !#strings.isEmpty(i.encryptedApiKey)}"
                                       class="text-gray-400 text-xs">Not set</span>
+                                <div th:if="${i.apiKeyAdmin != null and i.apiKeyAdmin}"
+                                     class="mt-1 p-2 rounded bg-amber-50 border border-amber-200 text-xs text-amber-800 max-w-xs">
+                                    This key belongs to a Philter administrator. Replace it with a key for a user
+                                    who is not an administrator.
+                                </div>
                                 <details class="mt-1 text-xs text-gray-500">
                                     <summary class="cursor-pointer hover:text-gray-700">Set / change</summary>
                                     <form th:action="@{/admin/philter/{id}/api-key(id=${i.id})}" method="post"

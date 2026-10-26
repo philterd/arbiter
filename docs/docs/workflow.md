@@ -65,6 +65,24 @@ later.
     - **API key**: the Philter API key Arbiter sends as a bearer token.
       Required, since Philter 4 needs one for redaction. It is stored
       encrypted. You can change it later from the instance row but not clear it.
+      Arbiter uses it for background work such as ingest, so it must not belong
+      to a Philter administrator: Arbiter asks Philter (`GET /api/limits`) and
+      refuses such a key. Use a key for a Philter user created for Arbiter,
+      with only the `redact` and `policies:read` scopes. With the bootstrap or
+      another administrator key, for example:
+
+      ```sh
+      curl -X POST "http://philter:8080/api/users" \
+        -H "Authorization: Bearer $PHILTER_ADMIN_KEY" -H "Content-Type: application/json" \
+        --data '{"username":"arbiter","role":"user"}'
+      curl -X POST "http://philter:8080/api/users/arbiter/api-keys" \
+        -H "Authorization: Bearer $PHILTER_ADMIN_KEY" -H "Content-Type: application/json" \
+        --data '{"scopes":["redact","policies:read"]}'
+      ```
+
+      The second response holds the key in `apiKey`, shown only once. If
+      Philter cannot be reached when you save, the key is saved and the page
+      says it was not checked; use **Test** once Philter is up.
 4. Click **Add**. The instance is saved to Arbiter's database.
 5. Optionally, under **TLS** on the row, choose **Set / change** to attach a
    client certificate keystore, a trust store, or both, each a PKCS12 or JKS
@@ -83,7 +101,10 @@ later.
 6. Click **Test** on the row to confirm Arbiter can reach it. The test uses the
    instance's TLS settings, calls the instance's `/api/health` endpoint and
    reports its Philter version, then, when an API key is set, makes an
-   authenticated call to confirm Philter accepts the key.
+   authenticated call to confirm Philter accepts the key and that it does not
+   belong to a Philter administrator. A key saved before Arbiter refused
+   administrators' keys keeps working, but is checked when Arbiter starts and
+   on each Test, and the row shows a warning until it is replaced.
 7. Optionally set the row as the **default** so newly created batches start
    with it pre-selected. The Embedded Philter is the default if no other
    default is set.

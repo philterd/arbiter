@@ -41,14 +41,15 @@ import java.util.stream.Collectors;
  * deactivation. Also ends it when the person's role has changed, in Philter or in Arbiter, or their
  * Arbiter record was deleted, so they sign in again with the new role, and ends any session left from
  * before Arbiter was switched to Philter sign-in. Checks the key with {@code GET /api/users/me} at most
- * once per {@link #INTERVAL}, which also keeps Philter's idle timeout moving while the person uses
- * Arbiter. If Philter cannot be reached the request goes ahead and the next one checks again: only a
+ * once per interval ({@code arbiter.sign-in.check-interval-seconds}, default one minute; zero checks
+ * every request), which also keeps Philter's idle timeout moving while the person uses Arbiter. If Philter cannot be reached the request goes ahead and the next one checks again: only a
  * rejected key ends the session.
  */
 public class PhilterSessionValidationFilter extends OncePerRequestFilter {
 
     static final String VALIDATED_AT = "PHILTER_SESSION_VALIDATED_AT";
-    static final Duration INTERVAL = Duration.ofMinutes(1);
+    /** The default for {@code arbiter.sign-in.check-interval-seconds}. */
+    static final Duration DEFAULT_INTERVAL = Duration.ofMinutes(1);
 
     private static final Logger log = LoggerFactory.getLogger(PhilterSessionValidationFilter.class);
 
@@ -56,15 +57,25 @@ public class PhilterSessionValidationFilter extends OncePerRequestFilter {
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
     private final Clock clock;
+    private final Duration interval;
 
     public PhilterSessionValidationFilter(final PhilterSignInService signInService,
                                           final UserRepository userRepository,
                                           final AuditLogService auditLogService,
                                           final Clock clock) {
+        this(signInService, userRepository, auditLogService, clock, DEFAULT_INTERVAL);
+    }
+
+    public PhilterSessionValidationFilter(final PhilterSignInService signInService,
+                                          final UserRepository userRepository,
+                                          final AuditLogService auditLogService,
+                                          final Clock clock,
+                                          final Duration interval) {
         this.signInService = signInService;
         this.userRepository = userRepository;
         this.auditLogService = auditLogService;
         this.clock = clock;
+        this.interval = interval;
     }
 
     @Override
@@ -86,7 +97,7 @@ public class PhilterSessionValidationFilter extends OncePerRequestFilter {
             return;
         }
         final long now = clock.millis();
-        if (session.getAttribute(VALIDATED_AT) instanceof Long last && now - last < INTERVAL.toMillis()) {
+        if (session.getAttribute(VALIDATED_AT) instanceof Long last && now - last < interval.toMillis()) {
             chain.doFilter(request, response);
             return;
         }

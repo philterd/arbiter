@@ -45,6 +45,8 @@ class AdminPhilterControllerConnectionTest {
     private final List<String> paths = new CopyOnWriteArrayList<>();
     private HttpServer server;
     private int limitsStatus = 200;
+    private String callerRole = "user";
+    private PhilterInstanceRepository repository;
     private PhilterInstance instance;
     private AdminPhilterController controller;
 
@@ -55,7 +57,8 @@ class AdminPhilterControllerConnectionTest {
             paths.add(exchange.getRequestURI().getPath());
             final boolean health = exchange.getRequestURI().getPath().equals("/api/health");
             final int status = health ? 200 : limitsStatus;
-            final byte[] body = (health ? "{\"status\":\"UP\",\"applicationVersion\":\"4.0.0\"}" : "{}")
+            final byte[] body = (health ? "{\"status\":\"UP\",\"applicationVersion\":\"4.0.0\"}"
+                    : "{\"caller\":{\"role\":\"" + callerRole + "\"}}")
                     .getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
             exchange.sendResponseHeaders(status, body.length);
@@ -70,7 +73,7 @@ class AdminPhilterControllerConnectionTest {
         instance.setEndpoint("127.0.0.1");
         instance.setPort(server.getAddress().getPort());
         instance.setEncryptedApiKey(cipher.encrypt("sk_test"));
-        final PhilterInstanceRepository repository = mock(PhilterInstanceRepository.class);
+        repository = mock(PhilterInstanceRepository.class);
         when(repository.findById("p1")).thenReturn(Optional.of(instance));
 
         final DataSourceHostAllowList allowList = new DataSourceHostAllowList("127.0.0.1");
@@ -105,5 +108,50 @@ class AdminPhilterControllerConnectionTest {
         controller.test("p1", ra);
 
         assertTrue(String.valueOf(ra.getFlashAttributes().get("error")).contains("API key rejected"));
+    }
+
+    @Test
+    void administratorsKeyFailsAndIsFlagged() {
+        callerRole = "admin";
+        final RedirectAttributes ra = new RedirectAttributesModelMap();
+        controller.test("p1", ra);
+
+        assertTrue(String.valueOf(ra.getFlashAttributes().get("error")).contains("belongs to a Philter administrator"));
+        assertEquals(Boolean.TRUE, instance.getApiKeyAdmin());
+    }
+
+    @Test
+    void usersKeyPassesAndIsMarkedChecked() {
+        controller.test("p1", new RedirectAttributesModelMap());
+        assertEquals(Boolean.FALSE, instance.getApiKeyAdmin());
+    }
+
+    @Test
+    void administratorsKeyIsNotSaved() {
+        callerRole = "admin";
+        final String before = instance.getEncryptedApiKey();
+        final RedirectAttributes change = new RedirectAttributesModelMap();
+        controller.setApiKey("p1", "sk_admins_key", change);
+        assertEquals(AdminPhilterController.ADMIN_KEY, change.getFlashAttributes().get("error"));
+        assertEquals(before, instance.getEncryptedApiKey());
+
+        final RedirectAttributes create = new RedirectAttributesModelMap();
+        controller.create("another", "127.0.0.1", server.getAddress().getPort(), "sk_admins_key", create);
+        assertEquals(AdminPhilterController.ADMIN_KEY, create.getFlashAttributes().get("error"));
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never()).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void usersKeyIsSavedAndUncheckedKeyIsSavedWithANote() {
+        final RedirectAttributes saved = new RedirectAttributesModelMap();
+        controller.setApiKey("p1", "sk_users_key", saved);
+        assertEquals("sk_users_key", cipher.decrypt(instance.getEncryptedApiKey()));
+        assertEquals(Boolean.FALSE, instance.getApiKeyAdmin());
+
+        server.stop(0);
+        final RedirectAttributes unchecked = new RedirectAttributesModelMap();
+        controller.setApiKey("p1", "sk_other_key", unchecked);
+        assertTrue(String.valueOf(unchecked.getFlashAttributes().get("success")).contains("could not be reached"));
+        assertEquals(null, instance.getApiKeyAdmin());
     }
 }

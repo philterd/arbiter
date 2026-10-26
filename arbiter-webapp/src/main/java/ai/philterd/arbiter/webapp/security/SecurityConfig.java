@@ -44,6 +44,7 @@ import org.springframework.security.web.session.HttpSessionEventPublisher;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.util.Map;
 
 @Configuration
@@ -155,7 +156,9 @@ public class SecurityConfig {
                                                    final ObjectProvider<PhilterSignInService> philterSignInService,
                                                    final ObjectProvider<PhilterSignInFlow> philterSignInFlow,
                                                    final UserRepository userRepository,
-                                                   final CsrfTokenRepository csrfTokenRepository) throws Exception {
+                                                   final CsrfTokenRepository csrfTokenRepository,
+                                                   @Value("${arbiter.sign-in.check-interval-seconds:60}") final long checkIntervalSeconds)
+            throws Exception {
         final AuthenticationFailureHandler failureHandler;
         if (philterSignIn) {
             failureHandler = new PhilterSignInFailureHandler();
@@ -291,8 +294,12 @@ public class SecurityConfig {
         if (philterSignIn) {
             // After the session's SecurityContext is loaded, before authorization: a person whose
             // Philter session key was rejected is signed out of Arbiter rather than served.
+            if (checkIntervalSeconds < 0) {
+                throw new IllegalStateException("arbiter.sign-in.check-interval-seconds must be zero or more.");
+            }
             http.addFilterBefore(new PhilterSessionValidationFilter(philterSignInService.getObject(),
-                    userRepository, auditLogService, Clock.systemUTC()), AuthorizationFilter.class);
+                    userRepository, auditLogService, Clock.systemUTC(), Duration.ofSeconds(checkIntervalSeconds)),
+                    AuthorizationFilter.class);
         }
         return http.build();
     }

@@ -57,7 +57,8 @@ Philter keeps the passwords, MFA, lockout, and rate limiting; see Philter's
   Arbiter until every step is done. Changing the password or confirming
   enrollment ends their Philter sessions, and they sign in again.
 - **Session end.** Arbiter checks the key with Philter at most once a
-  minute while the person uses Arbiter, which also keeps Philter's idle
+  minute (`arbiter.sign-in.check-interval-seconds`; see
+  [Sign-in](reference/configuration.md#sign-in)) while the person uses Arbiter, which also keeps Philter's idle
   timeout from expiring. When Philter rejects the key (idle timeout,
   maximum lifetime, a password reset, revocation, or deactivation), Arbiter
   ends the session on the next check and returns the person to sign in. If
@@ -292,6 +293,13 @@ derivation: a leaked database paired with a low-entropy passphrase used
 to be brute-forceable in seconds, so passphrase-style secrets are no
 longer accepted. The plaintext key is never displayed back; the admin UI
 only shows whether a key is configured.
+
+The key must not belong to a Philter administrator, since Arbiter holds it
+for background work such as ingest. Arbiter refuses to save such a key,
+checking the role Philter reports for it (`GET /api/limits`), fails the
+**Test** for one, and flags one saved earlier, after checking at startup, until
+it is replaced. Give Arbiter a key with only the `redact` and `policies:read`
+scopes; see [Configure Philter](workflow.md#1-configure-philter).
 
 A Philter instance's own client certificate keystore and trust store, and
 their passwords, are encrypted the same way. The admin UI shows only whether

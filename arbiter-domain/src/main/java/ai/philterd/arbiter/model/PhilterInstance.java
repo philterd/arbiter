@@ -47,8 +47,18 @@ public class PhilterInstance {
 
     private LocalDateTime createdAt;
 
+    /**
+     * Whether the API key belongs to a Philter administrator, as Philter last reported it: {@code true}
+     * or {@code false}, or null when it has not been checked. Background work must not hold an
+     * administrator's key, so a new one is refused and an existing one is flagged.
+     */
+    private Boolean apiKeyAdmin;
+
     public PhilterInstance() {
     }
+
+    public Boolean getApiKeyAdmin() { return apiKeyAdmin; }
+    public void setApiKeyAdmin(final Boolean apiKeyAdmin) { this.apiKeyAdmin = apiKeyAdmin; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(final LocalDateTime createdAt) { this.createdAt = createdAt; }
 

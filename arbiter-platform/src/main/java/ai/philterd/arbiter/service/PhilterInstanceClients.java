@@ -69,6 +69,17 @@ public class PhilterInstanceClients {
         return PhilterClients.build(url, apiKey(instance), instanceTls.sslContext(instance));
     }
 
+    /**
+     * Whether the instance's API key belongs to a Philter administrator, from the caller's role in
+     * {@code GET /api/limits}, which any key may call whatever its scopes. Null when Philter does not
+     * say.
+     */
+    public Boolean keyBelongsToAdministrator(final PhilterInstance instance) throws IOException {
+        final ai.philterd.philter.model.Limits limits = client(instance).getLimits();
+        final String role = limits == null || limits.getCaller() == null ? null : limits.getCaller().getRole();
+        return role == null ? null : "admin".equalsIgnoreCase(role);
+    }
+
     /** True when the instance has an API key that decrypts. */
     public boolean hasApiKey(final PhilterInstance instance) {
         final String apiKey = apiKey(instance);

@@ -279,4 +279,17 @@ class PhilterSessionValidationFilterTest {
 
         verify(chain).doFilter(request, response);
     }
+
+    @Test
+    void intervalOfZeroChecksEveryRequest() throws Exception {
+        final PhilterSessionValidationFilter everyRequest = new PhilterSessionValidationFilter(signInService,
+                userRepository, auditLogService, Clock.fixed(Instant.ofEpochMilli(NOW), ZoneOffset.UTC),
+                java.time.Duration.ZERO);
+        when(signInService.currentUser("enc-key")).thenReturn(active(true));
+
+        everyRequest.doFilter(request, response, chain);
+        everyRequest.doFilter(request, new MockHttpServletResponse(), chain);
+
+        verify(signInService, org.mockito.Mockito.times(2)).currentUser("enc-key");
+    }
 }

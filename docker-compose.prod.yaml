@@ -7,7 +7,10 @@
 # Then: docker compose -f docker-compose.prod.yaml up -d
 #
 # After signing in to Arbiter as admin@philterd.ai, add Philter under Admin → Philter
-# with endpoint "philter", port 8080, and a Philter API key.
+# with endpoint "philter", port 8080, and an API key for a Philter user who is not an
+# administrator, with only the redact and policies:read scopes. Arbiter refuses an
+# administrator's key, such as PHILTER_BOOTSTRAP_API_KEY; create the user and key with it
+# as docs/docs/workflow.md shows.
 #
 # Each SQLite database lives in a volume (arbiter-data, philter-data). Back them up;
 # see docs/docs/reference/database.md#backups.

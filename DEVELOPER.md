@@ -21,11 +21,20 @@ covers `ai.philterd.arbiter` regardless of where a class compiles from.
 ```sh
 mvn package                 # full reactor build
 mvn test                    # all modules
+mvn verify                  # also the *IT integration tests; needs Docker
 docker compose -f docker-compose.yaml up --build   # full stack: OpenSearch + ES + Valkey + app on :8080, SQLite store
 ARBITER_STORE=mongodb docker compose -f docker-compose.yaml --profile mongodb up --build   # same, on MongoDB
 ./build-image.sh            # multi-arch (amd64 + arm64) image, tagged with the pom version
 ./push-image.sh             # publish it to philterd/arbiter, by hand
 ```
+
+`mvn verify` runs the integration tests (`*IT`, with Maven Failsafe) as well as
+the unit tests. `PhilterSignInIT` starts the real Arbiter on SQLite with in-memory
+sessions against a `philterd/philter:4.0.0` container, started with
+Testcontainers, and covers sign-in through Philter, MFA, forced password change,
+expiry, revocation, sign-out, and the Users page. It takes about a minute and a
+half, most of it waiting for Philter's one-minute idle timeout. The Philter image
+is amd64-only, so on an ARM machine it runs under emulation and is slower.
 
 `build-image.sh` loads `philterd/arbiter:<version>-amd64` and
 `-arm64` locally; `push-image.sh` pushes those two and joins them into the

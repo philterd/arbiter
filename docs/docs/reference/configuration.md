@@ -113,6 +113,7 @@ Philter 4.0's user management API (`philter`). See
 | -------- | -------------------- | ------- |
 | `arbiter.sign-in.mode` | `ARBITER_SIGN_IN_MODE` | `local` (default) or `philter`. Any other value stops Arbiter at startup. |
 | `arbiter.sign-in.philter-url` | `ARBITER_SIGN_IN_PHILTER_URL` | Required in `philter` mode: the `http` or `https` URL of the Philter that signs people in, for example `https://philter:8080`. |
+| `arbiter.sign-in.check-interval-seconds` | `ARBITER_SIGN_IN_CHECK_INTERVAL_SECONDS` | In `philter` mode, how often Arbiter checks a person's session key with Philter while they use it, in seconds (default `60`). `0` checks every request. A session Philter has ended, or whose role has changed, ends at the next check. A negative value stops Arbiter at startup. |
 
 Both are read only at startup, so an administrator signed in to Arbiter cannot
 change how people sign in. Calls to this Philter use the global

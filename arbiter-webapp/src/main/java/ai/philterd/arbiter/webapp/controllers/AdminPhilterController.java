@@ -167,6 +167,12 @@ public class AdminPhilterController {
         instance.setEndpoint(trimmedEndpoint);
         instance.setPort(port);
         instance.setEncryptedApiKey(symmetricCipher.encrypt(trimmedKey));
+        final Boolean adminKey = keyBelongsToAdministrator(instance);
+        if (Boolean.TRUE.equals(adminKey)) {
+            redirectAttributes.addFlashAttribute("error", ADMIN_KEY);
+            return "redirect:/admin/philter";
+        }
+        instance.setApiKeyAdmin(adminKey);
 
         try {
             repository.save(instance);
@@ -180,7 +186,7 @@ public class AdminPhilterController {
                 Map.of("name", trimmedName, "endpoint", trimmedEndpoint, "port", port,
                         "apiKeyConfigured", true));
         redirectAttributes.addFlashAttribute("success",
-                "Philter instance \"" + trimmedName + "\" added.");
+                "Philter instance \"" + trimmedName + "\" added." + (adminKey == null ? NOT_CHECKED : ""));
         return "redirect:/admin/philter";
     }
 
@@ -200,7 +206,15 @@ public class AdminPhilterController {
         }
         final boolean previouslyConfigured = instance.getEncryptedApiKey() != null
                 && !instance.getEncryptedApiKey().isBlank();
+        final String previousKey = instance.getEncryptedApiKey();
         instance.setEncryptedApiKey(symmetricCipher.encrypt(trimmed));
+        final Boolean adminKey = keyBelongsToAdministrator(instance);
+        if (Boolean.TRUE.equals(adminKey)) {
+            instance.setEncryptedApiKey(previousKey);
+            redirectAttributes.addFlashAttribute("error", ADMIN_KEY);
+            return "redirect:/admin/philter";
+        }
+        instance.setApiKeyAdmin(adminKey);
         repository.save(instance);
         auditLogService.log("PHILTER_INSTANCE_API_KEY_CHANGE", "PhilterInstance", id,
                 Map.of(
@@ -208,7 +222,7 @@ public class AdminPhilterController {
                         "previouslyConfigured", previouslyConfigured,
                         "currentlyConfigured", true));
         redirectAttributes.addFlashAttribute("success",
-                "API key updated for \"" + instance.getName() + "\".");
+                "API key updated for \"" + instance.getName() + "\"." + (adminKey == null ? NOT_CHECKED : ""));
         return "redirect:/admin/philter";
     }
 
@@ -344,14 +358,26 @@ public class AdminPhilterController {
             final StatusResponse health = client.health();
             detail = "Philter " + (health == null || health.getApplicationVersion() == null
                     ? "(unknown version)" : health.getApplicationVersion());
+            boolean administratorsKey = false;
             if (philterInstanceClients.hasApiKey(instance)) {
-                // health() is unauthenticated; getLimits() accepts any valid key, whatever its scopes.
-                client.getLimits();
-                detail += ", API key accepted";
+                // health() is unauthenticated; getLimits() accepts any valid key, whatever its scopes,
+                // and reports the role of the key's user.
+                final ai.philterd.philter.model.Limits limits = client.getLimits();
+                final String role = limits == null || limits.getCaller() == null ? null : limits.getCaller().getRole();
+                final Boolean adminKey = role == null ? null : "admin".equalsIgnoreCase(role);
+                instance.setApiKeyAdmin(adminKey);
+                repository.save(instance);
+                if (Boolean.TRUE.equals(adminKey)) {
+                    administratorsKey = true;
+                    detail += ", but the API key belongs to a Philter administrator. Replace it with a key "
+                            + "for a user who is not an administrator";
+                } else {
+                    detail += ", API key accepted";
+                }
             } else {
                 detail += ", no API key set";
             }
-            ok = true;
+            ok = !administratorsKey;
         } catch (UnauthorizedException e) {
             status = e.getStatusCode();
             detail = "API key rejected (" + PhilterClients.describe(e) + ")";
@@ -381,6 +407,22 @@ public class AdminPhilterController {
                             + url + ": " + detail);
         }
         return "redirect:/admin/philter";
+    }
+
+    static final String ADMIN_KEY = "This API key belongs to a Philter administrator. Arbiter uses the key "
+            + "for background work such as ingest, so give it a key for a Philter user who is not an "
+            + "administrator, with only the scopes Arbiter needs.";
+
+    private static final String NOT_CHECKED = " Philter could not be reached to check that the key does not "
+            + "belong to an administrator; use Test once it is.";
+
+    /** Whether the instance's key is a Philter administrator's: true, false, or null if Philter could not say. */
+    private Boolean keyBelongsToAdministrator(final PhilterInstance instance) {
+        try {
+            return philterInstanceClients.keyBelongsToAdministrator(instance);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     private static String buildInstanceUrl(final String endpoint, final int port) {
