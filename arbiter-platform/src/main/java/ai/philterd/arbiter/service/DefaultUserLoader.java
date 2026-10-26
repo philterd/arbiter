@@ -96,6 +96,7 @@ public class DefaultUserLoader implements ApplicationRunner {
     @Override
     public void run(final ApplicationArguments args) {
         if (philterSignIn) {
+            clearApiKeys();
             return;
         }
         // Bootstrap is keyed on whether *any* admin exists, not on whether the user
@@ -127,6 +128,25 @@ public class DefaultUserLoader implements ApplicationRunner {
         inboxService.sendHtml(admin.getId(), WelcomeMessage.html(true));
         log.info("Seeded default admin '{}' using password from {}.",
                 admin.getEmail(), INITIAL_PASSWORD_ENV_VAR);
+    }
+
+    /**
+     * Arbiter API keys are refused with Philter sign-in, since a key is checked only against Arbiter's
+     * record. Clearing them keeps any from working again if the deployment returns to local sign-in,
+     * for example one belonging to someone since deactivated in Philter.
+     */
+    private void clearApiKeys() {
+        int cleared = 0;
+        for (final User user : userRepository.findAll()) {
+            if (user.getApiKey() != null) {
+                user.setApiKey(null);
+                userRepository.save(user);
+                cleared++;
+            }
+        }
+        if (cleared > 0) {
+            log.info("Cleared {} Arbiter API key(s): API keys are not used with Philter sign-in.", cleared);
+        }
     }
 
     private boolean localAdminExists() {

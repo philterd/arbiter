@@ -80,16 +80,18 @@ public class PhilterSignInFlow {
                     PendingPhilterSignIn.Step.MFA_ENROLLMENT, name, encryptedKey));
         }
 
+        // Until the person is signed in, any failure revokes the key Philter just issued.
         final CurrentUser me;
+        final String role;
         try {
             me = signInService.currentUser(encryptedKey);
+            role = provisioner.provision(me.getUsername(), me.getRole());
+            auditLogService.logForUser(me.getUsername(), "LOGIN", "User", null,
+                    AuditLogService.OUTCOME_SUCCESS, Map.of("method", "philter"));
         } catch (Exception e) {
             signOutQuietly(encryptedKey);
             throw refused(name, e);
         }
-        final String role = provisioner.provision(me.getUsername(), me.getRole());
-        auditLogService.logForUser(me.getUsername(), "LOGIN", "User", null,
-                AuditLogService.OUTCOME_SUCCESS, Map.of("method", "philter"));
         return new PhilterSessionAuthentication(me.getUsername(), encryptedKey,
                 List.of(new SimpleGrantedAuthority("ROLE_" + role)));
     }
@@ -121,30 +123,6 @@ public class PhilterSignInFlow {
         }
         log.warn("Sign-in through Philter failed: {}", PhilterClients.describe(e));
         return fail(username, "Unavailable", new AuthenticationServiceException("Sign-in is unavailable."));
-    }
-
-    /**
-     * Checks a signed-in person's password with Philter, for actions that ask for it again. A right
-     * password gets a session key, revoked at once, or an MFA challenge, left to expire. A wrong one
-     * counts toward Philter's lockout like any failed sign-in.
-     */
-    public boolean verifyPassword(final String username, final String password, final HttpServletRequest request) {
-        if (username == null || password == null || password.isEmpty()) {
-            return false;
-        }
-        try {
-            final SignInResponse response = signInService.signIn(username, password,
-                    clientAddress(request), userAgent(request));
-            if (response.getApiKey() != null && !response.getApiKey().isBlank()) {
-                signOutQuietly(signInService.encrypt(response.getApiKey()));
-            }
-            return true;
-        } catch (UnauthorizedException e) {
-            return false;
-        } catch (Exception e) {
-            log.warn("Could not check a password with Philter: {}", PhilterClients.describe(e));
-            return false;
-        }
     }
 
     /** Revokes a session key, logging only the kind of failure. */

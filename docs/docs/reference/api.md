@@ -32,6 +32,10 @@ To use them, generate an API key from
 Authorization: Bearer <your-api-key>
 ```
 
+When people sign in through Philter, API keys are not available and these
+endpoints answer `401 Unauthorized`; see
+[Sign-in through Philter](../security.md#sign-in-through-philter).
+
 Arbiter stores only the SHA-512 hash of the key. The plaintext value is shown
 once at generation and cannot be recovered. Rotate by generating a new key
 (which replaces the old one) or revoke the existing one. Failed authentication
@@ -43,7 +47,8 @@ The remaining `/api/v1/**` endpoints are used by Arbiter's own web UI and
 accept either a Bearer token or the browser's session cookie. Cross-origin
 abuse is blocked by the browser's same-origin policy plus the absence of a
 permissive CORS configuration; Bearer authentication still works for
-programmatic clients that prefer to use them. Endpoints in this category are
+programmatic clients that prefer to use them, except when people sign in
+through Philter, where only the session cookie is accepted. Endpoints in this category are
 called out below per-section. The API key carries the same role and group
 permissions as the user that owns it; session callers carry whatever role and
 groups their account has.

@@ -84,4 +84,16 @@ class PhilterUserProvisionerTest {
         assertEquals(Roles.USER, provisioner.provision("jdoe", "user"));
         verify(userRepository).save(any());
     }
+
+    @Test
+    void anApiKeyOnTheRecordIsCleared() {
+        final User user = existing(Roles.USER);
+        user.setApiKey("hash-of-an-old-key");
+        when(userRepository.findByEmail("jdoe")).thenReturn(Optional.of(user));
+
+        provisioner.provision("jdoe", "user");
+
+        assertNull(user.getApiKey());
+        verify(userRepository).save(user);
+    }
 }

@@ -200,4 +200,28 @@ class ApiKeyAuthFilterTest {
     private static <T> T any() {
         return org.mockito.ArgumentMatchers.any();
     }
+
+    @Test
+    void refusesKeysWhenPeopleSignInThroughPhilter() throws Exception {
+        when(hashingService.hash("tok")).thenReturn("h");
+        when(userRepository.findByApiKey("h")).thenReturn(Optional.of(user("api@x.com")));
+
+        new ApiKeyAuthFilter(userRepository, hashingService, false)
+                .doFilter(apiReq("tok"), new MockHttpServletResponse(), mock(FilterChain.class));
+
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+    }
+
+    @Test
+    void refusedKeyLeavesNoBearerMarker() throws Exception {
+        when(hashingService.hash("tok")).thenReturn("h");
+        when(userRepository.findByApiKey("h")).thenReturn(Optional.of(user("api@x.com")));
+        final jakarta.servlet.http.HttpServletRequest request = apiReq("tok");
+
+        new ApiKeyAuthFilter(userRepository, hashingService, false)
+                .doFilter(request, new MockHttpServletResponse(), mock(FilterChain.class));
+
+        assertNull(request.getAttribute(ApiKeyAuthFilter.BEARER_AUTH_ATTR));
+        org.mockito.Mockito.verifyNoInteractions(userRepository);
+    }
 }

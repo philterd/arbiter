@@ -14,7 +14,7 @@ configure how the Review page navigates, and manage your API key.
     - Two-factor authentication is set up at sign-in, when your administrator
       requires it, rather than on this page. You then enter a code from your
       authenticator app after your password at each sign-in.
-    - Generating or revoking an API key asks for your Philter password.
+    - Arbiter API keys are not available.
     - For a forgotten password or a locked sign-in, ask your administrator,
       who resets or unlocks it in Philter.
 

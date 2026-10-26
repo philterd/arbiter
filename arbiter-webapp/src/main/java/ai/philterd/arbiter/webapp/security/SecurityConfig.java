@@ -37,6 +37,8 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
+import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
 import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
@@ -76,7 +78,16 @@ public class SecurityConfig {
     @Bean
     public ApiKeyAuthFilter apiKeyAuthFilter(final UserRepository userRepository,
                                              final ApiKeyHashingService apiKeyHashingService) {
-        return new ApiKeyAuthFilter(userRepository, apiKeyHashingService);
+        return new ApiKeyAuthFilter(userRepository, apiKeyHashingService, !philterSignIn);
+    }
+
+    /**
+     * The CSRF token store, a bean so the sign-in step that completes outside the form login (the MFA
+     * code through Philter) can replace the token as the form login does.
+     */
+    @Bean
+    public CsrfTokenRepository csrfTokenRepository() {
+        return new HttpSessionCsrfTokenRepository();
     }
 
     @Bean
@@ -142,7 +153,9 @@ public class SecurityConfig {
                                                    final AuthenticationProvider authenticationProvider,
                                                    final AuditLogService auditLogService,
                                                    final ObjectProvider<PhilterSignInService> philterSignInService,
-                                                   final ObjectProvider<PhilterSignInFlow> philterSignInFlow) throws Exception {
+                                                   final ObjectProvider<PhilterSignInFlow> philterSignInFlow,
+                                                   final UserRepository userRepository,
+                                                   final CsrfTokenRepository csrfTokenRepository) throws Exception {
         final AuthenticationFailureHandler failureHandler;
         if (philterSignIn) {
             failureHandler = new PhilterSignInFailureHandler();
@@ -219,7 +232,7 @@ public class SecurityConfig {
                 // on demand.
                 .sessionManagement(s -> s
                         .sessionFixation().changeSessionId()
-                        .maximumSessions(-1).sessionRegistry(sessionRegistry()))
+                        .maximumSessions(-1).sessionRegistry(sessionRegistry()).expiredUrl("/login?expired"))
                 .logout(logout -> {
                     if (philterSignIn) {
                         logout.addLogoutHandler(new PhilterSignOutHandler(philterSignInFlow.getObject()));
@@ -242,7 +255,7 @@ public class SecurityConfig {
                 // both authentication filters so the SecurityContext is populated, and
                 // before AuthorizationFilter so the 403 it returns is the one the user sees.
                 .addFilterBefore(new AuditorWriteRejectFilter(), AuthorizationFilter.class)
-                .csrf(csrf -> csrf.ignoringRequestMatchers("/api/**"))
+                .csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository).ignoringRequestMatchers("/api/**"))
                 // Defence-in-depth response headers. Arbiter renders document text
                 // and reviewer comments through Thymeleaf (escaped via th:text), but
                 // any future regression introducing an unescaped sink would otherwise
@@ -279,7 +292,7 @@ public class SecurityConfig {
             // After the session's SecurityContext is loaded, before authorization: a person whose
             // Philter session key was rejected is signed out of Arbiter rather than served.
             http.addFilterBefore(new PhilterSessionValidationFilter(philterSignInService.getObject(),
-                    auditLogService, Clock.systemUTC()), AuthorizationFilter.class);
+                    userRepository, auditLogService, Clock.systemUTC()), AuthorizationFilter.class);
         }
         return http.build();
     }

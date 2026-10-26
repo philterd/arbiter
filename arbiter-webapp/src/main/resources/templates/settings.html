@@ -346,7 +346,14 @@
                         </div>
                     </div>
 
-                    <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <div th:if="${philterSignIn}" class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                        <h3 class="text-lg font-semibold text-gray-900 mb-1">API key</h3>
+                        <p class="text-sm text-gray-600">
+                            Arbiter API keys are not available when you sign in through Philter.
+                        </p>
+                    </div>
+
+                    <div th:unless="${philterSignIn}" class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                         <h3 class="text-lg font-semibold text-gray-900 mb-1">API key</h3>
                         <p class="text-sm text-gray-600 mb-4">
                             Used to authenticate requests to <code>/api/v1/*</code> via the

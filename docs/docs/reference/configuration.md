@@ -13,14 +13,21 @@ the `--spring.config.additional-location=...` command-line argument.
 
 The port Arbiter listens on. Defaults to `8080`.
 
-### `server.forward-headers-strategy=framework`
+### `server.forward-headers-strategy=native`
 
-Tells Arbiter to trust the `X-Forwarded-*` headers added by a TLS-terminating
-reverse proxy (nginx, AWS ALB, etc.) so it knows the request originally
-arrived over HTTPS. Without this, the session cookie would be marked
-"insecure" because Arbiter would think the connection was plain HTTP. The
-`framework` value is safe behind a single well-controlled proxy. If you
-terminate TLS in Arbiter itself, set this to `none`.
+Tells Arbiter to use the `X-Forwarded-For` and `X-Forwarded-Proto` headers
+added by a TLS-terminating reverse proxy (nginx, AWS ALB, etc.), so it knows
+the client's address and that the request arrived over HTTPS. Without this,
+the session cookie would be marked "insecure" because Arbiter would think the
+connection was plain HTTP.
+
+Arbiter believes these headers only on requests from an address matching
+`server.tomcat.remoteip.internal-proxies`, set with the environment variable
+`ARBITER_TRUSTED_PROXIES_REGEX`. The default matches every private-network and
+loopback address, so any client on a private network that reaches Arbiter
+directly can set its own address. Set `ARBITER_TRUSTED_PROXIES_REGEX` to a
+regular expression matching only your reverse proxy's address. If you
+terminate TLS in Arbiter itself, set the strategy to `none`.
 
 ### Session cookie hardening
 
@@ -34,7 +41,7 @@ server.servlet.session.cookie.same-site=strict
   blunts cookie theft via cross-site scripting.
 - **`secure=true`** — the browser only sends the cookie over HTTPS. Works
   correctly even when Arbiter receives plain HTTP from a reverse proxy
-  because `forward-headers-strategy=framework` (above) makes Arbiter believe
+  because `forward-headers-strategy=native` (above) makes Arbiter believe
   the request arrived over HTTPS.
 - **`same-site=strict`** — the browser will not send the cookie on any
   cross-site request, which closes the cross-site request forgery vector
@@ -118,6 +125,13 @@ The Philter must run with `PASSWORD_SIGN_IN_ENABLED=true`. Otherwise every
 sign-in fails with "Sign-in is unavailable" and Arbiter logs a warning naming
 the setting. List Arbiter's address in Philter's `TRUSTED_PROXIES`, so Philter
 rate limits and records each person's own address rather than Arbiter's.
+
+Arbiter sends Philter the address it believes the person has. With the default
+`ARBITER_TRUSTED_PROXIES_REGEX` (see
+[`server.forward-headers-strategy=native`](#serverforward-headers-strategynative)),
+a client on a private network that reaches Arbiter directly can set that address,
+and so choose the address Philter rate limits. Narrow the setting to your reverse
+proxy. Philter's lockout per username does not depend on the address.
 
 In `philter` mode `ARBITER_ADMIN_INITIAL_PASSWORD` is not needed and no local
 administrator is created. Switching back to `local` requires it again: when

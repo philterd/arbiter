@@ -16,7 +16,6 @@ import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.SymmetricCipher;
 import ai.philterd.arbiter.service.UserSettingsService;
 import ai.philterd.arbiter.webapp.security.PhilterSessionAuthentication;
-import ai.philterd.arbiter.webapp.security.PhilterSignInFlow;
 import ai.philterd.arbiter.webapp.security.PhilterSignInService;
 import ai.philterd.arbiter.webapp.security.TotpService;
 import ai.philterd.philter.model.exceptions.ClientException;
@@ -52,7 +51,6 @@ class SettingsControllerPhilterModeTest {
     private UserRepository userRepository;
     private PasswordEncoder passwordEncoder;
     private PhilterSignInService signInService;
-    private PhilterSignInFlow flow;
     private SettingsController controller;
     private final PhilterSessionAuthentication philter = new PhilterSessionAuthentication("jdoe", "enc-key",
             List.of(new SimpleGrantedAuthority("ROLE_USER")));
@@ -63,14 +61,11 @@ class SettingsControllerPhilterModeTest {
         userRepository = mock(UserRepository.class);
         passwordEncoder = mock(PasswordEncoder.class);
         signInService = mock(PhilterSignInService.class);
-        flow = mock(PhilterSignInFlow.class);
         final ObjectProvider<PhilterSignInService> services = mock(ObjectProvider.class);
         when(services.getObject()).thenReturn(signInService);
-        final ObjectProvider<PhilterSignInFlow> flows = mock(ObjectProvider.class);
-        when(flows.getObject()).thenReturn(flow);
         controller = new SettingsController(userRepository, passwordEncoder, mock(AuditLogService.class),
                 mock(UserSettingsService.class), mock(TotpService.class), mock(ApiKeyHashingService.class),
-                new SymmetricCipher(TEST_KEY_B64), mock(SessionRegistry.class), services, flows);
+                new SymmetricCipher(TEST_KEY_B64), mock(SessionRegistry.class), services);
         final User shadow = new User();
         shadow.setId("u1");
         shadow.setEmail("jdoe");
@@ -99,19 +94,15 @@ class SettingsControllerPhilterModeTest {
     }
 
     @Test
-    void apiKeyNeedsThePasswordCheckedByPhilter() {
-        final MockHttpServletRequest request = new MockHttpServletRequest();
-        when(flow.verifyPassword("jdoe", "wrong", request)).thenReturn(false);
-        final RedirectAttributesModelMap refused = new RedirectAttributesModelMap();
-        controller.generateApiKey("wrong", philter, request, refused);
-        assertNotNull(error(refused));
-        verify(userRepository, never()).save(any());
+    void apiKeysAreNotAvailable() {
+        final RedirectAttributesModelMap generate = new RedirectAttributesModelMap();
+        controller.generateApiKey("right-password-1234", philter, generate);
+        assertEquals(SettingsController.API_KEYS_OFF, error(generate));
 
-        when(flow.verifyPassword("jdoe", "right-password-1234", request)).thenReturn(true);
-        final RedirectAttributesModelMap granted = new RedirectAttributesModelMap();
-        controller.generateApiKey("right-password-1234", philter, request, granted);
-        assertNotNull(granted.getFlashAttributes().get("apiKey"));
-        verify(passwordEncoder, never()).matches(any(), any());
+        final RedirectAttributesModelMap revoke = new RedirectAttributesModelMap();
+        controller.revokeApiKey("right-password-1234", philter, revoke);
+        assertEquals(SettingsController.API_KEYS_OFF, error(revoke));
+        verify(userRepository, never()).save(any());
     }
 
     @Test

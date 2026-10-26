@@ -75,7 +75,7 @@ class SettingsControllerSessionInvalidationTest {
                 userRepository, passwordEncoder, mock(AuditLogService.class),
                 mock(UserSettingsService.class), mock(TotpService.class),
                 mock(ApiKeyHashingService.class), new SymmetricCipher(TEST_KEY_B64),
-                sessionRegistry, mock(ObjectProvider.class), mock(ObjectProvider.class));
+                sessionRegistry, mock(ObjectProvider.class));
 
         request = mock(HttpServletRequest.class);
         currentSession = mock(HttpSession.class);

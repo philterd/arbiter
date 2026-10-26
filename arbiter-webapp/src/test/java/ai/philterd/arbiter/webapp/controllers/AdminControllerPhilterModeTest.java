@@ -41,16 +41,18 @@ import static org.mockito.Mockito.when;
 class AdminControllerPhilterModeTest {
 
     private UserRepository userRepository;
+    private SessionRegistry sessionRegistry;
     private AdminController controller;
     private final Authentication admin = new UsernamePasswordAuthenticationToken("admin", null, List.of());
 
     @BeforeEach
     void setUp() {
         userRepository = mock(UserRepository.class);
+        sessionRegistry = mock(SessionRegistry.class);
         controller = new AdminController(userRepository, mock(PasswordEncoder.class), mock(AuditLogService.class),
                 mock(NotificationSettingsService.class), mock(UserNotificationService.class),
                 new LoginAttemptService(), mock(InvitationService.class), mock(InvitationRepository.class),
-                mock(SessionRegistry.class), "philter");
+                sessionRegistry, "philter");
     }
 
     private User user(final String role) {
@@ -108,5 +110,12 @@ class AdminControllerPhilterModeTest {
         final RedirectAttributesModelMap flash = new RedirectAttributesModelMap();
         controller.unlock("u1", admin, flash);
         assertEquals(AdminController.MANAGED_IN_PHILTER, error(flash));
+    }
+
+    @Test
+    void changingBetweenUserAndAuditorEndsThePersonsSessions() {
+        user(Roles.AUDITOR);
+        controller.edit("u1", "USER", null, admin, new RedirectAttributesModelMap());
+        verify(sessionRegistry).getAllSessions("jdoe", false);
     }
 }

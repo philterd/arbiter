@@ -107,58 +107,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @Import({SecurityConfig.class, MongoUserDetailsService.class,
         ai.philterd.arbiter.service.BatchAccessService.class,
         ai.philterd.arbiter.service.DocumentAccessService.class})
-public class AuthorizationIntegrationTest {
+public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
 
     @Autowired private MockMvc mockMvc;
     @org.springframework.boot.test.mock.mockito.SpyBean
     private ai.philterd.arbiter.webapp.security.LoginAttemptService loginAttemptService;
 
-    @MockBean private ai.philterd.arbiter.service.ApiKeyHashingService apiKeyHashingService;
-
-    /** The slice does not auto-configure Actuator, so the aggregate HealthController reads is mocked. */
-    @MockBean private HealthEndpoint healthEndpoint;
-
-    @BeforeEach
-    void healthIsUp() {
-        when(healthEndpoint.health()).thenReturn(Health.up().build());
-    }
-
-    // Repositories — Spring Data interfaces, all mockable.
-    @MockBean private RedactionService redactionService;
-    @MockBean private SpanRepository spanRepository;
-    @MockBean private DocumentRepository documentRepository;
-    @MockBean private BatchRepository batchRepository;
-    @MockBean private UserRepository userRepository;
-    @MockBean private GroupRepository groupRepository;
-    @MockBean private AuditLogRepository auditLogRepository;
-    @MockBean private NotificationSettingsRepository notificationSettingsRepository;
-    @MockBean private GeneralSettingsRepository generalSettingsRepository;
-    @MockBean private OllamaInstanceRepository ollamaInstanceRepository;
-    @MockBean private OpenSearchDataSourceRepository openSearchDataSourceRepository;
-    @MockBean private ai.philterd.arbiter.repository.BackgroundJobRepository backgroundJobRepository;
-    @MockBean private ai.philterd.arbiter.repository.DataImportLogEntryRepository dataImportLogEntryRepository;
-    @MockBean private ai.philterd.arbiter.repository.ElasticsearchDataSourceRepository elasticsearchDataSourceRepository;
-    @MockBean private S3DataSourceRepository s3DataSourceRepository;
-    @MockBean private RelationalDbDataSourceRepository relationalDbDataSourceRepository;
-    @MockBean private LocalDirectoryDataSourceRepository localDirectoryDataSourceRepository;
-    @MockBean private LocalDirectoryDestinationRepository localDirectoryDestinationRepository;
-    @MockBean private S3DestinationRepository s3DestinationRepository;
-    @MockBean private DestinationTester destinationTester;
-    @MockBean private PhilterInstanceRepository philterInstanceRepository;
-    @MockBean private ai.philterd.arbiter.service.PhilterInstanceClients philterInstanceClients;
-    @MockBean private PhilterDefaultsRepository philterDefaultsRepository;
-    @MockBean private PolicyRepository policyRepository;
-    @MockBean private DocumentCommentRepository documentCommentRepository;
-    @MockBean private WeightSetRepository weightSetRepository;
-    @MockBean private LlmJudgeDefaultsRepository llmJudgeDefaultsRepository;
-    @MockBean private UserSettingsRepository userSettingsRepository;
-    @MockBean private InboxMessageRepository inboxMessageRepository;
-    @MockBean private PendingUploadRepository pendingUploadRepository;
-    @MockBean private RedactionCertificateRepository redactionCertificateRepository;
-    @MockBean private ai.philterd.arbiter.repository.FinalizationPolicyRepository finalizationPolicyRepository;
-    @MockBean private ai.philterd.arbiter.repository.ComplianceProfileRepository complianceProfileRepository;
-    @MockBean private ai.philterd.arbiter.repository.InvitationRepository invitationRepository;
-    @MockBean private MongoOperations mongoOperations;
 
     // ---------------------------------------------------------------------
     // Anonymous: form-based UI redirects to /login; /api/** returns 401.

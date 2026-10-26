@@ -37,7 +37,8 @@ public class OpenApiConfig {
                         .title("Arbiter API")
                         .version("v1")
                         .description("REST API for Arbiter, the human-in-the-loop deidentification tool. "
-                                + "All endpoints require a Bearer API key. Generate one from /settings.")
+                                + "Endpoints take a Bearer API key generated from /settings, except when people "
+                                + "sign in through Philter, where Arbiter API keys are not available.")
                         .license(new License().name("Apache License 2.0")
                                 .url("https://www.apache.org/licenses/LICENSE-2.0")))
                 .components(new Components()

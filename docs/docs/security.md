@@ -71,21 +71,31 @@ Philter keeps the passwords, MFA, lockout, and rate limiting; see Philter's
   the username exists.
 - **Roles.** A Philter `admin` is an Arbiter `ADMIN`. A Philter `user` is an
   Arbiter `USER`, or `AUDITOR` if an Arbiter administrator sets that. The
-  role is set again at each sign-in. Arbiter keeps a record for each person,
+  role is set at sign-in. When it changes, in Philter or under **Admin →
+  Users**, or the person's Arbiter record is deleted, Arbiter ends their
+  session at its next check and they sign in again with the new role. Arbiter keeps a record for each person,
   named by their Philter username, for group membership and for the user
   recorded on batches, documents, and the audit log. It holds no password
   or MFA secret.
 - **What changes in Arbiter.** Arbiter's own password rules, lockout, TOTP
   enrollment, require-MFA setting, and invitations do not apply. Users are
   added, and passwords reset, in Philter (see
-  [Users and groups](admin/users-and-groups.md)). Generating or revoking an
-  Arbiter API key asks for the password, which Arbiter checks by signing in
-  to Philter and revoking that session key at once.
+  [Users and groups](admin/users-and-groups.md)).
+- **No Arbiter API keys.** Arbiter refuses Bearer API keys and Settings
+  offers none. A key is checked only against Arbiter's record, so it would
+  keep working after the person is deactivated or loses a role in Philter.
+  Endpoints that accept only a Bearer key, such as `POST /api/v1/ingest`,
+  are not available in this mode. Keys already stored are deleted at startup
+  and at each person's sign-in, so they do not work again if the deployment
+  returns to local sign-in.
 - **Audit.** Sign-ins are recorded as `LOGIN` with `method: philter`, and a
   failure's `reason` is one of `BadCredentials`, `Locked`, `RateLimited`,
   `MfaLocked`, `SignInDisabled`, or `Unavailable`. A session ended because
   Philter rejected its key is a `LOGOUT` with
-  `reason: philter_session_ended`. Philter records its own events, such as
+  `reason: philter_session_ended`, one ended by a role change has
+  `reason: role_changed`, and a session from before the switch to Philter
+  sign-in has `reason: sign_in_mode_changed`. Each of those also revokes the
+  key, unless Philter had already rejected it. Philter records its own events, such as
   `sign_in_succeeded`, in its audit log.
 
 Arbiter's other calls to Philter, such as redaction at ingest, policy

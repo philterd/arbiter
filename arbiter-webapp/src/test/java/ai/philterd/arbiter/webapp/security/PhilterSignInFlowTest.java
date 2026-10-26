@@ -167,39 +167,31 @@ class PhilterSignInFlowTest {
     }
 
     @Test
-    void verifyPasswordRevokesTheKeyARightPasswordGets() throws IOException {
-        when(signInService.signIn(eq("jdoe"), eq("right-password-1234"), any(), any())).thenReturn(key("sk_check"));
-
-        assertTrue(flow.verifyPassword("jdoe", "right-password-1234", new MockHttpServletRequest()));
-        verify(signInService).signOut("enc(sk_check)");
-    }
-
-    @Test
-    void verifyPasswordAcceptsAnMfaChallengeAsProofOfThePassword() throws IOException {
-        final SignInResponse challenge = new SignInResponse();
-        challenge.setChallenge("ch_1");
-        when(signInService.signIn(eq("jdoe"), eq("right-password-1234"), any(), any())).thenReturn(challenge);
-
-        assertTrue(flow.verifyPassword("jdoe", "right-password-1234", new MockHttpServletRequest()));
-        verify(signInService, never()).signOut(any());
-    }
-
-    @Test
-    void verifyPasswordRefusesAWrongOrLockedPassword() throws IOException {
-        when(signInService.signIn(eq("jdoe"), eq("wrong"), any(), any())).thenThrow(new UnauthorizedException("no"));
-        when(signInService.signIn(eq("jdoe"), eq("locked"), any(), any()))
-                .thenThrow(new SignInLockedException("locked", 60));
-
-        assertFalse(flow.verifyPassword("jdoe", "wrong", new MockHttpServletRequest()));
-        assertFalse(flow.verifyPassword("jdoe", "locked", new MockHttpServletRequest()));
-        assertFalse(flow.verifyPassword("jdoe", "", new MockHttpServletRequest()));
-    }
-
-    @Test
     void userAgentIsTruncated() {
         final MockHttpServletRequest request = new MockHttpServletRequest();
         request.addHeader("User-Agent", "x".repeat(2000));
         assertEquals(512, PhilterSignInFlow.userAgent(request).length());
         assertNull(PhilterSignInFlow.userAgent(null));
+    }
+
+    @Test
+    void keyIsRevokedWhenTheArbiterUserCannotBeSaved() throws IOException {
+        when(signInService.currentUser("enc(sk_session)")).thenReturn(me("jdoe", "user"));
+        when(provisioner.provision("jdoe", "user"))
+                .thenThrow(new org.springframework.dao.DuplicateKeyException("concurrent first sign-in"));
+
+        assertThrows(AuthenticationServiceException.class, () -> flow.complete(key("sk_session"), "jdoe"));
+        verify(signInService).signOut("enc(sk_session)");
+    }
+
+    @Test
+    void keyIsRevokedWhenTheSignInCannotBeAudited() throws IOException {
+        when(signInService.currentUser("enc(sk_session)")).thenReturn(me("jdoe", "user"));
+        when(provisioner.provision("jdoe", "user")).thenReturn("USER");
+        org.mockito.Mockito.doThrow(new IllegalStateException("audit store down")).when(auditLogService)
+                .logForUser(eq("jdoe"), eq("LOGIN"), any(), any(), eq(AuditLogService.OUTCOME_SUCCESS), any());
+
+        assertThrows(AuthenticationServiceException.class, () -> flow.complete(key("sk_session"), "jdoe"));
+        verify(signInService).signOut("enc(sk_session)");
     }
 }

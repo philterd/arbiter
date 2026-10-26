@@ -45,4 +45,31 @@ class SignInSettingsTest {
     void unknownModeStopsStartup() {
         assertThrows(IllegalStateException.class, () -> new SignInSettings("ldap", ""));
     }
+
+    @Test
+    void beanConditionsReadTheModeAsTheSettingsDo() {
+        assertEquals("local", SignInModeCondition.normalize(null));
+        assertEquals("local", SignInModeCondition.normalize("  "));
+        assertEquals("philter", SignInModeCondition.normalize(" Philter "));
+    }
+
+    @Test
+    void conditionsMatchTheModeInTheEnvironment() {
+        assertTrue(matches(new SignInModeCondition.Local(), null));
+        assertTrue(matches(new SignInModeCondition.Local(), ""));
+        assertFalse(matches(new SignInModeCondition.Philter(), ""));
+        assertTrue(matches(new SignInModeCondition.Philter(), " PHILTER "));
+        assertFalse(matches(new SignInModeCondition.Local(), "philter"));
+    }
+
+    private static boolean matches(final SignInModeCondition condition, final String mode) {
+        final org.springframework.mock.env.MockEnvironment environment = new org.springframework.mock.env.MockEnvironment();
+        if (mode != null) {
+            environment.setProperty("arbiter.sign-in.mode", mode);
+        }
+        final org.springframework.context.annotation.ConditionContext context =
+                org.mockito.Mockito.mock(org.springframework.context.annotation.ConditionContext.class);
+        org.mockito.Mockito.when(context.getEnvironment()).thenReturn(environment);
+        return condition.matches(context, null);
+    }
 }

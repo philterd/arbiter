@@ -31,7 +31,9 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.web.context.SecurityContextRepository;
+import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
 import org.springframework.ui.ExtendedModelMap;
 
 import java.util.List;
@@ -56,6 +58,7 @@ class PhilterSignInControllerTest {
     private PhilterSignInFlow flow;
     private TotpService totpService;
     private SecurityContextRepository contextRepository;
+    private SessionRegistry sessionRegistry;
     private PhilterSignInController controller;
     private MockHttpSession session;
     private MockHttpServletRequest request;
@@ -67,7 +70,9 @@ class PhilterSignInControllerTest {
         flow = mock(PhilterSignInFlow.class);
         totpService = mock(TotpService.class);
         contextRepository = mock(SecurityContextRepository.class);
-        controller = new PhilterSignInController(signInService, flow, totpService, contextRepository);
+        sessionRegistry = mock(SessionRegistry.class);
+        controller = new PhilterSignInController(signInService, flow, totpService, contextRepository, sessionRegistry,
+                new HttpSessionCsrfTokenRepository());
         session = new MockHttpSession();
         request = new MockHttpServletRequest();
         request.setSession(session);
@@ -95,6 +100,7 @@ class PhilterSignInControllerTest {
     void rightCodeSignsInUnderANewSessionId() throws Exception {
         pending(Step.MFA);
         final String oldId = session.getId();
+        session.setAttribute(HttpSessionCsrfTokenRepository.class.getName() + ".CSRF_TOKEN", "pre-sign-in-token");
         final SignInResponse key = new SignInResponse();
         final PhilterSessionAuthentication auth = new PhilterSessionAuthentication("jdoe", "enc-key",
                 List.of(new SimpleGrantedAuthority("ROLE_USER")));
@@ -104,6 +110,9 @@ class PhilterSignInControllerTest {
         assertEquals("redirect:/", controller.completeMfa(" 123456 ", request, response));
 
         assertNotEquals(oldId, request.getSession().getId());
+        assertNull(session.getAttribute(HttpSessionCsrfTokenRepository.class.getName() + ".CSRF_TOKEN"),
+                "the pre-sign-in CSRF token is replaced");
+        verify(sessionRegistry).registerNewSession(request.getSession().getId(), "jdoe");
         assertSame(auth, SecurityContextHolder.getContext().getAuthentication());
         verify(contextRepository).saveContext(any(SecurityContext.class), eq(request), eq(response));
         assertNull(session.getAttribute(PendingPhilterSignIn.SESSION_ATTRIBUTE));
@@ -187,5 +196,21 @@ class PhilterSignInControllerTest {
                 controller.confirmMfaEnrollment("123456", session, new ExtendedModelMap()));
         verify(signInService).confirmMfaEnrollment("enc", "123456");
         assertNull(session.getAttribute(PendingPhilterSignIn.SESSION_ATTRIBUTE));
+    }
+
+    @Test
+    void keyIsRevokedWhenTheSessionCannotBeEstablished() throws Exception {
+        pending(Step.MFA);
+        final SignInResponse key = new SignInResponse();
+        final PhilterSessionAuthentication auth = new PhilterSessionAuthentication("jdoe", "enc-key",
+                List.of(new SimpleGrantedAuthority("ROLE_USER")));
+        when(signInService.completeSignIn(any(), any(), any(), any())).thenReturn(key);
+        when(flow.complete(key, "jdoe")).thenReturn(auth);
+        doThrow(new IllegalStateException("session store down")).when(contextRepository)
+                .saveContext(any(), any(), any());
+
+        assertEquals("redirect:/login?unavailable", controller.completeMfa("123456", request, response));
+        verify(flow).signOutQuietly("enc-key");
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
     }
 }

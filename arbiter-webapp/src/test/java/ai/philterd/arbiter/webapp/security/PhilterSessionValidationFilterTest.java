@@ -9,6 +9,9 @@
  */
 package ai.philterd.arbiter.webapp.security;
 
+import ai.philterd.arbiter.model.Roles;
+import ai.philterd.arbiter.model.User;
+import ai.philterd.arbiter.repository.UserRepository;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.philter.model.CurrentUser;
 import ai.philterd.philter.model.exceptions.UnauthorizedException;
@@ -19,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -28,6 +32,9 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -45,6 +52,7 @@ class PhilterSessionValidationFilterTest {
 
     private PhilterSignInService signInService;
     private AuditLogService auditLogService;
+    private UserRepository userRepository;
     private PhilterSessionValidationFilter filter;
     private MockHttpSession session;
     private MockHttpServletRequest request;
@@ -55,7 +63,9 @@ class PhilterSessionValidationFilterTest {
     void setUp() {
         signInService = mock(PhilterSignInService.class);
         auditLogService = mock(AuditLogService.class);
-        filter = new PhilterSessionValidationFilter(signInService, auditLogService,
+        userRepository = mock(UserRepository.class);
+        stored(Roles.USER);
+        filter = new PhilterSessionValidationFilter(signInService, userRepository, auditLogService,
                 Clock.fixed(Instant.ofEpochMilli(NOW), ZoneOffset.UTC));
         session = new MockHttpSession();
         request = new MockHttpServletRequest("GET", "/queue");
@@ -71,9 +81,22 @@ class PhilterSessionValidationFilterTest {
         SecurityContextHolder.clearContext();
     }
 
+    private void stored(final String role) {
+        final User user = new User();
+        user.setEmail("jdoe");
+        user.setRoles(Set.of(role));
+        when(userRepository.findByEmail("jdoe")).thenReturn(Optional.of(user));
+    }
+
+    private void signedInAs(final String role) {
+        SecurityContextHolder.getContext().setAuthentication(new PhilterSessionAuthentication("jdoe", "enc-key",
+                List.of(new SimpleGrantedAuthority("ROLE_" + role))));
+    }
+
     private static CurrentUser active(final boolean active) {
         final CurrentUser me = new CurrentUser();
         me.setUsername("jdoe");
+        me.setRole("user");
         me.setActive(active);
         return me;
     }
@@ -145,13 +168,115 @@ class PhilterSessionValidationFilterTest {
     }
 
     @Test
-    void otherAuthenticationsAreLeftAlone() throws Exception {
+    void sessionFromBeforeTheSwitchToPhilterSignInIsEnded() throws Exception {
         SecurityContextHolder.getContext().setAuthentication(
-                new UsernamePasswordAuthenticationToken("a@example.com", null, List.of()));
+                new UsernamePasswordAuthenticationToken("a@example.com", null, List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
 
         filter.doFilter(request, response, chain);
 
+        assertTrue(session.isInvalid());
         verify(signInService, never()).currentUser(any());
+        verify(chain, never()).doFilter(any(), any());
+    }
+
+    @Test
+    void anonymousRequestsAreLeftAlone() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(new AnonymousAuthenticationToken("key", "anonymousUser",
+                List.of(new SimpleGrantedAuthority("ROLE_ANONYMOUS"))));
+
+        filter.doFilter(request, response, chain);
+
+        verify(chain).doFilter(request, response);
+    }
+
+    @Test
+    void adminRoleChangedInPhilterEndsTheSession() throws Exception {
+        final CurrentUser promoted = active(true);
+        promoted.setRole("admin");
+        when(signInService.currentUser("enc-key")).thenReturn(promoted);
+
+        filter.doFilter(request, response, chain);
+
+        assertTrue(session.isInvalid());
+        verify(chain, never()).doFilter(any(), any());
+        verify(auditLogService).logForUser(eq("jdoe"), eq("LOGOUT"), eq("User"), eq(null),
+                eq(AuditLogService.OUTCOME_SUCCESS), eq(Map.of("reason", "role_changed")));
+    }
+
+    @Test
+    void adminDemotedInPhilterEndsTheSession() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(new PhilterSessionAuthentication("jdoe", "enc-key",
+                List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))));
+        when(signInService.currentUser("enc-key")).thenReturn(active(true));
+
+        filter.doFilter(request, response, chain);
+
+        assertTrue(session.isInvalid());
+    }
+
+    @Test
+    void auditorStaysSignedIn() throws Exception {
+        signedInAs(Roles.AUDITOR);
+        stored(Roles.AUDITOR);
+        when(signInService.currentUser("enc-key")).thenReturn(active(true));
+
+        filter.doFilter(request, response, chain);
+
+        verify(chain).doFilter(request, response);
+    }
+
+    @Test
+    void roleNameCaseFromPhilterDoesNotMatter() throws Exception {
+        signedInAs(Roles.ADMIN);
+        final CurrentUser me = active(true);
+        me.setRole("Admin");
+        when(signInService.currentUser("enc-key")).thenReturn(me);
+
+        filter.doFilter(request, response, chain);
+
+        verify(chain).doFilter(request, response);
+    }
+
+    @Test
+    void roleChangedInArbiterEndsTheSessionAndRevokesTheKey() throws Exception {
+        stored(Roles.AUDITOR);
+        when(signInService.currentUser("enc-key")).thenReturn(active(true));
+
+        filter.doFilter(request, response, chain);
+
+        assertTrue(session.isInvalid());
+        verify(signInService).signOut("enc-key");
+        verify(auditLogService).logForUser(eq("jdoe"), eq("LOGOUT"), eq("User"), eq(null),
+                eq(AuditLogService.OUTCOME_SUCCESS), eq(Map.of("reason", "role_changed")));
+    }
+
+    @Test
+    void deletedArbiterRecordEndsTheSession() throws Exception {
+        when(userRepository.findByEmail("jdoe")).thenReturn(Optional.empty());
+        when(signInService.currentUser("enc-key")).thenReturn(active(true));
+
+        filter.doFilter(request, response, chain);
+
+        assertTrue(session.isInvalid());
+    }
+
+    @Test
+    void keyAlreadyRejectedByPhilterIsNotRevokedAgain() throws Exception {
+        when(signInService.currentUser("enc-key")).thenThrow(new UnauthorizedException("expired"));
+
+        filter.doFilter(request, response, chain);
+
+        verify(signInService, never()).signOut(any());
+    }
+
+    @Test
+    void bearerRequestsAreLeftToTheBearerFilter() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(
+                new UsernamePasswordAuthenticationToken("api@example.com", null, List.of(new SimpleGrantedAuthority("ROLE_USER"))));
+        request.setAttribute(ApiKeyAuthFilter.BEARER_AUTH_ATTR, Boolean.TRUE);
+
+        filter.doFilter(request, response, chain);
+
         verify(chain).doFilter(request, response);
     }
 }

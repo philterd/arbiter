@@ -91,7 +91,7 @@ class SettingsControllerMfaEnrollSecurityTest {
         cipher = new SymmetricCipher(TEST_KEY_B64);
         controller = new SettingsController(userRepository, passwordEncoder, auditLogService,
                 userSettingsService, totpService, apiKeyHashingService, cipher,
-                mock(SessionRegistry.class), mock(ObjectProvider.class), mock(ObjectProvider.class));
+                mock(SessionRegistry.class), mock(ObjectProvider.class));
     }
 
     private static RedirectAttributes flash() { return new RedirectAttributesModelMap(); }

@@ -23,7 +23,6 @@ import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.SymmetricCipher;
 import ai.philterd.arbiter.service.UserSettingsService;
 import ai.philterd.arbiter.webapp.security.PhilterSessionAuthentication;
-import ai.philterd.arbiter.webapp.security.PhilterSignInFlow;
 import ai.philterd.arbiter.webapp.security.PhilterSignInService;
 import ai.philterd.arbiter.webapp.security.TotpService;
 import ai.philterd.philter.model.exceptions.ClientException;
@@ -64,9 +63,9 @@ public class SettingsController {
     private final SymmetricCipher cipher;
     private final SessionRegistry sessionRegistry;
     private final ObjectProvider<PhilterSignInService> philterSignInService;
-    private final ObjectProvider<PhilterSignInFlow> philterSignInFlow;
 
     static final String MFA_IN_PHILTER = "Two-factor authentication is managed in Philter.";
+    static final String API_KEYS_OFF = "Arbiter API keys are not available when you sign in through Philter.";
 
     public SettingsController(final UserRepository userRepository,
                               final PasswordEncoder passwordEncoder,
@@ -76,10 +75,8 @@ public class SettingsController {
                               final ApiKeyHashingService apiKeyHashingService,
                               final SymmetricCipher cipher,
                               final SessionRegistry sessionRegistry,
-                              final ObjectProvider<PhilterSignInService> philterSignInService,
-                              final ObjectProvider<PhilterSignInFlow> philterSignInFlow) {
+                              final ObjectProvider<PhilterSignInService> philterSignInService) {
         this.philterSignInService = philterSignInService;
-        this.philterSignInFlow = philterSignInFlow;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.auditLogService = auditLogService;
@@ -283,14 +280,17 @@ public class SettingsController {
     @PostMapping("/api-key")
     public String generateApiKey(@RequestParam("currentPassword") final String currentPassword,
                                  final Authentication authentication,
-                                 final HttpServletRequest request,
                                  final RedirectAttributes redirectAttributes) {
+        if (authentication instanceof PhilterSessionAuthentication) {
+            redirectAttributes.addFlashAttribute("error", API_KEYS_OFF);
+            return "redirect:/settings";
+        }
         final User user = userRepository.findByEmail(authentication.getName()).orElse(null);
         if (user == null) {
             redirectAttributes.addFlashAttribute("error", "Account not found.");
             return "redirect:/settings";
         }
-        if (!passwordMatches(authentication, user, currentPassword, request)) {
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
             redirectAttributes.addFlashAttribute("error", "Current password is incorrect. API key was not generated.");
             return "redirect:/settings";
         }
@@ -307,14 +307,17 @@ public class SettingsController {
     @PostMapping("/api-key/revoke")
     public String revokeApiKey(@RequestParam("currentPassword") final String currentPassword,
                                final Authentication authentication,
-                               final HttpServletRequest request,
                                final RedirectAttributes redirectAttributes) {
+        if (authentication instanceof PhilterSessionAuthentication) {
+            redirectAttributes.addFlashAttribute("error", API_KEYS_OFF);
+            return "redirect:/settings";
+        }
         final User user = userRepository.findByEmail(authentication.getName()).orElse(null);
         if (user == null) {
             redirectAttributes.addFlashAttribute("error", "Account not found.");
             return "redirect:/settings";
         }
-        if (!passwordMatches(authentication, user, currentPassword, request)) {
+        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
             redirectAttributes.addFlashAttribute("error", "Current password is incorrect. API key was not revoked.");
             return "redirect:/settings";
         }
@@ -433,15 +436,6 @@ public class SettingsController {
         }
         SecurityContextHolder.clearContext();
         return "redirect:/login?passwordChanged";
-    }
-
-    /** The current password, checked locally or, for a person signed in through Philter, with Philter. */
-    private boolean passwordMatches(final Authentication authentication, final User user,
-                                    final String currentPassword, final HttpServletRequest request) {
-        if (authentication instanceof PhilterSessionAuthentication) {
-            return philterSignInFlow.getObject().verifyPassword(authentication.getName(), currentPassword, request);
-        }
-        return user.getPasswordHash() != null && passwordEncoder.matches(currentPassword, user.getPasswordHash());
     }
 
     private void expireOtherSessions(final String principal, final String currentSessionId) {

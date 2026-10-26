@@ -26,7 +26,8 @@ import java.util.UUID;
  *
  * <p>A Philter {@code admin} is an Arbiter {@code ADMIN}. A Philter {@code user} is an Arbiter
  * {@code USER}, or {@code AUDITOR} when an Arbiter administrator has set that. The role is set again at
- * every sign-in, so a change in Philter applies from the person's next sign-in.</p>
+ * every sign-in, and a session ends at its next check when the role has changed
+ * ({@link PhilterSessionValidationFilter}).</p>
  */
 @Service
 public class PhilterUserProvisioner {
@@ -49,8 +50,12 @@ public class PhilterUserProvisioner {
             user.setCreatedAt(LocalDateTime.now());
         }
         final String role = roleFor(philterRole, user.getRoles());
-        if (existing == null || !Set.of(role).equals(user.getRoles())) {
+        // Arbiter API keys are refused with Philter sign-in. Clearing any key here keeps one made
+        // before, or under local sign-in, from working again if the deployment returns to local.
+        final boolean hadApiKey = user.getApiKey() != null;
+        if (existing == null || hadApiKey || !Set.of(role).equals(user.getRoles())) {
             user.setRoles(Set.of(role));
+            user.setApiKey(null);
             userRepository.save(user);
         }
         return role;

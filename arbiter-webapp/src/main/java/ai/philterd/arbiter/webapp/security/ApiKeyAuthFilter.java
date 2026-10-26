@@ -47,11 +47,23 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
     private final UserRepository userRepository;
     private final ApiKeyHashingService apiKeyHashingService;
+    /**
+     * When people sign in through Philter, Arbiter API keys are refused: a key is checked only against
+     * Arbiter's record, so it would outlive the person's deactivation or role change in Philter.
+     */
+    private final boolean keysEnabled;
 
     public ApiKeyAuthFilter(final UserRepository userRepository,
                             final ApiKeyHashingService apiKeyHashingService) {
+        this(userRepository, apiKeyHashingService, true);
+    }
+
+    public ApiKeyAuthFilter(final UserRepository userRepository,
+                            final ApiKeyHashingService apiKeyHashingService,
+                            final boolean keysEnabled) {
         this.userRepository = userRepository;
         this.apiKeyHashingService = apiKeyHashingService;
+        this.keysEnabled = keysEnabled;
     }
 
     @Override
@@ -68,7 +80,7 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
         final boolean alreadyAuthenticated = SecurityContextHolder.getContext().getAuthentication() != null
                 && SecurityContextHolder.getContext().getAuthentication().isAuthenticated();
 
-        if (isApiPath || !alreadyAuthenticated) {
+        if (keysEnabled && (isApiPath || !alreadyAuthenticated)) {
             final String apiKey = extractBearerToken(request);
             if (apiKey != null && !apiKey.isBlank()) {
                 final String apiKeyHash = apiKeyHashingService.hash(apiKey);

@@ -252,7 +252,8 @@ public class AdminController {
                     "Cannot remove admin from \"" + user.getEmail() + "\": at least one administrator is required.");
             return "redirect:/admin/users";
         }
-        final boolean roleChanged = wasAdmin != willBeAdmin;
+        // Any change, including between User and Auditor, ends the person's sessions.
+        final boolean roleChanged = user.getRoles() == null || !user.getRoles().equals(Set.of(requestedRole));
         user.setRoles(Set.of(requestedRole));
         boolean passwordReset = false;
         if (newPassword != null && !newPassword.isEmpty()) {

@@ -161,4 +161,16 @@ class DefaultUserLoaderTest {
         user.setPasswordHash(passwordHash);
         return user;
     }
+
+    @Test
+    void clearsApiKeysWhenPeopleSignInThroughPhilter() {
+        final User withKey = admin("{bcrypt}hash");
+        withKey.setApiKey("hash-of-a-key");
+        when(userRepository.findAll()).thenReturn(java.util.List.of(withKey, admin(null)));
+
+        new DefaultUserLoader(userRepository, passwordEncoder, inboxService, "", "philter").run(args);
+
+        org.junit.jupiter.api.Assertions.assertNull(withKey.getApiKey());
+        verify(userRepository, org.mockito.Mockito.times(1)).save(any());
+    }
 }

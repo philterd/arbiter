@@ -23,7 +23,8 @@ import ai.philterd.philter.model.exceptions.UnauthorizedException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import ai.philterd.arbiter.service.SignInModeCondition;
+import org.springframework.context.annotation.Conditional;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.LockedException;
@@ -31,6 +32,8 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.context.SecurityContextHolderStrategy;
+import org.springframework.security.core.session.SessionRegistry;
+import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -48,19 +51,25 @@ import org.springframework.web.bind.annotation.RequestParam;
  */
 @Controller
 @RequestMapping("/sign-in")
-@ConditionalOnProperty(name = "arbiter.sign-in.mode", havingValue = "philter")
+@Conditional(SignInModeCondition.Philter.class)
 public class PhilterSignInController {
 
     private final PhilterSignInService signInService;
     private final PhilterSignInFlow flow;
     private final TotpService totpService;
     private final SecurityContextRepository securityContextRepository;
+    private final SessionRegistry sessionRegistry;
+    private final CsrfTokenRepository csrfTokenRepository;
     private final SecurityContextHolderStrategy contextHolder = SecurityContextHolder.getContextHolderStrategy();
 
     public PhilterSignInController(final PhilterSignInService signInService,
                                    final PhilterSignInFlow flow,
                                    final TotpService totpService,
-                                   final SecurityContextRepository securityContextRepository) {
+                                   final SecurityContextRepository securityContextRepository,
+                                   final SessionRegistry sessionRegistry,
+                                   final CsrfTokenRepository csrfTokenRepository) {
+        this.sessionRegistry = sessionRegistry;
+        this.csrfTokenRepository = csrfTokenRepository;
         this.signInService = signInService;
         this.flow = flow;
         this.totpService = totpService;
@@ -96,7 +105,13 @@ public class PhilterSignInController {
         } catch (Exception e) {
             return "redirect:" + loginFor(flow.refused(pending.username(), e), "code");
         }
-        signIn(authentication, request, response);
+        try {
+            signIn(authentication, request, response);
+        } catch (RuntimeException e) {
+            flow.signOutQuietly(authentication.getEncryptedSessionKey());
+            contextHolder.clearContext();
+            return "redirect:/login?unavailable";
+        }
         return "redirect:/";
     }
 
@@ -205,11 +220,16 @@ public class PhilterSignInController {
         return "redirect:/login?mfaEnrolled";
     }
 
-    /** Signs the person in to Arbiter, under a new session id since the old one predates sign-in. */
+    /**
+     * Signs the person in to Arbiter as the sign-in form does: under a new session id and a new CSRF
+     * token, since both predate sign-in, and registered so the person's sessions can be expired.
+     */
     private void signIn(final PhilterSessionAuthentication authentication,
                         final HttpServletRequest request,
                         final HttpServletResponse response) {
         request.changeSessionId();
+        csrfTokenRepository.saveToken(null, request, response);
+        sessionRegistry.registerNewSession(request.getSession().getId(), authentication.getPrincipal());
         final SecurityContext context = contextHolder.createEmptyContext();
         context.setAuthentication(authentication);
         contextHolder.setContext(context);
