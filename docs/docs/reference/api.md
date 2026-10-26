@@ -4,6 +4,10 @@ Arbiter exposes a JSON-over-HTTP API under `/api/v1`. The API surface is split
 into two categories that authenticate differently. A few paths sit outside
 both: the unauthenticated [health and metrics endpoints](#health-and-metrics).
 
+Every `POST`, `PUT`, `PATCH`, and `DELETE` under `/api/v1` requires
+`Content-Type: application/json`, including requests with an empty body, and
+returns `415 Unsupported Media Type` without it.
+
 ## Authentication
 
 ### Programmatic (Bearer-only)
@@ -283,6 +287,8 @@ success, the document is transitioned to `FINALIZED` and the rendered
 redacted text is persisted on the document so a later download still works
 even if a finalization policy clears the source text.
 
+The request has no body but requires `Content-Type: application/json`.
+
 ```json
 { "finalizedText": "string" }
 ```
@@ -291,6 +297,7 @@ even if a finalization policy clears the source text.
 | ------ | -------------------------------------------------------------------------------------- |
 | `200`  | Returns `{ "finalizedText": "..." }` and the document is now `FINALIZED`.               |
 | `404`  | Document not found, or the caller lacks group access.                                   |
+| `415`  | The `Content-Type: application/json` header is missing.                                 |
 | `409`  | Document is not in `APPROVED`, **or** its source text is unavailable (e.g. cleared by a finalization policy on a prior pass) and cannot be re-finalized. |
 
 ### `GET /api/v1/documents/{id}/audit`

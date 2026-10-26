@@ -70,20 +70,11 @@ services:
       # arbiter network. For HTTPS, set this to true, mount Philter's own certificate
       # (see Philter's TLS settings), and give Arbiter a trust store for it above.
       - SSL_ENABLED=false
-      - PHEYE_ENDPOINT=http://ph-eye:5000
+      # Names are found by the PhEye model in Philter's image (ph-eye-pii-en-small), which
+      # Philter's default policy uses, so no separate PhEye service is needed. To use one,
+      # set PHEYE_ENDPOINT and name it in a policy.
     volumes:
       - philter-data:/opt/philter/data
-    depends_on:
-      ph-eye:
-        condition: service_started
-    networks:
-      - arbiter
-
-  ph-eye:
-    # The model that finds names and other context-dependent PII for Philter.
-    image: philterd/ph-eye:1.3.0-pii_en_small
-    container_name: arbiter-ph-eye
-    restart: unless-stopped
     networks:
       - arbiter
 
