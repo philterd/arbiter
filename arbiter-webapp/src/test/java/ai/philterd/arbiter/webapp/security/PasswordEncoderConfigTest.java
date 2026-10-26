@@ -23,7 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class PasswordEncoderConfigTest {
 
-    private final PasswordEncoder encoder = new SecurityConfig().passwordEncoder();
+    private final PasswordEncoder encoder = new SecurityConfig("local").passwordEncoder();
 
     @Test
     void newHashesUseBcryptPrefix() {

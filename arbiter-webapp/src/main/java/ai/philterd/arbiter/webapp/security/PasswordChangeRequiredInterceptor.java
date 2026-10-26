@@ -53,6 +53,11 @@ public class PasswordChangeRequiredInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        // Philter forces the password change for people who sign in through it, at sign-in.
+        if (auth instanceof PhilterSessionAuthentication) {
+            return true;
+        }
+
         // Bearer (API-key) callers present a separate credential — the API key
         // — so the password-rotation gate doesn't apply. The gate exists to
         // prevent an admin who set the initial password from acting via that

@@ -201,7 +201,13 @@
             <div th:if="${success}" class="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700"
                  th:text="${success}">Success</div>
 
-            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-6 max-w-2xl">
+            <div th:if="${philterSignIn}" class="mb-6 max-w-2xl p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-800">
+                People sign in through Philter. Add users, reset passwords, and choose administrators in Philter.
+                A person appears here after their first sign-in. Here you can make a user an Auditor, manage
+                groups, and remove the Arbiter record of someone who no longer signs in.
+            </div>
+
+            <div th:unless="${philterSignIn}" class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-6 max-w-2xl">
                 <h3 class="text-lg font-semibold text-gray-900 mb-3">Add user</h3>
                 <p class="text-sm text-gray-600 mb-3">
                     Pick one of the two methods below. Either set an initial
@@ -266,7 +272,9 @@
                                       title="Too many failed sign-in attempts. Auto-unlocks after 15 minutes.">Locked</span>
                             </td>
                             <td class="px-6 py-4 text-sm text-gray-700" colspan="2">
-                                <form th:if="${u.email != currentEmail}"
+                                <span th:if="${philterSignIn and u.email != currentEmail and u.roles != null and u.roles.contains('ADMIN')}"
+                                      class="text-xs text-gray-500">Administrator in Philter</span>
+                                <form th:if="${u.email != currentEmail and !(philterSignIn and u.roles != null and u.roles.contains('ADMIN'))}"
                                       th:action="@{/admin/users/{id}/edit(id=${u.id})}" method="post"
                                       class="grid grid-cols-1 sm:grid-cols-[auto_minmax(0,1fr)_auto] gap-3 items-center">
                                     <div>
@@ -275,13 +283,13 @@
                                                 class="rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                             <option value="USER"
                                                     th:selected="${u.roles == null or (!u.roles.contains('ADMIN') and !u.roles.contains('AUDITOR'))}">User</option>
-                                            <option value="ADMIN"
+                                            <option value="ADMIN" th:unless="${philterSignIn}"
                                                     th:selected="${u.roles != null and u.roles.contains('ADMIN')}">Admin</option>
                                             <option value="AUDITOR"
                                                     th:selected="${u.roles != null and u.roles.contains('AUDITOR')}">Auditor (read-only)</option>
                                         </select>
                                     </div>
-                                    <input type="password" name="newPassword" placeholder="New password (optional)" minlength="12"
+                                    <input type="password" name="newPassword" placeholder="New password (optional)" minlength="12" th:unless="${philterSignIn}"
                                            class="rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                                     <button type="submit"
                                             class="px-3 py-1.5 text-xs font-medium text-blue-600 hover:text-blue-800 border border-blue-600 rounded-md">

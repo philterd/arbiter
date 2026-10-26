@@ -21,6 +21,7 @@ import ai.philterd.arbiter.repository.UserRepository;
 import ai.philterd.arbiter.service.InboxService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
@@ -69,32 +70,51 @@ public class DefaultUserLoader implements ApplicationRunner {
      *  {@link #INITIAL_PASSWORD_ENV_VAR} environment variable. May be blank on a
      *  fresh install; {@link #requireConfiguredPassword()} fail-fasts in that case. */
     private final String initialPassword;
+    /** In {@code philter} sign-in mode the administrators are Philter's, so none is seeded here. */
+    private final boolean philterSignIn;
 
     public DefaultUserLoader(final UserRepository userRepository,
                              final PasswordEncoder passwordEncoder,
                              final InboxService inboxService,
-                             @Value("${arbiter.admin.initial-password:}") final String initialPassword) {
+                             final String initialPassword) {
+        this(userRepository, passwordEncoder, inboxService, initialPassword, SignInSettings.MODE_LOCAL);
+    }
+
+    @Autowired
+    public DefaultUserLoader(final UserRepository userRepository,
+                             final PasswordEncoder passwordEncoder,
+                             final InboxService inboxService,
+                             @Value("${arbiter.admin.initial-password:}") final String initialPassword,
+                             @Value("${arbiter.sign-in.mode:local}") final String signInMode) {
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.inboxService = inboxService;
         this.initialPassword = initialPassword;
+        this.philterSignIn = SignInSettings.MODE_PHILTER.equalsIgnoreCase(signInMode == null ? "" : signInMode.trim());
     }
 
     @Override
     public void run(final ApplicationArguments args) {
+        if (philterSignIn) {
+            return;
+        }
         // Bootstrap is keyed on whether *any* admin exists, not on whether the user
         // table is empty. If every admin has been deleted (or only USER/AUDITOR
         // accounts remain) the system would otherwise be unrecoverable, so seed a
         // fresh admin in that case too.
-        if (userRepository.countByRolesContaining(Roles.ADMIN) > 0) {
+        // An admin row from Philter sign-in has no local password and cannot sign in here, so
+        // after switching back to local sign-in only an admin with a password counts.
+        if (userRepository.countByRolesContaining(Roles.ADMIN) > 0 && localAdminExists()) {
             return;
         }
 
         final String password = requireConfiguredPassword();
 
-        final User admin = new User();
+        final User admin = userRepository.findByEmail(DEFAULT_ADMIN_EMAIL).orElseGet(User::new);
+        if (admin.getId() == null) {
+            admin.setId(UUID.randomUUID().toString());
+        }
         admin.setCreatedAt(LocalDateTime.now());
-        admin.setId(UUID.randomUUID().toString());
         admin.setEmail(DEFAULT_ADMIN_EMAIL);
         admin.setPasswordHash(passwordEncoder.encode(password));
         admin.setRoles(Set.of(Roles.ADMIN));
@@ -107,6 +127,12 @@ public class DefaultUserLoader implements ApplicationRunner {
         inboxService.sendHtml(admin.getId(), WelcomeMessage.html(true));
         log.info("Seeded default admin '{}' using password from {}.",
                 admin.getEmail(), INITIAL_PASSWORD_ENV_VAR);
+    }
+
+    private boolean localAdminExists() {
+        return userRepository.findAll().stream().anyMatch(u -> u.getRoles() != null
+                && u.getRoles().contains(Roles.ADMIN)
+                && u.getPasswordHash() != null && !u.getPasswordHash().isBlank());
     }
 
     /**

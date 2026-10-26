@@ -3,6 +3,21 @@
 The **Settings** page (`/settings`) is where you change your password,
 configure how the Review page navigates, and manage your API key.
 
+!!! note "When you sign in through Philter"
+    If your deployment signs people in through Philter (you sign in with a
+    username rather than an email address), Philter keeps your password and
+    two-factor authentication:
+
+    - **Change password** changes your Philter password. It must be at least
+      16 characters. Philter then ends all of your sessions, so you sign in
+      again with the new password.
+    - Two-factor authentication is set up at sign-in, when your administrator
+      requires it, rather than on this page. You then enter a code from your
+      authenticator app after your password at each sign-in.
+    - Generating or revoking an API key asks for your Philter password.
+    - For a forgotten password or a locked sign-in, ask your administrator,
+      who resets or unlocks it in Philter.
+
 ## Review page preferences
 
 These options tune how Previous/Next behave on the Review page and what

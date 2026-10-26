@@ -18,6 +18,7 @@ package ai.philterd.arbiter.philter;
 import ai.philterd.philter.model.exceptions.PhilterError;
 
 import javax.net.ssl.SSLContext;
+import java.util.function.Supplier;
 
 /**
  * Builds Philter SDK clients for remote Philter instances.
@@ -42,8 +43,22 @@ public final class PhilterClients {
      */
     public static ai.philterd.philter.PhilterClient build(final String baseUrl, final String apiKey,
                                                           final SSLContext sslContext) {
+        return build(baseUrl, apiKey, sslContext, null);
+    }
+
+    /**
+     * As {@link #build(String, String, SSLContext)}, sending the address {@code clientAddress} supplies
+     * as {@code X-Forwarded-For}, so Philter records the person's address rather than Arbiter's when
+     * Arbiter is listed in Philter's {@code TRUSTED_PROXIES}. A {@code null} supplier sends none.
+     */
+    public static ai.philterd.philter.PhilterClient build(final String baseUrl, final String apiKey,
+                                                          final SSLContext sslContext,
+                                                          final Supplier<String> clientAddress) {
         final ai.philterd.philter.PhilterClient.PhilterClientBuilder builder =
                 new ai.philterd.philter.PhilterClient.PhilterClientBuilder().withEndpoint(baseUrl);
+        if (clientAddress != null) {
+            builder.withClientAddress(clientAddress);
+        }
         if (apiKey != null && !apiKey.isBlank()) {
             builder.withApiKey("Bearer " + apiKey);
         }

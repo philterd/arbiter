@@ -10,7 +10,9 @@ There are two ways to authenticate:
 1. **Form login** — POST `email` and `password` to `/login`. On success, a
    session cookie is set and the user is redirected to `/`. Failure
    redirects to `/login?error`. CSRF protection is enabled for all non-API
-   form posts via Spring Security's default token mechanism.
+   form posts via Spring Security's default token mechanism. In `philter`
+   sign-in mode the form posts `username` and `password`, which Arbiter sends
+   to Philter; see [Sign-in through Philter](#sign-in-through-philter).
 
 2. **Bearer API key** — send `Authorization: Bearer <api-key>` on requests
    to `/api/v1/*`. Arbiter SHA-512-hashes the incoming key and looks up the
@@ -34,6 +36,61 @@ read and write the same `HttpSession`. Two consequences:
 The connection is configured by `spring.data.redis.host` /
 `spring.data.redis.port`; docker-compose ships a `valkey` service on
 `6379`. Session timeout is `spring.session.timeout`, default 30 minutes.
+
+### Sign-in through Philter
+
+With `ARBITER_SIGN_IN_MODE=philter` (see
+[Sign-in](reference/configuration.md#sign-in)), people sign in to Arbiter
+with their Philter username and password, and Philter is the only user store.
+Philter keeps the passwords, MFA, lockout, and rate limiting; see Philter's
+[Sign-in Security](https://philterd.github.io/philter/latest/sign_in_security.html).
+
+- **Sign-in.** The sign-in form sends the username and password to
+  Philter's `POST /api/sign-in`, with the person's address and user agent.
+  Arbiter does not store or log the password.
+- **Session key.** Philter returns a session key for the person. Arbiter
+  keeps it only in the server-side session, encrypted with
+  `ARBITER_CRYPTO_SECRET`, and never sends it to the browser.
+- **Further steps.** A person enrolled in MFA enters a code
+  (`POST /api/sign-in/mfa`). A person whose password an administrator set,
+  or who must enroll in MFA, does that first. They are not signed in to
+  Arbiter until every step is done. Changing the password or confirming
+  enrollment ends their Philter sessions, and they sign in again.
+- **Session end.** Arbiter checks the key with Philter at most once a
+  minute while the person uses Arbiter, which also keeps Philter's idle
+  timeout from expiring. When Philter rejects the key (idle timeout,
+  maximum lifetime, a password reset, revocation, or deactivation), Arbiter
+  ends the session on the next check and returns the person to sign in. If
+  Philter cannot be reached, the session continues and the next request
+  checks again.
+- **Sign-out.** Signing out of Arbiter revokes the key with
+  `DELETE /api/api-keys/current`.
+- **Refusals.** A wrong password, an unknown username, and a deactivated
+  user get the same message. A locked username, an address over Philter's
+  rate limit, and locked MFA get the same "locked" message, whether or not
+  the username exists.
+- **Roles.** A Philter `admin` is an Arbiter `ADMIN`. A Philter `user` is an
+  Arbiter `USER`, or `AUDITOR` if an Arbiter administrator sets that. The
+  role is set again at each sign-in. Arbiter keeps a record for each person,
+  named by their Philter username, for group membership and for the user
+  recorded on batches, documents, and the audit log. It holds no password
+  or MFA secret.
+- **What changes in Arbiter.** Arbiter's own password rules, lockout, TOTP
+  enrollment, require-MFA setting, and invitations do not apply. Users are
+  added, and passwords reset, in Philter (see
+  [Users and groups](admin/users-and-groups.md)). Generating or revoking an
+  Arbiter API key asks for the password, which Arbiter checks by signing in
+  to Philter and revoking that session key at once.
+- **Audit.** Sign-ins are recorded as `LOGIN` with `method: philter`, and a
+  failure's `reason` is one of `BadCredentials`, `Locked`, `RateLimited`,
+  `MfaLocked`, `SignInDisabled`, or `Unavailable`. A session ended because
+  Philter rejected its key is a `LOGOUT` with
+  `reason: philter_session_ended`. Philter records its own events, such as
+  `sign_in_succeeded`, in its audit log.
+
+Arbiter's other calls to Philter, such as redaction at ingest, policy
+listing, and finalization, still use the API key set for the instance under
+**Admin → Philter**, not a person's session key.
 
 ### Multi-factor authentication (TOTP)
 

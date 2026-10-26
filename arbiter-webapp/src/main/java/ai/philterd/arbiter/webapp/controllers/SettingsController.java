@@ -22,11 +22,18 @@ import ai.philterd.arbiter.service.ApiKeyHashingService;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.SymmetricCipher;
 import ai.philterd.arbiter.service.UserSettingsService;
+import ai.philterd.arbiter.webapp.security.PhilterSessionAuthentication;
+import ai.philterd.arbiter.webapp.security.PhilterSignInFlow;
+import ai.philterd.arbiter.webapp.security.PhilterSignInService;
 import ai.philterd.arbiter.webapp.security.TotpService;
+import ai.philterd.philter.model.exceptions.ClientException;
+import ai.philterd.philter.model.exceptions.SignInThrottledException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Controller;
@@ -39,6 +46,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
 import java.security.SecureRandom;
 import java.util.Base64;
+import java.util.Map;
 import java.util.OptionalLong;
 
 @Controller
@@ -55,6 +63,10 @@ public class SettingsController {
     private final ApiKeyHashingService apiKeyHashingService;
     private final SymmetricCipher cipher;
     private final SessionRegistry sessionRegistry;
+    private final ObjectProvider<PhilterSignInService> philterSignInService;
+    private final ObjectProvider<PhilterSignInFlow> philterSignInFlow;
+
+    static final String MFA_IN_PHILTER = "Two-factor authentication is managed in Philter.";
 
     public SettingsController(final UserRepository userRepository,
                               final PasswordEncoder passwordEncoder,
@@ -63,7 +75,11 @@ public class SettingsController {
                               final TotpService totpService,
                               final ApiKeyHashingService apiKeyHashingService,
                               final SymmetricCipher cipher,
-                              final SessionRegistry sessionRegistry) {
+                              final SessionRegistry sessionRegistry,
+                              final ObjectProvider<PhilterSignInService> philterSignInService,
+                              final ObjectProvider<PhilterSignInFlow> philterSignInFlow) {
+        this.philterSignInService = philterSignInService;
+        this.philterSignInFlow = philterSignInFlow;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.auditLogService = auditLogService;
@@ -90,6 +106,7 @@ public class SettingsController {
         }
         model.addAttribute("hasApiKey", hasApiKey);
         model.addAttribute("mfaEnabled", mfaEnabled);
+        model.addAttribute("philterSignIn", authentication instanceof PhilterSessionAuthentication);
         model.addAttribute("userSettings", settings);
         return "settings";
     }
@@ -99,6 +116,10 @@ public class SettingsController {
                            final HttpSession session,
                            final Model model,
                            final RedirectAttributes redirectAttributes) {
+        if (authentication instanceof PhilterSessionAuthentication) {
+            redirectAttributes.addFlashAttribute("error", MFA_IN_PHILTER);
+            return "redirect:/settings";
+        }
         final User user = userRepository.findByEmail(authentication.getName()).orElse(null);
         if (user == null) return "redirect:/settings";
         // A session-hijacker on an already-MFA-enabled account could otherwise re-enroll
@@ -126,6 +147,10 @@ public class SettingsController {
                             final Authentication authentication,
                             final HttpSession session,
                             final RedirectAttributes redirectAttributes) {
+        if (authentication instanceof PhilterSessionAuthentication) {
+            redirectAttributes.addFlashAttribute("error", MFA_IN_PHILTER);
+            return "redirect:/settings";
+        }
         final User user = userRepository.findByEmail(authentication.getName()).orElse(null);
         if (user == null) {
             redirectAttributes.addFlashAttribute("error", "Account not found.");
@@ -185,6 +210,10 @@ public class SettingsController {
                              @RequestParam("code") final String code,
                              final Authentication authentication,
                              final RedirectAttributes redirectAttributes) {
+        if (authentication instanceof PhilterSessionAuthentication) {
+            redirectAttributes.addFlashAttribute("error", MFA_IN_PHILTER);
+            return "redirect:/settings";
+        }
         final User user = userRepository.findByEmail(authentication.getName()).orElse(null);
         if (user == null) {
             redirectAttributes.addFlashAttribute("error", "Account not found.");
@@ -254,13 +283,14 @@ public class SettingsController {
     @PostMapping("/api-key")
     public String generateApiKey(@RequestParam("currentPassword") final String currentPassword,
                                  final Authentication authentication,
+                                 final HttpServletRequest request,
                                  final RedirectAttributes redirectAttributes) {
         final User user = userRepository.findByEmail(authentication.getName()).orElse(null);
         if (user == null) {
             redirectAttributes.addFlashAttribute("error", "Account not found.");
             return "redirect:/settings";
         }
-        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+        if (!passwordMatches(authentication, user, currentPassword, request)) {
             redirectAttributes.addFlashAttribute("error", "Current password is incorrect. API key was not generated.");
             return "redirect:/settings";
         }
@@ -277,13 +307,14 @@ public class SettingsController {
     @PostMapping("/api-key/revoke")
     public String revokeApiKey(@RequestParam("currentPassword") final String currentPassword,
                                final Authentication authentication,
+                               final HttpServletRequest request,
                                final RedirectAttributes redirectAttributes) {
         final User user = userRepository.findByEmail(authentication.getName()).orElse(null);
         if (user == null) {
             redirectAttributes.addFlashAttribute("error", "Account not found.");
             return "redirect:/settings";
         }
-        if (!passwordEncoder.matches(currentPassword, user.getPasswordHash())) {
+        if (!passwordMatches(authentication, user, currentPassword, request)) {
             redirectAttributes.addFlashAttribute("error", "Current password is incorrect. API key was not revoked.");
             return "redirect:/settings";
         }
@@ -301,6 +332,10 @@ public class SettingsController {
                                  final Authentication authentication,
                                  final HttpServletRequest request,
                                  final RedirectAttributes redirectAttributes) {
+        if (authentication instanceof PhilterSessionAuthentication philter) {
+            return changePhilterPassword(philter, currentPassword, newPassword, confirmPassword,
+                    request, redirectAttributes);
+        }
         if (newPassword == null || newPassword.length() < 12) {
             redirectAttributes.addFlashAttribute("error", "New password must be at least 12 characters.");
             return "redirect:/settings";
@@ -355,6 +390,58 @@ public class SettingsController {
         auditLogService.log("PASSWORD_CHANGE", "User", user.getId(), null);
         redirectAttributes.addFlashAttribute("success", "Password updated.");
         return "redirect:/settings";
+    }
+
+    /**
+     * Changes the password of a person who signs in through Philter. Philter then revokes all of their
+     * session keys, so this session ends too and they sign in again with the new password.
+     */
+    private String changePhilterPassword(final PhilterSessionAuthentication philter,
+                                         final String currentPassword,
+                                         final String newPassword,
+                                         final String confirmPassword,
+                                         final HttpServletRequest request,
+                                         final RedirectAttributes redirectAttributes) {
+        if (newPassword == null || !newPassword.equals(confirmPassword)) {
+            redirectAttributes.addFlashAttribute("error", "New password and confirmation do not match.");
+            return "redirect:/settings";
+        }
+        try {
+            philterSignInService.getObject().changePassword(philter.getEncryptedSessionKey(),
+                    currentPassword, newPassword);
+        } catch (SignInThrottledException e) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Too many attempts with a wrong password. Try again later.");
+            return "redirect:/settings";
+        } catch (ClientException e) {
+            redirectAttributes.addFlashAttribute("error", e.getStatusCode() == 400
+                    ? "Philter did not accept the new password. It must be at least 16 characters and "
+                            + "differ from the current one."
+                    : "The password was not changed. Check the current password.");
+            return "redirect:/settings";
+        } catch (Exception e) {
+            redirectAttributes.addFlashAttribute("error", "The password was not changed. Check the current "
+                    + "password, or sign in again.");
+            return "redirect:/settings";
+        }
+        final User user = userRepository.findByEmail(philter.getName()).orElse(null);
+        auditLogService.log("PASSWORD_CHANGE", "User", user == null ? null : user.getId(),
+                Map.of("method", "philter"));
+        final HttpSession session = request.getSession(false);
+        if (session != null) {
+            session.invalidate();
+        }
+        SecurityContextHolder.clearContext();
+        return "redirect:/login?passwordChanged";
+    }
+
+    /** The current password, checked locally or, for a person signed in through Philter, with Philter. */
+    private boolean passwordMatches(final Authentication authentication, final User user,
+                                    final String currentPassword, final HttpServletRequest request) {
+        if (authentication instanceof PhilterSessionAuthentication) {
+            return philterSignInFlow.getObject().verifyPassword(authentication.getName(), currentPassword, request);
+        }
+        return user.getPasswordHash() != null && passwordEncoder.matches(currentPassword, user.getPasswordHash());
     }
 
     private void expireOtherSessions(final String principal, final String currentSessionId) {

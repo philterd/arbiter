@@ -9,6 +9,11 @@
  */
 package ai.philterd.arbiter.webapp.security;
 
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.WriterException;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
 import dev.samstevens.totp.code.CodeGenerator;
 import dev.samstevens.totp.code.DefaultCodeGenerator;
 import dev.samstevens.totp.exceptions.CodeGenerationException;
@@ -18,6 +23,8 @@ import dev.samstevens.totp.qr.ZxingPngQrGenerator;
 import dev.samstevens.totp.secret.DefaultSecretGenerator;
 import org.springframework.stereotype.Service;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.time.Clock;
@@ -89,6 +96,21 @@ public class TotpService {
      *  so the step can be checked against {@code User.lastTotpStep}. */
     public boolean verify(final String secret, final String code) {
         return verifyAndReturnStep(secret, code).isPresent();
+    }
+
+    /**
+     * Returns a base64-encoded PNG data URI for a QR code of {@code otpauthUri} as given, for an
+     * enrollment whose secret and parameters another service (Philter) chose.
+     */
+    public String qrCodeDataUriForUri(final String otpauthUri) {
+        try {
+            final BitMatrix matrix = new QRCodeWriter().encode(otpauthUri, BarcodeFormat.QR_CODE, 350, 350);
+            final ByteArrayOutputStream png = new ByteArrayOutputStream();
+            MatrixToImageWriter.writeToStream(matrix, "PNG", png);
+            return "data:image/png;base64," + Base64.getEncoder().encodeToString(png.toByteArray());
+        } catch (WriterException | IOException e) {
+            throw new IllegalStateException("QR code generation failed", e);
+        }
     }
 
     /** Returns a base64-encoded PNG data URI for the QR code. */

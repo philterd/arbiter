@@ -8,6 +8,18 @@ role.
 The user list shows every account, sorted by email. The current admin's row is
 marked **(you)** — you cannot delete yourself.
 
+!!! note "When people sign in through Philter"
+    With `ARBITER_SIGN_IN_MODE=philter` (see
+    [Sign-in through Philter](../security.md#sign-in-through-philter)), Philter
+    holds the accounts. Add users, reset passwords, unlock sign-in, and choose
+    administrators in Philter, with its Users API. A person appears in this list,
+    under their Philter username, after their first sign-in. A Philter `admin` is
+    an Arbiter `ADMIN`; for anyone else this page sets **User** or **Auditor**.
+    Groups and team leads work as described below. Deleting someone here removes
+    only Arbiter's record, which is created again if they sign in; deactivate them
+    in Philter to stop them signing in. The sections on adding users and resetting
+    passwords apply to local accounts only.
+
 ### Add a user
 
 The Add-user form supports two flows; pick one per user.

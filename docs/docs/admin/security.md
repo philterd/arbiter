@@ -5,6 +5,10 @@ across the deployment.
 
 ## Require MFA for all users
 
+When people sign in through Philter (`ARBITER_SIGN_IN_MODE=philter`), this setting is replaced by
+a note: Philter handles MFA, and its `mfaRequired` setting makes each person enroll at their next
+sign-in. See [Sign-in through Philter](../security.md#sign-in-through-philter).
+
 When this checkbox is checked and saved, Arbiter enforces multi-factor authentication for every
 account:
 

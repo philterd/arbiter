@@ -71,7 +71,7 @@ class AdminControllerTest {
         sessionRegistry = mock(SessionRegistry.class);
         controller = new AdminController(userRepository, passwordEncoder, auditLogService,
                 notificationSettingsService, userNotificationService,
-                loginAttemptService, invitationService, invitationRepository, sessionRegistry);
+                loginAttemptService, invitationService, invitationRepository, sessionRegistry, "local");
     }
 
     private SessionRegistry sessionRegistry;

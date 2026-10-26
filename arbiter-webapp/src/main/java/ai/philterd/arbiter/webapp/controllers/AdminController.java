@@ -24,6 +24,8 @@ import ai.philterd.arbiter.service.NotificationSettingsService;
 import ai.philterd.arbiter.service.UserNotificationService;
 import ai.philterd.arbiter.webapp.security.InvitationService;
 import ai.philterd.arbiter.webapp.security.LoginAttemptService;
+import ai.philterd.arbiter.service.SignInSettings;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.session.SessionInformation;
 import org.springframework.security.core.session.SessionRegistry;
@@ -59,6 +61,11 @@ public class AdminController {
     private final InvitationService invitationService;
     private final ai.philterd.arbiter.repository.InvitationRepository invitationRepository;
     private final SessionRegistry sessionRegistry;
+    /** In {@code philter} sign-in mode accounts, passwords, lockout, and the admin role are Philter's. */
+    private final boolean philterSignIn;
+
+    static final String MANAGED_IN_PHILTER =
+            "People sign in through Philter here, so accounts, passwords, and administrators are managed in Philter.";
 
     public AdminController(final UserRepository userRepository,
                            final PasswordEncoder passwordEncoder,
@@ -68,7 +75,9 @@ public class AdminController {
                            final LoginAttemptService loginAttemptService,
                            final InvitationService invitationService,
                            final ai.philterd.arbiter.repository.InvitationRepository invitationRepository,
-                           final SessionRegistry sessionRegistry) {
+                           final SessionRegistry sessionRegistry,
+                           @Value("${arbiter.sign-in.mode:local}") final String signInMode) {
+        this.philterSignIn = SignInSettings.MODE_PHILTER.equalsIgnoreCase(signInMode == null ? "" : signInMode.trim());
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.auditLogService = auditLogService;
@@ -96,6 +105,7 @@ public class AdminController {
         model.addAttribute("lockedByUserId", lockedByUserId);
         model.addAttribute("currentEmail", authentication == null ? null : authentication.getName());
         model.addAttribute("notificationsEnabled", notifications.isEnabled());
+        model.addAttribute("philterSignIn", philterSignIn);
         return "admin-users";
     }
 
@@ -120,6 +130,10 @@ public class AdminController {
                          @RequestParam(value = "admin", defaultValue = "false") final boolean admin,
                          @RequestParam(value = "initialPassword", required = false) final String initialPassword,
                          final RedirectAttributes redirectAttributes) {
+        if (philterSignIn) {
+            redirectAttributes.addFlashAttribute("error", MANAGED_IN_PHILTER);
+            return "redirect:/admin/users";
+        }
         final String trimmed = email == null ? "" : email.trim().toLowerCase();
         if (trimmed.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Email address is required.");
@@ -224,6 +238,12 @@ public class AdminController {
         }
         final boolean wasAdmin = user.getRoles() != null && user.getRoles().contains(Roles.ADMIN);
         final boolean willBeAdmin = Roles.ADMIN.equals(requestedRole);
+        // Philter's role decides who is an administrator, and Philter holds the password, so only
+        // the choice between User and Auditor is Arbiter's.
+        if (philterSignIn && (wasAdmin || willBeAdmin || (newPassword != null && !newPassword.isEmpty()))) {
+            redirectAttributes.addFlashAttribute("error", MANAGED_IN_PHILTER);
+            return "redirect:/admin/users";
+        }
         // Last-admin guard: refuse a transition that would leave the system with zero admins,
         // which would lock everyone out of the /admin/** surface. Auditors don't count toward
         // the admin tally — converting the last admin to AUDITOR also trips this guard.
@@ -305,6 +325,10 @@ public class AdminController {
         final User user = userRepository.findById(userId).orElse(null);
         if (user == null) {
             redirectAttributes.addFlashAttribute("error", "User not found.");
+            return "redirect:/admin/users";
+        }
+        if (philterSignIn) {
+            redirectAttributes.addFlashAttribute("error", MANAGED_IN_PHILTER);
             return "redirect:/admin/users";
         }
         loginAttemptService.unlock(user.getEmail());

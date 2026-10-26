@@ -13,6 +13,7 @@ import ai.philterd.arbiter.model.Invitation;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.webapp.security.InvitationService;
 import ai.philterd.arbiter.webapp.security.InvitationService.RedemptionStatus;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -33,6 +34,8 @@ import java.util.Optional;
  */
 @Controller
 @RequestMapping("/invitations")
+// Invitations set a local password; people who sign in through Philter have none.
+@ConditionalOnProperty(name = "arbiter.sign-in.mode", havingValue = "local", matchIfMissing = true)
 public class InvitationController {
 
     private final InvitationService invitationService;

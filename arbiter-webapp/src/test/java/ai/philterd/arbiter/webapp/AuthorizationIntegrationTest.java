@@ -66,6 +66,10 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
@@ -106,6 +110,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 public class AuthorizationIntegrationTest {
 
     @Autowired private MockMvc mockMvc;
+    @org.springframework.boot.test.mock.mockito.SpyBean
+    private ai.philterd.arbiter.webapp.security.LoginAttemptService loginAttemptService;
 
     @MockBean private ai.philterd.arbiter.service.ApiKeyHashingService apiKeyHashingService;
 
@@ -818,5 +824,22 @@ public class AuthorizationIntegrationTest {
         mockMvc.perform(post("/admin/philter/p1/tls/remove").param("store", "keyStore")
                         .with(user("a").roles("AUDITOR")).with(csrf()))
                 .andExpect(status().isForbidden());
+    }
+
+    /**
+     * One failed sign-in is one failure. The filter chain has an authentication manager of its own;
+     * with the global one as its parent, the same provider ran twice and each failure counted double
+     * toward the lockout.
+     */
+    @Test
+    void failedSignInRunsTheProviderOnce() throws Exception {
+        when(userRepository.findByEmail("someone@example.com")).thenReturn(java.util.Optional.empty());
+
+        mockMvc.perform(post("/login").with(csrf())
+                        .param("email", "someone@example.com")
+                        .param("password", "wrong-password"))
+                .andExpect(redirectedUrl("/login?error"));
+
+        verify(loginAttemptService, times(1)).onFailure(eq("someone@example.com"), any());
     }
 }

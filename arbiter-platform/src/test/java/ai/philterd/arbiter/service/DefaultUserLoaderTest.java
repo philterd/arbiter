@@ -125,6 +125,7 @@ class DefaultUserLoaderTest {
         // regardless of whether the password is set. This guarantees the
         // password requirement only applies on first install.
         when(userRepository.countByRolesContaining(Roles.ADMIN)).thenReturn(1L);
+        when(userRepository.findAll()).thenReturn(java.util.List.of(admin("{bcrypt}hash")));
 
         // Even with an unset password, the bean must construct and run without
         // throwing — otherwise an upgrade would fail-fast on an unrelated config.
@@ -132,5 +133,32 @@ class DefaultUserLoaderTest {
 
         verify(userRepository, never()).save(any());
         verify(inboxService, never()).sendHtml(anyString(), anyString());
+    }
+
+    @Test
+    void seedsNoAdminWhenPeopleSignInThroughPhilter() {
+        // Philter's administrators are Arbiter's in that mode, and no initial password is needed.
+        new DefaultUserLoader(userRepository, passwordEncoder, inboxService, "", "philter").run(args);
+
+        verify(userRepository, never()).save(any());
+    }
+
+    @Test
+    void seedsAdminAfterSwitchingBackFromPhilterSignIn() {
+        // The only admin row came from Philter sign-in and has no local password.
+        when(userRepository.countByRolesContaining(Roles.ADMIN)).thenReturn(1L);
+        when(userRepository.findAll()).thenReturn(java.util.List.of(admin(null)));
+
+        newLoader("operator-chosen-pw-1").run(args);
+
+        verify(userRepository).save(any());
+    }
+
+    private static User admin(final String passwordHash) {
+        final User user = new User();
+        user.setEmail("admin");
+        user.setRoles(java.util.Set.of(Roles.ADMIN));
+        user.setPasswordHash(passwordHash);
+        return user;
     }
 }

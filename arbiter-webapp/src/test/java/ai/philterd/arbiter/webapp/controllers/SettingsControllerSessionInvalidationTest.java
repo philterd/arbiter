@@ -9,6 +9,7 @@
  */
 package ai.philterd.arbiter.webapp.controllers;
 
+import org.springframework.beans.factory.ObjectProvider;
 import ai.philterd.arbiter.model.User;
 import ai.philterd.arbiter.repository.UserRepository;
 import ai.philterd.arbiter.service.ApiKeyHashingService;
@@ -74,7 +75,7 @@ class SettingsControllerSessionInvalidationTest {
                 userRepository, passwordEncoder, mock(AuditLogService.class),
                 mock(UserSettingsService.class), mock(TotpService.class),
                 mock(ApiKeyHashingService.class), new SymmetricCipher(TEST_KEY_B64),
-                sessionRegistry);
+                sessionRegistry, mock(ObjectProvider.class), mock(ObjectProvider.class));
 
         request = mock(HttpServletRequest.class);
         currentSession = mock(HttpSession.class);

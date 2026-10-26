@@ -27,11 +27,30 @@
         <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd.png}" alt="Philterd" class="h-8 mx-auto mb-3"></a>
         <h1 class="text-3xl font-bold text-gray-900 text-center mb-6">Arbiter</h1>
 
-        <div th:if="${param.error}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+        <div th:if="${param.error}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
+             th:text="${philterSignIn} ? 'Invalid username or password.' : 'Invalid email or password.'">
             Invalid email or password.
         </div>
-        <div th:if="${param.locked}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+        <div th:if="${param.locked != null and !philterSignIn}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
             Account is temporarily locked due to repeated failed sign-in attempts. Please try again in 15 minutes or contact your administrator.
+        </div>
+        <div th:if="${param.locked != null and philterSignIn}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            Sign-in is locked after repeated failed attempts. Try again later or contact your administrator.
+        </div>
+        <div th:if="${param.unavailable}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            Sign-in is unavailable. Try again later or contact your administrator.
+        </div>
+        <div th:if="${param.code}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            The code was not accepted. Sign in again.
+        </div>
+        <div th:if="${param.expired}" class="mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-700">
+            Your session has ended. Sign in again.
+        </div>
+        <div th:if="${param.passwordChanged}" class="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
+            Your password is changed. Sign in with the new password.
+        </div>
+        <div th:if="${param.mfaEnrolled}" class="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
+            Two-factor authentication is set up. Sign in again.
         </div>
         <div th:if="${param.invited}" class="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
             Your password is set. Sign in below.
@@ -41,9 +60,15 @@
         </div>
 
         <form th:action="@{/login}" method="post" class="space-y-4">
-            <div>
+            <div th:unless="${philterSignIn}">
                 <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email</label>
                 <input id="email" name="email" type="email" required autofocus autocomplete="email"
+                       class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div th:if="${philterSignIn}">
+                <label for="username" class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                <input id="username" name="username" type="text" required autofocus autocomplete="username"
+                       autocapitalize="none" spellcheck="false"
                        class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
             </div>
             <div>

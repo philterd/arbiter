@@ -14,6 +14,8 @@ import ai.philterd.arbiter.model.User;
 import ai.philterd.arbiter.repository.UserRepository;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.GeneralSettingsService;
+import ai.philterd.arbiter.service.SignInSettings;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Controller;
@@ -36,9 +38,14 @@ public class AdminSecurityController {
     private final AuditLogService auditLogService;
     private final UserRepository userRepository;
 
+    /** In {@code philter} sign-in mode Philter's {@code mfaRequired} setting decides MFA. */
+    private final boolean philterSignIn;
+
     public AdminSecurityController(final GeneralSettingsService generalSettingsService,
                                    final AuditLogService auditLogService,
-                                   final UserRepository userRepository) {
+                                   final UserRepository userRepository,
+                                   @Value("${arbiter.sign-in.mode:local}") final String signInMode) {
+        this.philterSignIn = SignInSettings.MODE_PHILTER.equalsIgnoreCase(signInMode == null ? "" : signInMode.trim());
         this.generalSettingsService = generalSettingsService;
         this.auditLogService = auditLogService;
         this.userRepository = userRepository;
@@ -47,6 +54,7 @@ public class AdminSecurityController {
     @GetMapping
     public String form(final Model model) {
         model.addAttribute("settings", generalSettingsService.load());
+        model.addAttribute("philterSignIn", philterSignIn);
 
         // Pull just the email of every user without MFA enabled — the popup
         // surfaces the list, and an empty list flips the widget into the
@@ -69,6 +77,10 @@ public class AdminSecurityController {
     public String saveMfaPolicy(
             @RequestParam(value = "requireMfa", defaultValue = "false") final boolean requireMfa,
             final RedirectAttributes redirectAttributes) {
+        if (philterSignIn) {
+            redirectAttributes.addFlashAttribute("error", "MFA is set in Philter, with its mfaRequired setting.");
+            return "redirect:/admin/security";
+        }
         final GeneralSettings settings = generalSettingsService.load();
         final boolean previous = settings.isRequireMfa();
         settings.setRequireMfa(requireMfa);

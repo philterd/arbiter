@@ -96,6 +96,35 @@ work in a multi-replica deployment.
 `spring.session.timeout` controls how long an idle session stays valid
 before the user is logged out.
 
+## Sign-in
+
+People sign in with Arbiter's own accounts (`local`, the default) or through
+Philter 4.0's user management API (`philter`). See
+[Sign-in through Philter](../security.md#sign-in-through-philter).
+
+| Property | Environment variable | Purpose |
+| -------- | -------------------- | ------- |
+| `arbiter.sign-in.mode` | `ARBITER_SIGN_IN_MODE` | `local` (default) or `philter`. Any other value stops Arbiter at startup. |
+| `arbiter.sign-in.philter-url` | `ARBITER_SIGN_IN_PHILTER_URL` | Required in `philter` mode: the `http` or `https` URL of the Philter that signs people in, for example `https://philter:8080`. |
+
+Both are read only at startup, so an administrator signed in to Arbiter cannot
+change how people sign in. Calls to this Philter use the global
+`arbiter.philter.tls.*` settings in
+[TLS and client certificates](#tls-and-client-certificates); with Philter's
+Docker image, which serves HTTPS with a self-signed certificate, set
+`arbiter.philter.tls.trust-store` to a trust store holding that certificate.
+
+The Philter must run with `PASSWORD_SIGN_IN_ENABLED=true`. Otherwise every
+sign-in fails with "Sign-in is unavailable" and Arbiter logs a warning naming
+the setting. List Arbiter's address in Philter's `TRUSTED_PROXIES`, so Philter
+rate limits and records each person's own address rather than Arbiter's.
+
+In `philter` mode `ARBITER_ADMIN_INITIAL_PASSWORD` is not needed and no local
+administrator is created. Switching back to `local` requires it again: when
+no administrator has a local password, Arbiter seeds `admin@philterd.ai` with
+it at startup. People who signed in through Philter cannot sign in locally,
+since Arbiter holds no password for them.
+
 ## Threading
 
 ### `spring.threads.virtual.enabled=true`

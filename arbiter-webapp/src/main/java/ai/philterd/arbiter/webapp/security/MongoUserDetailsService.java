@@ -40,6 +40,11 @@ public class MongoUserDetailsService implements UserDetailsService {
     public UserDetails loadUserByUsername(final String email) throws UsernameNotFoundException {
         final User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found: " + email));
+        // A person who signs in through Philter has a row with no password. Treated as unknown, so
+        // local sign-in refuses it like any other bad credentials.
+        if (user.getPasswordHash() == null || user.getPasswordHash().isBlank()) {
+            throw new UsernameNotFoundException("User has no local password.");
+        }
 
         final Set<String> roles = user.getRoles() == null || user.getRoles().isEmpty()
                 ? Set.of(Roles.USER)

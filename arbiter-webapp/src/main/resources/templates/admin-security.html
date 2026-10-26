@@ -204,6 +204,11 @@
                     enrollment.
                 </p>
 
+                <p th:if="${philterSignIn}" class="text-sm text-gray-700 p-4 rounded-lg border border-gray-200 bg-gray-50">
+                    People sign in through Philter, which handles their MFA. To require it, turn on
+                    Philter's <code>mfaRequired</code> setting; each person then enrolls at their next sign-in.
+                </p>
+                <th:block th:unless="${philterSignIn}">
                 <form th:action="@{/admin/security/mfa}" method="post">
                     <div class="flex items-start gap-4 p-4 rounded-lg border border-gray-200 bg-gray-50">
                         <div class="flex items-center h-5 mt-0.5">
@@ -252,6 +257,7 @@
                         </button>
                     </div>
                 </form>
+                </th:block>
             </div>
 
             <!-- Modal listing every user without MFA, opened by the

@@ -46,6 +46,11 @@ public class MfaEnrollmentInterceptor implements HandlerInterceptor {
             return true;
         }
 
+        // Philter enforces MFA for people who sign in through it, at sign-in.
+        if (auth instanceof PhilterSessionAuthentication) {
+            return true;
+        }
+
         // Bearer (API-key) callers are exempt — TOTP enrolment is a session-login
         // requirement, not an API-key requirement. Forcing MFA enrolment on every
         // API request would lock out automated clients the moment an admin flipped
