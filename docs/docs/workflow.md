@@ -66,23 +66,8 @@ later.
       Required, since Philter 4 needs one for redaction. It is stored
       encrypted. You can change it later from the instance row but not clear it.
       Arbiter uses it for background work such as ingest, so it must not belong
-      to a Philter administrator: Arbiter asks Philter (`GET /api/limits`) and
-      refuses such a key. Use a key for a Philter user created for Arbiter,
-      with only the `redact` and `policies:read` scopes. With the bootstrap or
-      another administrator key, for example:
-
-      ```sh
-      curl -X POST "http://philter:8080/api/users" \
-        -H "Authorization: Bearer $PHILTER_ADMIN_KEY" -H "Content-Type: application/json" \
-        --data '{"username":"arbiter","role":"user"}'
-      curl -X POST "http://philter:8080/api/users/arbiter/api-keys" \
-        -H "Authorization: Bearer $PHILTER_ADMIN_KEY" -H "Content-Type: application/json" \
-        --data '{"scopes":["redact","policies:read"]}'
-      ```
-
-      The second response holds the key in `apiKey`, shown only once. If
-      Philter cannot be reached when you save, the key is saved and the page
-      says it was not checked; use **Test** once Philter is up.
+      to a Philter administrator. See
+      [Philter API key for Arbiter](#philter-api-key-for-arbiter).
 4. Click **Add**. The instance is saved to Arbiter's database.
 5. Optionally, under **TLS** on the row, choose **Set / change** to attach a
    client certificate keystore, a trust store, or both, each a PKCS12 or JKS
@@ -119,6 +104,90 @@ The "Default Philter instance" setting on **Admin → Philter** controls which
 option is pre-selected in the **Create Batch** dialog's Philter dropdown. It
 does not force all batches to use that instance — each batch makes its own
 choice.
+
+### Philter API key for Arbiter
+
+Philter keeps policies, contexts and their consistent-pseudonymization
+mappings, and the default format-preserving encryption key per user: a key
+reaches only its own user's. Every batch on a Philter instance therefore uses
+the policies and contexts of the user who owns the instance's API key.
+
+That key must not belong to a Philter administrator. Arbiter asks Philter for
+the key's role (`GET /api/limits`) when you save it and refuses an
+administrator's, and **Test** fails for one. A key saved earlier keeps working,
+but the instance shows a warning, from a check when Arbiter starts or on **Test**,
+until the key's user is no longer an administrator. A key Philter rejects is not
+saved. If Philter cannot be reached, the key is saved and the page says it was
+not checked; use **Test** once Philter is up. Refused keys are audited as
+`PHILTER_INSTANCE_API_KEY_REFUSED`.
+
+`docker-compose.prod.yaml` does not publish Philter's port, so the commands below
+run `curl` in a container on the compose network. `docker network ls` shows its
+name, `<project>_arbiter`; it is `arbiter_arbiter` when the compose project is
+named `arbiter`. Set `PHILTER_ADMIN_KEY` to an administrator's key, such as
+`PHILTER_BOOTSTRAP_API_KEY`.
+
+**For a new deployment**, create a Philter user for Arbiter and a key with only
+the `redact` and `policies:read` scopes:
+
+```sh
+docker run --rm --network arbiter_arbiter curlimages/curl:8.10.1 -s -X POST "http://philter:8080/api/users" \
+  -H "Authorization: Bearer $PHILTER_ADMIN_KEY" -H "Content-Type: application/json" \
+  --data '{"username":"arbiter","role":"user"}'
+docker run --rm --network arbiter_arbiter curlimages/curl:8.10.1 -s -X POST "http://philter:8080/api/users/arbiter/api-keys" \
+  -H "Authorization: Bearer $PHILTER_ADMIN_KEY" -H "Content-Type: application/json" \
+  --data '{"scopes":["redact","policies:read"]}'
+```
+
+The second response holds the key in `apiKey`, shown only once. Create Arbiter's
+policies with a key of this user, or as an administrator with `owner=arbiter`
+(which needs `ADMIN_CROSS_USER_ACCESS_ENABLED=true` in Philter); a key with only
+`policies:read` cannot create them.
+
+**If Arbiter already uses an administrator's key**, do not switch to another
+user's key: that user would not have the policies and contexts your batches use,
+pseudonyms and encrypted values would change, and context mappings cannot be
+moved to another user. Instead, keep the user and remove its administrator role:
+
+1. Create another Philter administrator for people, if there is none. With
+   [sign-in through Philter](security.md#sign-in-through-philter), do this on the
+   Users page. Otherwise, with the current key, create the administrator and a key
+   for them holding every scope (Philter only lets a key change a key whose scopes
+   it also holds):
+
+    ```sh
+    docker run --rm --network arbiter_arbiter curlimages/curl:8.10.1 -s -X POST "http://philter:8080/api/users" \
+      -H "Authorization: Bearer $PHILTER_ADMIN_KEY" -H "Content-Type: application/json" \
+      --data '{"username":"ops","role":"admin"}'
+    docker run --rm --network arbiter_arbiter curlimages/curl:8.10.1 -s "http://philter:8080/api/api-keys/scopes" \
+      -H "Authorization: Bearer $PHILTER_ADMIN_KEY"
+    docker run --rm --network arbiter_arbiter curlimages/curl:8.10.1 -s -X POST "http://philter:8080/api/users/ops/api-keys" \
+      -H "Authorization: Bearer $PHILTER_ADMIN_KEY" -H "Content-Type: application/json" \
+      --data '{"scopes":[ every scope name from the previous response ]}'
+    ```
+
+2. With the new administrator's key (`OPS_KEY`), or their session on the Users
+   page, make the user that owns Arbiter's key a `user`. For the bootstrap key that
+   user is `admin`:
+
+    ```sh
+    docker run --rm --network arbiter_arbiter curlimages/curl:8.10.1 -s -X PUT "http://philter:8080/api/users/admin/role" \
+      -H "Authorization: Bearer $OPS_KEY" -H "Content-Type: application/json" --data '{"role":"user"}'
+    ```
+
+3. Narrow Arbiter's key to `redact` and `policies:read`, finding its `id` in the
+   user's key list:
+
+    ```sh
+    docker run --rm --network arbiter_arbiter curlimages/curl:8.10.1 -s "http://philter:8080/api/users/admin/api-keys" \
+      -H "Authorization: Bearer $OPS_KEY"
+    docker run --rm --network arbiter_arbiter curlimages/curl:8.10.1 -s -X PUT "http://philter:8080/api/api-keys/<id>/scopes" \
+      -H "Authorization: Bearer $OPS_KEY" -H "Content-Type: application/json" \
+      --data '{"scopes":["redact","policies:read"]}'
+    ```
+
+4. Click **Test** on the instance. The warning clears, and the key, policies,
+   contexts, and output are unchanged.
 
 ## 2. Create PII redaction policies
 

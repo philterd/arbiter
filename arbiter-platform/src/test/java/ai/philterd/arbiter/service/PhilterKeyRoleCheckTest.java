@@ -27,7 +27,9 @@ class PhilterKeyRoleCheckTest {
 
     private static PhilterInstance instance(final String name) {
         final PhilterInstance instance = new PhilterInstance();
+        instance.setId(name);
         instance.setName(name);
+        instance.setEncryptedApiKey("enc-" + name);
         return instance;
     }
 
@@ -39,6 +41,9 @@ class PhilterKeyRoleCheckTest {
         final PhilterInstance none = instance("no-key");
         final PhilterInstanceRepository repository = mock(PhilterInstanceRepository.class);
         when(repository.findAll()).thenReturn(List.of(admin, user, down, none));
+        for (final PhilterInstance i : List.of(admin, user, down, none)) {
+            when(repository.findById(i.getId())).thenReturn(java.util.Optional.of(i));
+        }
         final PhilterInstanceClients clients = mock(PhilterInstanceClients.class);
         for (final PhilterInstance i : List.of(admin, user, down)) {
             when(clients.hasApiKey(i)).thenReturn(true);
@@ -56,5 +61,25 @@ class PhilterKeyRoleCheckTest {
         verify(repository).save(user);
         verify(repository, never()).save(down);
         verify(clients, never()).keyBelongsToAdministrator(none);
+    }
+
+    @Test
+    void keyChangedWhilePhilterWasAskedIsNotOverwritten() throws Exception {
+        final PhilterInstance read = instance("p1");
+        final PhilterInstance fresh = instance("p1");
+        fresh.setEncryptedApiKey("enc-a-new-key");
+        fresh.setApiKeyAdmin(false);
+        final PhilterInstanceRepository repository = mock(PhilterInstanceRepository.class);
+        when(repository.findAll()).thenReturn(List.of(read));
+        when(repository.findById("p1")).thenReturn(java.util.Optional.of(fresh));
+        final PhilterInstanceClients clients = mock(PhilterInstanceClients.class);
+        when(clients.hasApiKey(read)).thenReturn(true);
+        when(clients.keyBelongsToAdministrator(read)).thenReturn(true);
+
+        new PhilterKeyRoleCheck(repository, clients).checkAll();
+
+        assertEquals(Boolean.FALSE, fresh.getApiKeyAdmin(), "the flag belongs to the old key");
+        assertEquals("enc-a-new-key", fresh.getEncryptedApiKey());
+        verify(repository, never()).save(org.mockito.ArgumentMatchers.any());
     }
 }

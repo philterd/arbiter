@@ -101,6 +101,9 @@ class PhilterSignInIT {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private SymmetricCipher cipher;
+    @Autowired private ai.philterd.arbiter.repository.UserRepository userRepository;
+    @Autowired private ai.philterd.arbiter.repository.PhilterInstanceRepository philterInstanceRepository;
+    @Autowired private ai.philterd.arbiter.service.ApiKeyHashingService apiKeyHashingService;
 
     @DynamicPropertySource
     static void properties(final DynamicPropertyRegistry registry) throws Exception {
@@ -357,8 +360,17 @@ class PhilterSignInIT {
 
     @Test
     void arbiterApiKeysAreRefused() throws Exception {
-        mockMvc.perform(post("/api/v1/ingest").header("Authorization", "Bearer any-key")
-                        .contentType("application/json").content("{}"))
+        // A genuine Arbiter key on an admin's record, as one made under local sign-in would be.
+        final String key = "arbiter-key-" + HexFormat.of().formatHex(bytes(12));
+        final ai.philterd.arbiter.model.User holder = new ai.philterd.arbiter.model.User();
+        holder.setId(java.util.UUID.randomUUID().toString());
+        holder.setEmail("key-holder-" + HexFormat.of().formatHex(bytes(3)));
+        holder.setRoles(java.util.Set.of("ADMIN"));
+        holder.setApiKey(apiKeyHashingService.hash(key));
+        userRepository.save(holder);
+        assertTrue(userRepository.findByApiKey(apiKeyHashingService.hash(key)).isPresent());
+
+        mockMvc.perform(get("/api/v1/batches").header("Authorization", "Bearer " + key))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -386,6 +398,9 @@ class PhilterSignInIT {
                         .param("name", "with-service-key").param("endpoint", host).param("port", port)
                         .param("apiKey", serviceKey))
                 .andExpect(redirectedUrl("/admin/philter")).andReturn();
-        assertTrue(saved.getFlashMap().get("success").toString().contains("added"));
+        final String success = saved.getFlashMap().get("success").toString();
+        assertTrue(success.contains("added") && !success.contains("could not be reached"), success);
+        assertEquals(Boolean.FALSE, philterInstanceRepository.findByName("with-service-key").orElseThrow().getApiKeyAdmin(),
+                "Philter reported the key's role, and it is not an administrator's");
     }
 }

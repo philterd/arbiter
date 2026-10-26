@@ -105,11 +105,11 @@ public class SecurityConfig {
      * <p>{@link HttpSessionEventPublisher} forwards servlet container session
      * lifecycle events to the registry so it stays in sync with reality.
      *
-     * <p>For Spring-Session-backed deployments (Redis/Valkey), swap this bean
-     * for {@code SpringSessionBackedSessionRegistry} so the per-principal
-     * tracking is shared across replicas. Today's prod compose runs with
-     * {@code SPRING_SESSION_STORE_TYPE=none}, so the in-memory registry is
-     * correct for that deployment.
+     * <p>Sessions are kept in Valkey through Spring Session, but this registry is in
+     * memory: it only knows sessions created on this replica since it started. With
+     * several replicas, or after a restart, expiring a principal's sessions misses the
+     * others; with Philter sign-in the session check ends them at its next interval.
+     * {@code SpringSessionBackedSessionRegistry} would track them all.
      */
     @Bean
     public SessionRegistry sessionRegistry() {
@@ -300,6 +300,8 @@ public class SecurityConfig {
             http.addFilterBefore(new PhilterSessionValidationFilter(philterSignInService.getObject(),
                     userRepository, auditLogService, Clock.systemUTC(), Duration.ofSeconds(checkIntervalSeconds)),
                     AuthorizationFilter.class);
+        } else {
+            http.addFilterBefore(new LeftoverPhilterSessionFilter(auditLogService), AuthorizationFilter.class);
         }
         return http.build();
     }

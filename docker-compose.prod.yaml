@@ -10,7 +10,8 @@
 # with endpoint "philter", port 8080, and an API key for a Philter user who is not an
 # administrator, with only the redact and policies:read scopes. Arbiter refuses an
 # administrator's key, such as PHILTER_BOOTSTRAP_API_KEY; create the user and key with it
-# as docs/docs/workflow.md shows.
+# as docs/docs/workflow.md ("Philter API key for Arbiter") shows. That user owns the
+# policies and contexts Arbiter uses.
 #
 # Each SQLite database lives in a volume (arbiter-data, philter-data). Back them up;
 # see docs/docs/reference/database.md#backups.

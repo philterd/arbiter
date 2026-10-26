@@ -51,14 +51,19 @@ public class PhilterKeyRoleCheck implements ApplicationRunner {
             }
             try {
                 final Boolean admin = clients.keyBelongsToAdministrator(instance);
-                if (!Objects.equals(admin, instance.getApiKeyAdmin())) {
-                    instance.setApiKeyAdmin(admin);
-                    repository.save(instance);
-                }
+                // Saved on a fresh read, and only if the key is still the one checked: an administrator
+                // may have changed the instance while Philter was being asked.
+                repository.findById(instance.getId()).ifPresent(fresh -> {
+                    if (Objects.equals(fresh.getEncryptedApiKey(), instance.getEncryptedApiKey())
+                            && !Objects.equals(admin, fresh.getApiKeyAdmin())) {
+                        fresh.setApiKeyAdmin(admin);
+                        repository.save(fresh);
+                    }
+                });
                 if (Boolean.TRUE.equals(admin)) {
                     log.warn("The API key of Philter instance \"{}\" belongs to a Philter administrator. "
-                            + "Replace it under Admin > Philter with a key for a user who is not one.",
-                            instance.getName());
+                            + "Remove that user's administrator role in Philter and narrow the key; see "
+                            + "Admin > Philter.", instance.getName());
                 }
             } catch (Exception e) {
                 log.info("Could not check the API key role of Philter instance \"{}\": {}",

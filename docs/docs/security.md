@@ -298,8 +298,11 @@ The key must not belong to a Philter administrator, since Arbiter holds it
 for background work such as ingest. Arbiter refuses to save such a key,
 checking the role Philter reports for it (`GET /api/limits`), fails the
 **Test** for one, and flags one saved earlier, after checking at startup, until
-it is replaced. Give Arbiter a key with only the `redact` and `policies:read`
-scopes; see [Configure Philter](workflow.md#1-configure-philter).
+its user is no longer an administrator. Give Arbiter a key with only the
+`redact` and `policies:read` scopes. For a deployment already using an
+administrator's key, remove that user's administrator role rather than switching
+users, since Philter's policies and contexts belong to the key's user; see
+[Philter API key for Arbiter](workflow.md#philter-api-key-for-arbiter).
 
 A Philter instance's own client certificate keystore and trust store, and
 their passwords, are encrypted the same way. The admin UI shows only whether

@@ -46,6 +46,7 @@ class AdminPhilterControllerConnectionTest {
     private HttpServer server;
     private int limitsStatus = 200;
     private String callerRole = "user";
+    private AuditLogService auditLogService;
     private PhilterInstanceRepository repository;
     private PhilterInstance instance;
     private AdminPhilterController controller;
@@ -58,7 +59,7 @@ class AdminPhilterControllerConnectionTest {
             final boolean health = exchange.getRequestURI().getPath().equals("/api/health");
             final int status = health ? 200 : limitsStatus;
             final byte[] body = (health ? "{\"status\":\"UP\",\"applicationVersion\":\"4.0.0\"}"
-                    : "{\"caller\":{\"role\":\"" + callerRole + "\"}}")
+                    : callerRole == null ? "{}" : "{\"caller\":{\"role\":\"" + callerRole + "\"}}")
                     .getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
             exchange.sendResponseHeaders(status, body.length);
@@ -77,7 +78,8 @@ class AdminPhilterControllerConnectionTest {
         when(repository.findById("p1")).thenReturn(Optional.of(instance));
 
         final DataSourceHostAllowList allowList = new DataSourceHostAllowList("127.0.0.1");
-        controller = new AdminPhilterController(repository, mock(AuditLogService.class),
+        auditLogService = mock(AuditLogService.class);
+        controller = new AdminPhilterController(repository, auditLogService,
                 mock(PhilterDefaultsService.class), cipher, allowList,
                 new PhilterInstanceClients(cipher, allowList, new PhilterInstanceTls(cipher, PhilterTlsConfig.none())),
                 new PhilterInstanceTls(cipher, PhilterTlsConfig.none()));
@@ -153,5 +155,45 @@ class AdminPhilterControllerConnectionTest {
         controller.setApiKey("p1", "sk_other_key", unchecked);
         assertTrue(String.valueOf(unchecked.getFlashAttributes().get("success")).contains("could not be reached"));
         assertEquals(null, instance.getApiKeyAdmin());
+    }
+
+    @Test
+    void keyPhilterRejectsIsNotSavedAndRefusalsAreAudited() {
+        limitsStatus = 401;
+        final String before = instance.getEncryptedApiKey();
+        final RedirectAttributes rejected = new RedirectAttributesModelMap();
+        controller.setApiKey("p1", "sk_wrong_key", rejected);
+        assertTrue(String.valueOf(rejected.getFlashAttributes().get("error")).contains("rejected"));
+        assertEquals(before, instance.getEncryptedApiKey());
+
+        limitsStatus = 200;
+        callerRole = "admin";
+        controller.setApiKey("p1", "sk_admins_key", new RedirectAttributesModelMap());
+        org.mockito.Mockito.verify(auditLogService).log(org.mockito.ArgumentMatchers.eq("PHILTER_INSTANCE_API_KEY_REFUSED"),
+                org.mockito.ArgumentMatchers.eq("PhilterInstance"), org.mockito.ArgumentMatchers.eq("p1"),
+                org.mockito.ArgumentMatchers.eq(java.util.Map.of("name", "philter", "reason", "administrator")));
+    }
+
+    @Test
+    void testSaysWhenPhilterDoesNotReportTheRole() {
+        callerRole = null;
+        final RedirectAttributes ra = new RedirectAttributesModelMap();
+        controller.test("p1", ra);
+        assertTrue(String.valueOf(ra.getFlashAttributes().get("success")).contains("did not report its role"));
+    }
+
+    @Test
+    void testDoesNotOverwriteAKeyChangedMeanwhile() {
+        callerRole = "admin";
+        final PhilterInstance fresh = new PhilterInstance();
+        fresh.setId("p1");
+        fresh.setName("philter");
+        fresh.setEncryptedApiKey(cipher.encrypt("sk_replaced_meanwhile"));
+        when(repository.findById("p1")).thenReturn(Optional.of(instance), Optional.of(fresh));
+
+        controller.test("p1", new RedirectAttributesModelMap());
+
+        assertNull(fresh.getApiKeyAdmin());
+        org.mockito.Mockito.verify(repository, org.mockito.Mockito.never()).save(org.mockito.ArgumentMatchers.any());
     }
 }

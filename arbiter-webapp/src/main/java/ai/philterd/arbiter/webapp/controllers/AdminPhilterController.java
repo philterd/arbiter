@@ -167,11 +167,13 @@ public class AdminPhilterController {
         instance.setEndpoint(trimmedEndpoint);
         instance.setPort(port);
         instance.setEncryptedApiKey(symmetricCipher.encrypt(trimmedKey));
-        final Boolean adminKey = keyBelongsToAdministrator(instance);
-        if (Boolean.TRUE.equals(adminKey)) {
-            redirectAttributes.addFlashAttribute("error", ADMIN_KEY);
+        final KeyCheck check = checkKey(instance);
+        if (check.refusal() != null) {
+            auditKeyRefused(instance, check);
+            redirectAttributes.addFlashAttribute("error", check.refusal());
             return "redirect:/admin/philter";
         }
+        final Boolean adminKey = check.admin();
         instance.setApiKeyAdmin(adminKey);
 
         try {
@@ -208,12 +210,14 @@ public class AdminPhilterController {
                 && !instance.getEncryptedApiKey().isBlank();
         final String previousKey = instance.getEncryptedApiKey();
         instance.setEncryptedApiKey(symmetricCipher.encrypt(trimmed));
-        final Boolean adminKey = keyBelongsToAdministrator(instance);
-        if (Boolean.TRUE.equals(adminKey)) {
+        final KeyCheck check = checkKey(instance);
+        if (check.refusal() != null) {
             instance.setEncryptedApiKey(previousKey);
-            redirectAttributes.addFlashAttribute("error", ADMIN_KEY);
+            auditKeyRefused(instance, check);
+            redirectAttributes.addFlashAttribute("error", check.refusal());
             return "redirect:/admin/philter";
         }
+        final Boolean adminKey = check.admin();
         instance.setApiKeyAdmin(adminKey);
         repository.save(instance);
         auditLogService.log("PHILTER_INSTANCE_API_KEY_CHANGE", "PhilterInstance", id,
@@ -365,12 +369,14 @@ public class AdminPhilterController {
                 final ai.philterd.philter.model.Limits limits = client.getLimits();
                 final String role = limits == null || limits.getCaller() == null ? null : limits.getCaller().getRole();
                 final Boolean adminKey = role == null ? null : "admin".equalsIgnoreCase(role);
-                instance.setApiKeyAdmin(adminKey);
-                repository.save(instance);
+                recordKeyRole(instance, adminKey);
                 if (Boolean.TRUE.equals(adminKey)) {
                     administratorsKey = true;
-                    detail += ", but the API key belongs to a Philter administrator. Replace it with a key "
-                            + "for a user who is not an administrator";
+                    detail += ", but the API key belongs to a Philter administrator. Remove that user's "
+                            + "administrator role in Philter and narrow the key, rather than switching to "
+                            + "another user's key, which would lose access to its policies and contexts";
+                } else if (adminKey == null) {
+                    detail += ", API key accepted, but Philter did not report its role";
                 } else {
                     detail += ", API key accepted";
                 }
@@ -409,20 +415,51 @@ public class AdminPhilterController {
         return "redirect:/admin/philter";
     }
 
-    static final String ADMIN_KEY = "This API key belongs to a Philter administrator. Arbiter uses the key "
-            + "for background work such as ingest, so give it a key for a Philter user who is not an "
-            + "administrator, with only the scopes Arbiter needs.";
+    static final String ADMIN_KEY = "This API key belongs to a Philter administrator, and Arbiter uses the key "
+            + "for background work such as ingest. If Arbiter's policies and contexts already belong to this "
+            + "key's user, keep the user and remove its administrator role in Philter, then narrow the key to "
+            + "the redact and policies:read scopes. Otherwise use a key for a Philter user who is not an "
+            + "administrator. See the Philter section of Arbiter's workflow docs.";
 
     private static final String NOT_CHECKED = " Philter could not be reached to check that the key does not "
             + "belong to an administrator; use Test once it is.";
 
-    /** Whether the instance's key is a Philter administrator's: true, false, or null if Philter could not say. */
-    private Boolean keyBelongsToAdministrator(final PhilterInstance instance) {
+    /**
+     * What Philter says about an instance's key before it is saved: whether it is an administrator's
+     * ({@code admin} null when Philter could not be reached or did not say), and the error to refuse it
+     * with, for an administrator's key or one Philter rejects.
+     */
+    private record KeyCheck(Boolean admin, String refusal, String reason) {
+    }
+
+    private KeyCheck checkKey(final PhilterInstance instance) {
         try {
-            return philterInstanceClients.keyBelongsToAdministrator(instance);
+            final Boolean admin = philterInstanceClients.keyBelongsToAdministrator(instance);
+            return Boolean.TRUE.equals(admin)
+                    ? new KeyCheck(true, ADMIN_KEY, "administrator") : new KeyCheck(admin, null, null);
+        } catch (UnauthorizedException e) {
+            return new KeyCheck(null, "Philter rejected this API key. Check the key and try again.", "rejected");
         } catch (Exception e) {
-            return null;
+            return new KeyCheck(null, null, null);
         }
+    }
+
+    private void auditKeyRefused(final PhilterInstance instance, final KeyCheck check) {
+        auditLogService.log("PHILTER_INSTANCE_API_KEY_REFUSED", "PhilterInstance", instance.getId(),
+                Map.of("name", instance.getName() == null ? "" : instance.getName(), "reason", check.reason()));
+    }
+
+    /**
+     * Saves what Philter reported about the key on a fresh read of the instance, and only if its key is
+     * still the one checked, so a change made meanwhile (a new key, TLS stores) is not overwritten.
+     */
+    private void recordKeyRole(final PhilterInstance checked, final Boolean adminKey) {
+        repository.findById(checked.getId()).ifPresent(fresh -> {
+            if (java.util.Objects.equals(fresh.getEncryptedApiKey(), checked.getEncryptedApiKey())) {
+                fresh.setApiKeyAdmin(adminKey);
+                repository.save(fresh);
+            }
+        });
     }
 
     private static String buildInstanceUrl(final String endpoint, final int port) {

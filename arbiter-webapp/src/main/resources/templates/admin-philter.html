@@ -311,8 +311,12 @@
                                       class="text-gray-400 text-xs">Not set</span>
                                 <div th:if="${i.apiKeyAdmin != null and i.apiKeyAdmin}"
                                      class="mt-1 p-2 rounded bg-amber-50 border border-amber-200 text-xs text-amber-800 max-w-xs">
-                                    This key belongs to a Philter administrator. Replace it with a key for a user
-                                    who is not an administrator.
+                                    This key belongs to a Philter administrator. Don't switch to another user's
+                                    key: this user owns the policies and contexts Arbiter uses. Remove its
+                                    administrator role in Philter and narrow the key to <code>redact</code> and
+                                    <code>policies:read</code>.
+                                    <a href="/docs/workflow/#philter-api-key-for-arbiter" target="_blank" rel="noopener noreferrer"
+                                       class="underline">How</a>
                                 </div>
                                 <details class="mt-1 text-xs text-gray-500">
                                     <summary class="cursor-pointer hover:text-gray-700">Set / change</summary>

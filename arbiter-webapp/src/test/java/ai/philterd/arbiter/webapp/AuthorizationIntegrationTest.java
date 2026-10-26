@@ -796,4 +796,16 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
 
         verify(loginAttemptService, times(1)).onFailure(eq("someone@example.com"), any());
     }
+
+    /** With local sign-in, a session signed in through Philter before the switch is ended, not served. */
+    @Test
+    void philterSessionIsEndedInLocalMode() throws Exception {
+        final ai.philterd.arbiter.webapp.security.PhilterSessionAuthentication leftover =
+                new ai.philterd.arbiter.webapp.security.PhilterSessionAuthentication("jdoe", "enc",
+                        java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN")));
+
+        mockMvc.perform(get("/admin/users").accept("text/html").with(
+                        org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication(leftover)))
+                .andExpect(redirectedUrl("/login?expired"));
+    }
 }
