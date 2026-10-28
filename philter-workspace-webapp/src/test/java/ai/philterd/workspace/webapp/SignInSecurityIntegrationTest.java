@@ -125,7 +125,11 @@ class SignInSecurityIntegrationTest extends WebMvcSliceMocks {
         service.setUsername("ci");
         service.setRole("user");
         service.setActive(false);
-        when(philterUsersService.listUsers("enc-admin")).thenReturn(java.util.List.of(reviewer, service));
+        final ai.philterd.philter.model.GetUsersResponse page = new ai.philterd.philter.model.GetUsersResponse();
+        page.setUsers(java.util.List.of(reviewer, service));
+        page.setTotal(2);
+        when(philterUsersService.listPage(org.mockito.ArgumentMatchers.eq("enc-admin"),
+                org.mockito.ArgumentMatchers.any())).thenReturn(page);
         final ai.philterd.philter.model.CurrentUser me = new ai.philterd.philter.model.CurrentUser();
         me.setUsername("boss");
         me.setRole("admin");

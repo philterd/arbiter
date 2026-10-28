@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd, LLC.
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  -->
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <!--
+        The script behind the confirm and json-editor fragments. Include it once, at the bottom of the
+        page. It carries the request's CSP nonce and binds with addEventListener, since the CSP refuses
+        inline event handlers. Without it the pages still work: confirm links open the confirm page, and
+        JSON is checked when the form is submitted.
+    -->
+    <script th:fragment="philter-ui" th:nonce="${cspNonce}">
+        (function () {
+            document.querySelectorAll('[data-confirm-dialog]').forEach(function (link) {
+                var dialog = document.getElementById(link.getAttribute('data-confirm-dialog'));
+                if (!dialog || typeof dialog.showModal !== 'function') {
+                    return;
+                }
+                link.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    dialog.showModal();
+                });
+            });
+            document.querySelectorAll('textarea[data-json-editor]').forEach(function (area) {
+                var message = document.getElementById(area.getAttribute('data-json-message'));
+                var check = function () {
+                    var problem = '';
+                    try {
+                        var value = JSON.parse(area.value);
+                        if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+                            problem = 'Enter a JSON object, starting with {.';
+                        }
+                    } catch (e) {
+                        // The browser's message can quote the text, so it is not shown.
+                        problem = 'This is not valid JSON.';
+                    }
+                    if (message) {
+                        message.textContent = problem;
+                    }
+                    area.setAttribute('aria-invalid', problem ? 'true' : 'false');
+                };
+                area.addEventListener('input', check);
+            });
+        })();
+    </script>
+</body>
+</html>

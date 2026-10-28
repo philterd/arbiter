@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd, LLC.
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  -->
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <!--
+        Fragments for a page that lists items kept in Philter, driven by a ListView
+        (ai.philterd.workspace.webapp.ui.ListView) in the model. See DEVELOPER.md, "Shared fragments
+        for Philter pages". Every link keeps the search, filters, owner, and sort.
+    -->
+
+    <!--
+        The table: header cells and rows are the caller's markup, passed as fragments. That markup is
+        evaluated inside this fragment, where these parameter names hide model attributes of the same
+        name, hence the unusual names.
+    -->
+    <div th:fragment="paged-table(list, tableHead, tableRows, emptyText)"
+         class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <table th:if="${list.total() > 0 and !list.pastEnd()}" class="min-w-full divide-y divide-gray-200">
+            <thead class="bg-gray-50">
+                <tr><th:block th:replace="${tableHead}"></th:block></tr>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                <th:block th:replace="${tableRows}"></th:block>
+            </tbody>
+        </table>
+        <div th:if="${list.total() == 0}" class="px-6 py-8 text-center text-sm text-gray-500">
+            <span th:if="${list.filtered()}">Nothing matches the search and filters.
+                <a th:href="@{${list.clearUrl()}}" class="text-blue-600 hover:text-blue-800">Clear them</a>.</span>
+            <span th:unless="${list.filtered()}" th:text="${emptyText}">Nothing yet.</span>
+        </div>
+        <div th:if="${list.pastEnd()}" class="px-6 py-8 text-center text-sm text-gray-500">
+            This page is past the end of the list.
+            <a th:href="@{${list.firstUrl()}}" class="text-blue-600 hover:text-blue-800">Go to the first page</a>.
+        </div>
+        <div th:replace="~{fragments/list :: pager(${list})}"></div>
+    </div>
+
+    <!-- A column header that sorts the list by a field Philter can sort on. -->
+    <th th:fragment="sort-header(list, label, field)" scope="col"
+        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+        th:attr="aria-sort=${list.sortedBy(field)} ? (${list.ascending()} ? 'ascending' : 'descending') : 'none'">
+        <a th:href="@{${list.sortUrl(field)}}" class="inline-flex items-center gap-1 hover:text-gray-900">
+            <span th:text="${label}">Label</span>
+            <span th:if="${list.sortedBy(field)}" aria-hidden="true" th:text="${list.ascending()} ? '&#9650;' : '&#9660;'"></span>
+        </a>
+    </th>
+
+    <!-- A column header that does not sort. -->
+    <th th:fragment="plain-header(label)" scope="col"
+        class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+        th:text="${label}">Label</th>
+
+    <!-- Which items are shown, and links to the pages either side. -->
+    <nav th:fragment="pager(list)" th:if="${list.total() > 0}" aria-label="Pages"
+         class="flex items-center justify-between px-6 py-3 text-sm text-gray-600 border-t border-gray-100">
+        <span th:unless="${list.pastEnd()}" th:text="|${list.first()} to ${list.last()} of ${list.total()}|">1 to 25 of 40</span>
+        <span th:if="${list.pastEnd()}" th:text="|${list.total()} in all|">40 in all</span>
+        <span class="flex gap-4">
+            <a th:if="${list.hasPrevious()}" th:href="@{${list.previousUrl()}}" rel="prev"
+               class="text-blue-600 hover:text-blue-800">Previous</a>
+            <span th:unless="${list.hasPrevious()}" class="text-gray-300">Previous</span>
+            <a th:if="${list.hasNext()}" th:href="@{${list.nextUrl()}}" rel="next"
+               class="text-blue-600 hover:text-blue-800">Next</a>
+            <span th:unless="${list.hasNext()}" class="text-gray-300">Next</span>
+        </span>
+    </nav>
+
+    <!--
+        A search box, the caller's filter controls (a fragment, or ~{} for none), and the owner
+        filter for administrators. It submits a GET to the list, keeping the sort and page size and
+        starting again from the first page. As for the table, the caller's controls are evaluated with
+        filterControls hiding any model attribute of that name.
+    -->
+    <form th:fragment="filter-bar(list, filterControls)" th:action="@{${list.path()}}" method="get" role="search"
+          class="flex flex-wrap items-end gap-3 mb-4">
+        <div>
+            <label for="list-search" class="block text-xs font-medium text-gray-600 mb-1">Search</label>
+            <input id="list-search" type="search" name="q" maxlength="200" th:value="${list.search()}"
+                   class="rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <th:block th:replace="${filterControls}"></th:block>
+        <th:block th:replace="~{fragments/list :: owner-filter(${list})}"></th:block>
+        <input th:if="${list.sort() != null}" type="hidden" name="sort" th:value="${list.sort()}">
+        <input th:if="${list.sort() != null}" type="hidden" name="order" th:value="${list.ascending()} ? 'asc' : 'desc'">
+        <input th:if="${list.customLimit()}" type="hidden" name="limit" th:value="${list.limit()}">
+        <button type="submit"
+                class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">Filter</button>
+        <a th:if="${list.filtered()}" th:href="@{${list.clearUrl()}}"
+           class="py-1.5 text-sm text-blue-600 hover:text-blue-800">Clear</a>
+    </form>
+
+    <!--
+        For administrators only: whose items to list. Empty means the person's own; a username means
+        that user's; "Every user's" means everyone's. Rendered inside the filter bar.
+    -->
+    <fieldset th:fragment="owner-filter(list)" th:if="${list.owner().available()}" class="flex items-end gap-3">
+        <legend class="sr-only">Owner</legend>
+        <div>
+            <label for="list-owner" class="block text-xs font-medium text-gray-600 mb-1">Owner</label>
+            <input id="list-owner" type="text" name="owner" maxlength="200" placeholder="You"
+                   autocapitalize="none" spellcheck="false" th:value="${list.owner().username()}"
+                   class="rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        </div>
+        <label class="inline-flex items-center text-sm py-1.5">
+            <input type="checkbox" name="all" value="true" class="mr-1.5" th:checked="${list.owner().everyone()}">
+            Every user's
+        </label>
+    </fieldset>
+</body>
+</html>

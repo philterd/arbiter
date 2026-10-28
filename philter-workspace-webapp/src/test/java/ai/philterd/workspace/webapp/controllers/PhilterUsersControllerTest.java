@@ -18,6 +18,9 @@ import ai.philterd.workspace.webapp.controllers.PhilterUsersController.Row;
 import ai.philterd.workspace.webapp.security.PhilterSessionAuthentication;
 import ai.philterd.workspace.webapp.security.PhilterUserProvisioner;
 import ai.philterd.workspace.webapp.security.PhilterUsersService;
+import ai.philterd.workspace.webapp.ui.Confirmation;
+import ai.philterd.workspace.webapp.ui.ListView;
+import ai.philterd.philter.model.GetUsersResponse;
 import ai.philterd.philter.model.User;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.UnauthorizedException;
@@ -37,6 +40,7 @@ import java.io.IOException;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
@@ -112,6 +116,13 @@ class PhilterUsersControllerTest {
         return group;
     }
 
+    private static GetUsersResponse page(final long total, final User... users) {
+        final GetUsersResponse page = new GetUsersResponse();
+        page.setUsers(List.of(users));
+        page.setTotal(total);
+        return page;
+    }
+
     private static String error(final RedirectAttributesModelMap flash) {
         final Object e = flash.getFlashAttributes().get("error");
         return e == null ? null : e.toString();
@@ -120,7 +131,7 @@ class PhilterUsersControllerTest {
     @Test
     @SuppressWarnings("unchecked")
     void listsPhilterUsersWithTheirWorkspaceRoleAndGroups() throws Exception {
-        when(usersService.listUsers("enc-admin")).thenReturn(List.of(
+        when(usersService.listPage(eq("enc-admin"), any())).thenReturn(page(3,
                 philter("boss", "admin", true), philter("ci", "user", false), philter("jdoe", "user", true)));
         when(userRepository.findByEmail("jdoe")).thenReturn(Optional.of(record("r1", Roles.AUDITOR)));
         when(groupRepository.findAll()).thenReturn(List.of(group("g1", "r1"), group("g2", "other")));
@@ -134,12 +145,14 @@ class PhilterUsersControllerTest {
         assertNull(rows.get(1).workspaceRole(), "no record yet");
         assertEquals(Roles.AUDITOR, rows.get(2).workspaceRole());
         assertEquals(Set.of("g1"), rows.get(2).groupIds());
+        assertEquals(3, ((ListView) model.get("list")).total());
+        assertEquals("/admin/users/jdoe/deactivate", rows.get(2).confirm().get("deactivate").action());
         verify(userRepository, never()).save(any());
     }
 
     @Test
     void unreachablePhilterShowsAnErrorAndAnEmptyList() throws Exception {
-        when(usersService.listUsers("enc-admin")).thenThrow(new IOException("connection refused"));
+        when(usersService.listPage(eq("enc-admin"), any())).thenThrow(new IOException("connection refused"));
         final ExtendedModelMap model = new ExtendedModelMap();
 
         assertEquals("admin-philter-users", controller.users(admin, new MockHttpServletRequest(), model));
@@ -148,7 +161,7 @@ class PhilterUsersControllerTest {
 
     @Test
     void rejectedAdministratorKeyEndsTheSession() throws Exception {
-        when(usersService.listUsers("enc-admin")).thenThrow(new UnauthorizedException("expired"));
+        when(usersService.listPage(eq("enc-admin"), any())).thenThrow(new UnauthorizedException("expired"));
         final MockHttpServletRequest request = new MockHttpServletRequest();
         final MockHttpSession session = new MockHttpSession();
         request.setSession(session);
@@ -263,13 +276,16 @@ class PhilterUsersControllerTest {
         when(userRepository.findAll()).thenReturn(List.of(record("r1", Roles.USER), leftover));
         when(usersService.listUsers("enc-admin")).thenReturn(List.of(philter("jdoe", "user", true)));
         final ExtendedModelMap model = new ExtendedModelMap();
-        controller.users(admin, new MockHttpServletRequest(), model);
+        assertEquals("admin-philter-users", controller.records(admin, new MockHttpServletRequest(), model));
         assertEquals(List.of(leftover), model.get("orphans"));
+        assertEquals("/admin/users/records/old/delete",
+                ((Map<String, Confirmation>) model.get("deletions")).get("old").action());
 
         when(usersService.listUsers("enc-admin")).thenThrow(new IOException("down"));
         final ExtendedModelMap down = new ExtendedModelMap();
-        controller.users(admin, new MockHttpServletRequest(), down);
+        controller.records(admin, new MockHttpServletRequest(), down);
         assertTrue(((List<?>) down.get("orphans")).isEmpty());
+        assertNotNull(down.get("error"));
     }
 
     @Test
@@ -377,7 +393,7 @@ class PhilterUsersControllerTest {
 
     @Test
     void auditorIsToldThatOnlyAdministratorsSeeUsers() throws Exception {
-        when(usersService.listUsers("enc-admin")).thenThrow(new ClientException("Forbidden", 403, "not an administrator"));
+        when(usersService.listPage(eq("enc-admin"), any())).thenThrow(new ClientException("Forbidden", 403, "not an administrator"));
         final ExtendedModelMap model = new ExtendedModelMap();
 
         controller.users(admin, new MockHttpServletRequest(), model);

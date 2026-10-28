@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd, LLC.
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  -->
+<!-- The confirmation page a confirm link opens when JavaScript is off. The model holds a Confirmation. -->
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="|Philter Workspace - ${confirmation.title()}|">Philter Workspace - Confirm</title>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+    <div th:replace="~{fragments/topbar :: topbar}"></div>
+    <main class="flex-1 flex items-center justify-center p-4">
+        <div class="w-full max-w-md bg-white p-6 rounded-xl shadow-md border border-gray-100">
+            <div th:replace="~{fragments/confirm :: confirm-body('confirm', ${confirmation})}"></div>
+            <div class="mt-6 flex justify-end items-center gap-4">
+                <a th:href="@{${confirmation.backUrl()}}" class="text-sm text-blue-600 hover:text-blue-800">Cancel</a>
+                <form th:replace="~{fragments/confirm :: confirm-form(${confirmation})}"></form>
+            </div>
+        </div>
+    </main>
+    <div th:replace="~{fragments/footer :: footer}"></div>
+</body>
+</html>

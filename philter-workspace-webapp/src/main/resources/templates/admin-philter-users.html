@@ -206,6 +206,7 @@
                 whether each person is a User or an Auditor, and their groups.
             </p>
 
+            <th:block th:if="${orphans == null}">
             <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-6 max-w-2xl">
                 <h3 class="text-lg font-semibold text-gray-900 mb-3">Add user</h3>
                 <p class="text-sm text-gray-600 mb-3">
@@ -243,20 +244,38 @@
                 </form>
             </div>
 
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">In Philter Workspace</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">In Philter</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                        <tr th:if="${#lists.isEmpty(rows)}">
-                            <td colspan="3" class="px-6 py-8 text-center text-sm text-gray-500">No users.</td>
-                        </tr>
-                        <tr th:each="r : ${rows}" class="align-top" th:classappend="${r.philter.active} ? '' : 'bg-gray-50'">
+            <div class="flex items-baseline justify-between mb-3">
+                <h3 class="text-lg font-semibold text-gray-900">Users</h3>
+                <a th:href="@{/admin/users/records}" class="text-sm text-blue-600 hover:text-blue-800">Records without a Philter user</a>
+            </div>
+            <form th:replace="~{fragments/list :: filter-bar(${list}, ~{::user-filters})}">
+                <th:block th:ref="user-filters">
+                    <div>
+                        <label for="filter-role" class="block text-xs font-medium text-gray-600 mb-1">Role</label>
+                        <select id="filter-role" name="role" class="rounded-lg border border-gray-300 px-2 py-1.5 text-sm">
+                            <option value="">Any</option>
+                            <option value="admin" th:selected="${list.filter('role') == 'admin'}">Administrator</option>
+                            <option value="user" th:selected="${list.filter('role') == 'user'}">User</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="filter-active" class="block text-xs font-medium text-gray-600 mb-1">Status</label>
+                        <select id="filter-active" name="active" class="rounded-lg border border-gray-300 px-2 py-1.5 text-sm">
+                            <option value="">Any</option>
+                            <option value="true" th:selected="${list.filter('active') == 'true'}">Active</option>
+                            <option value="false" th:selected="${list.filter('active') == 'false'}">Deactivated</option>
+                        </select>
+                    </div>
+                </th:block>
+            </form>
+            <div th:replace="~{fragments/list :: paged-table(${list}, ~{::user-head}, ~{::user-rows}, 'No users.')}">
+                <th:block th:ref="user-head">
+                    <th th:replace="~{fragments/list :: sort-header(${list}, 'User', 'username')}"></th>
+                    <th th:replace="~{fragments/list :: plain-header('In Philter Workspace')}"></th>
+                    <th th:replace="~{fragments/list :: plain-header('In Philter')}"></th>
+                </th:block>
+                <th:block th:ref="user-rows">
+                        <tr th:each="r, rs : ${rows}" class="align-top" th:classappend="${r.philter.active} ? '' : 'bg-gray-50'">
                             <td class="px-6 py-4 text-sm">
                                 <div class="font-medium text-gray-900">
                                     <span th:text="${r.philter.username}">username</span>
@@ -326,43 +345,40 @@
                                             <form th:if="${r.philter.mfaLocked}" th:action="@{/admin/users/{u}/unlock-mfa(u=${r.philter.username})}" method="post">
                                                 <button type="submit" class="font-medium text-blue-600 hover:text-blue-800">Unlock 2FA</button>
                                             </form>
-                                            <form th:if="${r.philter.mfaEnabled}" th:action="@{/admin/users/{u}/remove-mfa(u=${r.philter.username})}" method="post"
-                                                  onsubmit="return confirm('Remove this person\'s two-factor authentication?');">
-                                                <button type="submit" class="font-medium text-red-600 hover:text-red-800">Remove 2FA</button>
-                                            </form>
-                                            <form th:action="@{/admin/users/{u}/sign-out(u=${r.philter.username})}" method="post">
-                                                <button type="submit" class="font-medium text-blue-600 hover:text-blue-800">Sign out everywhere</button>
-                                            </form>
+                                            <th:block th:if="${r.philter.mfaEnabled}">
+                                                <th:block th:replace="~{fragments/confirm :: confirm(|remove-mfa-${rs.index}|, ${r.confirm['remove-mfa']}, 'Remove 2FA', 'font-medium text-red-600 hover:text-red-800')}"></th:block>
+                                            </th:block>
+                                            <th:block th:replace="~{fragments/confirm :: confirm(|sign-out-${rs.index}|, ${r.confirm['sign-out']}, 'Sign out everywhere', 'font-medium text-blue-600 hover:text-blue-800')}"></th:block>
                                         </div>
                                     </div>
-                                    <form th:if="${r.philter.active}" th:action="@{/admin/users/{u}/deactivate(u=${r.philter.username})}" method="post"
-                                          onsubmit="return confirm('Deactivate this user? They will no longer be able to sign in or use API keys.');">
-                                        <button type="submit" class="text-xs font-medium text-red-600 hover:text-red-800">Deactivate</button>
-                                    </form>
+                                    <div th:if="${r.philter.active}" class="text-xs">
+                                        <th:block th:replace="~{fragments/confirm :: confirm(|deactivate-${rs.index}|, ${r.confirm['deactivate']}, 'Deactivate', 'font-medium text-red-600 hover:text-red-800')}"></th:block>
+                                    </div>
                                     <form th:unless="${r.philter.active}" th:action="@{/admin/users/{u}/reactivate(u=${r.philter.username})}" method="post">
                                         <button type="submit" class="text-xs font-medium text-blue-600 hover:text-blue-800">Reactivate</button>
                                     </form>
                                 </div>
                             </td>
                         </tr>
-                    </tbody>
-                </table>
+                </th:block>
             </div>
+            </th:block>
 
-            <div th:if="${!#lists.isEmpty(orphans)}" class="mt-6 bg-white p-5 rounded-xl shadow-sm border border-gray-100 max-w-3xl">
-                <h3 class="text-lg font-semibold text-gray-900 mb-1">Philter Workspace records without a Philter user</h3>
+            <div th:if="${orphans != null}" class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 max-w-3xl">
+                <a th:href="@{/admin/users}" class="text-sm text-blue-600 hover:text-blue-800">Back to users</a>
+                <h3 class="mt-2 text-lg font-semibold text-gray-900 mb-1">Philter Workspace records without a Philter user</h3>
                 <p class="text-sm text-gray-600 mb-3">
                     These records have no Philter user, for example accounts from before Philter Workspace was switched to
                     Philter sign-in. Nobody can sign in as them, but they still count as group members and team leads.
                     Deleting one removes it from its groups.
                 </p>
+                <p th:if="${#lists.isEmpty(orphans) and error == null}" class="text-sm text-gray-500">Every record has a Philter user.</p>
                 <ul class="divide-y divide-gray-100">
-                    <li th:each="o : ${orphans}" class="py-2 flex items-center justify-between text-sm">
+                    <li th:each="o, os : ${orphans}" class="py-2 flex items-center justify-between text-sm">
                         <span th:text="${o.email}">name</span>
-                        <form th:action="@{/admin/users/records/{id}/delete(id=${o.id})}" method="post"
-                              onsubmit="return confirm('Delete this Philter Workspace record?');">
-                            <button type="submit" class="text-xs font-medium text-red-600 hover:text-red-800">Delete record</button>
-                        </form>
+                        <span class="text-xs">
+                            <th:block th:replace="~{fragments/confirm :: confirm(|delete-record-${os.index}|, ${deletions[o.id]}, 'Delete record', 'font-medium text-red-600 hover:text-red-800')}"></th:block>
+                        </span>
                     </li>
                 </ul>
             </div>
@@ -370,6 +386,7 @@
         <div th:replace="~{fragments/footer :: footer}"></div>
         </div>
     </div>
+    <script th:replace="~{fragments/scripts :: philter-ui}"></script>
 
 </body>
 </html>

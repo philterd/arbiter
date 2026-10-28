@@ -354,6 +354,19 @@ class PhilterSignInIT {
                 .with(from(address))).andExpect(redirectedUrl("/admin/users"));
         assertFalse(bootstrap().getUser(username).isActive());
 
+        // Philter searches, filters, and sorts the page: the new user is a deactivated administrator.
+        final String found = mockMvc.perform(get("/admin/users").session(session).with(from(address))
+                        .param("q", username).param("role", "admin").param("active", "false")
+                        .param("sort", "username").param("order", "desc"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertTrue(found.contains("1 to 1 of 1") && found.contains(">" + username + "<"), found);
+        final String none = mockMvc.perform(get("/admin/users").session(session).with(from(address))
+                        .param("q", username).param("active", "true"))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertTrue(none.contains("Nothing matches the search and filters."), none);
+        mockMvc.perform(get("/admin/users/records").session(session).with(from(address)))
+                .andExpect(status().isOk());
+
         mockMvc.perform(post("/admin/users/me/sign-out").session(session).with(csrf()).with(from(address)))
                 .andExpect(redirectedUrl("/admin/users"));
         mockMvc.perform(get("/admin/users").session(session).with(from(address)))

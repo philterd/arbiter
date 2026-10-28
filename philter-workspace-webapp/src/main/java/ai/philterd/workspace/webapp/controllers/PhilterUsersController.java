@@ -17,6 +17,10 @@ import ai.philterd.workspace.service.AuditLogService;
 import ai.philterd.workspace.webapp.security.PhilterSessionAuthentication;
 import ai.philterd.workspace.webapp.security.PhilterUserProvisioner;
 import ai.philterd.workspace.webapp.security.PhilterUsersService;
+import ai.philterd.workspace.webapp.ui.Confirmation;
+import ai.philterd.workspace.webapp.ui.ListView;
+import ai.philterd.philter.model.GetUsersResponse;
+import ai.philterd.philter.model.ListOptions;
 import ai.philterd.philter.model.User;
 import ai.philterd.philter.model.exceptions.PhilterError;
 import ai.philterd.philter.model.exceptions.UnauthorizedException;
@@ -36,7 +40,9 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
+import org.springframework.web.util.UriUtils;
 
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -63,7 +69,9 @@ public class PhilterUsersController {
     static final String RESERVED_ME = "me";
 
     private static final Logger log = LoggerFactory.getLogger(PhilterUsersController.class);
-    private static final String REDIRECT = "redirect:/admin/users";
+    private static final String PATH = "/admin/users";
+    private static final String REDIRECT = "redirect:" + PATH;
+    private static final String RECORDS_REDIRECT = "redirect:" + PATH + "/records";
 
     private final PhilterUsersService usersService;
     private final PhilterUserProvisioner provisioner;
@@ -86,33 +94,47 @@ public class PhilterUsersController {
         this.sessionRegistry = sessionRegistry;
     }
 
-    /** One row of the page: the Philter user, and their Philter Workspace role and groups if they have a record. */
-    public record Row(User philter, String workspaceRole, Set<String> groupIds, boolean apiOnly, boolean self) {
+    /** Sort fields the Users table offers; Philter can sort users by these. */
+    static final Set<String> SORTS = Set.of("username");
+    static final List<String> FILTERS = List.of("role", "active");
+
+    /**
+     * One row of the page: the Philter user, their Philter Workspace role and groups if they have a record, and
+     * the confirmations for its destructive actions, by action.
+     */
+    public record Row(User philter, String workspaceRole, Set<String> groupIds, boolean apiOnly, boolean self,
+                      Map<String, Confirmation> confirm) {
     }
 
+    /** The Users page: one page of Philter's users, searched, filtered, and sorted by Philter. */
     @GetMapping
     public String users(final Authentication authentication, final HttpServletRequest request, final Model model) {
         final PhilterSessionAuthentication admin = admin(authentication);
         if (admin == null) {
             return "redirect:/login";
         }
-        List<User> philterUsers;
-        boolean listed = true;
+        ListView list = ListView.of(request, PATH, SORTS, "username", FILTERS);
+        final ListOptions options = list.options();
+        final String role = list.filter("role");
+        if (PHILTER_ADMIN.equals(role) || PHILTER_USER.equals(role)) {
+            options.role(role);
+        }
+        final String active = list.filter("active");
+        if ("true".equals(active) || "false".equals(active)) {
+            options.active(Boolean.valueOf(active));
+        }
+        List<User> philterUsers = List.of();
         try {
-            philterUsers = usersService.listUsers(admin.getEncryptedSessionKey());
+            final GetUsersResponse page = usersService.listPage(admin.getEncryptedSessionKey(), options);
+            if (page != null && page.getUsers() != null) {
+                philterUsers = page.getUsers();
+                list = list.withTotal(page.getTotal());
+            }
         } catch (Exception e) {
-            listed = false;
             if (e instanceof UnauthorizedException) {
                 return endSession(request);
             }
-            if (e instanceof PhilterError error && error.getStatusCode() == 403) {
-                // Auditors can open admin pages, but Philter lists users only for its administrators.
-                model.addAttribute("error", "Only Philter administrators can see the users.");
-            } else {
-                log.warn("Could not list Philter users: {}", PhilterClients.describe(e));
-                model.addAttribute("error", "Philter could not be reached, so users cannot be listed.");
-            }
-            philterUsers = List.of();
+            model.addAttribute("error", listError(e));
         }
         final List<Group> groups = groupRepository.findAll();
         final List<Row> rows = new ArrayList<>();
@@ -129,24 +151,101 @@ public class PhilterUsersController {
             final String workspaceRole = record == null || record.getRoles() == null || record.getRoles().isEmpty()
                     ? null : record.getRoles().iterator().next();
             rows.add(new Row(user, workspaceRole, groupIds, !user.isPasswordSet(),
-                    user.getUsername().equals(admin.getName())));
+                    user.getUsername().equals(admin.getName()), confirmations(user.getUsername())));
         }
+        model.addAttribute("list", list);
         model.addAttribute("rows", rows);
-        // Philter Workspace records with no Philter user, such as local accounts from before the switch to Philter
-        // sign-in. Only shown when Philter's list loaded, or every record would look like one.
-        final Set<String> usernames = new HashSet<>();
-        philterUsers.forEach(u -> usernames.add(u.getUsername()));
+        model.addAttribute("groups", groups);
+        return "admin-philter-users";
+    }
+
+    /**
+     * Philter Workspace records with no Philter user, such as local accounts from before the switch to Philter
+     * sign-in. Finding them means reading every Philter user, so they have their own page rather than
+     * slowing every page of the Users table. Nothing is listed when Philter's users cannot be read, or every
+     * record would look like one.
+     */
+    @GetMapping("/records")
+    public String records(final Authentication authentication, final HttpServletRequest request, final Model model) {
+        final PhilterSessionAuthentication admin = admin(authentication);
+        if (admin == null) {
+            return "redirect:/login";
+        }
         final List<ai.philterd.workspace.model.User> orphans = new ArrayList<>();
-        if (listed) {
+        try {
+            final Set<String> usernames = new HashSet<>();
+            usersService.listUsers(admin.getEncryptedSessionKey()).forEach(u -> usernames.add(u.getUsername()));
             for (final ai.philterd.workspace.model.User record : userRepository.findAll()) {
                 if (record.getEmail() != null && !usernames.contains(record.getEmail())) {
                     orphans.add(record);
                 }
             }
+        } catch (Exception e) {
+            if (e instanceof UnauthorizedException) {
+                return endSession(request);
+            }
+            model.addAttribute("error", listError(e));
         }
+        final Map<String, Confirmation> deletions = new HashMap<>();
+        orphans.forEach(o -> deletions.put(o.getId(), recordDeletion(o)));
         model.addAttribute("orphans", orphans);
-        model.addAttribute("groups", groups);
+        model.addAttribute("deletions", deletions);
         return "admin-philter-users";
+    }
+
+    /** The confirmation page for a destructive action on a user, for browsers without JavaScript. */
+    @GetMapping("/{username}/confirm/{action}")
+    public String confirm(@PathVariable final String username, @PathVariable final String action,
+                          final Model model) {
+        final Confirmation confirmation = confirmations(username).get(action);
+        if (confirmation == null) {
+            return REDIRECT;
+        }
+        model.addAttribute("confirmation", confirmation);
+        return "confirm";
+    }
+
+    /** The confirmation page for deleting a record without a Philter user. */
+    @GetMapping("/records/{recordId}/confirm-delete")
+    public String confirmRecordDeletion(@PathVariable final String recordId, final Model model) {
+        final ai.philterd.workspace.model.User record = userRepository.findById(recordId).orElse(null);
+        if (record == null) {
+            return RECORDS_REDIRECT;
+        }
+        model.addAttribute("confirmation", recordDeletion(record));
+        return "confirm";
+    }
+
+    /** The destructive actions on one user, confirmed first, by the action's path segment. */
+    static Map<String, Confirmation> confirmations(final String username) {
+        final String base = PATH + "/" + UriUtils.encodePathSegment(username, StandardCharsets.UTF_8);
+        return Map.of(
+                "deactivate", new Confirmation("Deactivate " + username + "?",
+                        "They will no longer be able to sign in or use their API keys, and their sessions end. "
+                                + "You can reactivate them later.",
+                        base + "/deactivate", "Deactivate", base + "/confirm/deactivate", PATH),
+                "remove-mfa", new Confirmation("Remove two-factor authentication for " + username + "?",
+                        "They will sign in with their password alone until they set it up again.",
+                        base + "/remove-mfa", "Remove 2FA", base + "/confirm/remove-mfa", PATH),
+                "sign-out", new Confirmation("Sign " + username + " out everywhere?",
+                        "Every session they have in Philter and Philter Workspace ends.",
+                        base + "/sign-out", "Sign out", base + "/confirm/sign-out", PATH));
+    }
+
+    private static Confirmation recordDeletion(final ai.philterd.workspace.model.User record) {
+        final String base = PATH + "/records/" + UriUtils.encodePathSegment(record.getId(), StandardCharsets.UTF_8);
+        return new Confirmation("Delete the record for " + record.getEmail() + "?",
+                "The record is removed from its groups and as a team lead. Nobody can sign in as it.",
+                base + "/delete", "Delete record", base + "/confirm-delete", PATH + "/records");
+    }
+
+    private static String listError(final Exception e) {
+        if (e instanceof PhilterError error && error.getStatusCode() == 403) {
+            // Auditors can open admin pages, but Philter lists users only for its administrators.
+            return "Only Philter administrators can see the users.";
+        }
+        log.warn("Could not list Philter users: {}", PhilterClients.describe(e));
+        return "Philter could not be reached, so users cannot be listed.";
     }
 
     @PostMapping
@@ -437,16 +536,16 @@ public class PhilterUsersController {
         final ai.philterd.workspace.model.User record = userRepository.findById(recordId).orElse(null);
         if (admin == null || record == null || record.getEmail() == null) {
             flash.addFlashAttribute("error", "There is no such Philter Workspace record.");
-            return REDIRECT;
+            return RECORDS_REDIRECT;
         }
         if (record.getEmail().equals(admin.getName())) {
             flash.addFlashAttribute("error", "You cannot delete your own record.");
-            return REDIRECT;
+            return RECORDS_REDIRECT;
         }
         try {
             usersService.getUser(admin.getEncryptedSessionKey(), record.getEmail());
             flash.addFlashAttribute("error", "\"" + record.getEmail() + "\" is a Philter user. Deactivate them instead.");
-            return REDIRECT;
+            return RECORDS_REDIRECT;
         } catch (Exception e) {
             if (!(e instanceof PhilterError error && error.getStatusCode() == 404)) {
                 return refused(e, request, flash, "The record was not deleted.");
@@ -457,7 +556,7 @@ public class PhilterUsersController {
             if (group.getUserIds() != null && group.getUserIds().equals(Set.of(record.getId()))) {
                 flash.addFlashAttribute("error", "\"" + record.getEmail() + "\" is the only member of \""
                         + group.getName() + "\". Add someone else to it first.");
-                return REDIRECT;
+                return RECORDS_REDIRECT;
             }
         }
         for (final Group group : groups) {
@@ -475,7 +574,7 @@ public class PhilterUsersController {
         expireSessions(record.getEmail());
         audit("USER_DELETE", record.getId(), record.getEmail(), Map.of());
         flash.addFlashAttribute("success", "Philter Workspace record \"" + record.getEmail() + "\" deleted.");
-        return REDIRECT;
+        return RECORDS_REDIRECT;
     }
 
     static final String API_ONLY = "This is an API-only account, with no password. In Philter Workspace it can only be "

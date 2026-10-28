@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd, LLC.
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  -->
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <!--
+        Fragments for forms that change items in Philter. Errors come from a FormErrors
+        (ai.philterd.workspace.webapp.ui.FormErrors), whose messages are Philter Workspace's own and
+        never Philter's response text. See DEVELOPER.md, "Shared fragments for Philter pages".
+    -->
+
+    <!-- The form-level message, when there are errors. -->
+    <div th:fragment="errors(errors)" th:if="${errors != null}" role="alert"
+         class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
+         th:text="${errors.message()}">Philter did not accept the values.</div>
+
+    <!-- The message for one field, with the id that field's aria-describedby names. -->
+    <p th:fragment="field-error(errors, field)" th:if="${errors != null and errors.has(field)}"
+       th:id="|${field}-error|" class="mt-1 text-xs text-red-700" th:text="${errors.field(field)}">
+        Philter did not accept this value.</p>
+
+    <!--
+        A monospaced editor for JSON, such as a policy. The server checks it with JsonInput and passes
+        any message as error; with JavaScript on, the philter-ui script also checks it as it is typed.
+    -->
+    <div th:fragment="json-editor(id, name, value, error)">
+        <textarea th:id="${id}" th:name="${name}" rows="24" spellcheck="false" autocapitalize="none"
+                  autocomplete="off" data-json-editor th:attr="data-json-message=|${id}-message|,
+                  aria-describedby=(${error != null} ? |${id}-error ${id}-message| : |${id}-message|),
+                  aria-invalid=${error != null}"
+                  class="block w-full rounded-lg border border-gray-300 p-3 font-mono text-xs leading-5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  th:text="${value}">{}</textarea>
+        <p th:id="|${id}-error|" th:if="${error != null}" class="mt-1 text-xs text-red-700" th:text="${error}">
+            This is not valid JSON.</p>
+        <p th:id="|${id}-message|" class="mt-1 text-xs text-red-700" aria-live="polite"></p>
+    </div>
+</body>
+</html>

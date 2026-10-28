@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<!-- A test page using every shared Philter fragment, rendered by FragmentsTestController. -->
+<html xmlns:th="http://www.thymeleaf.org">
+<head><title>Fragments</title></head>
+<body>
+<p id="owner-state" th:text="${list.owner().everyone()} ? 'everyone' : (${list.owner().mine()} ? 'mine' : ${list.owner().username()})">mine</p>
+<form th:replace="~{fragments/list :: filter-bar(${list}, ~{::test-filters})}">
+    <th:block th:ref="test-filters">
+        <select name="status">
+            <option value="">Any</option>
+            <option value="open" th:selected="${list.filter('status') == 'open'}">Open</option>
+        </select>
+    </th:block>
+</form>
+<div th:replace="~{fragments/list :: paged-table(${list}, ~{::test-head}, ~{::test-rows}, 'No things yet.')}">
+    <th:block th:ref="test-head">
+        <th th:replace="~{fragments/list :: sort-header(${list}, 'Name', 'name')}"></th>
+        <th th:replace="~{fragments/list :: plain-header('Status')}"></th>
+    </th:block>
+    <th:block th:ref="test-rows">
+        <tr th:each="thing : ${things}"><td class="thing" th:text="${thing}">thing</td><td>open</td></tr>
+    </th:block>
+</div>
+<div th:replace="~{fragments/forms :: errors(${errors})}"></div>
+<input id="name" name="name">
+<p th:replace="~{fragments/forms :: field-error(${errors}, 'name')}"></p>
+<div th:replace="~{fragments/forms :: json-editor('policy', 'policy', ${policyJson}, ${policyError})}"></div>
+<th:block th:replace="~{fragments/confirm :: confirm('delete-thing', ${confirmation}, 'Delete', 'text-red-600')}"></th:block>
+<script th:replace="~{fragments/scripts :: philter-ui}"></script>
+</body>
+</html>

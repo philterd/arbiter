@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd, LLC.
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  -->
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <!--
+        A destructive action, confirmed first. The link opens the dialog when the philter-ui script runs;
+        without JavaScript it goes to the Confirmation's pageUrl, a GET handler rendering the confirm
+        template. See DEVELOPER.md, "Shared fragments for Philter pages".
+    -->
+    <th:block th:fragment="confirm(id, confirmation, label, linkClass)">
+        <a th:href="@{${confirmation.pageUrl()}}" th:attr="data-confirm-dialog=${id}" th:class="${linkClass}"
+           th:text="${label}">Delete</a>
+        <dialog th:id="${id}" th:attr="aria-labelledby=|${id}-title|"
+                class="w-full max-w-md rounded-xl p-0 shadow-xl backdrop:bg-gray-900/40">
+            <div class="p-6 text-left">
+                <div th:replace="~{fragments/confirm :: confirm-body(${id}, ${confirmation})}"></div>
+                <div class="mt-6 flex justify-end gap-3">
+                    <form method="dialog">
+                        <button type="submit"
+                                class="px-4 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50">Cancel</button>
+                    </form>
+                    <form th:replace="~{fragments/confirm :: confirm-form(${confirmation})}"></form>
+                </div>
+            </div>
+        </dialog>
+    </th:block>
+
+    <!-- What the dialog and the confirm page both say. -->
+    <div th:fragment="confirm-body(id, confirmation)">
+        <h3 th:id="|${id}-title|" class="text-lg font-semibold text-gray-900" th:text="${confirmation.title()}">Delete?</h3>
+        <p class="mt-2 text-sm text-gray-600" th:text="${confirmation.message()}">This cannot be undone.</p>
+        <ul th:if="${!confirmation.affected().isEmpty()}" class="mt-3 list-disc pl-5 text-sm text-gray-700">
+            <li th:each="item : ${confirmation.affected()}" th:text="${item}">item</li>
+        </ul>
+    </div>
+
+    <!-- The confirming form; th:action adds the CSRF token. -->
+    <form th:fragment="confirm-form(confirmation)" th:action="@{${confirmation.action()}}" method="post">
+        <input th:each="field : ${confirmation.fields()}" type="hidden" th:name="${field.key}" th:value="${field.value}">
+        <button type="submit" th:text="${confirmation.button()}"
+                class="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg">Delete</button>
+    </form>
+</body>
+</html>

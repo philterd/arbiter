@@ -12,6 +12,11 @@ Philter checks that you are an administrator, and its audit log names you. Philt
 keeps each person's Philter Workspace role (User or Auditor) and groups. Auditors can open
 the page, but Philter shows its users only to Philter administrators.
 
+The list shows 25 users a page, sorted by username; click **User** to reverse the order.
+**Search** matches part of a username, and **Role** and **Status** narrow the list
+to administrators or users and to active or deactivated users. Philter does the searching,
+filtering, and sorting, and the page links keep them as you page through.
+
 ### Add a Philter user
 
 Enter a username, an optional email address, and a first password of at least 16
@@ -52,7 +57,8 @@ a record when you save here or when they first sign in.
   name them, and their groups return on reactivation.
 
 Changing someone's role, resetting their password, deactivating them, or signing
-them out also ends their Philter Workspace sessions.
+them out also ends their Philter Workspace sessions. **Remove 2FA**, **Sign out everywhere**, and
+**Deactivate** ask you to confirm first.
 
 You cannot change your own role, password, or two-factor authentication, or
 deactivate yourself, here; use **Settings** for your password, or ask another
@@ -60,15 +66,16 @@ administrator.
 
 ### Philter Workspace records without a Philter user
 
-Below the list, the page shows any Philter Workspace record with no Philter user, such as a
+**Records without a Philter user**, above the list, opens a page of any Philter Workspace record
+with no Philter user, such as a
 person from Philter Workspace's removed local sign-in who has no Philter user with their email
 address as username (see
 [Upgrading from local sign-in](../security.md#upgrading-from-local-sign-in)). Nobody can sign in as
 one, but it still counts as a group member and team lead. **Delete record**
 removes it, and removes it from its groups, after Philter confirms there is no
-such user. A record that is a group's only member is not deleted until someone
-else joins the group. The section appears only when Philter's user list has
-loaded.
+such user, and after you confirm. A record that is a group's only member is not deleted until
+someone else joins the group. Finding these records reads every Philter user, so they have their
+own page; nothing is listed when Philter's user list cannot be read.
 
 ### API-only users
 

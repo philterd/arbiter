@@ -52,6 +52,11 @@ public class PhilterUsersService {
         }
     }
 
+    /** One page of users, as {@code options} asks: offset, limit, sort, search, and role and active filters. */
+    public GetUsersResponse listPage(final String encryptedKey, final ListOptions options) throws IOException {
+        return signInService.client(encryptedKey).getUsers(options);
+    }
+
     public User getUser(final String encryptedKey, final String username) throws IOException {
         return signInService.client(encryptedKey).getUser(username);
     }
