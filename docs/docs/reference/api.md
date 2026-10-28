@@ -27,7 +27,7 @@ that person's Arbiter role and groups. Arbiter has no API keys of its own. See
 |---|---|
 | `401 Unauthorized` | No key, or Philter does not accept the key, or its user is deactivated. |
 | `403 Forbidden` | The key does not hold `users:read`, or the user's role does not allow the call. |
-| `503 Service Unavailable` | Philter could not be reached to check the key. |
+| `503 Service Unavailable` | Philter could not check the key: it was unreachable, answered with a server error, or rate limited the check. |
 
 ### Programmatic (Bearer-only)
 

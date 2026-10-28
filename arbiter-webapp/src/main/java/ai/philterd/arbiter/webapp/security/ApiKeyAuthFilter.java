@@ -72,7 +72,7 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
                 case MISSING_SCOPE -> response.sendError(HttpServletResponse.SC_FORBIDDEN,
                         "The Philter API key must hold the users:read scope.");
                 case UNAVAILABLE -> response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE,
-                        "Philter could not be reached to check the API key.");
+                        "Philter could not check the API key.");
                 default -> response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
             }
             return;

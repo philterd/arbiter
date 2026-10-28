@@ -98,6 +98,20 @@ class PhilterApiKeysTest {
     }
 
     @Test
+    void aServerErrorOrRateLimitIsUnavailableNotInvalid() throws Exception {
+        when(signIn.currentUserForApiKey("sk_proxy_error")).thenThrow(new ClientException("Bad Gateway", 502, null));
+        when(signIn.currentUserForApiKey("sk_limited")).thenThrow(new ClientException("Too Many Requests", 429, null));
+        when(signIn.currentUserForApiKey("sk_not_found")).thenThrow(new ClientException("Not Found", 404, null));
+
+        assertEquals(PhilterApiKeys.Refusal.UNAVAILABLE,
+                assertThrows(PhilterApiKeys.RefusedException.class, () -> keys.resolve("sk_proxy_error")).refusal());
+        assertEquals(PhilterApiKeys.Refusal.UNAVAILABLE,
+                assertThrows(PhilterApiKeys.RefusedException.class, () -> keys.resolve("sk_limited")).refusal());
+        assertEquals(PhilterApiKeys.Refusal.INVALID,
+                assertThrows(PhilterApiKeys.RefusedException.class, () -> keys.resolve("sk_not_found")).refusal());
+    }
+
+    @Test
     void aNegativeCacheTimeStopsStartup() {
         assertThrows(IllegalStateException.class,
                 () -> new PhilterApiKeys(signIn, provisioner, Clock.systemUTC(), Duration.ofSeconds(-1)));

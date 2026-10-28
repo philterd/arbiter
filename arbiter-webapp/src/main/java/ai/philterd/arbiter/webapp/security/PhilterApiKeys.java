@@ -106,6 +106,11 @@ public class PhilterApiKeys {
             cache.remove(hash);
             throw new RefusedException(Refusal.INVALID);
         } catch (ClientException e) {
+            // A rate limit or a server error (such as a proxy in front of Philter) says nothing about the key.
+            if (e.getStatusCode() == 429 || e.getStatusCode() >= 500 || e.getStatusCode() == 0) {
+                log.warn("Could not check an API key with Philter: {}", PhilterClients.describe(e));
+                throw new RefusedException(Refusal.UNAVAILABLE);
+            }
             cache.remove(hash);
             throw new RefusedException(e.getStatusCode() == 403 ? Refusal.MISSING_SCOPE : Refusal.INVALID);
         } catch (Exception e) {

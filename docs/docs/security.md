@@ -133,7 +133,7 @@ scope. Create a key with only `users:read` for an integration that calls Arbiter
 |---|---|
 | `401` | Philter does not accept the key, or its user is deactivated. |
 | `403` | The key does not hold `users:read`, or the user's Arbiter role does not allow the call. |
-| `503` | Philter could not be reached to check the key. |
+| `503` | Philter could not check the key: it was unreachable, answered with a server error, or rate limited the check. |
 
 Philter's answer is cached for `arbiter.api-keys.cache-seconds` (default 30), keyed by a hash of
 the key, so a revoked key, a deactivation, or a role change applies within that time. Arbiter does
