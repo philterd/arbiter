@@ -40,6 +40,9 @@ public class PhilterSignInFailureHandler implements AuthenticationFailureHandler
         if (exception instanceof LockedException) {
             return "/login?locked";
         }
+        if (exception instanceof UnsupportedPhilterException) {
+            return "/login?unsupported";
+        }
         if (exception instanceof AuthenticationServiceException) {
             return "/login?unavailable";
         }

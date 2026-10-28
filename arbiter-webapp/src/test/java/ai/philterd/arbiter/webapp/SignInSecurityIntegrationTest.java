@@ -90,6 +90,20 @@ class SignInSecurityIntegrationTest extends WebMvcSliceMocks {
     }
 
     @Test
+    void anUnsupportedPhilterIsNamedOnTheLoginPageAndItsFormIsHidden() throws Exception {
+        final ai.philterd.philter.model.StatusResponse health = new ai.philterd.philter.model.StatusResponse();
+        health.setApplicationVersion("5.0.0");
+        when(philterSignInService.health()).thenReturn(health);
+
+        mockMvc.perform(get("/login"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString(
+                        "This Philter is version 5.0.0, which Arbiter does not support. Arbiter supports Philter 4.x.")))
+                .andExpect(content().string(org.hamcrest.Matchers.not(
+                        org.hamcrest.Matchers.containsString("name=\"username\""))));
+    }
+
+    @Test
     void signInStepsArePresentAndLocalOnesAreNot() throws Exception {
         assertEquals(1, context.getBeanNamesForType(PhilterSignInController.class).length);
         mockMvc.perform(get("/sign-in/mfa")).andExpect(redirectedUrl("/login"));

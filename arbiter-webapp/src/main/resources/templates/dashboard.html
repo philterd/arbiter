@@ -189,6 +189,12 @@
                 </p>
             </div>
 
+            <div th:if="${bootstrapKeyActive}" class="mb-6 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                Philter's bootstrap API key, from <code>PHILTER_BOOTSTRAP_API_KEY</code>, is still active. It holds
+                every scope. Create an administrator key of your own in Philter, then revoke the bootstrap key with it.
+                <a th:href="${bootstrapKeyDocs}" target="_blank" rel="noopener noreferrer" class="underline">How</a>
+            </div>
+
             <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
                 <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
                     <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Batches</div>

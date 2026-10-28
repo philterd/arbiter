@@ -72,6 +72,7 @@ abstract class WebMvcSliceMocks {
     @MockBean protected ai.philterd.arbiter.webapp.security.PhilterApiKeys philterApiKeys;
     @MockBean protected ai.philterd.arbiter.webapp.security.PhilterSignInService philterSignInService;
     @MockBean protected ai.philterd.arbiter.webapp.security.PhilterSignInFlow philterSignInFlow;
+    @MockBean protected ai.philterd.arbiter.webapp.security.BootstrapKeyWarning bootstrapKeyWarning;
 
     /** The slice does not auto-configure Actuator, so the aggregate HealthController reads is mocked. */
     @MockBean protected HealthEndpoint healthEndpoint;

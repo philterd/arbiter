@@ -89,4 +89,17 @@ class PhilterAuthenticationProviderTest {
     void supportsTheSignInForm() {
         assertTrue(provider.supports(UsernamePasswordAuthenticationToken.class));
     }
+
+    @Test
+    void anUnsupportedPhilterIsRefusedBeforeThePasswordIsSent() throws Exception {
+        final ai.philterd.philter.model.StatusResponse health = new ai.philterd.philter.model.StatusResponse();
+        health.setApplicationVersion("5.0.0");
+        when(signInService.health()).thenReturn(health);
+        final UnsupportedPhilterException refused = new UnsupportedPhilterException("unsupported");
+        when(flow.unsupported(org.mockito.ArgumentMatchers.eq("jdoe"), any())).thenReturn(refused);
+
+        assertSame(refused, assertThrows(UnsupportedPhilterException.class, () -> provider.authenticate(
+                new UsernamePasswordAuthenticationToken("jdoe", "a-password-of-16+"))));
+        verify(signInService, never()).signIn(any(), any(), any(), any());
+    }
 }

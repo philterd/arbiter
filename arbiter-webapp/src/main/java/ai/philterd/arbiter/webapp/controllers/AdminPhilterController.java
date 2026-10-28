@@ -18,9 +18,12 @@ package ai.philterd.arbiter.webapp.controllers;
 import ai.philterd.arbiter.philter.PhilterClients;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.PhilterSettings;
+import ai.philterd.arbiter.webapp.security.BootstrapKeyWarning;
+import ai.philterd.arbiter.webapp.security.PhilterVersions;
 import ai.philterd.philter.model.StatusResponse;
 import ai.philterd.philter.model.exceptions.PhilterError;
 import ai.philterd.philter.model.exceptions.UnauthorizedException;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -46,14 +49,19 @@ public class AdminPhilterController {
 
     private final PhilterSettings philter;
     private final AuditLogService auditLogService;
+    private final BootstrapKeyWarning bootstrapKeyWarning;
 
-    public AdminPhilterController(final PhilterSettings philter, final AuditLogService auditLogService) {
+    public AdminPhilterController(final PhilterSettings philter, final AuditLogService auditLogService,
+                                  final BootstrapKeyWarning bootstrapKeyWarning) {
         this.philter = philter;
         this.auditLogService = auditLogService;
+        this.bootstrapKeyWarning = bootstrapKeyWarning;
     }
 
     @GetMapping
-    public String view(final Model model) {
+    public String view(final Authentication authentication, final Model model) {
+        model.addAttribute("bootstrapKeyActive", bootstrapKeyWarning.show(authentication));
+        model.addAttribute("bootstrapKeyDocs", BootstrapKeyWarning.DOCS_URL);
         model.addAttribute("philterUrl", philter.url());
         model.addAttribute("apiKeyAdmin", philter.apiKeyAdmin());
         model.addAttribute("adminKeyWarning", ADMIN_KEY);
@@ -70,16 +78,21 @@ public class AdminPhilterController {
             final StatusResponse health = client.health();
             detail = "Philter " + (health == null || health.getApplicationVersion() == null
                     ? "(unknown version)" : health.getApplicationVersion());
-            // health() is unauthenticated; the role check accepts any valid key, whatever its scopes.
-            final Boolean adminKey = philter.checkKeyRole();
-            if (Boolean.TRUE.equals(adminKey)) {
-                detail += ", but the API key belongs to a Philter administrator";
-            } else if (adminKey == null) {
-                detail += ", API key accepted, but Philter did not report its role";
-                ok = true;
+            final String unsupported = health == null ? null : PhilterVersions.unsupported(health.getApplicationVersion());
+            if (unsupported != null) {
+                detail = unsupported;
             } else {
-                detail += ", API key accepted";
-                ok = true;
+                // health() is unauthenticated; the role check accepts any valid key, whatever its scopes.
+                final Boolean adminKey = philter.checkKeyRole();
+                if (Boolean.TRUE.equals(adminKey)) {
+                    detail += ", but the API key belongs to a Philter administrator";
+                } else if (adminKey == null) {
+                    detail += ", API key accepted, but Philter did not report its role";
+                    ok = true;
+                } else {
+                    detail += ", API key accepted";
+                    ok = true;
+                }
             }
         } catch (UnauthorizedException e) {
             status = e.getStatusCode();

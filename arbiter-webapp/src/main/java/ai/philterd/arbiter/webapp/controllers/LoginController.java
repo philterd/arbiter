@@ -15,14 +15,25 @@
  */
 package ai.philterd.arbiter.webapp.controllers;
 
+import ai.philterd.arbiter.webapp.security.PhilterSignInService;
+import ai.philterd.arbiter.webapp.security.PhilterVersions;
 import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
 @Controller
 public class LoginController {
 
+    private final PhilterSignInService signInService;
+
+    public LoginController(final PhilterSignInService signInService) {
+        this.signInService = signInService;
+    }
+
     @GetMapping("/login")
-    public String login() {
+    public String login(final Model model) {
+        // Read on each visit, so an upgraded Philter is noticed without restarting Arbiter.
+        model.addAttribute("unsupportedPhilter", PhilterVersions.unsupported(signInService));
         return "login";
     }
 

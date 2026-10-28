@@ -13,6 +13,7 @@ import ai.philterd.arbiter.philter.PhilterTlsConfig;
 import ai.philterd.arbiter.service.PhilterSettings;
 import ai.philterd.arbiter.service.SymmetricCipher;
 import ai.philterd.philter.model.SignInResponse;
+import ai.philterd.philter.model.exceptions.ClientException;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,7 +29,9 @@ import java.util.Base64;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /** Checks what goes over the wire to Philter, against a stub HTTP server. */
@@ -39,6 +42,8 @@ class PhilterSignInServiceTest {
     private HttpServer server;
     private final List<String> seen = new ArrayList<>();
     private PhilterSignInService service;
+    private volatile int bootstrapStatus = 200;
+    private volatile boolean bootstrapActive = true;
 
     @BeforeEach
     void setUp() throws Exception {
@@ -55,6 +60,16 @@ class PhilterSignInServiceTest {
             if ("/api/sign-in".equals(path)) {
                 status = 200;
                 json = "{\"apiKey\":\"sk_session_abc\",\"username\":\"jdoe\"}";
+            } else if ("/api/health".equals(path)) {
+                status = 200;
+                json = "{\"status\":\"UP\",\"applicationVersion\":\"4.0.0\"}";
+            } else if ("/api/users/admin/api-keys".equals(path)) {
+                // Two pages: the bootstrap key is on the second.
+                final boolean first = exchange.getRequestURI().getQuery().contains("offset=0");
+                status = bootstrapStatus;
+                json = status != 200 ? "{}" : first
+                        ? "{\"apiKeys\":[{\"id\":\"k1\",\"bootstrap\":false}],\"total\":2}"
+                        : "{\"apiKeys\":[{\"id\":\"k2\",\"bootstrap\":" + bootstrapActive + "}],\"total\":2}";
             } else if ("/api/users/me".equals(path)) {
                 status = 200;
                 json = "{\"username\":\"jdoe\",\"role\":\"user\",\"active\":true}";
@@ -108,5 +123,29 @@ class PhilterSignInServiceTest {
         assertTrue(seen.get(0).startsWith("GET /api/users/me auth=Bearer sk_session_abc xff=203.0.113.7"), seen.get(0));
         assertTrue(seen.get(1).startsWith("DELETE /api/api-keys/current auth=Bearer sk_session_abc xff=203.0.113.7"),
                 seen.get(1));
+    }
+
+    @Test
+    void healthIsReadWithoutAKey() throws Exception {
+        assertEquals("4.0.0", service.health().getApplicationVersion());
+        assertTrue(seen.get(0).startsWith("GET /api/health auth=null"), seen.get(0));
+    }
+
+    @Test
+    void theBootstrapKeyIsLookedForOnEveryPageOfTheAdminUsersLongLivedKeys() throws Exception {
+        final String encrypted = service.encrypt("sk_session_admin");
+
+        assertTrue(service.bootstrapKeyActive(encrypted));
+        assertEquals(2, seen.size(), "both pages were read");
+        assertTrue(seen.get(0).startsWith("GET /api/users/admin/api-keys auth=Bearer sk_session_admin"), seen.get(0));
+
+        bootstrapActive = false;
+        assertFalse(service.bootstrapKeyActive(encrypted));
+
+        bootstrapStatus = 404;
+        assertFalse(service.bootstrapKeyActive(encrypted), "no admin user, so no bootstrap key");
+
+        bootstrapStatus = 403;
+        assertThrows(ClientException.class, () -> service.bootstrapKeyActive(encrypted));
     }
 }

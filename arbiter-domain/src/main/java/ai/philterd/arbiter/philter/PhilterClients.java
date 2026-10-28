@@ -54,8 +54,17 @@ public final class PhilterClients {
     public static ai.philterd.philter.PhilterClient build(final String baseUrl, final String apiKey,
                                                           final SSLContext sslContext,
                                                           final Supplier<String> clientAddress) {
+        return build(baseUrl, apiKey, sslContext, clientAddress, ai.philterd.philter.PhilterClient.DEFAULT_TIMEOUT_SEC);
+    }
+
+    /** As above, with a connect and per-request timeout other than the SDK's default. */
+    public static ai.philterd.philter.PhilterClient build(final String baseUrl, final String apiKey,
+                                                          final SSLContext sslContext,
+                                                          final Supplier<String> clientAddress,
+                                                          final long timeoutSeconds) {
         final ai.philterd.philter.PhilterClient.PhilterClientBuilder builder =
-                new ai.philterd.philter.PhilterClient.PhilterClientBuilder().withEndpoint(baseUrl);
+                new ai.philterd.philter.PhilterClient.PhilterClientBuilder().withEndpoint(baseUrl)
+                        .withTimeout(timeoutSeconds);
         if (clientAddress != null) {
             builder.withClientAddress(clientAddress);
         }

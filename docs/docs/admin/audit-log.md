@@ -15,7 +15,7 @@ collection in MongoDB. There are two ways to view and export it:
 
 | Action                              | Resource    | Notes                                              |
 | ----------------------------------- | ----------- | -------------------------------------------------- |
-| `LOGIN` (success / failure)         | User        | Sign-in through Philter, with `method: philter`. A failure row carries a `reason`: `BadCredentials`, `Locked`, `RateLimited`, `MfaLocked`, `SignInDisabled`, or `Unavailable`. See [Sign-in through Philter](../security.md#sign-in-through-philter). |
+| `LOGIN` (success / failure)         | User        | Sign-in through Philter, with `method: philter`. A failure row carries a `reason`: `BadCredentials`, `Locked`, `RateLimited`, `MfaLocked`, `SignInDisabled`, `UnsupportedPhilter`, or `Unavailable`. See [Sign-in through Philter](../security.md#sign-in-through-philter). |
 | `LOGOUT`                            | User        | Sign-out, or a session Arbiter ended, with a `reason` (`philter_session_ended`, `role_changed`, `sign_in_mode_changed`) |
 | `BATCH_CREATE`                      | Batch       | Includes name, group, thresholds                    |
 | `BATCH_GROUP_CHANGE`                | Batch       | Old → new group                                     |

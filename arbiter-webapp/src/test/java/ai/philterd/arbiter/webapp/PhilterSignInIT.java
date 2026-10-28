@@ -408,6 +408,29 @@ class PhilterSignInIT {
     }
 
     @Test
+    void theLoginPageAcceptsPhilter4AndAdministratorsAreWarnedOfTheActiveBootstrapKey() throws Exception {
+        final String login = mockMvc.perform(get("/login")).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        assertTrue(login.contains("name=\"username\"") && !login.contains("does not support"), "the form is shown");
+
+        final MockHttpSession admin = new MockHttpSession();
+        final String adminAddress = newAddress();
+        assertEquals("/", signIn(admin, adminAddress, "admin", ADMIN_PASSWORD).getResponse().getRedirectedUrl());
+        final String dashboard = mockMvc.perform(get("/").session(admin).with(from(adminAddress)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertTrue(dashboard.contains("bootstrap API key"), "the bootstrap key is still active in this Philter");
+
+        final String password = password();
+        final String username = createSignedUpUser("reviewer", password);
+        final MockHttpSession user = new MockHttpSession();
+        final String userAddress = newAddress();
+        assertEquals("/", signIn(user, userAddress, username, password).getResponse().getRedirectedUrl());
+        final String userDashboard = mockMvc.perform(get("/").session(user).with(from(userAddress)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertFalse(userDashboard.contains("bootstrap API key"), "only administrators are warned");
+    }
+
+    @Test
     void anAdministratorsApiKeyIsFlaggedUnderAdminPhilter() throws Exception {
         final MockHttpSession session = new MockHttpSession();
         final String address = newAddress();

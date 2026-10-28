@@ -59,6 +59,9 @@ with `PASSWORD_SIGN_IN_ENABLED=true`, and Arbiter reaches it at `ARBITER_PHILTER
   checks again.
 - **Sign-out.** Signing out of Arbiter revokes the key with
   `DELETE /api/api-keys/current`.
+- **Philter version.** Arbiter refuses sign-in to a Philter whose major version it does not
+  support, before sending the password. See
+  [Supported Philter versions](workflow.md#supported-philter-versions).
 - **Refusals.** A wrong password, an unknown username, and a deactivated
   user get the same message. A locked username, an address over Philter's
   rate limit, and locked MFA get the same "locked" message, whether or not
@@ -76,7 +79,7 @@ with `PASSWORD_SIGN_IN_ENABLED=true`, and Arbiter reaches it at `ARBITER_PHILTER
   [Users](admin/users-and-groups.md#users-adminusers)).
 - **Audit.** Sign-ins are recorded as `LOGIN` with `method: philter`, and a
   failure's `reason` is one of `BadCredentials`, `Locked`, `RateLimited`,
-  `MfaLocked`, `SignInDisabled`, or `Unavailable`. A session ended because
+  `MfaLocked`, `SignInDisabled`, `UnsupportedPhilter`, or `Unavailable`. A session ended because
   Philter rejected its key is a `LOGOUT` with
   `reason: philter_session_ended`, one ended by a role change has
   `reason: role_changed`, and a session left from Arbiter's removed local sign-in has
@@ -99,6 +102,13 @@ docker run --rm --network arbiter_arbiter curlimages/curl:8.10.1 -s -X PUT "http
 
 This sets only `admin`'s first password; change it later from **Settings**. Add other people under
 **Admin → Users**.
+
+The bootstrap key holds every scope. While it is active, administrators see a warning on the
+dashboard and under **Admin → Philter**, with a link to Philter's
+[instructions for retiring it](https://philterd.github.io/philter/latest/account/api_keys.html#bootstrapping-an-api-key-for-automation):
+create an administrator key of your own holding every scope, then revoke the bootstrap key with it.
+Arbiter checks with the signed-in administrator's session key and caches the answer for a minute, so
+the warning clears within a minute of the revocation.
 
 ### Upgrading from local sign-in
 

@@ -22,7 +22,8 @@ import org.springframework.web.context.request.ServletRequestAttributes;
  * The sign-in form's provider: sends the username and password
  * to Philter's {@code POST /api/sign-in} with the person's address and user agent, so Philter rate limits
  * and lists each person's sessions separately. Arbiter keeps no password and does no lockout of its own;
- * Philter's lockout and rate limit apply.
+ * Philter's lockout and rate limit apply. A Philter whose version Arbiter does not support is refused first
+ * ({@link PhilterVersions}).
  */
 public class PhilterAuthenticationProvider implements AuthenticationProvider {
 
@@ -40,6 +41,10 @@ public class PhilterAuthenticationProvider implements AuthenticationProvider {
         final String password = authentication.getCredentials() == null ? "" : authentication.getCredentials().toString();
         if (username.isEmpty() || password.isEmpty()) {
             throw new BadCredentialsException("Bad credentials");
+        }
+        final String unsupported = PhilterVersions.unsupported(signInService);
+        if (unsupported != null) {
+            throw flow.unsupported(username, unsupported);
         }
         final HttpServletRequest request = currentRequest();
         try {

@@ -12,6 +12,7 @@ package ai.philterd.arbiter.webapp.controllers;
 import ai.philterd.arbiter.philter.PhilterTlsConfig;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.PhilterSettings;
+import ai.philterd.arbiter.webapp.security.BootstrapKeyWarning;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -32,6 +33,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 /** Admin → Philter, against a stub Philter 4.0. */
 class AdminPhilterControllerTest {
@@ -43,6 +45,8 @@ class AdminPhilterControllerTest {
     private AuditLogService auditLogService;
     private PhilterSettings philter;
     private AdminPhilterController controller;
+    private BootstrapKeyWarning bootstrapKeyWarning;
+    private String version = "4.0.0";
 
     @BeforeEach
     void setUp() throws Exception {
@@ -51,7 +55,7 @@ class AdminPhilterControllerTest {
             paths.add(exchange.getRequestURI().getPath());
             final boolean health = exchange.getRequestURI().getPath().equals("/api/health");
             final int status = health ? 200 : limitsStatus;
-            final byte[] body = (health ? "{\"status\":\"UP\",\"applicationVersion\":\"4.0.0\"}"
+            final byte[] body = (health ? "{\"status\":\"UP\",\"applicationVersion\":\"" + version + "\"}"
                     : callerRole == null ? "{}" : "{\"caller\":{\"role\":\"" + callerRole + "\"}}")
                     .getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
@@ -64,7 +68,8 @@ class AdminPhilterControllerTest {
         philter = new PhilterSettings("http://127.0.0.1:" + server.getAddress().getPort(), "sk_test",
                 PhilterTlsConfig.none());
         auditLogService = mock(AuditLogService.class);
-        controller = new AdminPhilterController(philter, auditLogService);
+        bootstrapKeyWarning = mock(BootstrapKeyWarning.class);
+        controller = new AdminPhilterController(philter, auditLogService, bootstrapKeyWarning);
     }
 
     @AfterEach
@@ -75,7 +80,7 @@ class AdminPhilterControllerTest {
     @Test
     void showsTheConfiguredPhilterButNotTheKey() {
         final ExtendedModelMap model = new ExtendedModelMap();
-        assertEquals("admin-philter", controller.view(model));
+        assertEquals("admin-philter", controller.view(null, model));
         assertEquals(philter.url(), model.get("philterUrl"));
         assertTrue(model.values().stream().noneMatch("sk_test"::equals));
     }
@@ -112,7 +117,7 @@ class AdminPhilterControllerTest {
         assertTrue(String.valueOf(ra.getFlashAttributes().get("error")).contains("belongs to a Philter administrator"));
         assertEquals(Boolean.TRUE, philter.apiKeyAdmin());
         final ExtendedModelMap model = new ExtendedModelMap();
-        controller.view(model);
+        controller.view(null, model);
         assertEquals(Boolean.TRUE, model.get("apiKeyAdmin"));
     }
 
@@ -130,5 +135,23 @@ class AdminPhilterControllerTest {
         final RedirectAttributes ra = new RedirectAttributesModelMap();
         controller.test(ra);
         assertTrue(String.valueOf(ra.getFlashAttributes().get("error")).contains("failed the test"));
+    }
+
+    @Test
+    void anUnsupportedPhilterFailsTheTest() {
+        version = "5.0.0";
+        final RedirectAttributes redirect = new RedirectAttributesModelMap();
+        controller.test(redirect);
+        final String error = String.valueOf(redirect.getFlashAttributes().get("error"));
+        assertTrue(error.contains("version 5.0.0") && error.contains("supports Philter 4.x"), error);
+    }
+
+    @Test
+    void anAdministratorIsWarnedWhileTheBootstrapKeyIsActive() {
+        when(bootstrapKeyWarning.show(any())).thenReturn(true);
+        final ExtendedModelMap model = new ExtendedModelMap();
+        controller.view(null, model);
+        assertEquals(Boolean.TRUE, model.get("bootstrapKeyActive"));
+        assertEquals(BootstrapKeyWarning.DOCS_URL, model.get("bootstrapKeyDocs"));
     }
 }

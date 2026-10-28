@@ -125,6 +125,11 @@ public class PhilterSignInFlow {
         return fail(username, "Unavailable", new AuthenticationServiceException("Sign-in is unavailable."));
     }
 
+    /** Audits a sign-in refused because Arbiter does not support the Philter's version. */
+    public AuthenticationException unsupported(final String username, final String message) {
+        return fail(username, "UnsupportedPhilter", new UnsupportedPhilterException(message));
+    }
+
     /** Revokes a session key, logging only the kind of failure. */
     public void signOutQuietly(final String encryptedKey) {
         try {

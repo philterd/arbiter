@@ -44,6 +44,7 @@ class PhilterSignInFailureHandlerTest {
         assertEquals("/login?error", redirectFor(new BadCredentialsException("x")));
         assertEquals("/login?locked", redirectFor(new LockedException("x")));
         assertEquals("/login?unavailable", redirectFor(new AuthenticationServiceException("x")));
+        assertEquals("/login?unsupported", redirectFor(new UnsupportedPhilterException("x")));
     }
 
     private static String redirectFor(final org.springframework.security.core.AuthenticationException e)

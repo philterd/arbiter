@@ -105,7 +105,8 @@ before the user is logged out.
 
 ## Sign-in
 
-People sign in through Philter 4.0's user management API, at Arbiter's Philter,
+People sign in through the user management API of Philter 4.x (see
+[Supported Philter versions](../workflow.md#supported-philter-versions)), at Arbiter's Philter,
 `ARBITER_PHILTER_URL` (see [Philter integration](#philter-integration)). See
 [Sign-in through Philter](../security.md#sign-in-through-philter).
 

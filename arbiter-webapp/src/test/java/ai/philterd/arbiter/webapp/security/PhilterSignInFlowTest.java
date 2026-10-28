@@ -194,4 +194,14 @@ class PhilterSignInFlowTest {
         assertThrows(AuthenticationServiceException.class, () -> flow.complete(key("sk_session"), "jdoe"));
         verify(signInService).signOut("enc(sk_session)");
     }
+
+    @Test
+    void anUnsupportedPhilterIsAuditedAsARefusedSignIn() {
+        final var refused = flow.unsupported("jdoe", "This Philter is version 5.0.0, which Arbiter does not support.");
+
+        assertInstanceOf(UnsupportedPhilterException.class, refused);
+        assertTrue(refused.getMessage().contains("5.0.0"));
+        verify(auditLogService).logForUser(eq("jdoe"), eq("LOGIN"), eq("User"), eq(null),
+                eq(AuditLogService.OUTCOME_FAILURE), eq(Map.of("reason", "UnsupportedPhilter", "method", "philter")));
+    }
 }

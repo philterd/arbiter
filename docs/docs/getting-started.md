@@ -6,7 +6,7 @@
   SQLite store (see [Database](reference/database.md))
 - A running Valkey instance for sessions
 - A running OpenSearch instance Arbiter can reach (for full-text search)
-- A running Philter 4.0.0 or later that Arbiter can call (`docker-compose.yaml`
+- A running Philter 4.x that Arbiter can call (`docker-compose.yaml`
   starts one for development)
 
 ## Configuration
@@ -28,7 +28,7 @@ full reference. The settings most operators need to set are:
 | `arbiter.demo-data.enabled`               | Load sample files at startup if collections are empty  |
 | `arbiter.demo-data.directory`             | Directory of files to seed (default: `sample-files`)   |
 
-Arbiter needs a running Philter 4.0.0 or later; it does not detect PII itself.
+Arbiter needs a running Philter 4.x; it does not detect PII itself.
 See [Configure Philter](workflow.md#1-configure-philter).
 
 The OpenSearch cluster used to power the full-text search index is

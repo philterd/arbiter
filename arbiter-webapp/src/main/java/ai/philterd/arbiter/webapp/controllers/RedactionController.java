@@ -100,6 +100,7 @@ public class RedactionController {
     private final ai.philterd.arbiter.service.LocalDirectoryIngestJobService localDirectoryIngestJobService;
     private final ai.philterd.arbiter.service.S3IngestJobService s3IngestJobService;
     private final ai.philterd.arbiter.service.RdbIngestJobService rdbIngestJobService;
+    private final ai.philterd.arbiter.webapp.security.BootstrapKeyWarning bootstrapKeyWarning;
 
     public RedactionController(final RedactionService redactionService,
                                final BatchRepository batchRepository,
@@ -120,7 +121,8 @@ public class RedactionController {
                                final ai.philterd.arbiter.service.ElasticsearchIngestJobService elasticsearchIngestJobService,
                                final ai.philterd.arbiter.service.LocalDirectoryIngestJobService localDirectoryIngestJobService,
                                final ai.philterd.arbiter.service.S3IngestJobService s3IngestJobService,
-                               final ai.philterd.arbiter.service.RdbIngestJobService rdbIngestJobService) {
+                               final ai.philterd.arbiter.service.RdbIngestJobService rdbIngestJobService,
+                               final ai.philterd.arbiter.webapp.security.BootstrapKeyWarning bootstrapKeyWarning) {
         this.redactionService = redactionService;
         this.batchRepository = batchRepository;
         this.documentRepository = documentRepository;
@@ -141,6 +143,7 @@ public class RedactionController {
         this.localDirectoryIngestJobService = localDirectoryIngestJobService;
         this.s3IngestJobService = s3IngestJobService;
         this.rdbIngestJobService = rdbIngestJobService;
+        this.bootstrapKeyWarning = bootstrapKeyWarning;
     }
 
     @GetMapping("/")
@@ -192,6 +195,8 @@ public class RedactionController {
         model.addAttribute("pending", pending);
         model.addAttribute("failed", failed);
         model.addAttribute("isAdmin", admin);
+        model.addAttribute("bootstrapKeyActive", bootstrapKeyWarning.show(authentication));
+        model.addAttribute("bootstrapKeyDocs", ai.philterd.arbiter.webapp.security.BootstrapKeyWarning.DOCS_URL);
         return "dashboard";
     }
 

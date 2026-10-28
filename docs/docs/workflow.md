@@ -27,10 +27,19 @@ Everything in Arbiter is built around that flow.
 
 ## 1. Configure Philter
 
-Arbiter works with one [Philter](https://philterd.ai), 4.0.0 or later. It signs
+Arbiter works with one [Philter](https://philterd.ai). It signs
 people in through it, lists its policies,
 and sends every batch's documents to it for redaction. Arbiter does not detect
 PII itself.
+
+### Supported Philter versions
+
+This release of Arbiter supports Philter 4.x: 4.0.0 and later 4.x releases. Arbiter reads Philter's
+version from `GET /api/health` on the sign-in page and at each sign-in. For any other major version,
+the sign-in page names the Philter's version and the supported one, and does not show the form.
+Philter 3.x has no `/api/health` and is reported as older than 4.0. When the version cannot be read,
+sign-in goes ahead and reports any failure itself. **Admin → Philter → Test** also reports an
+unsupported version.
 
 ### Connecting Arbiter to Philter
 
