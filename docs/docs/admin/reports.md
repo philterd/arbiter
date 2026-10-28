@@ -111,16 +111,15 @@ range**, derived from the audit log:
 Sorted by total decisions, highest first. Users who took no action in the
 range are not listed.
 
-## Per Philter / Policy
+## Per Policy
 
-Aggregated across all batches sharing a Philter instance and policy
-combination. The same shape as the per-domain table:
+Aggregated across all batches sharing a policy. The same shape as the
+per-domain table:
 
 | Column     | Meaning                                                                       |
 |------------|-------------------------------------------------------------------------------|
-| Philter    | Friendly name of the Philter instance (or `Embedded Philter` when no external Philter is configured). |
-| Policy     | Phileas policy name on that Philter, or `(no policy)`.                       |
-| Batches    | Batches in scope using this combination.                                     |
+| Policy     | Philter policy name, or `(default policy)`.                                  |
+| Batches    | Batches in scope using this policy.                                          |
 | Docs       | Documents in those batches.                                                  |
 | Accepted   | Spans accepted by reviewers.                                                 |
 | Rejected   | Spans rejected.                                                              |
@@ -156,7 +155,7 @@ The bottom-of-page comprehensive table — one row per batch in scope:
 | Column           | Meaning                                                                          |
 |------------------|----------------------------------------------------------------------------------|
 | Batch            | Batch name. A `Closed` pill appears when the batch has been closed.              |
-| Philter / Policy | The Philter instance and policy this batch uses.                                 |
+| Policy           | The Philter policy this batch uses.                                              |
 | Docs             | Document count.                                                                  |
 | Accepted         | Spans accepted by reviewers.                                                     |
 | Rejected         | Spans rejected.                                                                  |

@@ -112,11 +112,12 @@ Philter 4.0's user management API (`philter`). See
 | Property | Environment variable | Purpose |
 | -------- | -------------------- | ------- |
 | `arbiter.sign-in.mode` | `ARBITER_SIGN_IN_MODE` | `local` (default) or `philter`. Any other value stops Arbiter at startup. |
-| `arbiter.sign-in.philter-url` | `ARBITER_SIGN_IN_PHILTER_URL` | Required in `philter` mode: the `http` or `https` URL of the Philter that signs people in, for example `https://philter:8080`. |
 | `arbiter.sign-in.check-interval-seconds` | `ARBITER_SIGN_IN_CHECK_INTERVAL_SECONDS` | In `philter` mode, how often Arbiter checks a person's session key with Philter while they use it, in seconds (default `60`). `0` checks every request. A session Philter has ended, or whose role has changed, ends at the next check. The check is what keeps Philter's idle timeout for the key moving, so keep the interval well under Philter's `SESSION_KEY_IDLE_TIMEOUT_MINUTES` (30 by default), or people are signed out while they work. A negative value stops Arbiter at startup. |
 
-All three are read only at startup, so an administrator signed in to Arbiter cannot
-change how people sign in. Calls to this Philter use the global
+In `philter` mode people sign in through Arbiter's Philter, `ARBITER_PHILTER_URL`
+(see [Philter integration](#philter-integration)). These settings are read only at
+startup, so an administrator signed in to Arbiter cannot change how people sign in.
+Calls to Philter use the
 `arbiter.philter.tls.*` settings in
 [TLS and client certificates](#tls-and-client-certificates); with Philter's
 Docker image, which serves HTTPS with a self-signed certificate, set
@@ -205,18 +206,23 @@ your deployment has some other reason to leave it out.
 
 ## Philter integration
 
-Philter instances are managed at runtime under **Admin → Philter** rather than
-through configuration. When no default instance is configured, Arbiter falls
-back to its bundled redaction engine. There is nothing to set in
-`application.properties` to enable or disable this — it is driven entirely by
-the admin UI.
+Arbiter works with one Philter, which signs people in, holds the policies, and
+redacts. See [Configure Philter](../workflow.md#1-configure-philter).
+
+| Property | Environment variable | Purpose |
+| -------- | -------------------- | ------- |
+| `arbiter.philter.url` | `ARBITER_PHILTER_URL` | Required: Philter's `http` or `https` URL, for example `http://philter:8080`. A URL holding a user name or password stops Arbiter at startup. |
+| `arbiter.philter.api-key` | `ARBITER_PHILTER_API_KEY` | Required: the API key Arbiter uses for background work such as ingest, for a Philter user who is not an administrator. See [Philter API key for Arbiter](../workflow.md#philter-api-key-for-arbiter). Set it through the environment or a secrets mechanism, not `application.properties`. |
+
+Both are read only at startup, and Arbiter does not start without them. It logs
+the URL it uses, never the key. **Admin → Philter** shows the URL and tests the
+connection, but cannot change either setting.
 
 ### TLS and client certificates
 
-When an instance's endpoint starts with `https://`, Arbiter verifies Philter's
-certificate, including that it names the endpoint's host. Two optional
-settings apply to every Philter instance that does not have its own (see
-[Per-instance client certificates and trust stores](#per-instance-client-certificates-and-trust-stores)):
+When `ARBITER_PHILTER_URL` starts with `https://`, Arbiter verifies Philter's
+certificate, including that it names the URL's host. Two optional settings
+apply:
 
 | Property | Purpose |
 | -------- | ------- |
@@ -241,28 +247,6 @@ itself, see [Client certificates (mutual TLS)](https://philterd.github.io/philte
 in Philter's settings. A client certificate does not replace Arbiter's Philter
 API key: Philter still requires the key on every request.
 
-### Per-instance client certificates and trust stores
-
-An instance can carry its own client certificate keystore, trust store, or
-both, attached under **Admin → Philter** (see
-[Registering an external Philter](../workflow.md#registering-an-external-philter-admin)).
-Use this when instances need different certificates, for example a Philter in
-another enclave behind a proxy that trusts a different certificate authority.
-
-Each store falls back on its own: an instance with only its own trust store
-still presents the global client certificate from
-`arbiter.philter.tls.key-store`, and an instance with only its own client
-certificate still trusts `arbiter.philter.tls.trust-store` (or the JVM's
-default trust store). An instance with neither uses the global settings.
-
-The stores and their passwords are encrypted with `arbiter.crypto.secret`
-before they are saved and are never shown again. Arbiter validates a store
-when it is attached, with the same checks as the global settings, and rejects
-it with a message naming the problem, never the password. If an attached store
-later can't be decrypted, for example after `arbiter.crypto.secret` changes,
-calls to that instance fail with an error naming the instance rather than
-falling back to the global settings. Attach the stores again to fix it.
-
 ## Data-source allow-list
 
 ```
@@ -271,7 +255,9 @@ arbiter.data-sources.allowed-hosts=
 
 Optional comma-separated list of host patterns that Arbiter accepts as the
 target of an outbound data-source connection (OpenSearch / Elasticsearch
-test endpoints, ingest workers, Philter, Ollama, JDBC URLs). Patterns may be
+test endpoints, ingest workers, Ollama, JDBC URLs). Philter's URL is an
+environment setting rather than an admin one, so it is not checked against
+this list. Patterns may be
 exact hostnames (`opensearch.example.com`) or use a leading wildcard
 (`*.search.example.com`).
 

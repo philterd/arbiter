@@ -20,7 +20,9 @@ documents into Arbiter; pick the matching tab at the top of the page:
 ## What you can upload (Upload files tab)
 
 - Plain text (`.txt`)
-- PDF (`.pdf`, searchable text — scanned-image PDFs are not OCR'd)
+
+PDF review through Philter is not yet available, so a `.pdf` upload fails to
+ingest.
 
 Other formats are not supported through the web UI.
 

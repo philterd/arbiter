@@ -253,7 +253,7 @@
                                 </a>
                             </th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User Group</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Philter / Policy</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Policy</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
                         </tr>
                     </thead>
@@ -307,16 +307,14 @@
                                 </form>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                <div class="text-gray-900" th:text="${b.philterInstanceName}">Embedded Philter</div>
-                                <div class="text-xs text-gray-500">
+                                <div class="text-gray-900">
                                     <span th:if="${b.policyName != null}" th:text="${b.policyName}">policy</span>
-                                    <span th:if="${b.policyName == null}" class="italic">no policy</span>
+                                    <span th:if="${b.policyName == null}" class="italic text-gray-500">Default policy</span>
                                 </div>
                                 <button type="button"
                                         class="batch-philter-btn text-xs font-medium text-blue-600 hover:text-blue-800 mt-1"
                                         th:attr="data-batch-id=${b.id},
                                                  data-batch-name=${b.name},
-                                                 data-philter-id=${b.philterInstanceId == null ? '' : b.philterInstanceId},
                                                  data-policy-name=${b.policyName == null ? '' : b.policyName}">
                                     Change…
                                 </button>
@@ -372,26 +370,16 @@
 
     <div id="batchPhilterModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
         <form id="batchPhilterForm" th:action="@{/batches}" method="post" class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-md p-6">
-            <h3 class="text-lg font-semibold text-gray-900 mb-1">Philter &amp; Policy</h3>
+            <h3 class="text-lg font-semibold text-gray-900 mb-1">Policy</h3>
             <p class="text-sm text-gray-600 mb-4">
                 Batch: <span id="batchPhilterBatchName" class="font-medium">batch</span>
             </p>
             <div class="space-y-4">
                 <div>
-                    <label for="batchPhilterInstance" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Philter</label>
-                    <select id="batchPhilterInstance" name="philterInstanceId"
-                            class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="">Embedded Philter</option>
-                        <option th:each="p : ${philterInstances}"
-                                th:value="${p.id}"
-                                th:text="${p.name}">Philter</option>
-                    </select>
-                </div>
-                <div>
                     <label for="batchPhilterPolicy" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Policy</label>
                     <select id="batchPhilterPolicy" name="policyName"
                             class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400">
-                        <option value="">— none —</option>
+                        <option value="">Default policy</option>
                     </select>
                     <p id="batchPhilterPolicyStatus" class="text-xs text-gray-500 mt-1"></p>
                 </div>
@@ -548,21 +536,10 @@
                         </select>
                     </div>
                     <div>
-                        <label for="newBatchPhilter" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Philter</label>
-                        <select id="newBatchPhilter" name="philterInstanceId"
-                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="" th:selected="${defaultPhilterInstanceId == null}">Embedded Philter</option>
-                            <option th:each="p : ${philterInstances}"
-                                    th:value="${p.id}"
-                                    th:text="${p.name}"
-                                    th:selected="${defaultPhilterInstanceId != null and p.id == defaultPhilterInstanceId}">Philter</option>
-                        </select>
-                    </div>
-                    <div>
                         <label for="newBatchPolicy" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Policy</label>
                         <select id="newBatchPolicy" name="policyName"
                                 class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400">
-                            <option value="">— none —</option>
+                            <option value="">Default policy</option>
                         </select>
                         <p id="newBatchPolicyStatus" class="text-xs text-gray-500 mt-1"></p>
                     </div>
@@ -777,19 +754,17 @@
             const modal = document.getElementById('batchPhilterModal');
             const form = document.getElementById('batchPhilterForm');
             const nameSpan = document.getElementById('batchPhilterBatchName');
-            const instanceSel = document.getElementById('batchPhilterInstance');
             const policySel = document.getElementById('batchPhilterPolicy');
             const status = document.getElementById('batchPhilterPolicyStatus');
             const cancelBtn = document.getElementById('batchPhilterCancelBtn');
             const baseUrl = /*[[@{/batches}]]*/ '/batches';
 
             async function loadPolicies(selectedPolicy) {
-                const instanceId = instanceSel.value || 'embedded';
                 policySel.disabled = true;
                 status.textContent = 'Loading policies…';
-                policySel.innerHTML = '<option value="">— none —</option>';
+                policySel.innerHTML = '<option value="">Default policy</option>';
                 try {
-                    const resp = await fetch('/api/v1/policies?instanceId=' + encodeURIComponent(instanceId));
+                    const resp = await fetch('/api/v1/policies');
                     if (!resp.ok) {
                         let detail = 'HTTP ' + resp.status;
                         try { detail = (await resp.json()).message || detail; } catch (_) {}
@@ -797,7 +772,7 @@
                     }
                     const data = await resp.json();
                     const names = data.policies || [];
-                    const opts = ['<option value="">— none —</option>'].concat(names.map(n => {
+                    const opts = ['<option value="">Default policy</option>'].concat(names.map(n => {
                         const safe = String(n).replace(/&/g, '&amp;').replace(/</g, '&lt;')
                             .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
                         return `<option value="${safe}">${safe}</option>`;
@@ -808,7 +783,7 @@
                     }
                     policySel.disabled = false;
                     status.textContent = names.length === 0
-                        ? 'No policies available for this instance.'
+                        ? 'No policies in Philter.'
                         : `${names.length} polic${names.length === 1 ? 'y' : 'ies'} available.`;
                 } catch (err) {
                     policySel.disabled = false;
@@ -816,10 +791,9 @@
                 }
             }
 
-            function openModal(batchId, batchName, philterId, policyName) {
-                form.action = baseUrl + '/' + encodeURIComponent(batchId) + '/philter';
+            function openModal(batchId, batchName, policyName) {
+                form.action = baseUrl + '/' + encodeURIComponent(batchId) + '/policy';
                 nameSpan.textContent = batchName;
-                instanceSel.value = philterId || '';
                 modal.classList.remove('hidden');
                 loadPolicies(policyName || '');
             }
@@ -827,11 +801,9 @@
 
             document.querySelectorAll('.batch-philter-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    openModal(btn.dataset.batchId, btn.dataset.batchName,
-                            btn.dataset.philterId, btn.dataset.policyName);
+                    openModal(btn.dataset.batchId, btn.dataset.batchName, btn.dataset.policyName);
                 });
             });
-            instanceSel.addEventListener('change', () => loadPolicies(''));
             cancelBtn.addEventListener('click', closeModal);
             modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
             document.addEventListener('keydown', (e) => {
@@ -843,18 +815,16 @@
 
     <script th:nonce="${cspNonce}">
         (function () {
-            const philterSel = document.getElementById('newBatchPhilter');
             const policySel = document.getElementById('newBatchPolicy');
             const status = document.getElementById('newBatchPolicyStatus');
-            if (!philterSel || !policySel) return;
+            if (!policySel) return;
 
             async function loadPolicies() {
-                const instanceId = philterSel.value || 'embedded';
                 policySel.disabled = true;
                 status.textContent = 'Loading policies…';
-                policySel.innerHTML = '<option value="">— none —</option>';
+                policySel.innerHTML = '<option value="">Default policy</option>';
                 try {
-                    const resp = await fetch('/api/v1/policies?instanceId=' + encodeURIComponent(instanceId));
+                    const resp = await fetch('/api/v1/policies');
                     if (!resp.ok) {
                         let detail = 'HTTP ' + resp.status;
                         try { detail = (await resp.json()).message || detail; } catch (_) {}
@@ -862,7 +832,7 @@
                     }
                     const data = await resp.json();
                     const names = data.policies || [];
-                    const opts = ['<option value="">— none —</option>'].concat(names.map(n => {
+                    const opts = ['<option value="">Default policy</option>'].concat(names.map(n => {
                         const safe = String(n).replace(/&/g, '&amp;').replace(/</g, '&lt;')
                             .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
                         return `<option value="${safe}">${safe}</option>`;
@@ -870,7 +840,7 @@
                     policySel.innerHTML = opts.join('');
                     policySel.disabled = false;
                     status.textContent = names.length === 0
-                        ? 'No policies available for this instance.'
+                        ? 'No policies in Philter.'
                         : `${names.length} polic${names.length === 1 ? 'y' : 'ies'} available.`;
                 } catch (err) {
                     policySel.disabled = false;
@@ -878,7 +848,6 @@
                 }
             }
 
-            philterSel.addEventListener('change', loadPolicies);
             loadPolicies();
         })();
     </script>

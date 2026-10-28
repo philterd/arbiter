@@ -9,66 +9,44 @@
  */
 package ai.philterd.arbiter.service;
 
-import ai.philterd.arbiter.model.PhilterInstance;
 import ai.philterd.arbiter.philter.PhilterClients;
-import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
-import java.util.Objects;
-
 /**
- * Checks once at startup whether each Philter instance's API key belongs to a Philter administrator, so
- * keys saved before Arbiter refused administrators' keys are flagged under Admin → Philter. The key
+ * Logs which Philter Arbiter uses, and checks once at startup whether {@code ARBITER_PHILTER_API_KEY}
+ * belongs to a Philter administrator, so it is flagged in the log and under Admin → Philter. The key
  * keeps working; it is flagged, not refused. Runs off the startup thread, so an unreachable Philter
- * does not delay startup; such an instance stays as it was.
+ * does not delay startup.
  */
 @Component
 public class PhilterKeyRoleCheck implements ApplicationRunner {
 
     private static final Logger log = LoggerFactory.getLogger(PhilterKeyRoleCheck.class);
 
-    private final PhilterInstanceRepository repository;
-    private final PhilterInstanceClients clients;
+    private final PhilterSettings philter;
 
-    public PhilterKeyRoleCheck(final PhilterInstanceRepository repository, final PhilterInstanceClients clients) {
-        this.repository = repository;
-        this.clients = clients;
+    public PhilterKeyRoleCheck(final PhilterSettings philter) {
+        this.philter = philter;
     }
 
     @Override
     public void run(final ApplicationArguments args) {
-        Thread.ofVirtual().name("philter-key-role-check").start(this::checkAll);
+        log.info("Using Philter at {} (API key set).", philter.url());
+        Thread.ofVirtual().name("philter-key-role-check").start(this::check);
     }
 
-    void checkAll() {
-        for (final PhilterInstance instance : repository.findAll()) {
-            if (!clients.hasApiKey(instance)) {
-                continue;
+    void check() {
+        try {
+            if (Boolean.TRUE.equals(philter.checkKeyRole())) {
+                log.warn("ARBITER_PHILTER_API_KEY belongs to a Philter administrator. Remove that user's "
+                        + "administrator role in Philter and narrow the key; see Admin > Philter.");
             }
-            try {
-                final Boolean admin = clients.keyBelongsToAdministrator(instance);
-                // Saved on a fresh read, and only if the key is still the one checked: an administrator
-                // may have changed the instance while Philter was being asked.
-                repository.findById(instance.getId()).ifPresent(fresh -> {
-                    if (Objects.equals(fresh.getEncryptedApiKey(), instance.getEncryptedApiKey())
-                            && !Objects.equals(admin, fresh.getApiKeyAdmin())) {
-                        fresh.setApiKeyAdmin(admin);
-                        repository.save(fresh);
-                    }
-                });
-                if (Boolean.TRUE.equals(admin)) {
-                    log.warn("The API key of Philter instance \"{}\" belongs to a Philter administrator. "
-                            + "Remove that user's administrator role in Philter and narrow the key; see "
-                            + "Admin > Philter.", instance.getName());
-                }
-            } catch (Exception e) {
-                log.info("Could not check the API key role of Philter instance \"{}\": {}",
-                        instance.getName(), PhilterClients.describe(e));
-            }
+        } catch (Exception e) {
+            log.info("Could not check the role of ARBITER_PHILTER_API_KEY's user: {}", PhilterClients.describe(e));
         }
     }
 }

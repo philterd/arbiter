@@ -16,8 +16,7 @@ creation dialog. Fill in:
 | -------------------- | ------- | ------------------------------------------------------------------------------------------ |
 | Name                 | —       | Required                                                                                   |
 | Group                | —       | Required; only existing groups appear in the dropdown                                      |
-| Philter instance     | default | Pick the Philter that redacts this batch's documents                                       |
-| Policy               | —       | A policy name that exists on the chosen Philter instance                                   |
+| Policy               | Philter's default | A policy in Philter                                                              |
 | Batch Finalization Policy | —  | Required; governs document retention when the batch is finalized                           |
 | Compliance Profile   | —       | Required; **cannot be changed after the batch is created**                                 |
 | Exemption Code       | checked | When checked (the default), accepting a redaction in this batch prompts the reviewer to pick an exemption code from the chosen compliance profile. Uncheck to suppress the prompt even when the profile defines codes — useful for batches where exemption-code tracking isn't required. |

@@ -13,17 +13,12 @@ import ai.philterd.arbiter.model.Batch;
 import ai.philterd.arbiter.model.Document;
 import ai.philterd.arbiter.model.IngestStatus;
 import ai.philterd.arbiter.model.Location;
-import ai.philterd.arbiter.model.PhilterInstance;
 import ai.philterd.arbiter.model.Span;
 import ai.philterd.arbiter.philter.PhilterClient;
 import ai.philterd.arbiter.philter.PhilterClientFactory;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
-import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import ai.philterd.arbiter.repository.SpanRepository;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
@@ -32,94 +27,37 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 public class RedactionApiServiceImpl implements RedactionApiService {
 
-    private static final Logger log = LoggerFactory.getLogger(RedactionApiServiceImpl.class);
 
-    private final PhilterClient phileasClient;
     private final PhilterClientFactory philterClientFactory;
-    private final PhilterInstanceRepository philterInstanceRepository;
+    private final PhilterSettings philter;
     private final DocumentRepository documentRepository;
     private final SpanRepository spanRepository;
     private final BatchRepository batchRepository;
     private final OpenSearchIndexService openSearchIndexService;
-    private final SymmetricCipher symmetricCipher;
-    private final DataSourceHostAllowList hostAllowList;
-    private final PhilterInstanceTls instanceTls;
 
-    public RedactionApiServiceImpl(@Qualifier("phileasClient") final PhilterClient phileasClient,
-                                   final PhilterClientFactory philterClientFactory,
-                                   final PhilterInstanceRepository philterInstanceRepository,
+    public RedactionApiServiceImpl(final PhilterClientFactory philterClientFactory,
+                                   final PhilterSettings philter,
                                    final DocumentRepository documentRepository,
                                    final SpanRepository spanRepository,
                                    final BatchRepository batchRepository,
-                                   final OpenSearchIndexService openSearchIndexService,
-                                   final SymmetricCipher symmetricCipher,
-                                   final DataSourceHostAllowList hostAllowList,
-                                   final PhilterInstanceTls instanceTls) {
-        this.phileasClient = phileasClient;
+                                   final OpenSearchIndexService openSearchIndexService) {
         this.philterClientFactory = philterClientFactory;
-        this.philterInstanceRepository = philterInstanceRepository;
+        this.philter = philter;
         this.documentRepository = documentRepository;
         this.spanRepository = spanRepository;
         this.batchRepository = batchRepository;
         this.openSearchIndexService = openSearchIndexService;
-        this.symmetricCipher = symmetricCipher;
-        this.hostAllowList = hostAllowList;
-        this.instanceTls = instanceTls;
     }
 
-    private PhilterClient philterClient(final Batch batch) throws IOException {
-        final String instanceId = batch == null ? null : batch.getPhilterInstanceId();
-        if (instanceId == null || instanceId.isBlank()) {
-            log.info("Batch \"{}\" uses Embedded Philter (local Phileas).",
-                    batch == null ? "?" : batch.getName());
-            return phileasClient;
-        }
-        final Optional<PhilterInstance> instance = philterInstanceRepository.findById(instanceId);
-        if (instance.isEmpty()) {
-            log.warn("Philter instance {} configured on batch \"{}\" no longer exists; "
-                    + "falling back to Embedded Philter.", instanceId, batch.getName());
-            return phileasClient;
-        }
-        final PhilterInstance pi = instance.get();
-        // Re-validate at call time so a stored endpoint that has fallen off the allow-list
-        // since it was saved is refused before we open a connection.
-        final String url = requireAllowedBaseUrl(pi);
-        final javax.net.ssl.SSLContext sslContext = instanceTls.sslContext(pi);
-        final String apiKey;
-        try {
-            apiKey = symmetricCipher.decrypt(pi.getEncryptedApiKey());
-        } catch (Exception e) {
-            log.warn("Could not decrypt API key for Philter instance \"{}\": {}",
-                    pi.getName(), e.getMessage());
-            return philterClientFactory.create(url, null, sslContext, batch.getPolicyName());
-        }
-        return philterClientFactory.create(url, apiKey, sslContext, batch.getPolicyName());
-    }
-
-    private static String baseUrl(final PhilterInstance instance) {
-        String host = instance.getEndpoint();
-        if (host == null || host.isBlank()) host = "localhost";
-        if (!host.startsWith("http://") && !host.startsWith("https://")) {
-            host = "http://" + host;
-        }
-        return host + ":" + instance.getPort();
-    }
-
-    private String requireAllowedBaseUrl(final PhilterInstance instance) throws IOException {
-        final String url = baseUrl(instance);
-        if (!hostAllowList.isAllowed(url)) {
-            throw new IOException("Philter instance \"" + instance.getName()
-                    + "\" host is not on the data-source allow-list "
-                    + "(arbiter.data-sources.allowed-hosts).");
-        }
-        return url;
+    private PhilterClient philterClient(final Batch batch) {
+        return philterClientFactory.create(philter.url(), philter.apiKey(),
+                batch == null ? null : batch.getPolicyName());
     }
 
     @Override

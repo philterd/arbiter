@@ -78,7 +78,7 @@ class SqliteEntityRoundTripTest {
             assertThat(read).as(type.getSimpleName()).usingRecursiveComparison().isEqualTo(entity);
             checked++;
         }
-        assertEquals(31, checked);
+        assertEquals(29, checked);
     }
 
     private Object populate(final Class<?> type, final int depth) throws Exception {

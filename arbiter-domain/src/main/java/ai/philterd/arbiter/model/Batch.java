@@ -46,7 +46,6 @@ public class Batch {
     @Deprecated private long experiencedReviewerRuleThreshold = 100;
     private Map<String, Integer> piiTypeWeights;
     private String weightSetId;
-    private String philterInstanceId;
     private String policyName;
     private String domain;
     private String context = "";
@@ -224,14 +223,6 @@ public class Batch {
 
     public void setWeightSetId(final String weightSetId) {
         this.weightSetId = weightSetId;
-    }
-
-    public String getPhilterInstanceId() {
-        return philterInstanceId;
-    }
-
-    public void setPhilterInstanceId(final String philterInstanceId) {
-        this.philterInstanceId = philterInstanceId;
     }
 
     public String getPolicyName() {

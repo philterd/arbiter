@@ -24,7 +24,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.io.IOException;
 
 /**
- * The calls Arbiter makes to the Philter that signs people in ({@code ARBITER_SIGN_IN_PHILTER_URL}), with
+ * The calls Arbiter makes to the Philter that signs people in ({@code ARBITER_PHILTER_URL}), with
  * the global {@code arbiter.philter.tls.*} settings. Passwords and codes are passed straight through and
  * never kept. Session keys and MFA challenges leave this class only encrypted.
  */

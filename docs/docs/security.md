@@ -101,8 +101,8 @@ Philter keeps the passwords, MFA, lockout, and rate limiting; see Philter's
   `sign_in_succeeded`, in its audit log.
 
 Arbiter's other calls to Philter, such as redaction at ingest, policy
-listing, and finalization, still use the API key set for the instance under
-**Admin → Philter**, not a person's session key.
+listing, and finalization, still use `ARBITER_PHILTER_API_KEY`, not a person's
+session key.
 
 ### Multi-factor authentication (TOTP)
 
@@ -272,12 +272,27 @@ Arbiter can present it at send time. Treat the database as sensitive
 storage — encrypt at rest at the storage layer or front it with a secret
 manager if your deployment policy demands it.
 
-## Philter API keys
+## Philter API key
 
-Each Philter instance configured under **Admin → Philter** can carry an
-optional API key that Arbiter sends as `Authorization: Bearer …` on every
-outbound call (and on the per-row Test). The plaintext key is **encrypted
-with AES-GCM** before being written to MongoDB:
+Arbiter sends `ARBITER_PHILTER_API_KEY` to Philter as `Authorization: Bearer …`
+on its calls that are not made with a person's session key. The key is read from
+the environment at startup and is not stored in Arbiter's database, logged, or
+shown in the UI. Supply it through a secrets mechanism.
+
+The key must not belong to a Philter administrator, since Arbiter holds it
+for background work such as ingest. Arbiter checks the role Philter reports for
+it (`GET /api/limits`) at startup and on **Test** under **Admin → Philter**,
+fails the Test for an administrator's key, and flags the key there and in the
+log until its user is no longer an administrator. Give Arbiter a key with only
+the `redact` and `policies:read` scopes. For a deployment already using an
+administrator's key, remove that user's administrator role rather than switching
+users, since Philter's policies and contexts belong to the key's user; see
+[Philter API key for Arbiter](workflow.md#philter-api-key-for-arbiter).
+
+## Encrypted secrets
+
+Secrets Arbiter stores, such as data source credentials, are **encrypted with
+AES-GCM** before being written to the database:
 
 - 32-byte AES key loaded from the `arbiter.crypto.secret` property. The
   property must be a **base64-encoded value of exactly 32 random bytes**
@@ -291,31 +306,14 @@ length — fails fast at startup with a descriptive error. There is no
 silent fallback to a public dev key, and no SHA-256-of-passphrase
 derivation: a leaked database paired with a low-entropy passphrase used
 to be brute-forceable in seconds, so passphrase-style secrets are no
-longer accepted. The plaintext key is never displayed back; the admin UI
-only shows whether a key is configured.
-
-The key must not belong to a Philter administrator, since Arbiter holds it
-for background work such as ingest. Arbiter refuses to save such a key,
-checking the role Philter reports for it (`GET /api/limits`), fails the
-**Test** for one, and flags one saved earlier, after checking at startup, until
-its user is no longer an administrator. Give Arbiter a key with only the
-`redact` and `policies:read` scopes. For a deployment already using an
-administrator's key, remove that user's administrator role rather than switching
-users, since Philter's policies and contexts belong to the key's user; see
-[Philter API key for Arbiter](workflow.md#philter-api-key-for-arbiter).
-
-A Philter instance's own client certificate keystore and trust store, and
-their passwords, are encrypted the same way. The admin UI shows only whether
-each is set, and the audit log records that a store was added, replaced, or
-removed, never its contents or password. Arbiter decrypts the stores in
-memory when it connects and never writes them to disk decrypted.
+longer accepted.
 
 ## Data source credentials
 
 Credentials configured under **Admin → Data Sources** — OpenSearch passwords,
 S3 access and secret keys, and relational-database usernames and passwords —
-are stored using the same AES-GCM encryption scheme described above for
-Philter API keys. The plaintext is never returned by the UI or logged in the
+are stored using the AES-GCM encryption scheme described in
+[Encrypted secrets](#encrypted-secrets). The plaintext is never returned by the UI or logged in the
 audit trail; the listing tables show only a status (`Configured`, `Ambient`,
 `From URL`, `••••••`). The OpenSearch **username** field is the one
 exception: it is stored as plaintext on the document row and visible in raw

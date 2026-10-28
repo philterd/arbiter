@@ -19,8 +19,6 @@ import ai.philterd.arbiter.model.Batch;
 import ai.philterd.arbiter.model.ComplianceProfile;
 import ai.philterd.arbiter.model.Domains;
 import ai.philterd.arbiter.model.Group;
-import ai.philterd.arbiter.model.PhilterDefaults;
-import ai.philterd.arbiter.model.PhilterInstance;
 import ai.philterd.arbiter.model.PiiTypes;
 import ai.philterd.arbiter.model.PiiWeights;
 import ai.philterd.arbiter.model.WeightSet;
@@ -29,12 +27,10 @@ import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.ComplianceProfileRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.GroupRepository;
-import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import ai.philterd.arbiter.repository.WeightSetRepository;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.AuthUtils;
 import ai.philterd.arbiter.service.BatchAccessService;
-import ai.philterd.arbiter.service.PhilterDefaultsService;
 import ai.philterd.arbiter.service.UserGroupsService;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -69,8 +65,6 @@ public class BatchController {
     private final BatchAccessService batchAccessService;
     private final AuditLogService auditLogService;
     private final WeightSetRepository weightSetRepository;
-    private final PhilterInstanceRepository philterInstanceRepository;
-    private final PhilterDefaultsService philterDefaultsService;
     private final ai.philterd.arbiter.repository.FinalizationPolicyRepository finalizationPolicyRepository;
     private final ComplianceProfileRepository complianceProfileRepository;
     private final ai.philterd.arbiter.repository.LocalDirectoryDestinationRepository localDirectoryDestinationRepository;
@@ -84,8 +78,6 @@ public class BatchController {
                            final BatchAccessService batchAccessService,
                            final AuditLogService auditLogService,
                            final WeightSetRepository weightSetRepository,
-                           final PhilterInstanceRepository philterInstanceRepository,
-                           final PhilterDefaultsService philterDefaultsService,
                            final ai.philterd.arbiter.repository.FinalizationPolicyRepository finalizationPolicyRepository,
                            final ComplianceProfileRepository complianceProfileRepository,
                            final ai.philterd.arbiter.repository.LocalDirectoryDestinationRepository localDirectoryDestinationRepository,
@@ -98,8 +90,6 @@ public class BatchController {
         this.batchAccessService = batchAccessService;
         this.auditLogService = auditLogService;
         this.weightSetRepository = weightSetRepository;
-        this.philterInstanceRepository = philterInstanceRepository;
-        this.philterDefaultsService = philterDefaultsService;
         this.finalizationPolicyRepository = finalizationPolicyRepository;
         this.complianceProfileRepository = complianceProfileRepository;
         this.localDirectoryDestinationRepository = localDirectoryDestinationRepository;
@@ -143,11 +133,6 @@ public class BatchController {
         assignableGroups.sort(Comparator.comparing(
                 (Group g) -> g.getName() == null ? "" : g.getName().toLowerCase()));
 
-        final Map<String, String> philterInstanceNamesById = new LinkedHashMap<>();
-        for (PhilterInstance i : philterInstanceRepository.findAll(PageRequest.of(0, 500, Sort.by("name"))).getContent()) {
-            philterInstanceNamesById.put(i.getId(), i.getName());
-        }
-
         final Map<String, String> finalizationPolicyNamesById = new LinkedHashMap<>();
         for (ai.philterd.arbiter.model.FinalizationPolicy p : finalizationPolicyRepository.findAll(PageRequest.of(0, 500, Sort.by("name"))).getContent()) {
             finalizationPolicyNamesById.put(p.getId(), p.getName());
@@ -175,11 +160,6 @@ public class BatchController {
             row.put("queuedCount", total - terminal);
             row.put("groupId", batch.getGroupId());
             row.put("groupName", batch.getGroupId() == null ? null : groupNamesById.get(batch.getGroupId()));
-            row.put("philterInstanceId", batch.getPhilterInstanceId());
-            final String philterName = batch.getPhilterInstanceId() == null
-                    ? "Embedded Philter"
-                    : philterInstanceNamesById.getOrDefault(batch.getPhilterInstanceId(), "(missing)");
-            row.put("philterInstanceName", philterName);
             row.put("policyName", batch.getPolicyName());
             row.put("domain", batch.getDomain());
             row.put("context", batch.getContext());
@@ -210,10 +190,6 @@ public class BatchController {
         final boolean ascending = "asc".equalsIgnoreCase(dir);
         rows.sort(comparatorFor(activeSort, ascending));
 
-        final List<PhilterInstance> philterInstances = new ArrayList<>(philterInstanceRepository.findAll(PageRequest.of(0, 500, Sort.by("name"))).getContent());
-
-        final PhilterDefaults philterDefaults = philterDefaultsService.load();
-
         // Build the finalization-policy dropdown — id + name, sorted by name. Required
         // for new batches; legacy batches without one display a "—" until edited.
         final List<ai.philterd.arbiter.model.FinalizationPolicy> finalizationPolicies =
@@ -239,8 +215,6 @@ public class BatchController {
 
         model.addAttribute("batches", rows);
         model.addAttribute("groups", assignableGroups);
-        model.addAttribute("philterInstances", philterInstances);
-        model.addAttribute("defaultPhilterInstanceId", philterDefaults.getDefaultInstanceId());
         model.addAttribute("domains", Domains.VALUES);
         model.addAttribute("finalizationPolicies", finalizationPolicies);
         model.addAttribute("complianceProfiles", complianceProfiles);
@@ -273,7 +247,6 @@ public class BatchController {
                          @RequestParam(value = "confidenceThreshold", required = false) Double confidenceThreshold,
                          @RequestParam(value = "documentThreshold", required = false) Double documentThreshold,
                          @RequestParam("groupId") String groupId,
-                         @RequestParam(value = "philterInstanceId", required = false) String philterInstanceId,
                          @RequestParam(value = "policyName", required = false) String policyName,
                          @RequestParam(value = "domain", required = false) String domain,
                          @RequestParam(value = "context", required = false, defaultValue = "") String context,
@@ -315,11 +288,6 @@ public class BatchController {
                             + "to make you a team lead of this group, or pick a different group.");
             return "redirect:/batches";
         }
-        final String trimmedPhilterId = philterInstanceId == null ? "" : philterInstanceId.trim();
-        if (!trimmedPhilterId.isEmpty() && !philterInstanceRepository.existsById(trimmedPhilterId)) {
-            redirectAttributes.addFlashAttribute("error", "Selected Philter instance no longer exists.");
-            return "redirect:/batches";
-        }
         final String trimmedDomain = domain == null ? "" : domain.trim();
         if (trimmedDomain.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Domain is required.");
@@ -359,7 +327,6 @@ public class BatchController {
         batch.setCreatedAt(LocalDateTime.now());
         batch.setOwnerId(authentication == null ? "unknown" : authentication.getName());
         batch.setGroupId(groupId);
-        batch.setPhilterInstanceId(trimmedPhilterId.isEmpty() ? null : trimmedPhilterId);
         final String trimmedPolicy = policyName == null ? "" : policyName.trim();
         batch.setPolicyName(trimmedPolicy.isEmpty() ? null : trimmedPolicy);
         batch.setDomain(trimmedDomain);
@@ -400,7 +367,6 @@ public class BatchController {
         final Map<String, Object> auditDetails = new LinkedHashMap<>();
         auditDetails.put("name", trimmed);
         auditDetails.put("groupId", groupId);
-        auditDetails.put("philterInstanceId", trimmedPhilterId.isEmpty() ? "embedded" : trimmedPhilterId);
         auditDetails.put("policyName", trimmedPolicy);
         auditDetails.put("domain", trimmedDomain);
         auditDetails.put("contextLength", batch.getContext().length());
@@ -415,12 +381,11 @@ public class BatchController {
         return "redirect:/batches";
     }
 
-    @PostMapping("/{batchId}/philter")
-    public String changePhilter(@PathVariable final String batchId,
-                                @RequestParam(value = "philterInstanceId", required = false) final String philterInstanceId,
-                                @RequestParam(value = "policyName", required = false) final String policyName,
-                                final Authentication authentication,
-                                final RedirectAttributes redirectAttributes) {
+    @PostMapping("/{batchId}/policy")
+    public String changePolicy(@PathVariable final String batchId,
+                               @RequestParam(value = "policyName", required = false) final String policyName,
+                               final Authentication authentication,
+                               final RedirectAttributes redirectAttributes) {
         // Collapse lookup-miss and access-denied into a single response shape so a
         // non-admin/non-lead can't enumerate batch ids by reading the error message.
         // The audit log still records who tried to act on which id; the user-facing
@@ -430,30 +395,17 @@ public class BatchController {
             redirectAttributes.addFlashAttribute("error", "Batch not found.");
             return "redirect:/batches";
         }
-        final String trimmed = philterInstanceId == null ? "" : philterInstanceId.trim();
-        if (!trimmed.isEmpty() && !philterInstanceRepository.existsById(trimmed)) {
-            redirectAttributes.addFlashAttribute("error", "Selected Philter instance no longer exists.");
-            return "redirect:/batches";
-        }
         final String trimmedPolicy = policyName == null ? "" : policyName.trim();
 
-        final String previousId = batch.getPhilterInstanceId();
         final String previousPolicy = batch.getPolicyName();
-        batch.setPhilterInstanceId(trimmed.isEmpty() ? null : trimmed);
         batch.setPolicyName(trimmedPolicy.isEmpty() ? null : trimmedPolicy);
         batchRepository.save(batch);
-        auditLogService.log("BATCH_PHILTER_CHANGE", "Batch", batch.getId(),
-                Map.of("previousPhilterInstanceId", previousId == null ? "embedded" : previousId,
-                        "newPhilterInstanceId", trimmed.isEmpty() ? "embedded" : trimmed,
-                        "previousPolicyName", previousPolicy == null ? "" : previousPolicy,
+        auditLogService.log("BATCH_POLICY_CHANGE", "Batch", batch.getId(),
+                Map.of("previousPolicyName", previousPolicy == null ? "" : previousPolicy,
                         "newPolicyName", trimmedPolicy));
-        final String instanceName = trimmed.isEmpty() ? "Embedded Philter"
-                : philterInstanceRepository.findById(trimmed)
-                .map(PhilterInstance::getName).orElse(trimmed);
-        final String policyLabel = trimmedPolicy.isEmpty() ? "no policy" : "policy \"" + trimmedPolicy + "\"";
+        final String policyLabel = trimmedPolicy.isEmpty() ? "Philter's default policy" : "policy \"" + trimmedPolicy + "\"";
         redirectAttributes.addFlashAttribute("success",
-                "Batch \"" + batch.getName() + "\" now uses \"" + instanceName
-                        + "\" with " + policyLabel + ".");
+                "Batch \"" + batch.getName() + "\" now uses " + policyLabel + ".");
         return "redirect:/batches";
     }
 

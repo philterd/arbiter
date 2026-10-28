@@ -370,18 +370,17 @@
                 </table>
             </div>
 
-            <!-- Per-Philter / Policy aggregates -->
+            <!-- Per-policy aggregates -->
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
                 <div class="px-6 py-4 border-b border-gray-200">
-                    <h3 class="text-lg font-semibold text-gray-900">Per Philter / Policy</h3>
+                    <h3 class="text-lg font-semibold text-gray-900">Per Policy</h3>
                     <p class="text-xs text-gray-500 mt-1">
-                        Aggregated across all batches sharing a Philter instance and policy. Sorted by edit rate descending — high values flag policies that are letting too much through (or false-positiving) so reviewers are doing extra manual work.
+                        Aggregated across all batches sharing a policy. Sorted by edit rate descending: high values flag policies that are letting too much through (or false-positiving) so reviewers are doing extra manual work.
                     </p>
                 </div>
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Philter</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Policy</th>
                             <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Batches</th>
                             <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Docs</th>
@@ -393,13 +392,12 @@
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
                         <tr th:if="${#lists.isEmpty(policyRows)}">
-                            <td colspan="8" class="px-6 py-8 text-center text-sm text-gray-500">
+                            <td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500">
                                 No batches in scope.
                             </td>
                         </tr>
                         <tr th:each="r : ${policyRows}" class="hover:bg-gray-50">
-                            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-900" th:text="${r.philterName}">Philter</td>
-                            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-700" th:text="${r.policyName}">Policy</td>
+                            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-900" th:text="${r.policyName}">Policy</td>
                             <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right" th:text="${r.batches}">0</td>
                             <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right" th:text="${r.documents}">0</td>
                             <td class="px-3 py-3 whitespace-nowrap text-sm text-green-700 text-right font-medium" th:text="${r.spansAccepted}">0</td>
@@ -482,7 +480,7 @@
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
-                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Philter / Policy</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Policy</th>
                             <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Docs</th>
                             <th class="px-3 py-3 text-right text-xs font-medium text-green-700 uppercase tracking-wider">Accepted</th>
                             <th class="px-3 py-3 text-right text-xs font-medium text-red-700 uppercase tracking-wider">Rejected</th>
@@ -505,8 +503,7 @@
                                       class="ml-2 px-2 inline-flex text-[10px] leading-5 font-semibold rounded-full bg-gray-200 text-gray-700 uppercase tracking-wide">Closed</span>
                             </td>
                             <td class="px-3 py-3 whitespace-nowrap text-sm">
-                                <div class="text-gray-900" th:text="${row.philterName}">Philter</div>
-                                <div class="text-xs text-gray-500" th:text="${row.policyName}">Policy</div>
+                                <div class="text-gray-900" th:text="${row.policyName}">Policy</div>
                             </td>
                             <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-900 text-right" th:text="${row.documentCount}">0</td>
                             <td class="px-3 py-3 whitespace-nowrap text-sm text-green-700 text-right font-medium" th:text="${row.spansAccepted}">0</td>

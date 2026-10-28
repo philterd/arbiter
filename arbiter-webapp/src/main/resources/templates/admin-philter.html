@@ -202,212 +202,40 @@
                  th:text="${success}">Success</div>
 
             <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-6 max-w-3xl">
-                <h3 class="text-lg font-semibold text-gray-900 mb-1">Default Philter instance</h3>
+                <h3 class="text-lg font-semibold text-gray-900 mb-1">Philter</h3>
                 <p class="text-xs text-gray-500 mb-4">
-                    Choose which Philter instance is pre-selected when new batches are created. The
-                    "Embedded Philter" option uses Arbiter's bundled local Phileas library.
+                    Arbiter signs people in, reads policies, and redacts through this Philter. It is set with
+                    <code>ARBITER_PHILTER_URL</code> and <code>ARBITER_PHILTER_API_KEY</code> in Arbiter's
+                    environment, and TLS with the <code>arbiter.philter.tls.*</code> settings.
+                    <a href="/docs/workflow/#connecting-arbiter-to-philter" target="_blank" rel="noopener noreferrer"
+                       class="text-blue-600 hover:underline">How</a>
                 </p>
-                <form th:action="@{/admin/philter/defaults}" method="post" class="space-y-4">
-                    <div>
-                        <label for="defaultInstanceId"
-                               class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
-                            Default instance
-                        </label>
-                        <select id="defaultInstanceId" name="defaultInstanceId"
-                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="" th:selected="${defaults.defaultInstanceId == null}">Embedded Philter</option>
-                            <option th:each="i : ${instances}"
-                                    th:value="${i.id}"
-                                    th:text="${i.name}"
-                                    th:selected="${defaults.defaultInstanceId != null and i.id == defaults.defaultInstanceId}">
-                                instance
-                            </option>
-                        </select>
-                    </div>
-                    <div class="flex justify-end">
-                        <button type="submit"
-                                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
-                            Save default
-                        </button>
-                    </div>
+                <dl class="grid grid-cols-[auto,1fr] gap-x-6 gap-y-2 text-sm mb-4">
+                    <dt class="text-xs font-medium text-gray-600 uppercase tracking-wide">URL</dt>
+                    <dd class="font-mono text-gray-900" th:text="${philterUrl}">http://philter:8080</dd>
+                    <dt class="text-xs font-medium text-gray-600 uppercase tracking-wide">API key</dt>
+                    <dd class="text-gray-900">
+                        <span th:if="${apiKeyAdmin == null}">Set; its role has not been checked</span>
+                        <span th:if="${apiKeyAdmin != null and !apiKeyAdmin}">Set; belongs to a user who is not an administrator</span>
+                        <span th:if="${apiKeyAdmin != null and apiKeyAdmin}">Set; belongs to a Philter administrator</span>
+                    </dd>
+                </dl>
+                <div th:if="${apiKeyAdmin != null and apiKeyAdmin}"
+                     class="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800">
+                    <span th:text="${adminKeyWarning}">warning</span>
+                    <a href="/docs/workflow/#philter-api-key-for-arbiter" target="_blank" rel="noopener noreferrer"
+                       class="underline">How</a>
+                </div>
+                <form th:action="@{/admin/philter/test}" method="post">
+                    <button type="submit"
+                            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                        Test
+                    </button>
                 </form>
-            </div>
-
-            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-6 max-w-3xl">
-                <h3 class="text-lg font-semibold text-gray-900 mb-1">Add Philter instance</h3>
-                <p class="text-xs text-gray-500 mb-3">
-                    Register a Philter server that Arbiter can call for redaction. Names must be unique.
-                </p>
-                <form th:action="@{/admin/philter}" method="post" class="space-y-3">
-                    <div class="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.5fr)_8rem] gap-2">
-                        <div>
-                            <label for="philterName" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Name</label>
-                            <input id="philterName" name="name" type="text" required placeholder="philter-prod"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label for="philterEndpoint" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Endpoint</label>
-                            <input id="philterEndpoint" name="endpoint" type="text" required placeholder="philter or 192.168.1.20"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                        <div>
-                            <label for="philterPort" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Port</label>
-                            <input id="philterPort" name="port" type="number" required min="1" max="65535" value="8080"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        </div>
-                    </div>
-                    <div>
-                        <label for="philterApiKey" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">API key</label>
-                        <input id="philterApiKey" name="apiKey" type="password" required autocomplete="off"
-                               placeholder="Sent as Authorization: Bearer …"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <p class="text-xs text-gray-500 mt-1">
-                            Stored encrypted at rest with AES-GCM and sent on every outbound call to this instance.
-                        </p>
-                    </div>
-                    <div class="flex justify-end">
-                        <button type="submit"
-                                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
-                            Add
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden max-w-5xl">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Endpoint</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-24">Port</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">API key</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">TLS</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-100">
-                        <tr th:if="${#lists.isEmpty(instances)}">
-                            <td colspan="6" class="px-6 py-8 text-center text-sm text-gray-500">
-                                No Philter instances registered yet.
-                            </td>
-                        </tr>
-                        <tr th:each="i : ${instances}" class="hover:bg-gray-50 align-top">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                                <span th:text="${i.name}">name</span>
-                                <span th:if="${defaults.defaultInstanceId != null and i.id == defaults.defaultInstanceId}"
-                                      class="ml-2 text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">
-                                    default
-                                </span>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700 font-mono" th:text="${i.endpoint}">endpoint</td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700" th:text="${i.port}">8080</td>
-                            <td class="px-6 py-4 text-sm">
-                                <span th:if="${i.encryptedApiKey != null and !#strings.isEmpty(i.encryptedApiKey)}"
-                                      class="inline-flex px-2 py-0.5 rounded-full bg-green-100 text-green-800 text-[10px] font-semibold uppercase tracking-wide">
-                                    Configured
-                                </span>
-                                <span th:unless="${i.encryptedApiKey != null and !#strings.isEmpty(i.encryptedApiKey)}"
-                                      class="text-gray-400 text-xs">Not set</span>
-                                <div th:if="${i.apiKeyAdmin != null and i.apiKeyAdmin}"
-                                     class="mt-1 p-2 rounded bg-amber-50 border border-amber-200 text-xs text-amber-800 max-w-xs">
-                                    This key belongs to a Philter administrator. Don't switch to another user's
-                                    key: this user owns the policies and contexts Arbiter uses. Remove its
-                                    administrator role in Philter and narrow the key to <code>redact</code> and
-                                    <code>policies:read</code>.
-                                    <a href="/docs/workflow/#philter-api-key-for-arbiter" target="_blank" rel="noopener noreferrer"
-                                       class="underline">How</a>
-                                </div>
-                                <details class="mt-1 text-xs text-gray-500">
-                                    <summary class="cursor-pointer hover:text-gray-700">Set / change</summary>
-                                    <form th:action="@{/admin/philter/{id}/api-key(id=${i.id})}" method="post"
-                                          class="mt-2 flex flex-col gap-1">
-                                        <input type="password" name="apiKey" required autocomplete="off"
-                                               placeholder="New API key"
-                                               class="block w-full rounded-md border border-gray-300 px-2 py-1 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                        <button type="submit"
-                                                class="self-start px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md">
-                                            Save
-                                        </button>
-                                    </form>
-                                </details>
-                            </td>
-                            <td class="px-6 py-4 text-sm"
-                                th:with="ownKey=${i.encryptedKeyStore != null and !#strings.isEmpty(i.encryptedKeyStore)},
-                                         ownTrust=${i.encryptedTrustStore != null and !#strings.isEmpty(i.encryptedTrustStore)}">
-                                <div class="text-xs text-gray-600 whitespace-nowrap">
-                                    Client certificate:
-                                    <span th:if="${ownKey}" class="inline-flex px-2 py-0.5 rounded-full bg-green-100 text-green-800 text-[10px] font-semibold uppercase tracking-wide">Own</span>
-                                    <span th:unless="${ownKey}" class="text-gray-400">Global</span>
-                                </div>
-                                <div class="text-xs text-gray-600 whitespace-nowrap mt-0.5">
-                                    Trust store:
-                                    <span th:if="${ownTrust}" class="inline-flex px-2 py-0.5 rounded-full bg-green-100 text-green-800 text-[10px] font-semibold uppercase tracking-wide">Own</span>
-                                    <span th:unless="${ownTrust}" class="text-gray-400">Global</span>
-                                </div>
-                                <details class="mt-1 text-xs text-gray-500">
-                                    <summary class="cursor-pointer hover:text-gray-700">Set / change</summary>
-                                    <form th:action="@{/admin/philter/{id}/tls(id=${i.id})}" method="post"
-                                          enctype="multipart/form-data" class="mt-2 flex flex-col gap-1">
-                                        <label class="font-medium text-gray-600">Client certificate keystore (PKCS12 or JKS)</label>
-                                        <input type="file" name="keyStore" accept=".p12,.pfx,.jks,.keystore"
-                                               class="block w-full text-xs">
-                                        <input type="password" name="keyStorePassword" autocomplete="off"
-                                               placeholder="Keystore password"
-                                               class="block w-full rounded-md border border-gray-300 px-2 py-1 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                        <label class="font-medium text-gray-600 mt-2">Trust store (PKCS12 or JKS)</label>
-                                        <input type="file" name="trustStore" accept=".p12,.pfx,.jks,.truststore"
-                                               class="block w-full text-xs">
-                                        <input type="password" name="trustStorePassword" autocomplete="off"
-                                               placeholder="Trust store password, if it has one"
-                                               class="block w-full rounded-md border border-gray-300 px-2 py-1 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                        <p class="text-gray-500">
-                                            Used when the endpoint starts with https://. A store left empty keeps its
-                                            current setting. Stored encrypted and never shown again.
-                                        </p>
-                                        <button type="submit"
-                                                class="self-start px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium rounded-md">
-                                            Save
-                                        </button>
-                                    </form>
-                                    <form th:if="${ownKey}" th:action="@{/admin/philter/{id}/tls/remove(id=${i.id})}" method="post"
-                                          class="mt-2 confirm-form"
-                                          th:attr="data-confirm-message=|Remove the client certificate from &quot;${i.name}&quot; and use the global setting?|">
-                                        <input type="hidden" name="store" value="keyStore">
-                                        <button type="submit" class="text-red-600 hover:text-red-800 font-medium">Remove client certificate</button>
-                                    </form>
-                                    <form th:if="${ownTrust}" th:action="@{/admin/philter/{id}/tls/remove(id=${i.id})}" method="post"
-                                          class="mt-1 confirm-form"
-                                          th:attr="data-confirm-message=|Remove the trust store from &quot;${i.name}&quot; and use the global setting?|">
-                                        <input type="hidden" name="store" value="trustStore">
-                                        <button type="submit" class="text-red-600 hover:text-red-800 font-medium">Remove trust store</button>
-                                    </form>
-                                </details>
-                            </td>
-                            <td class="px-6 py-4 whitespace-nowrap text-sm">
-                                <form th:action="@{/admin/philter/{id}/test(id=${i.id})}" method="post" class="inline mr-3">
-                                    <button type="submit" class="text-blue-600 hover:text-blue-800 font-medium">Test</button>
-                                </form>
-                                <form th:action="@{/admin/philter/{id}/delete(id=${i.id})}" method="post" class="inline confirm-form"
-                                      th:attr="data-confirm-message=|Remove the Philter instance &quot;${i.name}&quot;?|">
-                                    <button type="submit" class="text-red-600 hover:text-red-800 font-medium">Remove</button>
-                                </form>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
             </div>
         </main>
         <div th:replace="~{fragments/footer :: footer}"></div>
         </div>
     </div>
-    <script th:nonce="${cspNonce}">
-        // Confirm prompts for the remove forms. The page's CSP refuses inline event handlers.
-        document.querySelectorAll('form.confirm-form').forEach(form => {
-            form.addEventListener('submit', e => {
-                if (!window.confirm(form.getAttribute('data-confirm-message'))) e.preventDefault();
-            });
-        });
-    </script>
 </body>
 </html>

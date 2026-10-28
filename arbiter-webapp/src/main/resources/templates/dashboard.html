@@ -248,7 +248,7 @@
                         <li sec:authorize="hasAnyRole('ADMIN','AUDITOR')">
                             <a th:href="@{/batches}" class="block p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition">
                                 <div class="text-sm font-semibold text-gray-900">Manage batches</div>
-                                <div class="text-xs text-gray-500 mt-1">Create batches, set thresholds, change Philter / policy.</div>
+                                <div class="text-xs text-gray-500 mt-1">Create batches, set thresholds, change policy.</div>
                             </a>
                         </li>
                         <li sec:authorize="hasAnyRole('ADMIN','AUDITOR')">
@@ -259,8 +259,8 @@
                         </li>
                         <li sec:authorize="hasAnyRole('ADMIN','AUDITOR')">
                             <a th:href="@{/admin/philter}" class="block p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition">
-                                <div class="text-sm font-semibold text-gray-900">Configure Philter</div>
-                                <div class="text-xs text-gray-500 mt-1">Register Philter instances or use Embedded.</div>
+                                <div class="text-sm font-semibold text-gray-900">Philter</div>
+                                <div class="text-xs text-gray-500 mt-1">See and test the connection to Philter.</div>
                             </a>
                         </li>
                         <li sec:authorize="hasAnyRole('ADMIN','AUDITOR')">

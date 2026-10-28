@@ -57,9 +57,9 @@ The AUDITOR role refuses every non-self mutation. Concretely:
   span.
 - Cannot create, edit, or close a batch.
 - Cannot create, edit, or remove users, groups, data sources, destinations,
-  Philter or Ollama instances, compliance profiles, approval rules, weight
+  Ollama instances, compliance profiles, approval rules, weight
   sets, or notification settings.
-- Cannot edit a Phileas policy.
+- Cannot run Admin → Philter's connection test.
 - Cannot break a document review lock held by someone else.
 - Cannot trigger an outbound test probe (e.g. the **Test** buttons on the
   Data Sources / Destinations / Philter / Ollama admin pages) — these issue
@@ -113,7 +113,7 @@ groups, a team lead has the same permissions as the **USER** column.
 | Feature | USER | Team lead | AUDITOR | ADMIN |
 |---------|:----:|:---------:|:-------:|:-----:|
 | Create a batch in a led group | — | ✓ (led groups only) | — | ✓ |
-| Change a batch's Philter instance | — | ✓ (led groups only) | — | ✓ |
+| Change a batch's policy | — | ✓ (led groups only) | — | ✓ |
 | Change a batch's domain | — | ✓ (led groups only) | — | ✓ |
 | Change a batch's weight set | — | ✓ (led groups only) | — | ✓ |
 | Edit a batch's review thresholds | — | ✓ (led groups only) | — | ✓ |
@@ -138,7 +138,7 @@ groups, a team lead has the same permissions as the **USER** column.
 | Invite, edit, delete users | — | — | — | ✓ |
 | Promote / demote a user's role | — | — | — | ✓ |
 | Manage groups (including assigning leads) | — | — | — | ✓ |
-| Edit Phileas redaction policies | — | — | — | ✓ |
+| Test the connection to Philter (Admin → Philter) | — | — | — | ✓ |
 | Configure approval rules / weight sets / compliance profiles | — | — | — | ✓ |
 | Change global security settings (Require MFA, etc.) | — | — | — | ✓ |
 
@@ -183,8 +183,8 @@ authority follows them into group A and only group A.
 
 ### Why team leads exist
 
-Day-to-day batch operations — creating a batch, setting its Philter instance
-or weight set, closing a finalized batch — don't require site-wide admin
+Day-to-day batch operations (creating a batch, setting its policy
+or weight set, closing a finalized batch) don't require site-wide admin
 authority, but they do require more than what a typical reviewer needs.
 Routing every such request through an admin makes the admin a bottleneck. A
 team lead is the trusted operational contact for a single group: an admin
@@ -194,7 +194,7 @@ group without being able to touch any other group or any global setting.
 ### What a team lead can do (in groups they lead)
 
 - **Create a batch** assigned to a group they lead.
-- **Change a batch's Philter instance**, **domain**, **weight set**, or
+- **Change a batch's policy**, **domain**, **weight set**, or
   **review thresholds**.
 - **Close** a finalized or rejected batch.
 - **See the Batches link in the sidebar.** Regular `USER`s do not see it
@@ -209,7 +209,7 @@ not perform any of the operations above.
 - **Move a batch to a different group.** Reassignment crosses tenant
   boundaries and is admin-only.
 - **Anything outside the Batches page.** Team leads cannot manage users,
-  groups, data sources, destinations, Philter or Ollama instances, policies,
+  groups, data sources, destinations, Ollama instances, policies,
   approval rules, weight sets, or any global setting.
 - **Lead a group they don't belong to.** Leadership requires group
   membership; the leader picker on the Admin → Groups page only offers

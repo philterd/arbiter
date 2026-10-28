@@ -20,7 +20,7 @@ import java.io.IOException;
 import java.io.InputStream;
 
 public interface RedactionService {
-    RedactionResponse redactText(String text, String philterInstanceId, String policyName, String context) throws IOException;
-    RedactionResponse redactPdf(InputStream inputStream, String philterInstanceId, String policyName, String context) throws IOException;
-    byte[] getRedactedPdf(InputStream originalPdf, RedactionResponse redactionResponse, String philterInstanceId) throws IOException;
+    RedactionResponse redactText(String text, String policyName, String context) throws IOException;
+    RedactionResponse redactPdf(InputStream inputStream, String policyName, String context) throws IOException;
+    byte[] getRedactedPdf(InputStream originalPdf, RedactionResponse redactionResponse) throws IOException;
 }

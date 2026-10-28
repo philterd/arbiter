@@ -26,7 +26,7 @@ import java.util.Locale;
 
 /**
  * Host allow-list for data-source URLs (OpenSearch / Elasticsearch test endpoints,
- * ingest workers, Philter, and Ollama test-connection calls).
+ * ingest workers, and Ollama test-connection calls).
  *
  * <p><strong>Default-deny for private ranges.</strong> RFC-1918, loopback, and link-local
  * addresses (10.x, 172.16–31.x, 192.168.x, 127.x, 169.254.x, ::1, fe80::) are blocked

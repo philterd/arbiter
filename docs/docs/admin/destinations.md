@@ -156,9 +156,9 @@ for S3, a `credentialsCleared` boolean.
 ## Credential encryption
 
 Every credential typed into the Destinations page is encrypted with AES-GCM
-before being written to MongoDB. The same scheme protects Philter API keys
-and data-source passwords — see
-[Security · Philter API keys](../security.md#philter-api-keys) for the full
+before being written to MongoDB. The same scheme protects data-source
+passwords. See
+[Security · Encrypted secrets](../security.md#encrypted-secrets) for the full
 description (key derivation, IV format, base64 layout, and the
 `arbiter.crypto.secret` property). The plaintext is never displayed back;
 the table only shows a **Configured** / **Ambient** badge.

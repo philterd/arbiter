@@ -36,8 +36,6 @@ import ai.philterd.arbiter.repository.RelationalDbDataSourceRepository;
 import ai.philterd.arbiter.repository.S3DataSourceRepository;
 import ai.philterd.arbiter.repository.S3DestinationRepository;
 import ai.philterd.arbiter.repository.RedactionCertificateRepository;
-import ai.philterd.arbiter.repository.PhilterDefaultsRepository;
-import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import ai.philterd.arbiter.repository.PolicyRepository;
 import ai.philterd.arbiter.repository.UserSettingsRepository;
 import ai.philterd.arbiter.repository.WeightSetRepository;
@@ -152,10 +150,7 @@ public class RedactionControllerTest {
     private DestinationTester destinationTester;
 
     @MockBean
-    private PhilterInstanceRepository philterInstanceRepository;
-
-    @MockBean
-    private PhilterDefaultsRepository philterDefaultsRepository;
+    private ai.philterd.arbiter.service.PhilterSettings philterSettings;
 
     @MockBean
     private PolicyRepository policyRepository;
@@ -490,6 +485,32 @@ public class RedactionControllerTest {
                         .param("contentType", "")
                         .with(csrf()))
                 .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    public void download_refusesARedactedPdfItCannotProduceAndNeverServesTheOriginal() throws Exception {
+        final byte[] original = "%PDF-1.4 original bytes".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        final org.springframework.mock.web.MockHttpSession session = new org.springframework.mock.web.MockHttpSession();
+        session.setAttribute("originalFile", original);
+        when(redactionService.getRedactedPdf(any(), any())).thenThrow(new java.io.IOException());
+
+        final org.springframework.test.web.servlet.MvcResult result = mockMvc.perform(
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                                .post("/download")
+                                .session(session)
+                                .param("redactedText", "")
+                                .param("fileName", "doc.pdf")
+                                .param("contentType", "application/pdf")
+                                .with(csrf()))
+                .andExpect(status().isConflict())
+                .andReturn();
+
+        org.junit.jupiter.api.Assertions.assertFalse(
+                java.util.Arrays.equals(original, result.getResponse().getContentAsByteArray()),
+                "the original must never be served as the redacted file");
+        org.junit.jupiter.api.Assertions.assertNull(result.getResponse().getHeader("Content-Disposition"));
+        org.mockito.Mockito.verify(auditLogRepository).save(org.mockito.ArgumentMatchers.argThat(
+                (ai.philterd.arbiter.model.AuditLog entry) -> "REDACTED_PDF_REFUSED".equals(entry.getAction())));
     }
 
     @Test

@@ -9,37 +9,25 @@
  */
 package ai.philterd.arbiter.webapp;
 
-import ai.philterd.arbiter.model.Batch;
-import ai.philterd.arbiter.model.PhilterInstance;
-import ai.philterd.arbiter.model.Policy;
 import ai.philterd.arbiter.repository.BatchRepository;
-import ai.philterd.arbiter.repository.PhilterInstanceRepository;
-import ai.philterd.arbiter.repository.PolicyRepository;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.GeneralSettingsService;
-import ai.philterd.arbiter.service.PhilterInstanceClients;
+import ai.philterd.arbiter.service.PhilterSettings;
 import ai.philterd.arbiter.webapp.controllers.PolicyController;
 import ai.philterd.philter.PhilterClient;
 import ai.philterd.philter.model.ListOptions;
 import ai.philterd.philter.model.Page;
 import ai.philterd.philter.model.PolicySummary;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import ai.philterd.philter.model.exceptions.ClientException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.web.servlet.mvc.support.RedirectAttributes;
-import org.springframework.web.servlet.mvc.support.RedirectAttributesModelMap;
-
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
-import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -52,42 +40,17 @@ import static org.mockito.Mockito.when;
 
 class PolicyControllerTest {
 
-    private PolicyRepository policyRepository;
-    private PhilterInstanceRepository philterInstanceRepository;
-    private BatchRepository batchRepository;
-    private AuditLogService auditLogService;
-    private GeneralSettingsService generalSettingsService;
-    private ai.philterd.arbiter.repository.FinalizationPolicyRepository finalizationPolicyRepository;
-    private PhilterInstanceClients philterInstanceClients;
+    private PhilterClient client;
     private PolicyController controller;
 
     @BeforeEach
     void setUp() {
-        policyRepository = mock(PolicyRepository.class);
-        philterInstanceRepository = mock(PhilterInstanceRepository.class);
-        batchRepository = mock(BatchRepository.class);
-        auditLogService = mock(AuditLogService.class);
-        generalSettingsService = mock(GeneralSettingsService.class);
-        finalizationPolicyRepository =
-                mock(ai.philterd.arbiter.repository.FinalizationPolicyRepository.class);
-        philterInstanceClients = mock(PhilterInstanceClients.class);
-        controller = new PolicyController(policyRepository, philterInstanceRepository,
-                batchRepository, auditLogService, new ObjectMapper(), generalSettingsService,
-                finalizationPolicyRepository, philterInstanceClients);
-    }
-
-    private RedirectAttributes flash() {
-        return new RedirectAttributesModelMap();
-    }
-
-    private static String error(final RedirectAttributes ra) {
-        final Object e = ra.getFlashAttributes().get("error");
-        return e == null ? null : e.toString();
-    }
-
-    private static String success(final RedirectAttributes ra) {
-        final Object s = ra.getFlashAttributes().get("success");
-        return s == null ? null : s.toString();
+        client = mock(PhilterClient.class);
+        final PhilterSettings philter = mock(PhilterSettings.class);
+        when(philter.client()).thenReturn(client);
+        controller = new PolicyController(mock(BatchRepository.class), mock(AuditLogService.class),
+                mock(GeneralSettingsService.class),
+                mock(ai.philterd.arbiter.repository.FinalizationPolicyRepository.class), philter);
     }
 
     /** Admin authentication used by every policy-API test below — the controller
@@ -99,183 +62,27 @@ class PolicyControllerTest {
                 java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN")));
     }
 
-    // ---------- create ----------
-
-    @Test
-    void createRejectsBlankName() {
-        final RedirectAttributes ra = flash();
-        controller.create("   ", "{}", ra);
-        assertEquals("Policy name is required.", error(ra));
-        verify(policyRepository, never()).save(any());
-    }
-
-    @Test
-    void createRejectsBlankContent() {
-        final RedirectAttributes ra = flash();
-        controller.create("p", "  ", ra);
-        assertEquals("Policy JSON is required.", error(ra));
-        verify(policyRepository, never()).save(any());
-    }
-
-    @Test
-    void createRejectsInvalidJson() {
-        final RedirectAttributes ra = flash();
-        controller.create("p", "{not json", ra);
-        assertNotNull(error(ra));
-        assertTrue(error(ra).startsWith("Policy is not valid JSON:"));
-        verify(policyRepository, never()).save(any());
-    }
-
-    @Test
-    void createRejectsCaseInsensitiveDuplicate() {
-        final Policy existing = new Policy();
-        existing.setId("e");
-        existing.setName("Default");
-        when(policyRepository.findFirstByNameIgnoreCase("default")).thenReturn(Optional.of(existing));
-
-        final RedirectAttributes ra = flash();
-        controller.create("default", "{}", ra);
-        assertEquals("A policy named \"Default\" already exists.", error(ra));
-        verify(policyRepository, never()).save(any());
-    }
-
-    @Test
-    void createPersistsValidPolicy() {
-        when(policyRepository.findFirstByNameIgnoreCase(anyString())).thenReturn(Optional.empty());
-
-        final RedirectAttributes ra = flash();
-        final String view = controller.create("MyPolicy", "{\"identifiers\":{}}", ra);
-        assertEquals("redirect:/policies", view);
-        assertNull(error(ra));
-        assertEquals("Policy \"MyPolicy\" added.", success(ra));
-        verify(policyRepository).save(any(Policy.class));
-    }
-
-    // ---------- edit ----------
-
-    @Test
-    void editRejectsMissingId() {
-        when(policyRepository.findById("ghost")).thenReturn(Optional.empty());
-
-        final RedirectAttributes ra = flash();
-        controller.edit("ghost", "{}", ra);
-        assertEquals("Policy not found.", error(ra));
-    }
-
-    @Test
-    void editRejectsBlankContent() {
-        final Policy p = new Policy();
-        p.setId("id-1");
-        p.setName("Default");
-        p.setContent("{}");
-        when(policyRepository.findById("id-1")).thenReturn(Optional.of(p));
-
-        final RedirectAttributes ra = flash();
-        controller.edit("id-1", "  ", ra);
-        assertEquals("Policy JSON is required.", error(ra));
-        verify(policyRepository, never()).save(any());
-    }
-
-    @Test
-    void editRejectsInvalidJson() {
-        final Policy p = new Policy();
-        p.setId("id-1");
-        p.setName("Default");
-        p.setContent("{}");
-        when(policyRepository.findById("id-1")).thenReturn(Optional.of(p));
-
-        final RedirectAttributes ra = flash();
-        controller.edit("id-1", "not-json", ra);
-        assertTrue(error(ra).startsWith("Policy is not valid JSON:"));
-        verify(policyRepository, never()).save(any());
-    }
-
-    @Test
-    void editPersistsValidContent() {
-        final Policy p = new Policy();
-        p.setId("id-1");
-        p.setName("Default");
-        p.setContent("{}");
-        when(policyRepository.findById("id-1")).thenReturn(Optional.of(p));
-
-        final RedirectAttributes ra = flash();
-        final String view = controller.edit("id-1", "{\"identifiers\":{}}", ra);
-        assertEquals("redirect:/policies", view);
-        assertEquals("Policy \"Default\" updated.", success(ra));
-        verify(policyRepository).save(p);
-        // Name must remain unchanged.
-        assertEquals("Default", p.getName());
-    }
-
-    // ---------- delete ----------
-
-    @Test
-    void deleteRejectsMissingPolicy() {
-        when(policyRepository.findById("ghost")).thenReturn(Optional.empty());
-
-        final RedirectAttributes ra = flash();
-        controller.delete("ghost", ra);
-        assertEquals("Policy not found.", error(ra));
-    }
-
-    @Test
-    void deleteBlockedWhenInUseByBatch() {
-        final Policy p = new Policy();
-        p.setId("id-1");
-        p.setName("Default");
-        when(policyRepository.findById("id-1")).thenReturn(Optional.of(p));
-
-        final Batch b = new Batch();
-        b.setId("b1");
-        b.setName("Sample files");
-        when(batchRepository.findByPhilterInstanceIdIsNullAndPolicyName("Default"))
-                .thenReturn(List.of(b));
-
-        final RedirectAttributes ra = flash();
-        controller.delete("id-1", ra);
-        assertNotNull(error(ra));
-        assertTrue(error(ra).contains("Sample files"),
-                "error should name the offending batch: " + error(ra));
-        verify(policyRepository, never()).deleteById(anyString());
-    }
-
-    @Test
-    void deletePersistsWhenNotInUse() {
-        final Policy p = new Policy();
-        p.setId("id-1");
-        p.setName("Unused");
-        when(policyRepository.findById("id-1")).thenReturn(Optional.of(p));
-        when(batchRepository.findByPhilterInstanceIdIsNullAndPolicyName("Unused"))
-                .thenReturn(List.of());
-
-        final RedirectAttributes ra = flash();
-        final String view = controller.delete("id-1", ra);
-        assertEquals("redirect:/policies", view);
-        assertEquals("Policy \"Unused\" removed.", success(ra));
-        verify(policyRepository).deleteById("id-1");
-    }
-
     // ---------- content (path-traversal validation) ----------
 
     @Test
-    void contentRejectsPathTraversalSegment() {
+    void contentRejectsPathTraversalSegment() throws Exception {
         final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> controller.content("embedded", "../../etc/passwd", adminAuth()));
+                () -> controller.content("../../etc/passwd", adminAuth()));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
-        verify(policyRepository, never()).findByName(anyString());
+        verify(client, never()).getPolicy(anyString());
     }
 
     @Test
     void contentRejectsSingleDotDotSegment() {
         final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> controller.content("embedded", "../status", adminAuth()));
+                () -> controller.content("../status", adminAuth()));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
     }
 
     @Test
     void contentRejectsSlashInName() {
         final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> controller.content("embedded", "valid/extra", adminAuth()));
+                () -> controller.content("valid/extra", adminAuth()));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
     }
 
@@ -283,42 +90,39 @@ class PolicyControllerTest {
     void contentRejectsNameExceedingMaxLength() {
         final String longName = "a".repeat(65);
         final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> controller.content("embedded", longName, adminAuth()));
+                () -> controller.content(longName, adminAuth()));
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
     }
 
     @Test
     void contentRejectsBlankName() {
         final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
-                () -> controller.content("embedded", "   ", adminAuth()));
+                () -> controller.content("   ", adminAuth()));
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
     }
 
     @Test
-    void contentReturnsEmbeddedPolicyForValidName() {
-        final Policy p = new Policy();
-        p.setName("default-policy");
-        p.setContent("{\"identifiers\":{}}");
-        when(policyRepository.findByName("default-policy")).thenReturn(Optional.of(p));
+    void contentReturnsPhiltersPolicyForHyphenatedAndUnderscoredNames() throws Exception {
+        when(client.getPolicy("my-policy_v2")).thenReturn("{\"identifiers\":{}}");
 
-        final java.util.Map<String, String> result = controller.content("embedded", "default-policy", adminAuth());
+        final java.util.Map<String, String> result = controller.content("my-policy_v2", adminAuth());
 
-        assertEquals("default-policy", result.get("name"));
+        assertEquals("my-policy_v2", result.get("name"));
         assertEquals("{\"identifiers\":{}}", result.get("content"));
     }
 
     @Test
-    void contentAcceptsHyphenatedAndUnderscoredNames() {
-        final Policy p = new Policy();
-        p.setName("my-policy_v2");
-        p.setContent("{}");
-        when(policyRepository.findByName("my-policy_v2")).thenReturn(Optional.of(p));
+    void contentOfAPolicyPhilterDoesNotHaveIsNotFound() throws Exception {
+        final ClientException missing = mock(ClientException.class);
+        when(missing.getStatusCode()).thenReturn(404);
+        when(client.getPolicy("ghost")).thenThrow(missing);
 
-        final java.util.Map<String, String> result = controller.content("embedded", "my-policy_v2", adminAuth());
-        assertEquals("my-policy_v2", result.get("name"));
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.content("ghost", adminAuth()));
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
     }
 
-    // ---------- remote policy listing ----------
+    // ---------- policy listing ----------
 
     private static PolicySummary summary(final String name) {
         final PolicySummary policy = new PolicySummary();
@@ -327,23 +131,24 @@ class PolicyControllerTest {
     }
 
     @Test
-    void listJsonPagesThroughRemotePolicyNames() throws Exception {
-        final PhilterInstance instance = new PhilterInstance();
-        instance.setId("remote-1");
-        instance.setName("Remote");
-        when(philterInstanceRepository.findById("remote-1")).thenReturn(Optional.of(instance));
-
-        final PhilterClient client = mock(PhilterClient.class);
-        when(philterInstanceClients.client(instance)).thenReturn(client);
+    void listJsonPagesThroughPhiltersPolicyNames() throws Exception {
         when(client.listPolicies(isNull(), argThat(o -> o != null && Integer.valueOf(0).equals(o.getOffset()))))
                 .thenReturn(new Page<>(List.of(summary("zeta"), summary("Alpha")), 3));
         when(client.listPolicies(isNull(), argThat(o -> o != null && Integer.valueOf(2).equals(o.getOffset()))))
                 .thenReturn(new Page<>(List.of(summary("beta")), 3));
 
-        final java.util.Map<String, Object> result = controller.listJson("remote-1", adminAuth());
+        final java.util.Map<String, Object> result = controller.listJson(adminAuth());
 
-        assertEquals("remote-1", result.get("instanceId"));
         assertEquals(List.of("Alpha", "beta", "zeta"), result.get("policies"));
         verify(client, times(2)).listPolicies(isNull(), any(ListOptions.class));
+    }
+
+    @Test
+    void listJsonReportsAnUnreachablePhilterAsBadGateway() throws Exception {
+        when(client.listPolicies(isNull(), any(ListOptions.class))).thenThrow(new java.io.IOException("refused"));
+
+        final ResponseStatusException ex = assertThrows(ResponseStatusException.class,
+                () -> controller.listJson(adminAuth()));
+        assertEquals(HttpStatus.BAD_GATEWAY, ex.getStatusCode());
     }
 }

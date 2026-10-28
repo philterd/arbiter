@@ -32,7 +32,8 @@ ARBITER_STORE=mongodb docker compose -f docker-compose.yaml --profile mongodb up
 the unit tests. `PhilterSignInIT` starts the real Arbiter on SQLite with in-memory
 sessions against a `philterd/philter:4.0.0` container, started with
 Testcontainers, and covers sign-in through Philter, MFA, forced password change,
-expiry, revocation, sign-out, and the Users page. It takes about a minute and a
+expiry, revocation, sign-out, the Users page, Admin → Philter's key check, and
+redaction through that Philter. It takes about a minute and a
 half, most of it waiting for Philter's one-minute idle timeout. The Philter image
 is amd64-only, so on an ARM machine it runs under emulation and is slower.
 

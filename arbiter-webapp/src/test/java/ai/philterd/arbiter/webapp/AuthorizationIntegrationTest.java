@@ -27,8 +27,6 @@ import ai.philterd.arbiter.repository.RelationalDbDataSourceRepository;
 import ai.philterd.arbiter.repository.S3DataSourceRepository;
 import ai.philterd.arbiter.repository.S3DestinationRepository;
 import ai.philterd.arbiter.repository.RedactionCertificateRepository;
-import ai.philterd.arbiter.repository.PhilterDefaultsRepository;
-import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import ai.philterd.arbiter.repository.PolicyRepository;
 import ai.philterd.arbiter.repository.SpanRepository;
 import ai.philterd.arbiter.repository.UserRepository;
@@ -109,6 +107,16 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         ai.philterd.arbiter.service.DocumentAccessService.class})
 public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
 
+    /** Philter answers a policy listing with no policies. */
+    @org.junit.jupiter.api.BeforeEach
+    void stubPhilter() throws Exception {
+        final ai.philterd.philter.PhilterClient client = org.mockito.Mockito.mock(ai.philterd.philter.PhilterClient.class);
+        when(client.listPolicies(org.mockito.ArgumentMatchers.isNull(),
+                org.mockito.ArgumentMatchers.any(ai.philterd.philter.model.ListOptions.class)))
+                .thenReturn(new ai.philterd.philter.model.Page<>(List.of(), 0));
+        when(philterSettings.client()).thenReturn(client);
+    }
+
     @Autowired private MockMvc mockMvc;
     @org.springframework.boot.test.mock.mockito.SpyBean
     private ai.philterd.arbiter.webapp.security.LoginAttemptService loginAttemptService;
@@ -142,7 +150,7 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
     void anonymousGetsUnauthorizedFromApi() throws Exception {
         // /api/** returns HTTP 401 (no redirect) — see exceptionHandling rule in SecurityConfig.
         mockMvc.perform(get("/api/v1/policies")).andExpect(status().isUnauthorized());
-        mockMvc.perform(get("/api/v1/policies/content?instanceId=embedded&name=Default"))
+        mockMvc.perform(get("/api/v1/policies/content?name=Default"))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -215,7 +223,7 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
         // cookieAuthRejectedOnApiPaths below.
         mockMvc.perform(get("/api/v1/policies").with(user("u").roles("USER")))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/api/v1/policies/content?instanceId=embedded&name=Default")
+        mockMvc.perform(get("/api/v1/policies/content?name=Default")
                 .with(user("u").roles("USER"))).andExpect(status().isForbidden());
         mockMvc.perform(get("/reporting").with(user("u").roles("USER")))
                 .andExpect(status().isForbidden());
@@ -724,59 +732,27 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
     }
 
     // ---------------------------------------------------------------------
-    // Per-instance Philter TLS (Admin -> Philter).
+    // Admin -> Philter.
     // ---------------------------------------------------------------------
 
-    private ai.philterd.arbiter.model.PhilterInstance philterInstanceWithOwnCertificate() {
-        final ai.philterd.arbiter.model.PhilterInstance instance = new ai.philterd.arbiter.model.PhilterInstance();
-        instance.setId("p1");
-        instance.setName("enclave-philter");
-        instance.setEndpoint("https://philter.example.com");
-        instance.setEncryptedKeyStore("enc:keystore-ciphertext-marker");
-        instance.setEncryptedKeyStorePassword("enc:password-ciphertext-marker");
-        return instance;
-    }
-
     @Test
-    void adminPhilterPageShowsInstanceTlsWithoutSecrets() throws Exception {
-        when(philterInstanceRepository.findAll(org.mockito.ArgumentMatchers.any(org.springframework.data.domain.Pageable.class)))
-                .thenReturn(new org.springframework.data.domain.PageImpl<>(List.of(philterInstanceWithOwnCertificate())));
+    void adminPhilterPageShowsTheUrlButNotTheKey() throws Exception {
+        when(philterSettings.url()).thenReturn("https://philter.example.com");
+        when(philterSettings.apiKey()).thenReturn("sk_key_marker");
 
         final String body = mockMvc.perform(get("/admin/philter").with(user("a").roles("ADMIN")))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
-        assertTrue(body.contains("enctype=\"multipart/form-data\""));
-        assertTrue(body.contains("Remove client certificate"));
-        assertFalse(body.contains("Remove trust store"), "the instance has no trust store of its own");
-        assertFalse(body.contains("keystore-ciphertext-marker"));
-        assertFalse(body.contains("password-ciphertext-marker"));
+        assertTrue(body.contains("https://philter.example.com"));
+        assertFalse(body.contains("sk_key_marker"));
     }
 
     @Test
-    void philterTlsUploadRequiresCsrf() throws Exception {
-        when(philterInstanceRepository.findById("p1")).thenReturn(java.util.Optional.of(philterInstanceWithOwnCertificate()));
-        final org.springframework.mock.web.MockMultipartFile store = new org.springframework.mock.web.MockMultipartFile(
-                "trustStore", "ca.p12", "application/octet-stream", "not a keystore".getBytes());
-
-        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/admin/philter/p1/tls")
-                        .file(store).with(user("a").roles("ADMIN")))
+    void philterTestRequiresCsrfAndAnAdministrator() throws Exception {
+        mockMvc.perform(post("/admin/philter/test").with(user("a").roles("ADMIN")))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/admin/philter/p1/tls")
-                        .file(store).with(user("a").roles("ADMIN")).with(csrf()))
-                .andExpect(redirectedUrl("/admin/philter"))
-                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash()
-                        .attribute("error", org.hamcrest.Matchers.containsString("trust store")));
-    }
-
-    @Test
-    void auditorCannotChangePhilterTls() throws Exception {
-        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.multipart("/admin/philter/p1/tls")
-                        .file(new org.springframework.mock.web.MockMultipartFile("trustStore", new byte[]{1}))
-                        .with(user("a").roles("AUDITOR")).with(csrf()))
-                .andExpect(status().isForbidden());
-        mockMvc.perform(post("/admin/philter/p1/tls/remove").param("store", "keyStore")
-                        .with(user("a").roles("AUDITOR")).with(csrf()))
+        mockMvc.perform(post("/admin/philter/test").with(user("a").roles("AUDITOR")).with(csrf()))
                 .andExpect(status().isForbidden());
     }
 

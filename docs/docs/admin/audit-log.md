@@ -23,6 +23,7 @@ collection in MongoDB. There are two ways to view and export it:
 | `BATCH_WEIGHTS_CHANGE`              | Batch       | Override map                                        |
 | `BATCH_WEIGHTS_RESET`               | Batch       | All overrides cleared                               |
 | `BATCH_CLOSE`                       | Batch       | Records who closed it and when                      |
+| `BATCH_POLICY_CHANGE`               | Batch       | Old → new Philter policy name                       |
 | `DOCUMENT_UPLOAD`                   | Document    | Web upload                                          |
 | `DOCUMENT_INGEST`                   | Document    | API ingest (`POST /api/v1/ingest`)                  |
 | `DOCUMENT_IMPORT`                   | Document    | One row per document pulled in by a data-import background job. Outcome is `SUCCESS` for newly-imported documents and `SKIPPED` for placeholders written when the source row already had a Document. Details include the import `jobId` and the source attribution (`sourceSystem`, `sourceUrl`, `sourceIndex`, `sourceDocId`) so the document can be traced back to the OpenSearch / Elasticsearch hit, S3 object, or local file it came from. |
@@ -47,6 +48,8 @@ collection in MongoDB. There are two ways to view and export it:
 | `API_KEY_GENERATE` / `_REVOKE`      | User        | Per-user API key lifecycle                          |
 | `PASSWORD_CHANGE`                   | User        | Self-service password change                        |
 | `NOTIFICATION_SETTINGS_CHANGE`      | Settings    | SMTP settings save (excluding the password value)   |
+| `PHILTER_TEST`                      | Philter     | Admin → Philter's Test: Philter's URL, whether it passed, and the HTTP status and reason. Never the API key. |
+| `REDACTED_PDF_REFUSED`              | Redaction   | A redacted PDF was refused rather than produced, with the reason. No document content. |
 | `INBOX_MESSAGE_READ`                | InboxMessage | User marked an inbox notification as read           |
 | `INBOX_MESSAGE_ARCHIVED`            | InboxMessage | User archived an inbox notification                 |
 | `OPENSEARCH_DATASOURCE_CREATE` / `_UPDATE` / `_DELETE` | OpenSearchDataSource | Data source registered, edited (with `passwordChanged` boolean), or removed (see [Data sources](data-sources.md)) |

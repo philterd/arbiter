@@ -51,6 +51,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -528,6 +529,20 @@ public class RedactionController {
         return cleaned.isEmpty() ? fallback : cleaned;
     }
 
+    /**
+     * The PDF with the reviewed spans applied, or a 409 naming why it can't be produced. Never the
+     * original in place of a redacted file. The refusal is audited without the document's content.
+     */
+    private byte[] redactedPdfOrRefuse(final byte[] originalFile, final RedactionResponse redactionResponse) {
+        try {
+            return redactionService.getRedactedPdf(new ByteArrayInputStream(originalFile), redactionResponse);
+        } catch (IOException e) {
+            final String reason = e.getMessage() == null ? "The redacted PDF could not be produced." : e.getMessage();
+            auditLogService.log("REDACTED_PDF_REFUSED", "Redaction", null, Map.of("reason", reason));
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.CONFLICT, reason);
+        }
+    }
+
     @PostMapping("/preview")
     public ResponseEntity<Resource> preview(
             @RequestParam("redactedText") String redactedText,
@@ -540,10 +555,8 @@ public class RedactionController {
         // text/html or application/javascript — is rejected outright.
         if (MediaType.APPLICATION_PDF_VALUE.equals(contentType)) {
             final byte[] originalFile = (byte[]) session.getAttribute("originalFile");
-            final String philterInstanceId = (String) session.getAttribute("philterInstanceId");
             if (originalFile != null) {
-                final byte[] redactedPdf = redactionService.getRedactedPdf(
-                        new ByteArrayInputStream(originalFile), redactionResponse, philterInstanceId);
+                final byte[] redactedPdf = redactedPdfOrRefuse(originalFile, redactionResponse);
                 final ByteArrayResource resource = new ByteArrayResource(redactedPdf);
                 return ResponseEntity.ok()
                         .contentType(MediaType.APPLICATION_PDF)
@@ -575,10 +588,8 @@ public class RedactionController {
         String workingFileName = fileName;
         if (MediaType.APPLICATION_PDF_VALUE.equals(contentType)) {
             final byte[] originalFile = (byte[]) session.getAttribute("originalFile");
-            final String philterInstanceId = (String) session.getAttribute("philterInstanceId");
             if (originalFile != null) {
-                content = redactionService.getRedactedPdf(
-                        new ByteArrayInputStream(originalFile), redactionResponse, philterInstanceId);
+                content = redactedPdfOrRefuse(originalFile, redactionResponse);
             } else {
                 content = redactedText.getBytes(StandardCharsets.UTF_8);
                 workingFileName = (workingFileName == null ? "" : workingFileName)

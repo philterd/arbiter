@@ -17,7 +17,6 @@ import ai.philterd.arbiter.philter.PhilterClient;
 import ai.philterd.arbiter.philter.PhilterClientFactory;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
-import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import ai.philterd.arbiter.repository.SpanRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -25,7 +24,6 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.Base64;
 import java.util.List;
 import java.util.Optional;
 
@@ -54,9 +52,8 @@ import static org.mockito.Mockito.when;
  */
 class RedactionApiServiceImplFinalizeTest {
 
-    private PhilterClient phileasClient;
+    private PhilterClient philterClient;
     private PhilterClientFactory philterClientFactory;
-    private PhilterInstanceRepository philterInstanceRepository;
     private DocumentRepository documentRepository;
     private SpanRepository spanRepository;
     private BatchRepository batchRepository;
@@ -65,23 +62,16 @@ class RedactionApiServiceImplFinalizeTest {
 
     @BeforeEach
     void setUp() {
-        phileasClient = mock(PhilterClient.class);
+        philterClient = mock(PhilterClient.class);
         philterClientFactory = mock(PhilterClientFactory.class);
-        philterInstanceRepository = mock(PhilterInstanceRepository.class);
         documentRepository = mock(DocumentRepository.class);
         spanRepository = mock(SpanRepository.class);
         batchRepository = mock(BatchRepository.class);
         openSearchIndexService = mock(OpenSearchIndexService.class);
-        // SymmetricCipher requires base64 of exactly 32 bytes — build one inline.
-        final byte[] keyBytes = new byte[32];
-        java.util.Arrays.fill(keyBytes, (byte) 0x42);
-        final SymmetricCipher cipher = new SymmetricCipher(Base64.getEncoder().encodeToString(keyBytes));
-        // Embedded-Philter path is the simplest test seam — no remote URL or allow-list to
-        // wrangle, so finalize tests focus on the document-state contract.
-        service = new RedactionApiServiceImpl(phileasClient, philterClientFactory,
-                philterInstanceRepository, documentRepository, spanRepository, batchRepository,
-                openSearchIndexService, cipher, new DataSourceHostAllowList(""),
-                new PhilterInstanceTls(cipher, ai.philterd.arbiter.philter.PhilterTlsConfig.none()));
+        when(philterClientFactory.create(any(), any(), any())).thenReturn(philterClient);
+        service = new RedactionApiServiceImpl(philterClientFactory,
+                new PhilterSettings("http://philter:8080", "sk_test", ai.philterd.arbiter.philter.PhilterTlsConfig.none()),
+                documentRepository, spanRepository, batchRepository, openSearchIndexService);
     }
 
     private static Document approvedDoc(final String id, final String text) {
@@ -110,7 +100,7 @@ class RedactionApiServiceImplFinalizeTest {
         when(documentRepository.findById("d1")).thenReturn(Optional.of(doc));
         when(spanRepository.findByDocumentId("d1")).thenReturn(List.of(
                 approvedSpan("s1", "ssn", "123-45-6789", 13, 24)));
-        when(phileasClient.redact(anyString(), anyString(), anyList()))
+        when(philterClient.redact(anyString(), anyString(), anyList()))
                 .thenReturn("Bob's SSN is <<SSN>>.");
 
         final String result = service.finalizeRedaction("d1");
@@ -120,7 +110,7 @@ class RedactionApiServiceImplFinalizeTest {
         // The PhilterClient must receive the document's real originalText — not the
         // "Original text placeholder" string the previous implementation passed.
         final ArgumentCaptor<String> textCaptor = ArgumentCaptor.forClass(String.class);
-        verify(phileasClient).redact(textCaptor.capture(), anyString(), anyList());
+        verify(philterClient).redact(textCaptor.capture(), anyString(), anyList());
         assertEquals("Bob's SSN is 123-45-6789.", textCaptor.getValue());
     }
 
@@ -133,14 +123,14 @@ class RedactionApiServiceImplFinalizeTest {
                 // PENDING spans must be excluded — only APPROVED redactions should land.
                 pendingSpan("s2", "ssn", "222-22-2222", 26, 37),
                 approvedSpan("s3", "ssn", "222-22-2222", 26, 37)));
-        when(phileasClient.redact(anyString(), anyString(), anyList())).thenReturn("redacted");
+        when(philterClient.redact(anyString(), anyString(), anyList())).thenReturn("redacted");
 
         service.finalizeRedaction("d1");
 
         final ArgumentCaptor<String> contextCaptor = ArgumentCaptor.forClass(String.class);
         @SuppressWarnings("unchecked")
         final ArgumentCaptor<List<Redaction>> spansCaptor = ArgumentCaptor.forClass(List.class);
-        verify(phileasClient).redact(anyString(), contextCaptor.capture(), spansCaptor.capture());
+        verify(philterClient).redact(anyString(), contextCaptor.capture(), spansCaptor.capture());
 
         assertEquals("ctx-d1", contextCaptor.getValue());
         assertEquals(2, spansCaptor.getValue().size(),
@@ -153,7 +143,7 @@ class RedactionApiServiceImplFinalizeTest {
         final Document doc = approvedDoc("d1", "hello SSN 123-45-6789");
         when(documentRepository.findById("d1")).thenReturn(Optional.of(doc));
         when(spanRepository.findByDocumentId("d1")).thenReturn(List.of());
-        when(phileasClient.redact(anyString(), anyString(), anyList()))
+        when(philterClient.redact(anyString(), anyString(), anyList()))
                 .thenReturn("hello SSN <<SSN>>");
 
         service.finalizeRedaction("d1");
@@ -202,7 +192,7 @@ class RedactionApiServiceImplFinalizeTest {
         assertEquals(HttpStatus.NOT_FOUND, e.getStatusCode());
         // Same client used regardless: no-batch path picks the embedded Phileas, but with
         // no document there's nothing to redact.
-        assertSame(phileasClient, phileasClient);
+        assertSame(philterClient, philterClient);
     }
 
     private static Span pendingSpan(final String id, final String type, final String text,

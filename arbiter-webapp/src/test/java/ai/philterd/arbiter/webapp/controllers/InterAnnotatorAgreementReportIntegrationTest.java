@@ -14,7 +14,6 @@ import ai.philterd.arbiter.model.Document;
 import ai.philterd.arbiter.repository.AuditLogRepository;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
-import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import ai.philterd.arbiter.repository.SpanRepository;
 import ai.philterd.arbiter.service.UserGroupsService;
 import org.junit.jupiter.api.BeforeEach;
@@ -79,7 +78,6 @@ class InterAnnotatorAgreementReportIntegrationTest {
         batchRepository = mock(BatchRepository.class);
         documentRepository = mock(DocumentRepository.class);
         spanRepository = mock(SpanRepository.class);
-        final PhilterInstanceRepository philterInstanceRepository = mock(PhilterInstanceRepository.class);
         final UserGroupsService userGroupsService = mock(UserGroupsService.class);
         final AuditLogRepository auditLogRepository = mock(AuditLogRepository.class);
 
@@ -87,8 +85,6 @@ class InterAnnotatorAgreementReportIntegrationTest {
                 .thenAnswer(inv -> new PageImpl<>(batches, inv.getArgument(0, PageRequest.class), batches.size()));
         when(documentRepository.findByBatchId(anyString()))
                 .thenAnswer(inv -> docsByBatch.getOrDefault(inv.getArgument(0, String.class), List.of()));
-        when(philterInstanceRepository.findAll(any(PageRequest.class)))
-                .thenReturn(new PageImpl<>(List.of(), PageRequest.of(0, 1), 0));
         when(spanRepository.countByDocumentIdInAndStatus(any(), anyString())).thenReturn(0L);
         when(spanRepository.countByDocumentIdInAndManuallyCreated(any(), org.mockito.ArgumentMatchers.anyBoolean()))
                 .thenReturn(0L);
@@ -96,7 +92,7 @@ class InterAnnotatorAgreementReportIntegrationTest {
                 .thenReturn(List.of());
 
         controller = new ReportingController(batchRepository, documentRepository, spanRepository,
-                philterInstanceRepository, userGroupsService, auditLogRepository);
+                userGroupsService, auditLogRepository);
     }
 
     // ---------- canonical confusion matrices ----------

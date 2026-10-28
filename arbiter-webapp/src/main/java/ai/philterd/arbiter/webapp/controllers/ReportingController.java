@@ -19,11 +19,9 @@ import ai.philterd.arbiter.model.Batch;
 import ai.philterd.arbiter.model.Document;
 import ai.philterd.arbiter.model.Domains;
 import ai.philterd.arbiter.model.AuditLog;
-import ai.philterd.arbiter.model.PhilterInstance;
 import ai.philterd.arbiter.repository.AuditLogRepository;
 import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
-import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import ai.philterd.arbiter.repository.SpanRepository;
 import ai.philterd.arbiter.service.AuthUtils;
 import ai.philterd.arbiter.service.UserGroupsService;
@@ -68,20 +66,17 @@ public class ReportingController {
     private final BatchRepository batchRepository;
     private final DocumentRepository documentRepository;
     private final SpanRepository spanRepository;
-    private final PhilterInstanceRepository philterInstanceRepository;
     private final UserGroupsService userGroupsService;
     private final AuditLogRepository auditLogRepository;
 
     public ReportingController(final BatchRepository batchRepository,
                                final DocumentRepository documentRepository,
                                final SpanRepository spanRepository,
-                               final PhilterInstanceRepository philterInstanceRepository,
                                final UserGroupsService userGroupsService,
                                final AuditLogRepository auditLogRepository) {
         this.batchRepository = batchRepository;
         this.documentRepository = documentRepository;
         this.spanRepository = spanRepository;
-        this.philterInstanceRepository = philterInstanceRepository;
         this.userGroupsService = userGroupsService;
         this.auditLogRepository = auditLogRepository;
     }
@@ -142,20 +137,12 @@ public class ReportingController {
         long openBatches = 0;
         long closedBatches = 0;
 
-        final Map<String, String> philterNames = new LinkedHashMap<>();
-        final org.springframework.data.domain.Page<PhilterInstance> philterPage =
-                philterInstanceRepository.findAll(PageRequest.of(0, 500, Sort.by("name")));
-        final List<PhilterInstance> philterInstances = philterPage != null ? philterPage.getContent() : List.of();
-        for (PhilterInstance i : philterInstances) {
-            philterNames.put(i.getId(), i.getName() == null ? i.getId() : i.getName());
-        }
-
         long spansAcceptedTotal = 0;
         long spansRejectedTotal = 0;
         long spansManualTotal = 0;
         long spansTotal = 0;
 
-        // Aggregations keyed by "philterDisplayName::policyOrNone"
+        // Aggregations keyed by policy name (or "(default policy)").
         final Map<String, Map<String, Object>> policyAggregates = new LinkedHashMap<>();
 
         // Aggregations keyed by domain name (or "(none)" for batches without a domain).
@@ -251,14 +238,9 @@ public class ReportingController {
             spansManualTotal += spansManual;
             spansTotal += spansBatchTotal;
 
-            final String philterName = batch.getPhilterInstanceId() == null
-                    ? "Embedded Philter"
-                    : philterNames.getOrDefault(batch.getPhilterInstanceId(), "(missing)");
-            final String policyName = batch.getPolicyName() == null ? "(no policy)" : batch.getPolicyName();
-            final String aggKey = philterName + "::" + policyName;
-            final Map<String, Object> agg = policyAggregates.computeIfAbsent(aggKey, k -> {
+            final String policyName = batch.getPolicyName() == null ? "(default policy)" : batch.getPolicyName();
+            final Map<String, Object> agg = policyAggregates.computeIfAbsent(policyName, k -> {
                 final Map<String, Object> m = new LinkedHashMap<>();
-                m.put("philterName", philterName);
                 m.put("policyName", policyName);
                 m.put("batches", 0L);
                 m.put("documents", 0L);
@@ -298,7 +280,6 @@ public class ReportingController {
             row.put("statusCounts", statusCounts);
             row.put("autoApproved", batchAutoApproved);
             row.put("avgRiskScore", docs.isEmpty() ? 0.0 : batchRiskSum / docs.size());
-            row.put("philterName", philterName);
             row.put("policyName", policyName);
             row.put("spansAccepted", spansAccepted);
             row.put("spansRejected", spansRejected);
@@ -319,7 +300,6 @@ public class ReportingController {
         policyRows.sort(Comparator
                 .comparingDouble((Map<String, Object> r) -> ((Number) r.get("editRate")).doubleValue())
                 .reversed()
-                .thenComparing(r -> ((String) r.get("philterName")).toLowerCase())
                 .thenComparing(r -> ((String) r.get("policyName")).toLowerCase()));
 
         // Compute editRate for each domain aggregate.

@@ -246,7 +246,7 @@ public class IngestQueueService {
         final PendingUpload pu = pendingUploadRepository.findById(doc.getId()).orElse(null);
         if (pu != null && MediaType.APPLICATION_PDF_VALUE.equals(pu.getContentType())) {
             return redactionService.redactPdf(new ByteArrayInputStream(pu.getContent()),
-                    batch.getPhilterInstanceId(), batch.getPolicyName(), batch.getContext());
+                    batch.getPolicyName(), batch.getContext());
         }
         final String text;
         if (pu != null) {
@@ -254,7 +254,6 @@ public class IngestQueueService {
         } else {
             text = doc.getOriginalText() == null ? "" : doc.getOriginalText();
         }
-        return redactionService.redactText(text, batch.getPhilterInstanceId(), batch.getPolicyName(),
-                batch.getContext());
+        return redactionService.redactText(text, batch.getPolicyName(), batch.getContext());
     }
 }

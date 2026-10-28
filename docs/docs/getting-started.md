@@ -6,8 +6,8 @@
   SQLite store (see [Database](reference/database.md))
 - A running Valkey instance for sessions
 - A running OpenSearch instance Arbiter can reach (for full-text search)
-- A running Philter / Phileas redaction service Arbiter can call (the
-  built-in redaction engine works out of the box for development)
+- A running Philter 4.0.0 or later that Arbiter can call (`docker-compose.yaml`
+  starts one for development)
 
 ## Configuration
 
@@ -21,15 +21,15 @@ full reference. The settings most operators need to set are:
 | `arbiter.sqlite.path`                     | The SQLite database file, with `arbiter.store=sqlite` (default `./data/arbiter.db`) |
 | `spring.data.mongodb.uri`                 | Connection URI for MongoDB                             |
 | `spring.data.mongodb.database`            | Database name (default: `arbiter`)                     |
-| `arbiter.crypto.secret`                   | **Required.** Base64-encoded 32 random bytes used as the AES-256 key for encrypting Philter API keys and data-source credentials at rest. Generate with `openssl rand -base64 32`. Arbiter refuses to start if this is unset, not valid base64, or doesn't decode to exactly 32 bytes. |
+| `arbiter.philter.url`                     | **Required.** The URL of Arbiter's Philter (`ARBITER_PHILTER_URL`), such as `http://philter:8080` |
+| `arbiter.philter.api-key`                 | **Required.** The Philter API key for background work such as ingest (`ARBITER_PHILTER_API_KEY`), for a Philter user who is not an administrator. Set it through the environment. |
+| `arbiter.crypto.secret`                   | **Required.** Base64-encoded 32 random bytes used as the AES-256 key for encrypting data-source credentials and other stored secrets at rest. Generate with `openssl rand -base64 32`. Arbiter refuses to start if this is unset, not valid base64, or doesn't decode to exactly 32 bytes. |
 | `arbiter.ingest-queue.poll-millis`        | Worker poll interval (default `5000`)                  |
 | `arbiter.demo-data.enabled`               | Load sample files at startup if collections are empty  |
 | `arbiter.demo-data.directory`             | Directory of files to seed (default: `sample-files`)   |
 
-External Philter instances are added under **Admin → Philter** at runtime;
-each instance can carry an optional API key (encrypted at rest with the
-`arbiter.crypto.secret` above and sent as `Authorization: Bearer …` on every
-outbound call).
+Arbiter needs a running Philter 4.0.0 or later; it does not detect PII itself.
+See [Configure Philter](workflow.md#1-configure-philter).
 
 The OpenSearch cluster used to power the full-text search index is
 configured at runtime under **Admin → Settings → Full text search** —

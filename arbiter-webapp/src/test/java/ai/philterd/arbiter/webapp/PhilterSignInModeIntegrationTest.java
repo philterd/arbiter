@@ -46,7 +46,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(controllers = {LoginController.class, PhilterSignInController.class, InvitationController.class,
         AdminController.class, PhilterUsersController.class},
         properties = {"arbiter.sign-in.mode= Philter ",
-                "arbiter.sign-in.philter-url=http://philter.invalid:8080"})
+                "arbiter.philter.url=http://philter.invalid:8080"})
 @Import({SecurityConfig.class, MongoUserDetailsService.class})
 class PhilterSignInModeIntegrationTest extends WebMvcSliceMocks {
 

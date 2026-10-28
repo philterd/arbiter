@@ -32,7 +32,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * {@link PhilterClient} backed by the Philter SDK, for remote Philter instances.
+ * {@link PhilterClient} backed by the Philter SDK.
  */
 public class PhilterClientImpl implements PhilterClient {
 
@@ -50,8 +50,7 @@ public class PhilterClientImpl implements PhilterClient {
     public RedactionResponse redactPdf(final byte[] pdfBytes, final String context) throws IOException {
         // TODO: Philter's PDF endpoints return a redacted PDF but no spans, so there is nothing
         // to review. Pairs with the TODO in RedactionServiceImpl.getRedactedPdf.
-        throw new IOException("PDF review is not supported with a remote Philter instance; "
-                + "use Embedded Philter for this batch.");
+        throw new IOException("PDF review through Philter is not yet available.");
     }
 
     @Override

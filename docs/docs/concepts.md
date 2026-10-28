@@ -38,7 +38,7 @@ A group must have at least one member. Admins manage groups under
 Within a group, an admin can additionally designate one or more members as
 **team leads**. A team lead is a regular `USER` who, *for that one group*,
 gains the operational authority to create batches, close them, and change
-their settings (Philter instance, domain, weights, thresholds). Team
+their settings (policy, domain, weights, thresholds). Team
 leadership is per-group: a user can lead group A and remain a regular member
 of group B. This lets day-to-day batch operations be delegated without
 granting site-wide admin authority. See
@@ -56,13 +56,12 @@ A **batch** is a container for documents. It has:
 | Document Threshold    | Risk-score ceiling for *auto-approving* documents (default `0.25`)                     |
 | Audit Sampling Rate   | Fraction of would-be auto-approved documents pulled into review for audit (default `0.10`) |
 | PII type weights      | Per-type sensitivity for the risk score (see [PII types](reference/pii-types.md))      |
-| Philter instance      | Which configured Philter instance redacts the batch's documents (else embedded Phileas) |
-| Policy                | Name of the Phileas policy used during redaction                                       |
+| Policy                | Name of the Philter policy used during redaction (else Philter's default policy)       |
 | Domain                | Optional grouping tag used for reporting                                               |
 | Closed                | A closed batch refuses new documents (existing ones remain reviewable)                 |
 
 Admins can create or close any batch, and team leads can create or close
-batches in groups they lead. Most batch settings (Philter instance, domain,
+batches in groups they lead. Most batch settings (policy, domain,
 thresholds, weights) can be changed by an admin or by a team lead of the
 batch's group; reassigning a batch to a different group is admin-only.
 

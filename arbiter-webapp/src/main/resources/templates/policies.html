@@ -213,61 +213,23 @@
                 <div th:if="${activeTab == 'redaction'}">
 
             <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-6 max-w-3xl">
-                <h3 class="text-lg font-semibold text-gray-900 mb-1">Philter instance</h3>
+                <h3 class="text-lg font-semibold text-gray-900 mb-1">Redaction policies</h3>
                 <p class="text-xs text-gray-500 mb-3">
-                    Choose a Philter instance to view and manage its PII redaction policies.
+                    Redaction policies are kept in Philter. This list shows the policies Arbiter's API key can use.
+                    Create and change them in Philter, for example with the Policy Editor.
                 </p>
-                <form th:action="@{/policies}" method="get" class="flex items-center gap-2">
-                    <select name="instanceId" onchange="this.form.submit()"
-                            class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="embedded" th:selected="${selectedInstanceId == 'embedded'}">Embedded Philter</option>
-                        <option th:each="i : ${instances}"
-                                th:value="${i.id}"
-                                th:text="${i.name}"
-                                th:selected="${i.id == selectedInstanceId}">instance</option>
-                    </select>
-                </form>
-            </div>
-
-            <div th:if="${isEmbedded}" class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-6 max-w-3xl">
-                <h3 class="text-lg font-semibold text-gray-900 mb-1">Add policy</h3>
-                <p class="text-xs text-gray-500 mb-3">
-                    Add a Phileas policy as JSON. Names must be unique.
-                </p>
-                <form th:action="@{/policies}" method="post" class="space-y-3">
-                    <div>
-                        <label for="newPolicyName" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Name</label>
-                        <input id="newPolicyName" name="name" type="text" required placeholder="my-policy"
-                               th:value="${formName}"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    </div>
-                    <div>
-                        <label for="newPolicyContent" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">JSON</label>
-                        <textarea id="newPolicyContent" name="content" rows="8" required
-                                  placeholder='{"name":"my-policy","identifiers":{}}'
-                                  th:text="${formContent}"
-                                  class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-                    </div>
-                    <div class="flex justify-end items-center gap-3">
-                        <a th:href="${policyEditorUrl}" target="_blank" rel="noopener"
-                           class="inline-flex items-center px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
-                            <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
-                            </svg>
-                            Open Policy Editor
-                        </a>
-                        <button type="submit"
-                                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
-                            Add
-                        </button>
-                    </div>
-                </form>
+                <a th:href="${policyEditorUrl}" target="_blank" rel="noopener"
+                   class="inline-flex items-center px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                    <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                    </svg>
+                    Open Policy Editor
+                </a>
             </div>
 
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden max-w-3xl">
                 <div class="px-6 py-3 bg-gray-50 border-b border-gray-200">
-                    <span class="text-sm text-gray-700">Policies on
-                        <span class="font-semibold" th:text="${selectedInstanceName}">Embedded Philter</span></span>
+                    <span class="text-sm text-gray-700">Policies in Philter</span>
                 </div>
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -287,14 +249,6 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <button type="button" class="view-policy-btn text-blue-600 hover:text-blue-800 font-medium mr-3"
                                         th:attr="data-policy-name=${p.name}">View</button>
-                                <button th:if="${isEmbedded}" type="button"
-                                        class="edit-policy-btn text-blue-600 hover:text-blue-800 font-medium mr-3"
-                                        th:attr="data-policy-id=${p.id},data-policy-name=${p.name}">Edit</button>
-                                <form th:if="${isEmbedded}"
-                                      th:action="@{/policies/{id}/delete(id=${p.id})}" method="post" class="inline"
-                                      onsubmit="return confirm('Remove this policy?');">
-                                    <button type="submit" class="text-red-600 hover:text-red-800 font-medium">Remove</button>
-                                </form>
                             </td>
                         </tr>
                     </tbody>
@@ -450,39 +404,9 @@
         </div>
     </div>
 
-    <div id="policyEditModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
-        <form id="policyEditForm" th:action="@{/policies}" method="post" class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-2xl max-h-[90vh] flex flex-col">
-            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-                <h3 class="text-lg font-semibold text-gray-900">
-                    Edit policy: <span id="policyEditName" class="font-mono">name</span>
-                </h3>
-                <button type="button" id="policyEditClose"
-                        class="text-gray-400 hover:text-gray-600 text-2xl leading-none">&times;</button>
-            </div>
-            <div class="flex-1 overflow-auto p-6 space-y-3">
-                <p id="policyEditStatus" class="text-sm text-gray-500">Loading…</p>
-                <div id="policyEditFields" class="hidden space-y-3">
-                    <div>
-                        <label for="policyEditContent" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">JSON</label>
-                        <textarea id="policyEditContent" name="content" rows="14" required
-                                  class="block w-full rounded-lg border border-gray-300 p-2.5 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
-                    </div>
-                </div>
-            </div>
-            <div class="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-200">
-                <button type="button" id="policyEditCancel"
-                        class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
-                <button type="submit" id="policyEditSave"
-                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg disabled:opacity-50"
-                        disabled>Save</button>
-            </div>
-        </form>
-    </div>
-
     <script th:nonce="${cspNonce}" th:inline="javascript">
         /*<![CDATA[*/
         (function () {
-            const instanceId = /*[[${selectedInstanceId}]]*/ 'embedded';
             const modal = document.getElementById('policyModal');
             const nameSpan = document.getElementById('policyModalName');
             const status = document.getElementById('policyModalStatus');
@@ -504,8 +428,7 @@
                 contentEl.textContent = '';
                 open();
                 try {
-                    const url = '/api/v1/policies/content?instanceId='
-                        + encodeURIComponent(instanceId) + '&name=' + encodeURIComponent(name);
+                    const url = '/api/v1/policies/content?name=' + encodeURIComponent(name);
                     const resp = await fetch(url);
                     if (!resp.ok) {
                         let detail = 'HTTP ' + resp.status;
@@ -532,65 +455,6 @@
                 if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
             });
 
-            const editModal = document.getElementById('policyEditModal');
-            const editForm = document.getElementById('policyEditForm');
-            const editStatus = document.getElementById('policyEditStatus');
-            const editFields = document.getElementById('policyEditFields');
-            const editName = document.getElementById('policyEditName');
-            const editContent = document.getElementById('policyEditContent');
-            const editSave = document.getElementById('policyEditSave');
-            const editClose = document.getElementById('policyEditClose');
-            const editCancel = document.getElementById('policyEditCancel');
-            const baseUrl = /*[[@{/policies}]]*/ '/policies';
-
-            function openEdit() { editModal.classList.remove('hidden'); }
-            function closeEdit() {
-                editModal.classList.add('hidden');
-                editFields.classList.add('hidden');
-                editStatus.textContent = '';
-                editName.textContent = '';
-                editContent.value = '';
-                editSave.disabled = true;
-            }
-
-            async function showEdit(id, name) {
-                editForm.action = baseUrl + '/' + encodeURIComponent(id) + '/edit';
-                editName.textContent = name;
-                editStatus.textContent = 'Loading…';
-                editFields.classList.add('hidden');
-                editSave.disabled = true;
-                openEdit();
-                try {
-                    const url = '/api/v1/policies/content?instanceId=embedded&name=' + encodeURIComponent(name);
-                    const resp = await fetch(url);
-                    if (!resp.ok) {
-                        let detail = 'HTTP ' + resp.status;
-                        try { detail = (await resp.json()).message || detail; } catch (_) {}
-                        throw new Error(detail);
-                    }
-                    const data = await resp.json();
-                    let pretty = data.content || '';
-                    try { pretty = JSON.stringify(JSON.parse(pretty), null, 2); } catch (_) {}
-                    editName.textContent = data.name || name;
-                    editContent.value = pretty;
-                    editFields.classList.remove('hidden');
-                    editStatus.textContent = '';
-                    editSave.disabled = false;
-                    editContent.focus();
-                } catch (err) {
-                    editStatus.textContent = 'Could not load policy: ' + err.message;
-                }
-            }
-
-            document.querySelectorAll('.edit-policy-btn').forEach(btn => {
-                btn.addEventListener('click', () => showEdit(btn.dataset.policyId, btn.dataset.policyName));
-            });
-            editClose.addEventListener('click', closeEdit);
-            editCancel.addEventListener('click', closeEdit);
-            editModal.addEventListener('click', (e) => { if (e.target === editModal) closeEdit(); });
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && !editModal.classList.contains('hidden')) closeEdit();
-            });
         })();
 
         (function wireFinalizationEdit() {

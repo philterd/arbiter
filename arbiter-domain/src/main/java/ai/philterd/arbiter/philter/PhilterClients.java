@@ -21,7 +21,7 @@ import javax.net.ssl.SSLContext;
 import java.util.function.Supplier;
 
 /**
- * Builds Philter SDK clients for remote Philter instances.
+ * Builds Philter SDK clients.
  */
 public final class PhilterClients {
 
@@ -29,7 +29,7 @@ public final class PhilterClients {
     }
 
     /**
-     * Build an SDK client for the instance at {@code baseUrl}. A non-blank {@code apiKey} is sent as a
+     * Build an SDK client for the Philter at {@code baseUrl}. A non-blank {@code apiKey} is sent as a
      * bearer token, and {@code tls} supplies any client certificate and trust store.
      */
     public static ai.philterd.philter.PhilterClient build(final String baseUrl, final String apiKey,
@@ -38,7 +38,7 @@ public final class PhilterClients {
     }
 
     /**
-     * Build an SDK client for the instance at {@code baseUrl} that uses {@code sslContext}, or the SDK's
+     * Build an SDK client for the Philter at {@code baseUrl} that uses {@code sslContext}, or the SDK's
      * default TLS when it is {@code null}.
      */
     public static ai.philterd.philter.PhilterClient build(final String baseUrl, final String apiKey,

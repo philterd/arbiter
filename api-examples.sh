@@ -24,8 +24,7 @@ ARBITER_API_KEY="${ARBITER_API_KEY:-YOUR_API_KEY_HERE}"
 BATCH_ID="${BATCH_ID:-batch-uuid-here}"
 DOCUMENT_ID="${DOCUMENT_ID:-document-uuid-here}"
 SPAN_ID="${SPAN_ID:-span-uuid-here}"
-PHILTER_INSTANCE_ID="${PHILTER_INSTANCE_ID:-embedded}"
-POLICY_NAME="${POLICY_NAME:-Default}"
+POLICY_NAME="${POLICY_NAME:-default}"
 OLLAMA_INSTANCE_ID="${OLLAMA_INSTANCE_ID:-ollama-uuid-here}"
 OLLAMA_MODEL="${OLLAMA_MODEL:-llama3}"
 
@@ -155,17 +154,14 @@ fi
 # Policies (admin-only)
 # ---------------------------------------------------------------------------
 if section policies "Policies (admin-only)"; then
-    note "List policies for an instance. instanceId='embedded' (or empty) hits the local"
-    note "MongoDB collection; an instance ID hits that Philter instance's /api/policies."
-    note "GET /api/v1/policies?instanceId=embedded"
-    cmd "curl -G '$ARBITER_URL/api/v1/policies' \\
-    --data-urlencode 'instanceId=$PHILTER_INSTANCE_ID' \\
+    note "List the policies in Arbiter's Philter."
+    note "GET /api/v1/policies"
+    cmd "curl '$ARBITER_URL/api/v1/policies' \\
     -H 'Authorization: Bearer \$ARBITER_API_KEY'"
 
     note "Fetch the JSON content of a single policy."
-    note "GET /api/v1/policies/content?instanceId=…&name=…"
+    note "GET /api/v1/policies/content?name=…"
     cmd "curl -G '$ARBITER_URL/api/v1/policies/content' \\
-    --data-urlencode 'instanceId=$PHILTER_INSTANCE_ID' \\
     --data-urlencode 'name=$POLICY_NAME' \\
     -H 'Authorization: Bearer \$ARBITER_API_KEY'"
 fi

@@ -10,15 +10,13 @@ the redactions Arbiter proposes. If you have not yet read
 Arbiter is a **human-in-the-loop deidentification reviewer**. It does not
 detect PII on its own — that is Philter's job. Arbiter coordinates the work:
 
-1. **An admin configures a Philter instance** Arbiter can call (or chooses the
-   built-in *Embedded Philter*).
-2. **An admin authors policies.** A policy tells Philter what counts as PII
-   and how to redact each type.
-3. **An admin creates a batch** for a group of related documents and points it
-   at a Philter instance and a policy.
-4. **A reviewer uploads documents** to the batch. Each document is sent to the
-   batch's Philter instance using its policy. Detected PII is stored as
-   *spans*.
+1. **An admin connects Arbiter to its Philter**, in Arbiter's environment.
+2. **An admin authors policies in Philter.** A policy tells Philter what counts
+   as PII and how to redact each type.
+3. **An admin creates a batch** for a group of related documents and chooses
+   its policy.
+4. **A reviewer uploads documents** to the batch. Each document is sent to
+   Philter with the batch's policy. Detected PII is stored as *spans*.
 5. **A reviewer works the queue.** Documents that need attention surface at
    the top, sorted by risk score. Each document is opened in the side-by-side
    review UI.
@@ -29,97 +27,45 @@ Everything in Arbiter is built around that flow.
 
 ## 1. Configure Philter
 
-A **Philter instance** is the redaction engine Arbiter calls to find PII.
-Each batch is associated with exactly one Philter instance.
+Arbiter works with one [Philter](https://philterd.ai), 4.0.0 or later. It signs
+people in through it (when `ARBITER_SIGN_IN_MODE=philter`), lists its policies,
+and sends every batch's documents to it for redaction. Arbiter does not detect
+PII itself.
 
-There are two kinds:
+### Connecting Arbiter to Philter
 
-- **Embedded Philter** — Arbiter ships with a built-in redaction engine
-  (Phileas) that runs as part of the Arbiter process itself. There is nothing
-  to install or configure: it is always available, always reachable, and uses
-  the policies stored in Arbiter's database. It is the right choice for
-  development, demos, and small single-node deployments.
-- **External Philter** — a separately running [Philter](https://philterd.ai)
-  service that Arbiter reaches over HTTP. Use this for production
-  deployments, for shared instances across multiple Arbiters, when policies
-  are managed centrally on the Philter server, or when the redactor needs to
-  scale independently of the Arbiter web tier.
+Set two environment variables on Arbiter:
 
-You can register any number of external Philter instances. A batch picks one
-of them (or Embedded Philter) at create time, and that choice can be changed
-later.
+| Variable | Purpose |
+|---|---|
+| `ARBITER_PHILTER_URL` | Philter's `http` or `https` URL, such as `http://philter:8080`. |
+| `ARBITER_PHILTER_API_KEY` | The API key Arbiter uses for background work such as ingest, sent as a bearer token. It must not belong to a Philter administrator; see [Philter API key for Arbiter](#philter-api-key-for-arbiter). |
 
-### Registering an external Philter (admin)
+Both are required: Arbiter does not start without them. For HTTPS with a
+private certificate authority, or mutual TLS, set the `arbiter.philter.tls.*`
+settings in
+[Philter integration](reference/configuration.md#philter-integration). The URL
+and key are not admin settings, so they cannot be changed from the UI.
 
-1. Sign in as an administrator.
-2. Go to **Admin → Philter**.
-3. Use **Add Philter instance** and fill in:
-    - **Name** — a unique label (e.g. `philter-prod`).
-    - **Endpoint**: host or IP (e.g. `philter` or `192.168.1.20`). Arbiter
-      uses HTTP unless the endpoint starts with `https://` (e.g.
-      `https://philter.internal`). For HTTPS with a private certificate
-      authority, or mutual TLS, see
-      [Philter integration](reference/configuration.md#philter-integration)
-      and the **TLS** column below.
-    - **Port** — the Philter port (default `8080`).
-    - **API key**: the Philter API key Arbiter sends as a bearer token.
-      Required, since Philter 4 needs one for redaction. It is stored
-      encrypted. You can change it later from the instance row but not clear it.
-      Arbiter uses it for background work such as ingest, so it must not belong
-      to a Philter administrator. See
-      [Philter API key for Arbiter](#philter-api-key-for-arbiter).
-4. Click **Add**. The instance is saved to Arbiter's database.
-5. Optionally, under **TLS** on the row, choose **Set / change** to attach a
-   client certificate keystore, a trust store, or both, each a PKCS12 or JKS
-   file with its password. The keystore's password must also be its private
-   key's password. Give a trust store's password if it has one, as a trust
-   store made with `keytool` does. A store you attach
-   replaces the global `arbiter.philter.tls.*` setting for this instance only,
-   and a store you leave empty keeps its current setting. The column shows
-   **Own** or **Global** for each store. Stores and passwords are stored
-   encrypted and never shown again; a store that can't be read with its
-   password is rejected when you save. **Remove client certificate** and
-   **Remove trust store** return the instance to the global setting. Every
-   change is recorded in the audit log as `PHILTER_INSTANCE_TLS_CHANGE`,
-   without secret material. See
-   [Per-instance client certificates and trust stores](reference/configuration.md#per-instance-client-certificates-and-trust-stores).
-6. Click **Test** on the row to confirm Arbiter can reach it. The test uses the
-   instance's TLS settings, calls the instance's `/api/health` endpoint and
-   reports its Philter version, then, when an API key is set, makes an
-   authenticated call to confirm Philter accepts the key and that it does not
-   belong to a Philter administrator. A key saved before Arbiter refused
-   administrators' keys keeps working, but is checked when Arbiter starts and
-   on each Test, and the row shows a warning until it is replaced.
-7. Optionally set the row as the **default** so newly created batches start
-   with it pre-selected. The Embedded Philter is the default if no other
-   default is set.
-
-Removing an instance is allowed even if batches reference it; affected
-batches will fail to redact until they are reassigned to another instance or
-to Embedded Philter.
-
-### Default-instance pre-selection
-
-The "Default Philter instance" setting on **Admin → Philter** controls which
-option is pre-selected in the **Create Batch** dialog's Philter dropdown. It
-does not force all batches to use that instance — each batch makes its own
-choice.
+**Admin → Philter** shows the URL and whether the key belongs to a Philter
+administrator. **Test** calls Philter's `/api/health` endpoint and reports its
+Philter version, then makes an authenticated call to confirm Philter accepts the
+key and to check its role. Arbiter also checks the role when it starts, and logs
+a warning for an administrator's key. The key keeps working, but the page shows
+a warning until it is replaced. Each Test is recorded in the audit log as
+`PHILTER_TEST`.
 
 ### Philter API key for Arbiter
 
 Philter keeps policies, contexts and their consistent-pseudonymization
 mappings, and the default format-preserving encryption key per user: a key
-reaches only its own user's. Every batch on a Philter instance therefore uses
-the policies and contexts of the user who owns the instance's API key.
+reaches only its own user's. Every batch therefore uses the policies and
+contexts of the user who owns `ARBITER_PHILTER_API_KEY`.
 
 That key must not belong to a Philter administrator. Arbiter asks Philter for
-the key's role (`GET /api/limits`) when you save it and refuses an
-administrator's, and **Test** fails for one. A key saved earlier keeps working,
-but the instance shows a warning, from a check when Arbiter starts or on **Test**,
-until the key's user is no longer an administrator. A key Philter rejects is not
-saved. If Philter cannot be reached, the key is saved and the page says it was
-not checked; use **Test** once Philter is up. Refused keys are audited as
-`PHILTER_INSTANCE_API_KEY_REFUSED`.
+the key's role (`GET /api/limits`) when it starts and on **Test**, which fails
+for an administrator's key. Such a key keeps working, but **Admin → Philter**
+shows a warning until the key's user is no longer an administrator.
 
 `docker-compose.prod.yaml` does not publish Philter's port, so the commands below
 run `curl` in a container on the compose network. `docker network ls` shows its
@@ -139,7 +85,8 @@ docker run --rm --network arbiter_arbiter curlimages/curl:8.10.1 -s -X POST "htt
   --data '{"scopes":["redact","policies:read"]}'
 ```
 
-The second response holds the key in `apiKey`, shown only once. Create Arbiter's
+The second response holds the key in `apiKey`, shown only once. Set it as
+`ARBITER_PHILTER_API_KEY`. Create Arbiter's
 policies with a key of this user, or as an administrator with `owner=arbiter`
 (which needs `ADMIN_CROSS_USER_ACCESS_ENABLED=true` in Philter); a key with only
 `policies:read` cannot create them.
@@ -186,8 +133,8 @@ moved to another user. Instead, keep the user and remove its administrator role:
       --data '{"scopes":["redact","policies:read"]}'
     ```
 
-4. Click **Test** on the instance. The warning clears, and the key, policies,
-   contexts, and output are unchanged.
+4. Click **Test** under **Admin → Philter**. The warning clears, and the key,
+   policies, contexts, and output are unchanged.
 
 ## 2. Create PII redaction policies
 
@@ -196,41 +143,21 @@ declares which PII types to look for and what to do with each
 (`REDACT`, `MASK`, `REPLACE`, etc.). For the policy schema and examples, see
 the [Philter documentation](https://philterd.github.io/philter/).
 
-Where the policy lives depends on the Philter instance:
-
-- **Embedded Philter**: policies live in the `policies` collection of
-  Arbiter's database. Manage them under **Policies** in the left-side menu.
-- **External Philter** — policies live on the Philter server. Arbiter can
-  list them (read-only) through the Philter API using the instance's API key,
-  but creation, edit, and delete must happen on the Philter server. A batch
-  with no policy selected uses Philter's default policy.
-
-Arbiter talks to external Philter instances through the
-[Philter SDK for Java](https://github.com/philterd/philter-sdk-java) and
-requires Philter 4.0.0 or later. PDF uploads can be reviewed only with
-Embedded Philter; a batch that uses an external Philter instance accepts
-plain-text documents.
-
-The Policies page presents both modes with the same UI:
+Policies live in Philter, and belong to the user who owns
+`ARBITER_PHILTER_API_KEY`. Create and change them in Philter, for example with
+the Policy Editor. Arbiter lists them read-only through the Philter API, with
+that key:
 
 1. Click **Policies** in the left-side menu.
-2. Choose a Philter instance from the dropdown — **Embedded Philter** is the
-   default option.
-3. The table lists the policies available on that instance.
-4. For Embedded:
-    - Use **Add policy** to register a new one. The JSON is validated before
-      saving. Names are unique (case-insensitive).
-    - **View** opens any policy's JSON in a popup.
-    - **Edit** opens the JSON in an editable popup. The policy name is shown
-      as read-only — once a policy exists, its name cannot be renamed via the
-      UI or the API.
-    - **Remove** deletes the policy. A policy that is currently referenced by
-      one or more batches cannot be deleted; the error names the offending
-      batches.
-5. For external Philter instances the table is read-only (View only).
+2. The table lists the policies in Philter.
+3. **View** opens a policy's JSON in a popup.
 
-Arbiter's demo data seeds a policy named **Default** in the Embedded Philter
-collection so the system is usable out of the box.
+A batch with no policy selected uses Philter's default policy.
+
+Arbiter talks to Philter through the
+[Philter SDK for Java](https://github.com/philterd/philter-sdk-java). Arbiter
+reviews plain-text documents. PDF review through Philter is not yet available,
+so a PDF upload fails to ingest.
 
 ## 3. Create a batch
 
@@ -241,8 +168,7 @@ to exactly one batch. A batch carries:
 | -------------------- | -------------------------------------------------------------------- |
 | Name                 | Human-readable label (unique).                                       |
 | Group                | Which user group can see and act on this batch (visibility scope).   |
-| Philter instance     | Which Philter instance redacts documents in this batch.              |
-| Policy               | Which policy on that Philter instance to apply.                      |
+| Policy               | Which Philter policy to apply, or Philter's default policy.          |
 | PII Threshold        | Per-span confidence floor for auto-accepting detections.             |
 | Document Threshold   | Risk-score ceiling for auto-approving whole documents.               |
 | PII type weights     | Per-type sensitivity used in the risk score.                         |
@@ -253,10 +179,8 @@ Only administrators can create, modify, or close a batch. To create one:
 1. Sign in as an administrator and open **Batches**.
 2. Click **Create Batch** to open the create dialog and fill it out:
     - **Name** and **Group** are required.
-    - **Philter** defaults to Embedded Philter (or to the system default if
-      one is configured).
-    - **Policy** populates dynamically based on the chosen Philter instance.
-      Selecting a different Philter reloads the policy list.
+    - **Policy** lists the policies in Philter. **Default policy** uses
+      Philter's default policy.
     - **PII Threshold** (default `0.80`) — spans whose confidence is at or
       above this value are auto-accepted. Lower values give the redactor
       more autonomy; higher values send more spans to the reviewer.
@@ -265,10 +189,8 @@ Only administrators can create, modify, or close a batch. To create one:
 3. Click **Create** in the dialog footer.
 
 After creation, anyone with access to the batch can adjust the group,
-thresholds, and weights. The Philter instance and policy can be changed
-together via the **Change…** link in the **Philter / Policy** column —
-choosing a Philter reloads the policy list inside the modal so the two
-stay in sync. Only admins can close a batch.
+thresholds, and weights. The policy can be changed with the **Change…** link
+in the **Policy** column. Only admins can close a batch.
 
 For more on batch settings see the
 [Batches admin guide](admin/batches.md).
@@ -283,11 +205,11 @@ Documents enter Arbiter through one of two paths.
 2. Choose a **Batch** from the dropdown — only open batches in groups you
    belong to are listed. The "Create a new batch." link below the dropdown
    takes you to the Batches page if you need a new one.
-3. Choose a file with **Document**. Supported formats are `.txt` and
-   searchable PDF (`.pdf`). Scanned PDFs are not OCR'd.
+3. Choose a file with **Document**. Plain text (`.txt`) is supported. PDF
+   review through Philter is not yet available, so a `.pdf` fails to ingest.
 4. Click **Redact Document**.
 
-Arbiter sends the file to the batch's Philter instance using the batch's
+Arbiter sends the file to Philter using the batch's
 policy, persists the document, creates a span for each detection, and
 computes the document's risk score. You then land on a preview page where
 you can download the redacted text or PDF.
@@ -403,17 +325,16 @@ For more detail see [Reviewing a document](user-guide/reviewing.md).
 
 Putting all the pieces together:
 
-1. **Admin** stands up Arbiter and its database. Embedded Philter is available
-   immediately.
-2. **Admin** opens **Admin → Philter**, optionally registers an external
-   Philter for production use, and clicks **Test** to confirm reachability.
-3. **Admin** opens **Policies**, picks Embedded Philter (or the new external
-   instance), and reviews the Default policy. They edit it or add a new one
-   tuned to their data.
+1. **Admin** stands up Arbiter, its database, and Philter, with
+   `ARBITER_PHILTER_URL` and `ARBITER_PHILTER_API_KEY` set.
+2. **Admin** opens **Admin → Philter** and clicks **Test** to confirm Arbiter
+   reaches Philter with its key.
+3. **Admin** creates a policy tuned to their data in Philter, and checks it is
+   listed under **Policies**.
 4. **Admin** creates a user group under **Admin → Groups** and adds the
    relevant reviewers to it.
 5. **Admin** opens **Batches**, creates `Q3-onboarding-forms`, picks the
-   group, picks the Philter instance, picks a policy, and accepts the
+   group, picks a policy, and accepts the
    default thresholds.
 6. **Reviewer** signs in, lands on the **Dashboard**, and sees the new batch
    under "Manage batches" and the documents-needing-review widget.

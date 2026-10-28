@@ -20,7 +20,6 @@ public interface BatchRepository extends ArbiterRepository<Batch, String> {
     Optional<Batch> findByName(String name);
     boolean existsByWeightSetId(String weightSetId);
     java.util.List<Batch> findByWeightSetId(String weightSetId);
-    java.util.List<Batch> findByPhilterInstanceIdIsNullAndPolicyName(String policyName);
     boolean existsByFinalizationPolicyId(String finalizationPolicyId);
     java.util.List<Batch> findByFinalizationPolicyId(String finalizationPolicyId);
     java.util.List<Batch> findByComplianceProfileId(String complianceProfileId);

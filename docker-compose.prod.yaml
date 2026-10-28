@@ -4,14 +4,17 @@
 #   ARBITER_CRYPTO_SECRET, ARBITER_ADMIN_INITIAL_PASSWORD,
 #   PHILTER_ENCRYPTION_KEY, PHILTER_BOOTSTRAP_API_KEY, VALKEY_PASSWORD
 #
-# Then: docker compose -f docker-compose.prod.yaml up -d
+# Arbiter needs an API key for a Philter user who is not an administrator, with only the
+# redact and policies:read scopes, so start Philter first and create one:
 #
-# After signing in to Arbiter as admin@philterd.ai, add Philter under Admin → Philter
-# with endpoint "philter", port 8080, and an API key for a Philter user who is not an
-# administrator, with only the redact and policies:read scopes. Arbiter refuses an
-# administrator's key, such as PHILTER_BOOTSTRAP_API_KEY; create the user and key with it
-# as docs/docs/workflow.md ("Philter API key for Arbiter") shows. That user owns the
-# policies and contexts Arbiter uses.
+#   docker compose -f docker-compose.prod.yaml up -d philter
+#
+# Create the user and key with PHILTER_BOOTSTRAP_API_KEY as docs/docs/workflow.md
+# ("Philter API key for Arbiter") shows, and put the key in .env as
+# ARBITER_PHILTER_API_KEY. That user owns the policies and contexts Arbiter uses.
+# Then start the rest:
+#
+#   docker compose -f docker-compose.prod.yaml up -d
 #
 # Each SQLite database lives in a volume (arbiter-data, philter-data). Back them up;
 # see docs/docs/reference/database.md#backups.
@@ -33,6 +36,10 @@ services:
       - ARBITER_CRYPTO_SECRET=${ARBITER_CRYPTO_SECRET:?Set ARBITER_CRYPTO_SECRET in .env (openssl rand -base64 32)}
       - ARBITER_ADMIN_INITIAL_PASSWORD=${ARBITER_ADMIN_INITIAL_PASSWORD:?Set ARBITER_ADMIN_INITIAL_PASSWORD in .env on first install (12+ chars)}
       - ARBITER_DEMO_DATA_ENABLED=false
+      # Arbiter's one Philter, for sign-in, policies, and redaction.
+      - ARBITER_PHILTER_URL=http://philter:8080
+      # Not required here, so Philter can be started alone first; Arbiter refuses to start without it.
+      - ARBITER_PHILTER_API_KEY=${ARBITER_PHILTER_API_KEY:-}
       # Arbiter refuses private-network hosts unless they are listed. Listing hosts also
       # refuses public ones not listed, unless that check is relaxed under Admin → Security.
       # Add your data sources and destinations here, comma-separated.
@@ -42,8 +49,8 @@ services:
       - SPRING_DATA_REDIS_PORT=6379
       - SPRING_DATA_REDIS_PASSWORD=${VALKEY_PASSWORD:?Set VALKEY_PASSWORD in .env}
       # Mutual TLS to Philter, when Philter (or a proxy in front of it) serves HTTPS and
-      # requires a client certificate. Uncomment these and the ./certs volume below, and add
-      # the instance with endpoint https://<host matching Philter's certificate>.
+      # requires a client certificate. Uncomment these and the ./certs volume below, and set
+      # ARBITER_PHILTER_URL to https://<host matching Philter's certificate>:8080.
       # - ARBITER_PHILTER_TLS_KEY_STORE=/app/certs/arbiter-client.p12
       # - ARBITER_PHILTER_TLS_KEY_STORE_PASSWORD=${ARBITER_PHILTER_TLS_KEY_STORE_PASSWORD}
       # - ARBITER_PHILTER_TLS_TRUST_STORE=/app/certs/philter-ca.p12

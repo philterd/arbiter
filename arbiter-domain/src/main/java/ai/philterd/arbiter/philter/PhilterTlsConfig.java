@@ -28,13 +28,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * TLS for connections to remote Philter instances: a client certificate to present for mutual
+ * TLS for connections to Philter: a client certificate to present for mutual
  * TLS, and a trust store for a Philter (or a proxy in front of it) whose certificate comes from a
  * private certificate authority. Both are optional. Without either, the JVM's default trust store
  * is used and no client certificate is presented.
- *
- * <p>These are the global settings. A Philter instance may carry its own client certificate or trust
- * store, each of which replaces the global one for that instance; see {@link #sslContext(KeyManager[], TrustManager[])}.</p>
  *
  * <p>The stores are read once at startup, so a missing file or wrong password stops Arbiter
  * instead of failing the first redaction.</p>
@@ -44,8 +41,6 @@ public class PhilterTlsConfig {
 
     private static final Logger log = LoggerFactory.getLogger(PhilterTlsConfig.class);
 
-    private final KeyManager[] keyManagers;
-    private final TrustManager[] trustManagers;
     private final SSLContext sslContext;
 
     public PhilterTlsConfig(@Value("${arbiter.philter.tls.key-store:}") final String keyStore,
@@ -54,10 +49,12 @@ public class PhilterTlsConfig {
                             @Value("${arbiter.philter.tls.trust-store-password:}") final String trustStorePassword) {
         final Path key = blank(keyStore) ? null : Path.of(keyStore.trim());
         final Path trust = blank(trustStore) ? null : Path.of(trustStore.trim());
+        final KeyManager[] keyManagers;
+        final TrustManager[] trustManagers;
         try {
-            this.keyManagers = key == null ? null
+            keyManagers = key == null ? null
                     : PhilterKeyStores.keyManagers(read(key), chars(keyStorePassword), key.toString());
-            this.trustManagers = trust == null ? null
+            trustManagers = trust == null ? null
                     : PhilterKeyStores.trustManagers(read(trust), chars(trustStorePassword), trust.toString());
         } catch (IllegalArgumentException e) {
             // The message names the file, never the password.
@@ -79,19 +76,6 @@ public class PhilterTlsConfig {
     /** The TLS context for Philter connections, or {@code null} for the SDK's default. */
     public SSLContext sslContext() {
         return sslContext;
-    }
-
-    /**
-     * The TLS context for an instance with its own client certificate ({@code ownKeys}) and/or trust store
-     * ({@code ownTrust}). Either one left {@code null} falls back to the global setting. With neither, this is
-     * {@link #sslContext()}.
-     */
-    public SSLContext sslContext(final KeyManager[] ownKeys, final TrustManager[] ownTrust) {
-        if (ownKeys == null && ownTrust == null) {
-            return sslContext;
-        }
-        return PhilterKeyStores.sslContext(ownKeys != null ? ownKeys : keyManagers,
-                ownTrust != null ? ownTrust : trustManagers);
     }
 
     private static byte[] read(final Path path) {

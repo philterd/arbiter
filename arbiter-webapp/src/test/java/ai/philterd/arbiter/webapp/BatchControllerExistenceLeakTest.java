@@ -15,12 +15,10 @@ import ai.philterd.arbiter.repository.ComplianceProfileRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.FinalizationPolicyRepository;
 import ai.philterd.arbiter.repository.GroupRepository;
-import ai.philterd.arbiter.repository.PhilterInstanceRepository;
 import ai.philterd.arbiter.repository.WeightSetRepository;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.BatchAccessService;
 import ai.philterd.arbiter.service.BatchExportService;
-import ai.philterd.arbiter.service.PhilterDefaultsService;
 import ai.philterd.arbiter.service.UserGroupsService;
 import ai.philterd.arbiter.webapp.controllers.BatchController;
 import org.junit.jupiter.api.BeforeEach;
@@ -73,8 +71,6 @@ class BatchControllerExistenceLeakTest {
                 batchAccessService,
                 mock(AuditLogService.class),
                 mock(WeightSetRepository.class),
-                mock(PhilterInstanceRepository.class),
-                mock(PhilterDefaultsService.class),
                 mock(FinalizationPolicyRepository.class),
                 mock(ComplianceProfileRepository.class),
                 mock(ai.philterd.arbiter.repository.LocalDirectoryDestinationRepository.class),
@@ -142,12 +138,12 @@ class BatchControllerExistenceLeakTest {
     // ---------- per-endpoint coverage ----------
 
     @Test
-    void changePhilterTreatsMissAndDeniedIdentically() {
+    void changePolicyTreatsMissAndDeniedIdentically() {
         setupMissAndDeniedBatches();
         final RedirectAttributes missFlash = flash();
         final RedirectAttributes deniedFlash = flash();
-        assertMissAndDeniedAreIndistinguishable(id -> controller.changePhilter(
-                id, "", "", nonLead(), id.equals("b-missing") ? missFlash : deniedFlash),
+        assertMissAndDeniedAreIndistinguishable(id -> controller.changePolicy(
+                id, "", nonLead(), id.equals("b-missing") ? missFlash : deniedFlash),
                 missFlash, deniedFlash);
     }
 

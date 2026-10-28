@@ -15,26 +15,19 @@
  */
 package ai.philterd.arbiter.webapp.controllers;
 
-import ai.philterd.arbiter.model.Batch;
-import ai.philterd.arbiter.model.PhilterInstance;
-import ai.philterd.arbiter.model.Policy;
 import ai.philterd.arbiter.repository.BatchRepository;
-import ai.philterd.arbiter.repository.PhilterInstanceRepository;
-import ai.philterd.arbiter.repository.PolicyRepository;
 import ai.philterd.arbiter.service.AuditLogService;
 import ai.philterd.arbiter.service.AuthUtils;
 import ai.philterd.arbiter.service.GeneralSettingsService;
-import ai.philterd.arbiter.service.PhilterInstanceClients;
+import ai.philterd.arbiter.service.PhilterSettings;
 import ai.philterd.arbiter.philter.PhilterClients;
 import ai.philterd.philter.model.ListOptions;
 import ai.philterd.philter.model.Page;
 import ai.philterd.philter.model.PolicySummary;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.PhilterError;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -56,104 +49,53 @@ import org.springframework.data.domain.Sort;
 
 import java.net.URI;
 import java.util.regex.Pattern;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.UUID;
 
 @Controller
 public class PolicyController {
 
     private static final Logger log = LoggerFactory.getLogger(PolicyController.class);
-    private static final String EMBEDDED = "embedded";
     private static final Pattern POLICY_NAME_PATTERN = Pattern.compile("[a-zA-Z0-9_\\-]{1,64}");
 
     private static final int POLICY_PAGE_SIZE = 100;
 
-    private final PolicyRepository policyRepository;
-    private final PhilterInstanceRepository philterInstanceRepository;
     private final BatchRepository batchRepository;
     private final AuditLogService auditLogService;
-    private final ObjectMapper objectMapper;
     private final GeneralSettingsService generalSettingsService;
     private final ai.philterd.arbiter.repository.FinalizationPolicyRepository finalizationPolicyRepository;
-    private final PhilterInstanceClients philterInstanceClients;
+    private final PhilterSettings philter;
 
-    public PolicyController(final PolicyRepository policyRepository,
-                            final PhilterInstanceRepository philterInstanceRepository,
-                            final BatchRepository batchRepository,
+    public PolicyController(final BatchRepository batchRepository,
                             final AuditLogService auditLogService,
-                            final ObjectMapper objectMapper,
                             final GeneralSettingsService generalSettingsService,
                             final ai.philterd.arbiter.repository.FinalizationPolicyRepository finalizationPolicyRepository,
-                            final PhilterInstanceClients philterInstanceClients) {
-        this.policyRepository = policyRepository;
-        this.philterInstanceRepository = philterInstanceRepository;
+                            final PhilterSettings philter) {
         this.batchRepository = batchRepository;
         this.auditLogService = auditLogService;
-        this.objectMapper = objectMapper;
         this.generalSettingsService = generalSettingsService;
         this.finalizationPolicyRepository = finalizationPolicyRepository;
-        this.philterInstanceClients = philterInstanceClients;
+        this.philter = philter;
     }
 
     @GetMapping("/policies")
-    public String list(@RequestParam(value = "instanceId", required = false) final String instanceId,
-                       final Model model) {
-        final org.springframework.data.domain.Page<PhilterInstance> instancesPage =
-                philterInstanceRepository.findAll(PageRequest.of(0, 500, Sort.by("name")));
-        final List<PhilterInstance> instances = instancesPage != null ? instancesPage.getContent() : List.of();
-
-        final String selected = (instanceId == null || instanceId.isBlank()) ? EMBEDDED : instanceId;
-        final boolean isEmbedded = EMBEDDED.equals(selected);
-
+    public String list(final Model model) {
         final List<Map<String, Object>> rows = new ArrayList<>();
-        String fetchError = null;
-        String selectedInstanceName = "Embedded Philter";
-
-        if (isEmbedded) {
-            final org.springframework.data.domain.Page<Policy> policiesPage =
-                    policyRepository.findAll(PageRequest.of(0, 500, Sort.by("name")));
-            final List<Policy> policies = policiesPage != null ? policiesPage.getContent() : List.of();
-            for (Policy p : policies) {
+        try {
+            for (String name : fetchPolicyNames()) {
                 final Map<String, Object> row = new java.util.LinkedHashMap<>();
-                row.put("id", p.getId());
-                row.put("name", p.getName());
+                row.put("name", name);
                 rows.add(row);
             }
-        } else {
-            final Optional<PhilterInstance> instance = philterInstanceRepository.findById(selected);
-            if (instance.isEmpty()) {
-                fetchError = "Selected Philter instance no longer exists.";
-            } else {
-                selectedInstanceName = instance.get().getName();
-                try {
-                    for (String name : fetchRemotePolicyNames(instance.get())) {
-                        final Map<String, Object> row = new java.util.LinkedHashMap<>();
-                        row.put("id", name);
-                        row.put("name", name);
-                        rows.add(row);
-                    }
-                } catch (Exception e) {
-                    log.warn("Failed to fetch policies from {}: {}", selectedInstanceName, e.getMessage());
-                    fetchError = "Could not reach Philter instance \""
-                            + selectedInstanceName + "\": " + e.getMessage();
-                }
-            }
+        } catch (Exception e) {
+            final String detail = describe(e);
+            log.warn("Failed to fetch policies from Philter: {}", detail);
+            model.addAttribute("fetchError", "Could not reach Philter: " + detail);
         }
-
-        model.addAttribute("instances", instances);
-        model.addAttribute("selectedInstanceId", selected);
-        model.addAttribute("selectedInstanceName", selectedInstanceName);
-        model.addAttribute("isEmbedded", isEmbedded);
         model.addAttribute("policies", rows);
         model.addAttribute("policyEditorUrl", policyEditorUrl());
-        if (fetchError != null) {
-            model.addAttribute("fetchError", fetchError);
-        }
 
         // Finalization-policy tab data: list every policy plus per-policy "in use by N
         // batches" so the template can disable the Delete button when the policy is bound.
@@ -313,70 +255,9 @@ public class PolicyController {
         }
     }
 
-    @PostMapping("/policies")
-    public String create(@RequestParam("name") final String name,
-                         @RequestParam("content") final String content,
-                         final RedirectAttributes redirectAttributes) {
-        final String submittedName = name == null ? "" : name;
-        final String submittedContent = content == null ? "" : content;
-        final String trimmedName = submittedName.trim();
-        final String trimmedContent = submittedContent.trim();
-
-        if (trimmedName.isEmpty()) {
-            redirectAttributes.addFlashAttribute("error", "Policy name is required.");
-            redirectAttributes.addFlashAttribute("formName", submittedName);
-            redirectAttributes.addFlashAttribute("formContent", submittedContent);
-            return "redirect:/policies";
-        }
-        if (trimmedContent.isEmpty()) {
-            redirectAttributes.addFlashAttribute("error", "Policy JSON is required.");
-            redirectAttributes.addFlashAttribute("formName", submittedName);
-            redirectAttributes.addFlashAttribute("formContent", submittedContent);
-            return "redirect:/policies";
-        }
-        try {
-            objectMapper.readTree(trimmedContent);
-        } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", "Policy is not valid JSON: " + e.getMessage());
-            redirectAttributes.addFlashAttribute("formName", submittedName);
-            redirectAttributes.addFlashAttribute("formContent", submittedContent);
-            return "redirect:/policies";
-        }
-        final Optional<Policy> existing = policyRepository.findFirstByNameIgnoreCase(trimmedName);
-        if (existing.isPresent()) {
-            redirectAttributes.addFlashAttribute("error",
-                    "A policy named \"" + existing.get().getName() + "\" already exists.");
-            redirectAttributes.addFlashAttribute("formName", submittedName);
-            redirectAttributes.addFlashAttribute("formContent", submittedContent);
-            return "redirect:/policies";
-        }
-
-        final Policy policy = new Policy();
-        policy.setCreatedAt(LocalDateTime.now());
-        policy.setId(UUID.randomUUID().toString());
-        policy.setName(trimmedName);
-        policy.setContent(trimmedContent);
-
-        try {
-            policyRepository.save(policy);
-        } catch (DuplicateKeyException e) {
-            redirectAttributes.addFlashAttribute("error",
-                    "A policy named \"" + trimmedName + "\" already exists.");
-            redirectAttributes.addFlashAttribute("formName", submittedName);
-            redirectAttributes.addFlashAttribute("formContent", submittedContent);
-            return "redirect:/policies";
-        }
-        auditLogService.log("POLICY_CREATE", "Policy", policy.getId(),
-                Map.of("name", trimmedName, "size", trimmedContent.length()));
-        redirectAttributes.addFlashAttribute("success",
-                "Policy \"" + trimmedName + "\" added.");
-        return "redirect:/policies";
-    }
-
     @GetMapping("/api/v1/policies")
     @ResponseBody
-    public Map<String, Object> listJson(@RequestParam(value = "instanceId", required = false) final String instanceId,
-                                        final Authentication authentication) {
+    public Map<String, Object> listJson(final Authentication authentication) {
         // Defense-in-depth: SecurityConfig already gates /api/v1/policies to ADMIN+AUDITOR
         // via the framework matcher, but a future SecurityConfig change that drops the
         // matcher would otherwise expose policy listings to any authenticated caller.
@@ -384,41 +265,22 @@ public class PolicyController {
         if (!AuthUtils.isAdminOrAuditor(authentication)) {
             throw new ResponseStatusException(FORBIDDEN, "Not authorized.");
         }
-        final String selected = (instanceId == null || instanceId.isBlank()) ? EMBEDDED : instanceId;
-        List<String> names;
-        if (EMBEDDED.equals(selected)) {
-            names = new ArrayList<>();
-            final org.springframework.data.domain.Page<Policy> allPoliciesPage =
-                    policyRepository.findAll(PageRequest.of(0, 500, Sort.by("name")));
-            final List<Policy> allPolicies = allPoliciesPage != null ? allPoliciesPage.getContent() : List.of();
-            for (Policy p : allPolicies) {
-                if (p.getName() != null && !p.getName().isBlank()) {
-                    names.add(p.getName());
-                }
-            }
-            names.sort(String.CASE_INSENSITIVE_ORDER);
-        } else {
-            final PhilterInstance instance = philterInstanceRepository.findById(selected)
-                    .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Philter instance not found."));
-            try {
-                names = fetchRemotePolicyNames(instance);
-            } catch (Exception e) {
-                final String detail = describe(e);
-                log.warn("Failed to fetch policies from {}: {}", instance.getName(), detail);
-                throw new ResponseStatusException(BAD_GATEWAY,
-                        "Could not reach Philter instance \"" + instance.getName() + "\": " + detail);
-            }
+        final List<String> names;
+        try {
+            names = fetchPolicyNames();
+        } catch (Exception e) {
+            final String detail = describe(e);
+            log.warn("Failed to fetch policies from Philter: {}", detail);
+            throw new ResponseStatusException(BAD_GATEWAY, "Could not reach Philter: " + detail);
         }
         final Map<String, Object> out = new java.util.LinkedHashMap<>();
-        out.put("instanceId", selected);
         out.put("policies", names);
         return out;
     }
 
     @GetMapping("/api/v1/policies/content")
     @ResponseBody
-    public Map<String, String> content(@RequestParam("instanceId") final String instanceId,
-                                       @RequestParam("name") final String name,
+    public Map<String, String> content(@RequestParam("name") final String name,
                                        final Authentication authentication) {
         // Defense-in-depth role check — see listJson above for the rationale.
         if (!AuthUtils.isAdminOrAuditor(authentication)) {
@@ -431,89 +293,24 @@ public class PolicyController {
             throw new ResponseStatusException(BAD_REQUEST,
                     "Policy name must contain only letters, digits, hyphens, and underscores (1–64 characters).");
         }
-        if (instanceId == null || instanceId.isBlank() || EMBEDDED.equals(instanceId)) {
-            final Policy policy = policyRepository.findByName(name)
-                    .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Policy not found: " + name));
-            return Map.of("name", policy.getName(), "content", policy.getContent() == null ? "" : policy.getContent());
-        }
-        final PhilterInstance instance = philterInstanceRepository.findById(instanceId)
-                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Philter instance not found."));
         try {
-            final String content = philterInstanceClients.client(instance).getPolicy(name);
+            final String content = philter.client().getPolicy(name);
             return Map.of("name", name, "content", content == null ? "" : content);
         } catch (ClientException e) {
             if (e.getStatusCode() == 404) {
-                throw new ResponseStatusException(NOT_FOUND, "Policy \"" + name + "\" not found on instance \""
-                        + instance.getName() + "\".");
+                throw new ResponseStatusException(NOT_FOUND, "Policy \"" + name + "\" not found in Philter.");
             }
             throw new ResponseStatusException(BAD_GATEWAY,
                     "Philter returned " + describe(e) + " for policy " + name);
         } catch (Exception e) {
             final String detail = describe(e);
-            log.warn("Failed to fetch policy {} from {}: {}", name, instance.getName(), detail);
-            throw new ResponseStatusException(BAD_GATEWAY,
-                    "Could not reach Philter instance \"" + instance.getName() + "\": " + detail);
+            log.warn("Failed to fetch policy {} from Philter: {}", name, detail);
+            throw new ResponseStatusException(BAD_GATEWAY, "Could not reach Philter: " + detail);
         }
     }
 
-    @PostMapping("/policies/{id}/edit")
-    public String edit(@PathVariable final String id,
-                       @RequestParam("content") final String content,
-                       final RedirectAttributes redirectAttributes) {
-        final Policy policy = policyRepository.findById(id).orElse(null);
-        if (policy == null) {
-            redirectAttributes.addFlashAttribute("error", "Policy not found.");
-            return "redirect:/policies";
-        }
-        final String trimmedContent = content == null ? "" : content.trim();
-        if (trimmedContent.isEmpty()) {
-            redirectAttributes.addFlashAttribute("error", "Policy JSON is required.");
-            return "redirect:/policies";
-        }
-        try {
-            objectMapper.readTree(trimmedContent);
-        } catch (Exception e) {
-            redirectAttributes.addFlashAttribute("error", "Policy is not valid JSON: " + e.getMessage());
-            return "redirect:/policies";
-        }
-
-        policy.setContent(trimmedContent);
-        policyRepository.save(policy);
-        auditLogService.log("POLICY_UPDATE", "Policy", policy.getId(),
-                Map.of("name", policy.getName() == null ? "" : policy.getName(),
-                        "size", trimmedContent.length()));
-        redirectAttributes.addFlashAttribute("success",
-                "Policy \"" + policy.getName() + "\" updated.");
-        return "redirect:/policies";
-    }
-
-    @PostMapping("/policies/{id}/delete")
-    public String delete(@PathVariable final String id, final RedirectAttributes redirectAttributes) {
-        final Policy policy = policyRepository.findById(id).orElse(null);
-        if (policy == null) {
-            redirectAttributes.addFlashAttribute("error", "Policy not found.");
-            return "redirect:/policies";
-        }
-        final List<Batch> usingBatches = batchRepository.findByPhilterInstanceIdIsNullAndPolicyName(policy.getName());
-        if (!usingBatches.isEmpty()) {
-            final String names = usingBatches.stream()
-                    .map(b -> "\"" + (b.getName() == null ? b.getId() : b.getName()) + "\"")
-                    .collect(java.util.stream.Collectors.joining(", "));
-            redirectAttributes.addFlashAttribute("error",
-                    "Policy \"" + policy.getName() + "\" cannot be deleted because it is in use by batch "
-                            + names + ".");
-            return "redirect:/policies";
-        }
-        policyRepository.deleteById(id);
-        auditLogService.log("POLICY_DELETE", "Policy", id,
-                Map.of("name", policy.getName() == null ? "" : policy.getName()));
-        redirectAttributes.addFlashAttribute("success",
-                "Policy \"" + policy.getName() + "\" removed.");
-        return "redirect:/policies";
-    }
-
-    private List<String> fetchRemotePolicyNames(final PhilterInstance instance) throws Exception {
-        final ai.philterd.philter.PhilterClient client = philterInstanceClients.client(instance);
+    private List<String> fetchPolicyNames() throws Exception {
+        final ai.philterd.philter.PhilterClient client = philter.client();
         final List<String> names = new ArrayList<>();
         Page<PolicySummary> page;
         do {

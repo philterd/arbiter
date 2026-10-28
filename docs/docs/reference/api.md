@@ -589,50 +589,41 @@ is required (CSRF defence).
 
 ## Policies
 
-These endpoints power the Phileas redaction-policy editor under
-**Admin → Policies**. The framework gates them to `ROLE_ADMIN` or
+These endpoints list Philter's policies for the **Policies** page and the
+batch dialogs. The framework gates them to `ROLE_ADMIN` or
 `ROLE_AUDITOR` for reads — non-admin callers get `403`.
 
 ### `GET /api/v1/policies`
 
-Session-allowed. List the policies installed on a configured Philter
-instance, or on the embedded Phileas runtime when no instance is specified.
-
-| Query param  | Default     | Meaning                                              |
-| ------------ | ----------- | ---------------------------------------------------- |
-| `instanceId` | `embedded`  | Philter instance id, or `embedded` for the built-in. |
+Session-allowed. List the policies in Arbiter's Philter that
+`ARBITER_PHILTER_API_KEY` can use.
 
 Response:
 
 ```json
-{ "instanceId": "embedded", "policies": ["Default", "..."] }
+{ "policies": ["claims", "..."] }
 ```
 
-`502` when the named Philter instance is unreachable; `404` if `instanceId`
-doesn't match any configured instance.
+`502` when Philter is unreachable.
 
 ### `GET /api/v1/policies/content`
 
-Session-allowed. Fetch the JSON content of one named policy on the chosen
-instance. Both query parameters are required.
+Session-allowed. Fetch the JSON content of one named policy from Philter.
 
 | Query param  | Required | Meaning                                              |
 | ------------ | -------- | ---------------------------------------------------- |
-| `instanceId` | yes      | Philter instance id, or `embedded` for the built-in. |
 | `name`       | yes      | Policy name; restricted to letters, digits, hyphens, and underscores (1–64 chars). |
 
 Response:
 
 ```json
-{ "name": "Default", "content": "{ ...JSON policy... }" }
+{ "name": "claims", "content": "{ ...JSON policy... }" }
 ```
 
-`content` is the raw policy JSON as a string (the embedded runtime stores
-policies as text; remote Philter responses are returned verbatim).
+`content` is Philter's policy JSON as a string, returned verbatim.
 
 `400` for malformed names (the regex check rejects path-traversal attempts).
-`404` when the named policy doesn't exist on the instance. `502` when the
-remote Philter instance is unreachable.
+`404` when Philter has no such policy. `502` when Philter is unreachable.
 
 ## Browser-only internal endpoints
 

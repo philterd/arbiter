@@ -22,8 +22,8 @@ import java.security.SecureRandom;
 import java.util.Base64;
 
 /**
- * AES-GCM cipher for encrypting at-rest secrets such as Philter instance API keys and
- * data-source credentials. The AES-256 key is loaded from {@code arbiter.crypto.secret},
+ * AES-GCM cipher for encrypting at-rest secrets such as data-source credentials.
+ * The AES-256 key is loaded from {@code arbiter.crypto.secret},
  * which must be a <strong>base64-encoded value of exactly 32 random bytes</strong>.
  *
  * <p>Generate a key with one of:

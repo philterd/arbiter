@@ -118,7 +118,7 @@ public class PhilterSignInFlow {
         }
         if (e instanceof ClientException ce && ce.getStatusCode() == 404) {
             log.warn("Philter answered sign-in with 404. Set PASSWORD_SIGN_IN_ENABLED=true on the Philter "
-                    + "named by ARBITER_SIGN_IN_PHILTER_URL.");
+                    + "named by ARBITER_PHILTER_URL.");
             return fail(username, "SignInDisabled", new AuthenticationServiceException("Sign-in is unavailable."));
         }
         log.warn("Sign-in through Philter failed: {}", PhilterClients.describe(e));

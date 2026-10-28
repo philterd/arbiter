@@ -671,9 +671,9 @@ also the bare apex (`foo.com`).
 
 When configured, every URL on every admin **Test** click and every
 saved-source ingest job is checked against the list. This covers OpenSearch
-/ Elasticsearch data sources, Philter instance endpoints
-(**Admin → Philter**), and Ollama instance endpoints
-(**Admin → LLM-as-a-Judge**). A non-matching host is rejected with the
+/ Elasticsearch data sources and Ollama instance endpoints
+(**Admin → LLM-as-a-Judge**). Philter's URL is set in the environment
+(`ARBITER_PHILTER_URL`) and is not checked. A non-matching host is rejected with the
 error *"Endpoint host is not permitted."* The check applies even to
 **already-saved** instances: if a host is removed from the allow-list
 later, a Test click on an existing row is also rejected.
@@ -750,8 +750,8 @@ for the rationale and the audit-trail entry that records each toggle.
 ## Credential encryption
 
 Every credential that admins type into the Data Sources page is encrypted with
-AES-GCM before being written to MongoDB. The same scheme protects Philter API
-keys — see [Security · Philter API keys](../security.md#philter-api-keys) for
+AES-GCM before being written to MongoDB. See
+[Security · Encrypted secrets](../security.md#encrypted-secrets) for
 the full description (key derivation, IV format, base64 layout, and the
 `arbiter.crypto.secret` property). The plaintext is never displayed back; the
 table only shows a status (`Configured` / `Ambient` / `From URL` /

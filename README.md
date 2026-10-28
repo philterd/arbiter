@@ -47,6 +47,11 @@ account is `admin@philterd.ai` with the password set in
 `ARBITER_ADMIN_INITIAL_PASSWORD` in `docker-compose.yaml`. Arbiter refuses
 to start if that variable is missing or shorter than 12 characters.
 
+Arbiter sends documents to the Philter that `docker-compose.yaml` also starts,
+set by `ARBITER_PHILTER_URL` and `ARBITER_PHILTER_API_KEY`. Its keys there are
+for development only; for a deployment, see `docker-compose.prod.yaml` and
+[Configure Philter](https://philterd.github.io/arbiter/workflow/#1-configure-philter).
+
 ## Building the Docker image
 
 `build-image.sh` builds the image for `linux/amd64` and `linux/arm64`.

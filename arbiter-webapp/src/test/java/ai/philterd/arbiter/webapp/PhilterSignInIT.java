@@ -102,12 +102,14 @@ class PhilterSignInIT {
     @Autowired private MockMvc mockMvc;
     @Autowired private SymmetricCipher cipher;
     @Autowired private ai.philterd.arbiter.repository.UserRepository userRepository;
-    @Autowired private ai.philterd.arbiter.repository.PhilterInstanceRepository philterInstanceRepository;
     @Autowired private ai.philterd.arbiter.service.ApiKeyHashingService apiKeyHashingService;
+    @Autowired private ai.philterd.arbiter.service.RedactionService redactionService;
 
     @DynamicPropertySource
     static void properties(final DynamicPropertyRegistry registry) throws Exception {
-        registry.add("arbiter.sign-in.philter-url", PhilterSignInIT::philterUrl);
+        registry.add("arbiter.philter.url", PhilterSignInIT::philterUrl);
+        // An administrator's key, so Admin → Philter's check has something to flag.
+        registry.add("arbiter.philter.api-key", () -> BOOTSTRAP_KEY);
         final String database = Files.createTempDirectory("arbiter-it").resolve("arbiter.db").toString();
         registry.add("arbiter.sqlite.path", () -> database);
     }
@@ -375,32 +377,30 @@ class PhilterSignInIT {
     }
 
     @Test
-    void philterInstanceKeyMayNotBeAnAdministrators() throws Exception {
+    void anAdministratorsApiKeyIsFlaggedUnderAdminPhilter() throws Exception {
         final MockHttpSession session = new MockHttpSession();
         final String address = newAddress();
         assertEquals("/", signIn(session, address, "admin", ADMIN_PASSWORD).getResponse().getRedirectedUrl());
-        final String host = PHILTER.getHost();
-        final String port = String.valueOf(PHILTER.getMappedPort(8080));
 
-        final String refused = mockMvc.perform(post("/admin/philter").session(session).with(csrf()).with(from(address))
-                        .param("name", "with-admin-key").param("endpoint", host).param("port", port)
-                        .param("apiKey", BOOTSTRAP_KEY))
+        final String error = mockMvc.perform(post("/admin/philter/test").session(session).with(csrf()).with(from(address)))
                 .andExpect(redirectedUrl("/admin/philter")).andReturn().getFlashMap().get("error").toString();
-        assertTrue(refused.contains("belongs to a Philter administrator"), refused);
+        assertTrue(error.contains("Philter 4.0.0") && error.contains("belongs to a Philter administrator"), error);
 
-        final String service = "ingest-" + HexFormat.of().formatHex(bytes(3));
-        final CreateUserRequest request = new CreateUserRequest();
-        request.setUsername(service);
-        request.setRole("user");
-        bootstrap().createUser(request);
-        final String serviceKey = bootstrap().createApiKey(service, java.util.List.of("redact", "policies:read")).getApiKey();
-        final MvcResult saved = mockMvc.perform(post("/admin/philter").session(session).with(csrf()).with(from(address))
-                        .param("name", "with-service-key").param("endpoint", host).param("port", port)
-                        .param("apiKey", serviceKey))
-                .andExpect(redirectedUrl("/admin/philter")).andReturn();
-        final String success = saved.getFlashMap().get("success").toString();
-        assertTrue(success.contains("added") && !success.contains("could not be reached"), success);
-        assertEquals(Boolean.FALSE, philterInstanceRepository.findByName("with-service-key").orElseThrow().getApiKeyAdmin(),
-                "Philter reported the key's role, and it is not an administrator's");
+        final String page = mockMvc.perform(get("/admin/philter").session(session).with(from(address)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertTrue(page.contains("Set; belongs to a Philter administrator"), "the page shows the flag");
+        assertTrue(!page.contains(BOOTSTRAP_KEY), "the page never shows the key");
+    }
+
+    @Test
+    void ingestRedactsThroughTheConfiguredPhilter() throws Exception {
+        final String text = "Write to jdoe@example.com about the claim.";
+        final ai.philterd.arbiter.core.model.RedactionResponse response =
+                redactionService.redactText(text, null, null);
+
+        assertTrue(response.getRedactions().stream()
+                        .anyMatch(r -> "email-address".equals(r.getType()) && "jdoe@example.com".equals(r.getText())),
+                "Philter's default policy finds the email address");
+        assertFalse(response.getRedactedText().contains("jdoe@example.com"));
     }
 }
