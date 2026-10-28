@@ -12,9 +12,8 @@ package ai.philterd.arbiter.service;
 import java.util.Base64;
 
 /**
- * Single source of truth for validating {@code arbiter.crypto.secret}. Both
- * {@link ApiKeyHashingService} and {@link SymmetricCipher} consume the same property and
- * apply the same constraints, so the validation lives here and they each delegate.
+ * Single source of truth for validating {@code arbiter.crypto.secret}, which
+ * {@link SymmetricCipher} and the audit log's hashing consume.
  *
  * <p>On failure throws {@link CryptoSecretConfigurationException} carrying a
  * {@link CryptoSecretConfigurationException.Reason} the {@link CryptoSecretFailureAnalyzer}

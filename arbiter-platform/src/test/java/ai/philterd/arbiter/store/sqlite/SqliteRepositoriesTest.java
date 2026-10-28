@@ -13,7 +13,6 @@ import ai.philterd.arbiter.model.Batch;
 import ai.philterd.arbiter.model.Document;
 import ai.philterd.arbiter.model.Group;
 import ai.philterd.arbiter.model.InboxMessage;
-import ai.philterd.arbiter.model.Invitation;
 import ai.philterd.arbiter.model.Policy;
 import ai.philterd.arbiter.model.Span;
 import ai.philterd.arbiter.model.User;
@@ -21,7 +20,6 @@ import ai.philterd.arbiter.repository.BatchRepository;
 import ai.philterd.arbiter.repository.DocumentRepository;
 import ai.philterd.arbiter.repository.GroupRepository;
 import ai.philterd.arbiter.repository.InboxMessageRepository;
-import ai.philterd.arbiter.repository.InvitationRepository;
 import ai.philterd.arbiter.repository.PolicyRepository;
 import ai.philterd.arbiter.repository.SpanRepository;
 import ai.philterd.arbiter.repository.UserRepository;
@@ -36,9 +34,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
 import java.nio.file.Path;
-import java.time.Instant;
 import java.time.LocalDateTime;
-import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Set;
 
@@ -68,7 +64,7 @@ class SqliteRepositoriesTest {
     @Test
     void everyRepositoryAndDerivedQueryIsSupported() throws Exception {
         final List<Class<?>> repos = SqliteTestStore.allRepositoryInterfaces();
-        assertEquals(29, repos.size());
+        assertEquals(28, repos.size());
         for (Class<?> repo : repos) {
             assertNotNull(db.repository(repo), repo.getSimpleName());
         }
@@ -196,15 +192,32 @@ class SqliteRepositoriesTest {
     }
 
     @Test
-    void derivedDeleteWithOrReturnsCount() {
-        final InvitationRepository invitations = db.repository(InvitationRepository.class);
-        final Instant now = Instant.now();
-        invitations.save(invitation("a@x.com", now.minus(2, ChronoUnit.DAYS), null));
-        invitations.save(invitation("b@x.com", null, now.minus(1, ChronoUnit.DAYS)));
-        invitations.save(invitation("c@x.com", null, now.plus(1, ChronoUnit.DAYS)));
+    void localCredentialsAreRemovedFromStoredUserRowsOnce() {
+        final UserRepository users = db.repository(UserRepository.class);
+        final ai.philterd.arbiter.repository.GeneralSettingsRepository settings =
+                db.repository(ai.philterd.arbiter.repository.GeneralSettingsRepository.class);
+        final User u = new User();
+        u.setEmail("reviewer@example.com");
+        u.setRoles(java.util.Set.of("USER"));
+        users.save(u);
+        // A row as local sign-in left it, with credentials the model no longer has.
+        final String old = db.rawDoc("users", u.getId()).replaceFirst("\\{",
+                "{\"passwordHash\":\"{bcrypt}hash-marker\",\"totpSecret\":\"totp-marker\",\"apiKey\":\"key-marker\",");
+        db.jdbc.update("UPDATE \"users\" SET doc = ? WHERE id = ?", old, u.getId());
+        assertTrue(db.rawDoc("users", u.getId()).contains("hash-marker"));
 
-        assertEquals(2, invitations.deleteByConsumedAtBeforeOrExpiresAtBefore(now.minus(1, ChronoUnit.HOURS), now));
-        assertEquals(1, invitations.count());
+        new ai.philterd.arbiter.service.LocalCredentialsCleanup(users, settings).run(null);
+
+        final String raw = db.rawDoc("users", u.getId());
+        assertFalse(raw.contains("hash-marker") || raw.contains("totp-marker") || raw.contains("key-marker"), raw);
+        assertEquals("reviewer@example.com", users.findById(u.getId()).orElseThrow().getEmail());
+        assertTrue(settings.findById(ai.philterd.arbiter.model.GeneralSettings.SINGLETON_ID).orElseThrow()
+                .isLocalCredentialsRemoved());
+
+        // Runs once: a later start leaves rows alone.
+        final Long version = users.findById(u.getId()).orElseThrow().getVersion();
+        new ai.philterd.arbiter.service.LocalCredentialsCleanup(users, settings).run(null);
+        assertEquals(version, users.findById(u.getId()).orElseThrow().getVersion());
     }
 
     @Test
@@ -246,13 +259,5 @@ class SqliteRepositoriesTest {
         d.setFilename(filename);
         d.setCreatedAt(createdAt);
         return d;
-    }
-
-    private static Invitation invitation(final String email, final Instant consumedAt, final Instant expiresAt) {
-        final Invitation i = new Invitation();
-        i.setEmail(email);
-        i.setConsumedAt(consumedAt);
-        i.setExpiresAt(expiresAt);
-        return i;
     }
 }

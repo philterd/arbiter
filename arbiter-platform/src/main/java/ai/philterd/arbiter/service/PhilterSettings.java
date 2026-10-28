@@ -12,6 +12,7 @@ package ai.philterd.arbiter.service;
 import ai.philterd.arbiter.philter.PhilterClients;
 import ai.philterd.arbiter.philter.PhilterTlsConfig;
 import ai.philterd.philter.PhilterClient;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -20,7 +21,8 @@ import java.net.URI;
 import java.util.Locale;
 
 /**
- * The one Philter this Arbiter works with: it signs people in, holds the policies, and redacts.
+ * The one Philter this Arbiter works with: it signs people in, holds the policies, and redacts. Its
+ * Philter must run with {@code PASSWORD_SIGN_IN_ENABLED=true}.
  * Read from the environment only ({@code ARBITER_PHILTER_URL}, {@code ARBITER_PHILTER_API_KEY}), with
  * TLS from {@code arbiter.philter.tls.*}, so a bad value stops Arbiter at startup.
  *
@@ -38,9 +40,22 @@ public class PhilterSettings {
     // Whether the API key belongs to a Philter administrator, as Philter last said; null until checked.
     private volatile Boolean apiKeyAdmin;
 
+    public PhilterSettings(final String url, final String apiKey, final PhilterTlsConfig tls) {
+        this(url, apiKey, null, tls);
+    }
+
+    @Autowired
     public PhilterSettings(@Value("${arbiter.philter.url:}") final String url,
                            @Value("${arbiter.philter.api-key:}") final String apiKey,
+                           @Value("${arbiter.sign-in.mode:}") final String signInMode,
                            final PhilterTlsConfig tls) {
+        // ARBITER_SIGN_IN_MODE is no longer read. Refuse "local" rather than ignore it, so a deployment
+        // expecting Arbiter's own accounts is told they are gone instead of finding no one can sign in.
+        if (signInMode != null && "local".equalsIgnoreCase(signInMode.trim())) {
+            throw new IllegalStateException("ARBITER_SIGN_IN_MODE=local is no longer supported: people sign in "
+                    + "through Philter only. Remove ARBITER_SIGN_IN_MODE; see the upgrade notes in Arbiter's "
+                    + "security docs.");
+        }
         this.url = normalizeUrl(url);
         if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalStateException("ARBITER_PHILTER_API_KEY is required: the API key Arbiter uses for "

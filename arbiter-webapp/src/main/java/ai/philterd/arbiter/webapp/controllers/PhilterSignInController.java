@@ -15,7 +15,7 @@ import ai.philterd.arbiter.webapp.security.PhilterSessionAuthentication;
 import ai.philterd.arbiter.webapp.security.PhilterSignInFlow;
 import ai.philterd.arbiter.webapp.security.PhilterSignInService;
 import ai.philterd.arbiter.webapp.security.PhilterSignInStepException;
-import ai.philterd.arbiter.webapp.security.TotpService;
+import ai.philterd.arbiter.webapp.security.MfaQrCodes;
 import ai.philterd.philter.model.MfaEnrollment;
 import ai.philterd.philter.model.exceptions.ClientException;
 import ai.philterd.philter.model.exceptions.SignInThrottledException;
@@ -23,8 +23,6 @@ import ai.philterd.philter.model.exceptions.UnauthorizedException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import ai.philterd.arbiter.service.SignInModeCondition;
-import org.springframework.context.annotation.Conditional;
 import org.springframework.security.authentication.AuthenticationServiceException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.LockedException;
@@ -47,16 +45,14 @@ import org.springframework.web.bind.annotation.RequestParam;
  * password change, and forced MFA enrollment. The person is not signed in to Arbiter until every step
  * is done, so no other page can be reached before them. Changing the password or confirming enrollment
  * makes Philter revoke the person's session keys, so both end by sending the person back to sign in.
- * Only present when {@code ARBITER_SIGN_IN_MODE=philter}.
  */
 @Controller
 @RequestMapping("/sign-in")
-@Conditional(SignInModeCondition.Philter.class)
 public class PhilterSignInController {
 
     private final PhilterSignInService signInService;
     private final PhilterSignInFlow flow;
-    private final TotpService totpService;
+    private final MfaQrCodes qrCodes;
     private final SecurityContextRepository securityContextRepository;
     private final SessionRegistry sessionRegistry;
     private final CsrfTokenRepository csrfTokenRepository;
@@ -64,7 +60,7 @@ public class PhilterSignInController {
 
     public PhilterSignInController(final PhilterSignInService signInService,
                                    final PhilterSignInFlow flow,
-                                   final TotpService totpService,
+                                   final MfaQrCodes qrCodes,
                                    final SecurityContextRepository securityContextRepository,
                                    final SessionRegistry sessionRegistry,
                                    final CsrfTokenRepository csrfTokenRepository) {
@@ -72,7 +68,7 @@ public class PhilterSignInController {
         this.csrfTokenRepository = csrfTokenRepository;
         this.signInService = signInService;
         this.flow = flow;
-        this.totpService = totpService;
+        this.qrCodes = qrCodes;
         this.securityContextRepository = securityContextRepository;
     }
 
@@ -193,7 +189,7 @@ public class PhilterSignInController {
             PendingPhilterSignIn.clear(session);
             return "redirect:" + loginFor(flow.refused(pending.username(), e), "error");
         }
-        model.addAttribute("qrCodeDataUri", totpService.qrCodeDataUriForUri(enrollment.getOtpauthUri()));
+        model.addAttribute("qrCodeDataUri", qrCodes.dataUri(enrollment.getOtpauthUri()));
         model.addAttribute("secret", enrollment.getSecret());
         return "sign-in-mfa-enrollment";
     }

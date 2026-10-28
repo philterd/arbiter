@@ -1,22 +1,8 @@
 # Personal settings
 
-The **Settings** page (`/settings`) is where you change your password,
-configure how the Review page navigates, and manage your API key.
-
-!!! note "When you sign in through Philter"
-    If your deployment signs people in through Philter (you sign in with a
-    username rather than an email address), Philter keeps your password and
-    two-factor authentication:
-
-    - **Change password** changes your Philter password. It must be at least
-      16 characters. Philter then ends all of your sessions, so you sign in
-      again with the new password.
-    - Two-factor authentication is set up at sign-in, when your administrator
-      requires it, rather than on this page. You then enter a code from your
-      authenticator app after your password at each sign-in.
-    - Arbiter API keys are not available.
-    - For a forgotten password or a locked sign-in, ask your administrator,
-      who resets or unlocks it in Philter.
+The **Settings** page (`/settings`) is where you change your password and
+configure how the Review page navigates. Philter keeps your password,
+two-factor authentication, and API keys.
 
 ## Review page preferences
 
@@ -50,105 +36,30 @@ Settings are persisted per user in MongoDB (`user_settings` collection).
 
 ## Two-factor authentication
 
-Arbiter supports TOTP-based two-factor authentication (2FA) using any standard authenticator
-app — Google Authenticator, Authy, Microsoft Authenticator, 1Password, and similar apps all work.
-
-### Enabling 2FA
-
-1. Go to **Settings** and scroll to the **Two-factor authentication** section.
-2. Click **Set up 2FA**. A QR code and a text secret are displayed.
-3. Open your authenticator app, add a new account, and scan the QR code. If your app does not
-   have a scanner, enter the text secret manually.
-4. Type the 6-digit code shown in the app into the **Verification code** field and click
-   **Enable 2FA**. The code is time-based and rotates every 30 seconds — use the current one.
-5. On success you are redirected back to Settings, and the section will show a green **Enabled**
-   badge.
-
-From that point on, every login requires your password **and** a fresh code from your
-authenticator app (see [Login flow with 2FA](#login-flow-with-2fa) below).
-
-### Disabling 2FA
-
-Expand the **Disable two-factor authentication** section at the bottom of the 2FA card,
-enter your **current password** and a valid code from your authenticator app, and click
-**Disable 2FA**. Both are required — the password proves the session-holder is really you,
-the TOTP code proves the authenticator device is still in your possession. An unattended
-session alone (or a compromised authenticator without your password) cannot strip 2FA.
-Once disabled, subsequent logins no longer prompt for a code.
-
-### Login flow with 2FA
-
-When MFA is enabled on your account, the login sequence is:
-
-1. Enter your email and password as usual.
-2. Arbiter redirects you to the **Two-Factor Authentication** challenge page (`/mfa`).
-3. Enter the 6-digit code from your authenticator app and click **Verify**.
-4. On success you are signed in and redirected to the dashboard.
-
-If the code is wrong you are returned to the challenge page with an error; the password step is
-not repeated. If you cannot produce a valid code (e.g. lost device), contact your administrator
-— they can disable MFA on your account from the Users page.
-
-### If your administrator requires MFA
-
-When an admin has turned on the **Require MFA for all users** policy, any user without 2FA
-configured is redirected to the setup page immediately after entering their password. You cannot
-navigate away until you complete enrollment. The setup flow is identical to the one above; a
-yellow banner on the page explains why you have been sent there.
+Two-factor authentication is set up at sign-in, when your administrator requires it, rather than on
+this page. You scan a QR code with an authenticator app, then enter a code from it after your
+password at each sign-in.
 
 ## Change password
 
-Enter your current password, the new password, and a confirmation. The new
-password must be at least **12 characters**. On success, your stored password
-is replaced with a fresh hash — Arbiter never stores plaintext passwords (see
-[Security](../security.md)).
-
-If your current password is wrong, you'll get an error and nothing changes.
+Enter your current password, the new password, and a confirmation. The new password must be at
+least 16 characters and differ from the current one. Philter then ends all of your sessions, so you
+sign in again with the new password.
 
 ### Forgotten password
 
-Arbiter has no automated self-service password-reset flow (no reset-by-email
-link). If you cannot log in because you have forgotten your password, click
-**Forgot password?** on the sign-in page. A message appears asking you to
-contact your administrator. Your admin can set a new password for you from
-**Admin → Users** without needing to know your old one — see
-[Resetting a user's password](../admin/users-and-groups.md#reset-a-users-password).
+Arbiter has no self-service password reset. For a forgotten password or a locked sign-in, ask your
+administrator, who resets or unlocks it under **Admin → Users**.
 
-## API key
+## API keys
 
-Your account can have **one** API key at a time. The key authenticates
-programmatic requests to `/api/v1/*` using a standard HTTP Authorization
-header:
-
-```
-Authorization: Bearer <your-api-key>
-```
-
-API keys carry the same permissions as your user account — including group
-membership and admin role.
-
-### Generate a new key
-
-Enter your **current password** and click **Generate API key**. The new key
-is displayed once on the resulting page in a yellow callout. **Copy it
-immediately** — Arbiter only stores the SHA-512 hash of the key, so it cannot
-be shown again.
-
-If a key was already set, generating a new one replaces the old one.
-
-The password re-prompt is there to stop a hijacked session (or a tab left
-open on an unattended machine) from minting a long-lived API key on your
-behalf.
-
-### Revoke
-
-Enter your **current password** and click **Revoke API key**. The stored
-hash is cleared and subsequent API requests using the old key will be
-rejected. The same password re-prompt rationale applies as for generation.
+To call Arbiter's [REST API](../reference/api.md), use a Philter API key that holds the
+`users:read` scope. Philter manages your keys; Arbiter has none of its own. See
+[API keys](../security.md#api-keys).
 
 ## Audit trail
 
-Both `API_KEY_GENERATE` and `API_KEY_REVOKE` (and every `PASSWORD_CHANGE`)
-are recorded in the audit log with your email and a timestamp. Admins can
+Every `PASSWORD_CHANGE` and preferences change (`USER_SETTINGS_CHANGE`) is
+recorded in the audit log with your username and a timestamp. Admins can
 review these from
 [Admin Settings → Audit log](../admin/audit-log.md).

@@ -40,14 +40,15 @@ import java.util.stream.Collectors;
  * when it passes its idle timeout or maximum lifetime, is revoked, or is revoked by a password reset or
  * deactivation. Also ends it when the person's role has changed, in Philter or in Arbiter, or their
  * Arbiter record was deleted, so they sign in again with the new role, and ends any session left from
- * before Arbiter was switched to Philter sign-in. Checks the key with {@code GET /api/users/me} at most
+ * Arbiter's removed local sign-in. Checks the key with {@code GET /api/users/me} at most
  * once per interval ({@code arbiter.sign-in.check-interval-seconds}, default one minute; zero checks
  * every request), which also keeps Philter's idle timeout moving while the person uses Arbiter. If Philter cannot be reached the request goes ahead and the next one checks again: only a
  * rejected key ends the session.
  */
 public class PhilterSessionValidationFilter extends OncePerRequestFilter {
 
-    static final String VALIDATED_AT = "PHILTER_SESSION_VALIDATED_AT";
+    /** Session attribute: when the session key was last checked with Philter, in epoch milliseconds. */
+    public static final String VALIDATED_AT = "PHILTER_SESSION_VALIDATED_AT";
     /** The default for {@code arbiter.sign-in.check-interval-seconds}. */
     static final Duration DEFAULT_INTERVAL = Duration.ofMinutes(1);
 
@@ -90,8 +91,7 @@ public class PhilterSessionValidationFilter extends OncePerRequestFilter {
             chain.doFilter(request, response);
             return;
         }
-        // Only installed when people sign in through Philter, where every session is a Philter one.
-        // Anything else is a session from before the switch to Philter sign-in.
+        // Every session is a Philter one. Anything else is left from Arbiter's removed local sign-in.
         if (!(auth instanceof PhilterSessionAuthentication philter)) {
             end(request, response, session, auth.getName(), null, "sign_in_mode_changed");
             return;

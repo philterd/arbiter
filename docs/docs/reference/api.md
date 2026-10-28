@@ -10,13 +10,31 @@ returns `415 Unsupported Media Type` without it.
 
 ## Authentication
 
+### Philter API keys
+
+Programmatic callers authenticate with a **Philter API key** that holds Philter's `users:read`
+scope, sent on every request:
+
+```http
+Authorization: Bearer <philter-api-key>
+```
+
+Arbiter checks the key with Philter and runs the request as the Philter user that owns it, with
+that person's Arbiter role and groups. Arbiter has no API keys of its own. See
+[API keys](../security.md#api-keys) for how the key is checked and cached.
+
+| Status | Meaning |
+|---|---|
+| `401 Unauthorized` | No key, or Philter does not accept the key, or its user is deactivated. |
+| `403 Forbidden` | The key does not hold `users:read`, or the user's role does not allow the call. |
+| `503 Service Unavailable` | Philter could not be reached to check the key. |
+
 ### Programmatic (Bearer-only)
 
-These endpoints are intended for scripts, integrations, and downstream
-consumers. They accept **only** a personal API key sent as a Bearer token —
-session cookies are explicitly stripped by the security filter chain so a
-logged-in admin's browser session cannot be CSRF'd into reaching them. The
-Bearer-only set is small and stable:
+These endpoints are intended for scripts, integrations, and downstream consumers. They accept
+**only** a Philter API key: session cookies are explicitly stripped by the security filter chain so
+a logged-in admin's browser session cannot be CSRF'd into reaching them. The Bearer-only set is
+small and stable:
 
 | Method | Path |
 |---|---|
@@ -25,33 +43,12 @@ Bearer-only set is small and stable:
 | `POST` | `/api/v1/documents/{id}/finalize` |
 | `GET`  | `/api/v1/documents/{id}/audit` |
 
-To use them, generate an API key from
-[Personal settings](../user-guide/settings.md) and send it on every request:
-
-```http
-Authorization: Bearer <your-api-key>
-```
-
-When people sign in through Philter, API keys are not available and these
-endpoints answer `401 Unauthorized`; see
-[Sign-in through Philter](../security.md#sign-in-through-philter).
-
-Arbiter stores only the SHA-512 hash of the key. The plaintext value is shown
-once at generation and cannot be recovered. Rotate by generating a new key
-(which replaces the old one) or revoke the existing one. Failed authentication
-(no header, malformed header, or unknown key) returns `401 Unauthorized`.
-
 ### Session-allowed (browser-UI shared)
 
-The remaining `/api/v1/**` endpoints are used by Arbiter's own web UI and
-accept either a Bearer token or the browser's session cookie. Cross-origin
-abuse is blocked by the browser's same-origin policy plus the absence of a
-permissive CORS configuration; Bearer authentication still works for
-programmatic clients that prefer to use them, except when people sign in
-through Philter, where only the session cookie is accepted. Endpoints in this category are
-called out below per-section. The API key carries the same role and group
-permissions as the user that owns it; session callers carry whatever role and
-groups their account has.
+The remaining `/api/v1/**` endpoints are used by Arbiter's own web UI and accept either a Philter
+API key or the browser's session cookie. Cross-origin abuse is blocked by the browser's same-origin
+policy plus the absence of a permissive CORS configuration. Endpoints in this category are called
+out below per-section.
 
 ## Health and metrics
 

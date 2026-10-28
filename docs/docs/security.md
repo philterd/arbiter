@@ -5,23 +5,16 @@ how it scopes what they can see, and how it stores secrets.
 
 ## Authentication
 
-There are two ways to authenticate:
+People sign in to Arbiter through its Philter, and Philter is the only user store. There are two
+ways to authenticate:
 
-1. **Form login** — POST `email` and `password` to `/login`. On success, a
-   session cookie is set and the user is redirected to `/`. Failure
-   redirects to `/login?error`. CSRF protection is enabled for all non-API
-   form posts via Spring Security's default token mechanism. In `philter`
-   sign-in mode the form posts `username` and `password`, which Arbiter sends
-   to Philter; see [Sign-in through Philter](#sign-in-through-philter).
+1. **Sign-in** with a Philter username and password, at `/login`. See
+   [Sign-in through Philter](#sign-in-through-philter). CSRF protection is enabled for all non-API
+   form posts.
+2. **A Philter API key** on Arbiter's API, as `Authorization: Bearer <key>` on requests to
+   `/api/**`. See [API keys](#api-keys).
 
-2. **Bearer API key** — send `Authorization: Bearer <api-key>` on requests
-   to `/api/v1/*`. Arbiter SHA-512-hashes the incoming key and looks up the
-   user by the hash. API keys carry the same role and group memberships as
-   the owning user.
-
-Both login success and login failure are recorded in the audit log
-(`LOGIN`, with `outcome` either `SUCCESS` or `FAILURE`). Logout produces a
-`LOGOUT` entry.
+Arbiter has no accounts, passwords, MFA, or API keys of its own.
 
 #### Session storage
 
@@ -39,11 +32,11 @@ The connection is configured by `spring.data.redis.host` /
 
 ### Sign-in through Philter
 
-With `ARBITER_SIGN_IN_MODE=philter` (see
-[Sign-in](reference/configuration.md#sign-in)), people sign in to Arbiter
-with their Philter username and password, and Philter is the only user store.
-Philter keeps the passwords, MFA, lockout, and rate limiting; see Philter's
-[Sign-in Security](https://philterd.github.io/philter/latest/sign_in_security.html).
+People sign in to Arbiter with their Philter username and password. Philter keeps the passwords,
+MFA, lockout, and rate limiting; see Philter's
+[Sign-in Security](https://philterd.github.io/philter/latest/sign_in_security.html). Philter must run
+with `PASSWORD_SIGN_IN_ENABLED=true`, and Arbiter reaches it at `ARBITER_PHILTER_URL` (see
+[Philter integration](reference/configuration.md#philter-integration)).
 
 - **Sign-in.** The sign-in form sends the username and password to
   Philter's `POST /api/sign-in`, with the person's address and user agent.
@@ -76,64 +69,80 @@ Philter keeps the passwords, MFA, lockout, and rate limiting; see Philter's
   Users**, or the person's Arbiter record is deleted, Arbiter ends their
   session at its next check and they sign in again with the new role. Arbiter keeps a record for each person,
   named by their Philter username, for group membership and for the user
-  recorded on batches, documents, and the audit log. It holds no password
-  or MFA secret.
-- **What changes in Arbiter.** Arbiter's own password rules, lockout, TOTP
-  enrollment, require-MFA setting, and invitations do not apply. The Users
-  page manages Philter's users through its Users API, with the signed-in
+  recorded on batches, documents, and the audit log. It holds no password,
+  MFA secret, or API key.
+- **Users.** The Users page manages Philter's users through its Users API, with the signed-in
   administrator's session key (see
-  [Users when people sign in through Philter](admin/users-and-groups.md#users-when-people-sign-in-through-philter)).
-- **No Arbiter API keys.** Arbiter refuses Bearer API keys and Settings
-  offers none. A key is checked only against Arbiter's record, so it would
-  keep working after the person is deactivated or loses a role in Philter.
-  Endpoints that accept only a Bearer key, such as `POST /api/v1/ingest`,
-  are not available in this mode. Keys already stored are deleted at startup
-  and at each person's sign-in, so they do not work again if the deployment
-  returns to local sign-in.
+  [Users](admin/users-and-groups.md#users-adminusers)).
 - **Audit.** Sign-ins are recorded as `LOGIN` with `method: philter`, and a
   failure's `reason` is one of `BadCredentials`, `Locked`, `RateLimited`,
   `MfaLocked`, `SignInDisabled`, or `Unavailable`. A session ended because
   Philter rejected its key is a `LOGOUT` with
   `reason: philter_session_ended`, one ended by a role change has
-  `reason: role_changed`, and a session from before the switch to Philter
-  sign-in has `reason: sign_in_mode_changed`. Each of those also revokes the
+  `reason: role_changed`, and a session left from Arbiter's removed local sign-in has
+  `reason: sign_in_mode_changed`. Each of those also revokes the
   key, unless Philter had already rejected it. Philter records its own events, such as
   `sign_in_succeeded`, in its audit log.
+
+### First sign-in
+
+A new Philter has one administrator, `admin`, with no password. Give it one with
+`PHILTER_BOOTSTRAP_API_KEY`, then sign in to Arbiter as `admin`, which is an Arbiter administrator
+too. With `docker-compose.prod.yaml`, which does not publish Philter's port, run `curl` on the
+compose network (`docker network ls` shows its name):
+
+```sh
+docker run --rm --network arbiter_arbiter curlimages/curl:8.10.1 -s -X PUT "http://philter:8080/api/users/admin/password" \
+  -H "Authorization: Bearer $PHILTER_BOOTSTRAP_API_KEY" -H "Content-Type: application/json" \
+  --data '{"password":"a password of 16 or more characters"}'
+```
+
+This sets only `admin`'s first password; change it later from **Settings**. Add other people under
+**Admin → Users**.
+
+### Upgrading from local sign-in
+
+Earlier versions of Arbiter could keep their own accounts (`ARBITER_SIGN_IN_MODE=local`, the old
+default). That mode is removed:
+
+- **Settings.** Remove `ARBITER_SIGN_IN_MODE` and `ARBITER_ADMIN_INITIAL_PASSWORD`. Arbiter refuses
+  to start with `ARBITER_SIGN_IN_MODE=local`. Set `ARBITER_PHILTER_URL` and run Philter with
+  `PASSWORD_SIGN_IN_ENABLED=true`.
+- **People.** Create a Philter user for each person, with their Arbiter email address as the
+  username. Philter allows an email address as a username, and Arbiter keys each person's record
+  by username, so their groups, team leads, Auditor role, and the batches, reviews, and audit
+  entries attributed to them stay theirs. Make a person a Philter `admin` to keep them an Arbiter
+  administrator. A person created with any other username starts with a new record.
+- **Credentials.** On its first start after the upgrade, Arbiter rewrites every user record
+  without the password hash, MFA secret, and API key that local sign-in kept, and logs how many
+  it rewrote. People enroll in MFA again in Philter.
+- **API keys.** Arbiter's own API keys stop working. Use Philter API keys instead; see
+  [API keys](#api-keys).
+- **Sessions.** A session signed in with a local account is ended at its next request, and the
+  person signs in through Philter.
+
+## API keys
+
+Arbiter's API accepts a Philter API key as `Authorization: Bearer <key>` on `/api/**`. Arbiter asks
+Philter whose key it is with `GET /api/users/me`, so the key must hold Philter's `users:read`
+scope, and the request runs as that Philter user with the role Arbiter gives them (see **Roles**
+above). Arbiter's own calls to Philter use `ARBITER_PHILTER_API_KEY`, so the key needs no other
+scope. Create a key with only `users:read` for an integration that calls Arbiter.
+
+| Response | When |
+|---|---|
+| `401` | Philter does not accept the key, or its user is deactivated. |
+| `403` | The key does not hold `users:read`, or the user's Arbiter role does not allow the call. |
+| `503` | Philter could not be reached to check the key. |
+
+Philter's answer is cached for `arbiter.api-keys.cache-seconds` (default 30), keyed by a hash of
+the key, so a revoked key, a deactivation, or a role change applies within that time. Arbiter does
+not store or log the key. A Bearer key is checked only on `/api/**`; on other paths it is ignored.
+A key replaces a session cookie on the same request.
 
 Arbiter's other calls to Philter, such as redaction at ingest, policy
 listing, and finalization, still use `ARBITER_PHILTER_API_KEY`, not a person's
 session key.
-
-### Multi-factor authentication (TOTP)
-
-Arbiter supports TOTP-based MFA as a second factor for form-login sessions. API key
-authentication is unaffected — keys are high-entropy secrets and are not subject to the MFA
-gate.
-
-**Per-user opt-in**: any user can enable MFA from their [Settings page](user-guide/settings.md#two-factor-authentication).
-A shared secret is generated server-side, displayed as a QR code for the user to scan into an
-authenticator app, and stored against their user record in the `users` collection.
-
-**Login flow when MFA is active**:
-
-1. Password verification succeeds but the session is not yet established.
-2. The pending `Authentication` object is stored in the HTTP session under the key
-   `PENDING_MFA_AUTH`; the security context is cleared.
-3. The user is redirected to `/mfa`, which requires no authentication.
-4. The user submits the 6-digit TOTP code. If valid, the pending authentication is promoted
-   into a full Spring Security context (saved to the session via
-   `HttpSessionSecurityContextRepository`) and the user proceeds to the application.
-5. An invalid code returns to `/mfa` with an error; the pending authentication remains in the
-   session for retry.
-
-**Admin-enforced MFA**: administrators can turn on **Require MFA for all users** in
-[Admin → Security](admin/security.md). When this policy is active, any authenticated user who
-has not completed MFA enrollment is intercepted by `MfaEnrollmentInterceptor` and redirected
-to `/settings/mfa/setup?required=true`. The interceptor runs on every request and releases the
-user only once their `mfaEnabled` flag is `true` in the database.
-
-MFA setup and removal are recorded in the audit log as `MFA_ENABLED` and `MFA_DISABLED`; the
-admin policy change is recorded as `SECURITY_SETTINGS_CHANGE`.
 
 ## Authorization
 
@@ -147,8 +156,7 @@ Three roles, applied per-endpoint:
 - `ROLE_AUDITOR` — read-only counterpart to `ROLE_ADMIN`. Sees the same
   cross-group data an admin sees but cannot mutate state. Enforced by the
   `AuditorWriteRejectFilter`, which 403s any non-safe HTTP method outside a
-  small self-management allow-list (`/login`, `/logout`, `/mfa`, `/settings`,
-  `/invitations`). See [Roles and permissions](reference/roles.md) for the
+  small self-management allow-list (`/login`, `/logout`, `/settings`). See [Roles and permissions](reference/roles.md) for the
   full feature matrix.
 
 In addition, any `ROLE_USER` may be designated a **team lead** for one or
@@ -200,69 +208,6 @@ Keep Arbiter's port on an internal network. Where the deployment terminates
 TLS at a reverse proxy, block `/actuator` there unless your monitoring needs
 it, and restrict `/api/health` to the monitors that call it if the build
 version should not be visible.
-
-## Password storage
-
-User passwords are stored as **BCrypt** hashes (cost 12) using Spring
-Security's `DelegatingPasswordEncoder`. New hashes carry the `{bcrypt}`
-prefix so the encoder can route verifications without having to guess the
-algorithm:
-
-```
-{bcrypt}$2a$12$<22-char-salt><31-char-hash>
-```
-
-BCrypt's 16-byte salt is generated per-password and embedded in the hash;
-verification is constant-time. The cost factor (12) is the encoder's work
-parameter — raising it makes both encode and verify slower, so it's the
-knob to turn if you want to harden against future hardware. Change the
-constructor argument to `BCryptPasswordEncoder` in the encoder bean and
-existing hashes are unaffected (BCrypt verification reads the cost from the
-hash itself).
-
-Every sign-in, password change, admin reset, and invitation redemption
-produces a fresh `{bcrypt}` hash. The bootstrap admin's password — printed
-to standard output once on first start (see
-[Getting started → First run](getting-started.md#first-run)) — is generated
-from a cryptographically secure random source and encoded the same way.
-It is not stored anywhere in plaintext after the start-up banner is
-printed, so capture it from the start-up output and rotate it from
-**Settings → Account** at first opportunity.
-
-### Legacy SHA-512 fallback
-
-Earlier versions of Arbiter stored passwords as salted SHA-512 in this
-**unprefixed** form:
-
-```
-<saltHex>$<sha512Hex(salt + password)>
-```
-
-with a 16-byte (32-hex-char) salt. Hashes already in this form continue to
-verify at login — the `DelegatingPasswordEncoder` is configured so that a
-hash with no `{prefix}` is matched against the legacy encoder. The first
-time the user signs in **and changes their password**, or an admin resets
-it, the stored hash transitions to the `{bcrypt}` form. Plain SHA-512
-hashes are never produced for new passwords.
-
-Plain salted SHA-512 is fast (and therefore weak against offline brute
-force) compared to a deliberate KDF. The fallback exists only so existing
-deployments don't lock users out at the upgrade boundary; rotate everyone's
-password to migrate them off the legacy scheme.
-
-## API key storage
-
-API keys are 256 bits of cryptographic randomness, base64url-encoded. On
-generation Arbiter:
-
-1. Stores `sha512(key)` (no salt — every key is high-entropy by design).
-2. Returns the plaintext key to the user **once**, in a banner on the
-   settings page.
-
-Subsequent authentication SHA-512-hashes the incoming bearer token and
-looks up the user record by that hash. Keys cannot be recovered from
-the database; if a user loses theirs they generate a new one (which
-replaces the old).
 
 ## SMTP credentials
 

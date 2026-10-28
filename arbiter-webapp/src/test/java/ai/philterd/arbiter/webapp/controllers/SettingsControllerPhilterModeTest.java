@@ -11,61 +11,44 @@ package ai.philterd.arbiter.webapp.controllers;
 
 import ai.philterd.arbiter.model.User;
 import ai.philterd.arbiter.repository.UserRepository;
-import ai.philterd.arbiter.service.ApiKeyHashingService;
 import ai.philterd.arbiter.service.AuditLogService;
-import ai.philterd.arbiter.service.SymmetricCipher;
 import ai.philterd.arbiter.service.UserSettingsService;
 import ai.philterd.arbiter.webapp.security.PhilterSessionAuthentication;
 import ai.philterd.arbiter.webapp.security.PhilterSignInService;
-import ai.philterd.arbiter.webapp.security.TotpService;
 import ai.philterd.philter.model.exceptions.ClientException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
-import org.springframework.security.core.session.SessionRegistry;
-import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.ui.ExtendedModelMap;
 import org.springframework.web.servlet.mvc.support.RedirectAttributesModelMap;
 
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** Settings for a person signed in through Philter: Philter holds the password and the MFA. */
+/** A person's settings: Philter holds the password and the MFA. */
 class SettingsControllerPhilterModeTest {
 
-    private static final String TEST_KEY_B64 = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
-
     private UserRepository userRepository;
-    private PasswordEncoder passwordEncoder;
     private PhilterSignInService signInService;
     private SettingsController controller;
     private final PhilterSessionAuthentication philter = new PhilterSessionAuthentication("jdoe", "enc-key",
             List.of(new SimpleGrantedAuthority("ROLE_USER")));
 
     @BeforeEach
-    @SuppressWarnings("unchecked")
     void setUp() {
         userRepository = mock(UserRepository.class);
-        passwordEncoder = mock(PasswordEncoder.class);
         signInService = mock(PhilterSignInService.class);
-        final ObjectProvider<PhilterSignInService> services = mock(ObjectProvider.class);
-        when(services.getObject()).thenReturn(signInService);
-        controller = new SettingsController(userRepository, passwordEncoder, mock(AuditLogService.class),
-                mock(UserSettingsService.class), mock(TotpService.class), mock(ApiKeyHashingService.class),
-                new SymmetricCipher(TEST_KEY_B64), mock(SessionRegistry.class), services);
+        controller = new SettingsController(userRepository, mock(AuditLogService.class),
+                mock(UserSettingsService.class), signInService);
         final User shadow = new User();
         shadow.setId("u1");
         shadow.setEmail("jdoe");
@@ -75,34 +58,6 @@ class SettingsControllerPhilterModeTest {
     private static String error(final RedirectAttributesModelMap flash) {
         final Object e = flash.getFlashAttributes().get("error");
         return e == null ? null : e.toString();
-    }
-
-    @Test
-    void localMfaIsNotOffered() {
-        final RedirectAttributesModelMap setup = new RedirectAttributesModelMap();
-        assertEquals("redirect:/settings", controller.mfaSetup(philter, new MockHttpSession(),
-                new ExtendedModelMap(), setup));
-        assertEquals(SettingsController.MFA_IN_PHILTER, error(setup));
-
-        final RedirectAttributesModelMap enable = new RedirectAttributesModelMap();
-        controller.mfaEnable("pw", "123456", false, philter, new MockHttpSession(), enable);
-        assertEquals(SettingsController.MFA_IN_PHILTER, error(enable));
-
-        final RedirectAttributesModelMap disable = new RedirectAttributesModelMap();
-        controller.mfaDisable("pw", "123456", philter, disable);
-        assertEquals(SettingsController.MFA_IN_PHILTER, error(disable));
-    }
-
-    @Test
-    void apiKeysAreNotAvailable() {
-        final RedirectAttributesModelMap generate = new RedirectAttributesModelMap();
-        controller.generateApiKey("right-password-1234", philter, generate);
-        assertEquals(SettingsController.API_KEYS_OFF, error(generate));
-
-        final RedirectAttributesModelMap revoke = new RedirectAttributesModelMap();
-        controller.revokeApiKey("right-password-1234", philter, revoke);
-        assertEquals(SettingsController.API_KEYS_OFF, error(revoke));
-        verify(userRepository, never()).save(any());
     }
 
     @Test

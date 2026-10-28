@@ -17,6 +17,5 @@ import java.util.Optional;
 @Repository
 public interface UserRepository extends ArbiterRepository<User, String> {
     Optional<User> findByEmail(String email);
-    Optional<User> findByApiKey(String apiKey);
     long countByRolesContaining(String role);
 }

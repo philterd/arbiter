@@ -68,5 +68,5 @@ considered redacted.
   [PII types and default weights](reference/pii-types.md),
   [REST API](reference/api.md) (covers ingest, search, comments, LLM-judge,
   finalize/audit, and span CRUD).
-- **[Security](security.md)** — authentication, authorization, password and
-  API-key storage.
+- **[Security](security.md)**: sign-in through Philter, Philter API keys,
+  authorization, and how secrets are stored.

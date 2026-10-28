@@ -50,7 +50,11 @@ public class GeneralSettings {
      * applies on read).
      */
     private long maxUploadFileSizeBytes;
-    private boolean requireMfa;
+    /**
+     * Set once every user row has been rewritten without the password hash, MFA secret, and API key that
+     * Arbiter's removed local sign-in kept ({@code LocalCredentialsCleanup}).
+     */
+    private boolean localCredentialsRemoved;
     /**
      * Maximum number of data-import jobs allowed to run concurrently across the whole
      * deployment. Bounded to 1–10 by the admin form; the {@link
@@ -113,8 +117,8 @@ public class GeneralSettings {
         this.maxUploadFileSizeBytes = maxUploadFileSizeBytes;
     }
 
-    public boolean isRequireMfa() { return requireMfa; }
-    public void setRequireMfa(final boolean requireMfa) { this.requireMfa = requireMfa; }
+    public boolean isLocalCredentialsRemoved() { return localCredentialsRemoved; }
+    public void setLocalCredentialsRemoved(final boolean localCredentialsRemoved) { this.localCredentialsRemoved = localCredentialsRemoved; }
 
     public int getMaxConcurrentDataImports() { return maxConcurrentDataImports; }
     public void setMaxConcurrentDataImports(final int maxConcurrentDataImports) {

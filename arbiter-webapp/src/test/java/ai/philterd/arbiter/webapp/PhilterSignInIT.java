@@ -70,7 +70,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 // Set here rather than in @DynamicPropertySource, which is applied after Arbiter's store post-processor
 // reads arbiter.store. Spring Session is left out, so sessions are in memory and no Valkey is needed.
 @SpringBootTest(classes = ArbiterApplication.class, properties = {
-        "arbiter.sign-in.mode=philter",
         "arbiter.sign-in.check-interval-seconds=0",
         "arbiter.store=sqlite",
         "arbiter.demo-data.enabled=false",
@@ -102,12 +101,13 @@ class PhilterSignInIT {
     @Autowired private MockMvc mockMvc;
     @Autowired private SymmetricCipher cipher;
     @Autowired private ai.philterd.arbiter.repository.UserRepository userRepository;
-    @Autowired private ai.philterd.arbiter.service.ApiKeyHashingService apiKeyHashingService;
     @Autowired private ai.philterd.arbiter.service.RedactionService redactionService;
 
     @DynamicPropertySource
     static void properties(final DynamicPropertyRegistry registry) throws Exception {
         registry.add("arbiter.philter.url", PhilterSignInIT::philterUrl);
+        // Check API keys with Philter on every call, so a revocation applies to the next one.
+        registry.add("arbiter.api-keys.cache-seconds", () -> "0");
         // An administrator's key, so Admin → Philter's check has something to flag.
         registry.add("arbiter.philter.api-key", () -> BOOTSTRAP_KEY);
         final String database = Files.createTempDirectory("arbiter-it").resolve("arbiter.db").toString();
@@ -360,19 +360,50 @@ class PhilterSignInIT {
                 .andExpect(status().isOk());
     }
 
-    @Test
-    void arbiterApiKeysAreRefused() throws Exception {
-        // A genuine Arbiter key on an admin's record, as one made under local sign-in would be.
-        final String key = "arbiter-key-" + HexFormat.of().formatHex(bytes(12));
-        final ai.philterd.arbiter.model.User holder = new ai.philterd.arbiter.model.User();
-        holder.setId(java.util.UUID.randomUUID().toString());
-        holder.setEmail("key-holder-" + HexFormat.of().formatHex(bytes(3)));
-        holder.setRoles(java.util.Set.of("ADMIN"));
-        holder.setApiKey(apiKeyHashingService.hash(key));
-        userRepository.save(holder);
-        assertTrue(userRepository.findByApiKey(apiKeyHashingService.hash(key)).isPresent());
+    /** A Philter user with no password, as an automation account is, and one key with {@code scopes}. */
+    private static ai.philterd.philter.model.CreatedApiKeyResponse apiOnlyUserWithKey(final String prefix,
+                                                                                    final java.util.List<String> scopes)
+            throws Exception {
+        final String username = prefix + "-" + HexFormat.of().formatHex(bytes(3));
+        final CreateUserRequest request = new CreateUserRequest();
+        request.setUsername(username);
+        request.setRole("user");
+        bootstrap().createUser(request);
+        return bootstrap().createApiKey(username, scopes);
+    }
 
-        mockMvc.perform(get("/api/v1/batches").header("Authorization", "Bearer " + key))
+    @Test
+    void philterApiKeyWithUsersReadCallsTheApiAsItsUser() throws Exception {
+        final ai.philterd.philter.model.CreatedApiKeyResponse key =
+                apiOnlyUserWithKey("ci", java.util.List.of("users:read"));
+
+        mockMvc.perform(get("/api/v1/batches").header("Authorization", "Bearer " + key.getApiKey()))
+                .andExpect(status().isOk());
+        final ai.philterd.arbiter.model.User record = userRepository.findByEmail(key.getUsername()).orElseThrow();
+        assertEquals(java.util.Set.of("USER"), record.getRoles());
+    }
+
+    @Test
+    void revokedPhilterApiKeyIsRefused() throws Exception {
+        final ai.philterd.philter.model.CreatedApiKeyResponse key =
+                apiOnlyUserWithKey("revoked", java.util.List.of("users:read"));
+        mockMvc.perform(get("/api/v1/batches").header("Authorization", "Bearer " + key.getApiKey()))
+                .andExpect(status().isOk());
+
+        bootstrap().revokeApiKey(key.getId());
+
+        mockMvc.perform(get("/api/v1/batches").header("Authorization", "Bearer " + key.getApiKey()))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void philterApiKeyWithoutUsersReadIsRefused() throws Exception {
+        final ai.philterd.philter.model.CreatedApiKeyResponse key =
+                apiOnlyUserWithKey("no-scope", java.util.List.of("redact"));
+
+        mockMvc.perform(get("/api/v1/batches").header("Authorization", "Bearer " + key.getApiKey()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/batches").header("Authorization", "Bearer sk_not_a_key"))
                 .andExpect(status().isUnauthorized());
     }
 

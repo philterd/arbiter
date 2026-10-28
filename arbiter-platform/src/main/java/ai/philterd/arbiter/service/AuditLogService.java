@@ -42,8 +42,8 @@ public class AuditLogService {
     public static final String OUTCOME_FAILURE = "FAILURE";
 
     /** Domain-separation label for the audit-hash subkey, so the same crypto secret
-     *  used for AES-256-GCM at-rest encryption (via SymmetricCipher) and for API-key
-     *  hashing (via ApiKeyHashingService) doesn't share an HMAC key with audit hashing.
+     *  used for AES-256-GCM at-rest encryption (via SymmetricCipher) doesn't share a key
+     *  with audit hashing.
      *  Bumping the {@code v1} suffix is the recipe for rotating audit hashes. */
     private static final String AUDIT_HASH_SUBKEY_LABEL = "arbiter:audit-hash:v1";
 

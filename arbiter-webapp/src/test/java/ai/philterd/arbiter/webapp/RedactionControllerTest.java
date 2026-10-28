@@ -47,7 +47,6 @@ import ai.philterd.arbiter.service.DestinationTester;
 import ai.philterd.arbiter.service.RedactionService;
 import ai.philterd.arbiter.webapp.controllers.RedactionController;
 import org.springframework.data.mongodb.core.MongoOperations;
-import ai.philterd.arbiter.webapp.security.MongoUserDetailsService;
 import ai.philterd.arbiter.webapp.security.SecurityConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,13 +54,13 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.mock.web.MockMultipartFile;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static ai.philterd.arbiter.webapp.SignedIn.signedIn;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
@@ -74,16 +73,21 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.view;
 
 @WebMvcTest(RedactionController.class)
-@Import({SecurityConfig.class, MongoUserDetailsService.class,
+@Import({SecurityConfig.class,
         ai.philterd.arbiter.service.BatchAccessService.class})
-@WithMockUser
 public class RedactionControllerTest {
 
     @Autowired
     private MockMvc mockMvc;
 
     @MockBean
-    private ai.philterd.arbiter.service.ApiKeyHashingService apiKeyHashingService;
+    private ai.philterd.arbiter.webapp.security.PhilterApiKeys philterApiKeys;
+
+    @MockBean
+    private ai.philterd.arbiter.webapp.security.PhilterSignInService philterSignInService;
+
+    @MockBean
+    private ai.philterd.arbiter.webapp.security.PhilterSignInFlow philterSignInFlow;
 
     /** HealthController lands in this slice and needs an endpoint @WebMvcTest does not provide. */
     @MockBean
@@ -183,9 +187,6 @@ public class RedactionControllerTest {
     private ai.philterd.arbiter.repository.ComplianceProfileRepository complianceProfileRepository;
 
     @MockBean
-    private ai.philterd.arbiter.repository.InvitationRepository invitationRepository;
-
-    @MockBean
     private MongoOperations mongoOperations;
 
     @MockBean
@@ -193,14 +194,14 @@ public class RedactionControllerTest {
 
     @Test
     public void testDashboard() throws Exception {
-        mockMvc.perform(get("/"))
+        mockMvc.perform(get("/").with(signedIn("user", "USER")))
                 .andExpect(status().isOk())
                 .andExpect(view().name("dashboard"));
     }
 
     @Test
     public void testUpload() throws Exception {
-        mockMvc.perform(get("/upload"))
+        mockMvc.perform(get("/upload").with(signedIn("user", "USER")))
                 .andExpect(status().isOk())
                 .andExpect(view().name("index"));
     }
@@ -243,7 +244,7 @@ public class RedactionControllerTest {
                         .param("sourceType", "opensearch")
                         .param("batchId", "b1")
                         .param("dataSourceId", "src-1")
-                        .with(csrf()))
+                        .with(csrf()).with(signedIn("user", "USER")))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/upload"))
                 .andExpect(flash().attributeExists("error"));
@@ -269,7 +270,7 @@ public class RedactionControllerTest {
                         .param("sourceType", "elasticsearch")
                         .param("batchId", "b1")
                         .param("dataSourceId", "src-1")
-                        .with(csrf()))
+                        .with(csrf()).with(signedIn("user", "USER")))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/upload"))
                 .andExpect(flash().attributeExists("error"));
@@ -300,7 +301,7 @@ public class RedactionControllerTest {
                         .param("sourceType", "opensearch")
                         .param("batchId", "b1")
                         .param("dataSourceId", "src-1")
-                        .with(csrf()))
+                        .with(csrf()).with(signedIn("user", "USER")))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/jobs"))
                 .andExpect(flash().attributeExists("success"));
@@ -314,7 +315,6 @@ public class RedactionControllerTest {
 
     /** An admin can start an ingest into any batch. */
     @Test
-    @WithMockUser(roles = "ADMIN")
     public void ingestFromSourceAllowedForAdmin() throws Exception {
         final Batch batch = new Batch();
         batch.setId("b1");
@@ -332,7 +332,7 @@ public class RedactionControllerTest {
                         .param("sourceType", "opensearch")
                         .param("batchId", "b1")
                         .param("dataSourceId", "src-1")
-                        .with(csrf()))
+                        .with(csrf()).with(signedIn("user", "ADMIN")))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/jobs"));
     }
@@ -347,7 +347,7 @@ public class RedactionControllerTest {
                         .param("sourceType", "opensearch")
                         .param("batchId", "ghost")
                         .param("dataSourceId", "src-1")
-                        .with(csrf()))
+                        .with(csrf()).with(signedIn("user", "USER")))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/upload"))
                 .andExpect(flash().attributeExists("error"));
@@ -364,7 +364,6 @@ public class RedactionControllerTest {
      * regression that would silently break the demo PostgreSQL data source.
      */
     @Test
-    @WithMockUser(roles = "ADMIN")
     public void ingestFromSourceRdbStartsBackgroundJobAndRedirectsToJobsPage() throws Exception {
         final Batch batch = new Batch();
         batch.setId("b1");
@@ -382,7 +381,7 @@ public class RedactionControllerTest {
                         .param("sourceType", "rdb")
                         .param("batchId", "b1")
                         .param("dataSourceId", "rdb-1")
-                        .with(csrf()))
+                        .with(csrf()).with(signedIn("user", "ADMIN")))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/jobs"))
                 .andExpect(flash().attributeExists("success"));
@@ -396,7 +395,6 @@ public class RedactionControllerTest {
 
     /** A closed batch cannot accept new ingest jobs. */
     @Test
-    @WithMockUser(roles = "ADMIN")
     public void ingestFromSourceRejectedWhenBatchClosed() throws Exception {
         final Batch closed = new Batch();
         closed.setId("b1");
@@ -410,7 +408,7 @@ public class RedactionControllerTest {
                         .param("sourceType", "opensearch")
                         .param("batchId", "b1")
                         .param("dataSourceId", "src-1")
-                        .with(csrf()))
+                        .with(csrf()).with(signedIn("user", "ADMIN")))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/upload"))
                 .andExpect(flash().attributeExists("error"));
@@ -420,7 +418,6 @@ public class RedactionControllerTest {
     }
 
     @Test
-    @WithMockUser(roles = "ADMIN")
     public void testRedactText() throws Exception {
         final String text = "George Washington lived in Mount Vernon.";
 
@@ -438,7 +435,7 @@ public class RedactionControllerTest {
 
         // The endpoint now enqueues the upload onto the redaction queue and redirects back to
         // /upload with a success flash. The actual redaction runs asynchronously in the worker.
-        mockMvc.perform(multipart("/redact").file(file).param("batchId", "batch-1").with(csrf()))
+        mockMvc.perform(multipart("/redact").file(file).param("batchId", "batch-1").with(csrf()).with(signedIn("user", "ADMIN")))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/upload"))
                 .andExpect(flash().attributeExists("success"));
@@ -461,7 +458,7 @@ public class RedactionControllerTest {
                         .param("redactedText", "<script>alert(1)</script>")
                         .param("fileName", "evil.html")
                         .param("contentType", "text/html")
-                        .with(csrf()))
+                        .with(csrf()).with(signedIn("user", "USER")))
                 .andExpect(status().isBadRequest());
     }
 
@@ -472,7 +469,7 @@ public class RedactionControllerTest {
                         .param("redactedText", "alert(1)")
                         .param("fileName", "evil.js")
                         .param("contentType", "application/javascript")
-                        .with(csrf()))
+                        .with(csrf()).with(signedIn("user", "USER")))
                 .andExpect(status().isBadRequest());
     }
 
@@ -483,7 +480,7 @@ public class RedactionControllerTest {
                         .param("redactedText", "data")
                         .param("fileName", "x.txt")
                         .param("contentType", "")
-                        .with(csrf()))
+                        .with(csrf()).with(signedIn("user", "USER")))
                 .andExpect(status().isBadRequest());
     }
 
@@ -501,7 +498,7 @@ public class RedactionControllerTest {
                                 .param("redactedText", "")
                                 .param("fileName", "doc.pdf")
                                 .param("contentType", "application/pdf")
-                                .with(csrf()))
+                                .with(csrf()).with(signedIn("user", "USER")))
                 .andExpect(status().isConflict())
                 .andReturn();
 
@@ -523,7 +520,7 @@ public class RedactionControllerTest {
                                 .param("redactedText", "Hello.")
                                 .param("fileName", "report\r\nX-Injected: yes\";attack=\".txt")
                                 .param("contentType", "text/plain")
-                                .with(csrf()))
+                                .with(csrf()).with(signedIn("user", "USER")))
                 .andExpect(status().isOk())
                 .andReturn();
 
@@ -556,7 +553,6 @@ public class RedactionControllerTest {
      * at least one row to render.
      */
     @Test
-    @WithMockUser(roles = "ADMIN")
     public void uploadPageRendersRdbDropdownWithStoredDataSources() throws Exception {
         final ai.philterd.arbiter.model.RelationalDbDataSource src =
                 new ai.philterd.arbiter.model.RelationalDbDataSource();
@@ -585,7 +581,7 @@ public class RedactionControllerTest {
         when(userGroupsService.groupIdsForEmail(any())).thenReturn(java.util.Set.of("g-mine"));
 
         final org.springframework.test.web.servlet.MvcResult result = mockMvc.perform(
-                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/upload"))
+                        org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/upload").with(signedIn("user", "ADMIN")))
                 .andExpect(status().isOk())
                 .andReturn();
         final String body = result.getResponse().getContentAsString();

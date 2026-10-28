@@ -105,18 +105,19 @@ before the user is logged out.
 
 ## Sign-in
 
-People sign in with Arbiter's own accounts (`local`, the default) or through
-Philter 4.0's user management API (`philter`). See
+People sign in through Philter 4.0's user management API, at Arbiter's Philter,
+`ARBITER_PHILTER_URL` (see [Philter integration](#philter-integration)). See
 [Sign-in through Philter](../security.md#sign-in-through-philter).
 
 | Property | Environment variable | Purpose |
 | -------- | -------------------- | ------- |
-| `arbiter.sign-in.mode` | `ARBITER_SIGN_IN_MODE` | `local` (default) or `philter`. Any other value stops Arbiter at startup. |
-| `arbiter.sign-in.check-interval-seconds` | `ARBITER_SIGN_IN_CHECK_INTERVAL_SECONDS` | In `philter` mode, how often Arbiter checks a person's session key with Philter while they use it, in seconds (default `60`). `0` checks every request. A session Philter has ended, or whose role has changed, ends at the next check. The check is what keeps Philter's idle timeout for the key moving, so keep the interval well under Philter's `SESSION_KEY_IDLE_TIMEOUT_MINUTES` (30 by default), or people are signed out while they work. A negative value stops Arbiter at startup. |
+| `arbiter.sign-in.check-interval-seconds` | `ARBITER_SIGN_IN_CHECK_INTERVAL_SECONDS` | How often Arbiter checks a person's session key with Philter while they use it, in seconds (default `60`). `0` checks every request. A session Philter has ended, or whose role has changed, ends at the next check. The check is what keeps Philter's idle timeout for the key moving, so keep the interval well under Philter's `SESSION_KEY_IDLE_TIMEOUT_MINUTES` (30 by default), or people are signed out while they work. A negative value stops Arbiter at startup. |
+| `arbiter.api-keys.cache-seconds` | `ARBITER_API_KEYS_CACHE_SECONDS` | How long Arbiter keeps Philter's answer for a [Philter API key](../security.md#api-keys) used on its API, in seconds (default `30`). A revoked key, a deactivation, or a role change applies within this time. `0` asks Philter on every request. A negative value stops Arbiter at startup. |
 
-In `philter` mode people sign in through Arbiter's Philter, `ARBITER_PHILTER_URL`
-(see [Philter integration](#philter-integration)). These settings are read only at
-startup, so an administrator signed in to Arbiter cannot change how people sign in.
+`ARBITER_SIGN_IN_MODE` is no longer read: Arbiter refuses to start with `local`, which was removed
+(see [Upgrading from local sign-in](../security.md#upgrading-from-local-sign-in)).
+These settings are read only at startup, so an administrator signed in to Arbiter
+cannot change how people sign in.
 Calls to Philter use the
 `arbiter.philter.tls.*` settings in
 [TLS and client certificates](#tls-and-client-certificates); with Philter's
@@ -134,12 +135,6 @@ Arbiter sends Philter the address it believes the person has. With the default
 a client on a private network that reaches Arbiter directly can set that address,
 and so choose the address Philter rate limits. Narrow the setting to your reverse
 proxy. Philter's lockout per username does not depend on the address.
-
-In `philter` mode `ARBITER_ADMIN_INITIAL_PASSWORD` is not needed and no local
-administrator is created. Switching back to `local` requires it again: when
-no administrator has a local password, Arbiter seeds `admin@philterd.ai` with
-it at startup. People who signed in through Philter cannot sign in locally,
-since Arbiter holds no password for them.
 
 ## Threading
 

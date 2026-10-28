@@ -28,21 +28,19 @@ public class User {
     /**
      * Optimistic-lock counter (R2-F13). Spring Data Mongo increments this on
      * every save, and the save throws {@link org.springframework.dao.OptimisticLockingFailureException}
-     * if the loaded version doesn't match what's in Mongo. Catches concurrent
-     * writes such as a user racing themselves on /settings/password against
-     * an admin's reset — last-write-wins on critical credential changes is
-     * a correctness defect we want to surface, not absorb silently.
+     * if the loaded version doesn't match what's in Mongo, so concurrent role
+     * or group changes are surfaced rather than lost.
      */
     @Version
     private Long version;
 
+    /**
+     * The person's Philter username. People sign in through Philter, which keys users by username, so
+     * this holds the username; the name is kept so existing rows, keyed by email before Philter
+     * sign-in, still match a Philter user created with the email as its username.
+     */
     @Indexed(unique = true)
     private String email;
-
-    private String passwordHash;
-
-    @Indexed(unique = true, sparse = true)
-    private String apiKey;
 
     private Set<String> roles = new HashSet<>();
 
@@ -51,43 +49,11 @@ public class User {
     /** Total documents this user has approved or rejected. Used by approval rules. */
     private long reviewCount;
 
-    private boolean mfaEnabled;
-    private String totpSecret;
-    /**
-     * Most recently accepted TOTP step (Unix-seconds / 30). Used to refuse
-     * replay of a code within its validity window — without this, a captured
-     * 6-digit TOTP can be used from a second browser for 30–60 seconds after
-     * the legitimate user submitted it. Null until the user verifies for the
-     * first time; never decreases over time. R2-F11 fix.
-     */
-    private Long lastTotpStep;
-
-    /**
-     * When true, the user must change their password on next login before they
-     * can reach any other page. Set when an admin creates an account with an
-     * initial password, or resets an existing user's password — the admin knows
-     * the password and the user must rotate it before doing anything else.
-     * Cleared when the user successfully changes their password from Settings.
-     */
-    private boolean mustChangePassword;
-
     public User() {
     }
 
     public long getReviewCount() { return reviewCount; }
     public void setReviewCount(final long reviewCount) { this.reviewCount = reviewCount; }
-
-    public boolean isMfaEnabled() { return mfaEnabled; }
-    public void setMfaEnabled(final boolean mfaEnabled) { this.mfaEnabled = mfaEnabled; }
-
-    public boolean isMustChangePassword() { return mustChangePassword; }
-    public void setMustChangePassword(final boolean mustChangePassword) { this.mustChangePassword = mustChangePassword; }
-
-    public String getTotpSecret() { return totpSecret; }
-    public void setTotpSecret(final String totpSecret) { this.totpSecret = totpSecret; }
-
-    public Long getLastTotpStep() { return lastTotpStep; }
-    public void setLastTotpStep(final Long lastTotpStep) { this.lastTotpStep = lastTotpStep; }
 
     public Long getVersion() { return version; }
     public void setVersion(final Long version) { this.version = version; }
@@ -109,22 +75,6 @@ public class User {
 
     public void setEmail(final String email) {
         this.email = email;
-    }
-
-    public String getPasswordHash() {
-        return passwordHash;
-    }
-
-    public void setPasswordHash(final String passwordHash) {
-        this.passwordHash = passwordHash;
-    }
-
-    public String getApiKey() {
-        return apiKey;
-    }
-
-    public void setApiKey(final String apiKey) {
-        this.apiKey = apiKey;
     }
 
     public Set<String> getRoles() {

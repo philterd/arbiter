@@ -28,7 +28,7 @@ Everything in Arbiter is built around that flow.
 ## 1. Configure Philter
 
 Arbiter works with one [Philter](https://philterd.ai), 4.0.0 or later. It signs
-people in through it (when `ARBITER_SIGN_IN_MODE=philter`), lists its policies,
+people in through it, lists its policies,
 and sends every batch's documents to it for redaction. Arbiter does not detect
 PII itself.
 
@@ -217,8 +217,8 @@ you can download the redacted text or PDF.
 ### Through the REST API
 
 Programmatic ingestion uses `POST /api/v1/ingest` with a JSON body
-containing the batch ID, a filename, and the text. Authentication is by
-session or by API key issued from **Personal settings**. See the
+containing the batch ID, a filename, and the text. Authentication is by a
+Philter API key holding `users:read`. See the
 [REST API reference](reference/api.md).
 
 The API path is admin-or-group-member-only; it returns HTTP 409 when the

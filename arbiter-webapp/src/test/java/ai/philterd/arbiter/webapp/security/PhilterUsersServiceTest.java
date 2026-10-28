@@ -10,7 +10,7 @@
 package ai.philterd.arbiter.webapp.security;
 
 import ai.philterd.arbiter.philter.PhilterTlsConfig;
-import ai.philterd.arbiter.service.SignInSettings;
+import ai.philterd.arbiter.service.PhilterSettings;
 import ai.philterd.arbiter.service.SymmetricCipher;
 import ai.philterd.philter.model.User;
 import com.sun.net.httpserver.HttpServer;
@@ -68,7 +68,8 @@ class PhilterUsersServiceTest {
         });
         server.start();
         signInService = new PhilterSignInService(
-                new SignInSettings("philter", "http://127.0.0.1:" + server.getAddress().getPort()),
+                new PhilterSettings("http://127.0.0.1:" + server.getAddress().getPort(), "sk_background",
+                        PhilterTlsConfig.none()),
                 PhilterTlsConfig.none(), new SymmetricCipher(TEST_KEY_B64));
         service = new PhilterUsersService(signInService);
     }

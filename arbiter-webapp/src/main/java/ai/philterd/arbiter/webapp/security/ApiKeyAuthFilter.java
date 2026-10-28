@@ -15,9 +15,6 @@
  */
 package ai.philterd.arbiter.webapp.security;
 
-import ai.philterd.arbiter.model.User;
-import ai.philterd.arbiter.repository.UserRepository;
-import ai.philterd.arbiter.service.ApiKeyHashingService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -30,8 +27,14 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Set;
-import java.util.stream.Collectors;
 
+/**
+ * Authenticates {@code Authorization: Bearer <key>} on {@code /api/**} with a Philter API key: the request
+ * runs as the Philter user that owns it ({@link PhilterApiKeys}). A key Philter rejects is answered 401, one
+ * without {@code users:read} 403, and 503 when Philter cannot be asked. A Bearer key replaces any session
+ * on the same request. Requests without one carry on, and {@link ApiSessionRejectingFilter} keeps the
+ * session from counting on {@code /api/**}.
+ */
 public class ApiKeyAuthFilter extends OncePerRequestFilter {
 
     private static final String BEARER_PREFIX = "Bearer ";
@@ -45,60 +48,39 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
      */
     public static final String BEARER_AUTH_ATTR = "ai.philterd.arbiter.bearerAuth";
 
-    private final UserRepository userRepository;
-    private final ApiKeyHashingService apiKeyHashingService;
-    /**
-     * When people sign in through Philter, Arbiter API keys are refused: a key is checked only against
-     * Arbiter's record, so it would outlive the person's deactivation or role change in Philter.
-     */
-    private final boolean keysEnabled;
+    private final PhilterApiKeys apiKeys;
 
-    public ApiKeyAuthFilter(final UserRepository userRepository,
-                            final ApiKeyHashingService apiKeyHashingService) {
-        this(userRepository, apiKeyHashingService, true);
-    }
-
-    public ApiKeyAuthFilter(final UserRepository userRepository,
-                            final ApiKeyHashingService apiKeyHashingService,
-                            final boolean keysEnabled) {
-        this.userRepository = userRepository;
-        this.apiKeyHashingService = apiKeyHashingService;
-        this.keysEnabled = keysEnabled;
+    public ApiKeyAuthFilter(final PhilterApiKeys apiKeys) {
+        this.apiKeys = apiKeys;
     }
 
     @Override
     protected void doFilterInternal(final HttpServletRequest request,
                                     final HttpServletResponse response,
                                     final FilterChain filterChain) throws ServletException, IOException {
-
-        // On /api/** paths, always attempt Bearer extraction even when a session cookie has
-        // already populated the SecurityContext. If both are present, Bearer wins: we replace
-        // the session-derived auth and mark the request so ApiSessionRejectingFilter keeps it.
-        // On non-API paths (the UI), skip extraction when already authenticated so that the
-        // session is not replaced by a stale or invalid token.
-        final boolean isApiPath = isApiPath(request);
-        final boolean alreadyAuthenticated = SecurityContextHolder.getContext().getAuthentication() != null
-                && SecurityContextHolder.getContext().getAuthentication().isAuthenticated();
-
-        if (keysEnabled && (isApiPath || !alreadyAuthenticated)) {
-            final String apiKey = extractBearerToken(request);
-            if (apiKey != null && !apiKey.isBlank()) {
-                final String apiKeyHash = apiKeyHashingService.hash(apiKey);
-                userRepository.findByApiKey(apiKeyHash).ifPresent(user -> {
-                    final Set<SimpleGrantedAuthority> authorities = (user.getRoles() == null ? Set.<String>of() : user.getRoles())
-                            .stream()
-                            .map(r -> new SimpleGrantedAuthority("ROLE_" + r))
-                            .collect(Collectors.toSet());
-                    final UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                            user.getEmail(), null, authorities);
-                    SecurityContextHolder.getContext().setAuthentication(auth);
-                    request.setAttribute(BEARER_AUTH_ATTR, Boolean.TRUE);
-                });
-            }
+        final String apiKey = isApiPath(request) ? extractBearerToken(request) : null;
+        if (apiKey == null || apiKey.isBlank()) {
+            filterChain.doFilter(request, response);
+            return;
         }
-
+        final PhilterApiKeys.Caller caller;
+        try {
+            caller = apiKeys.resolve(apiKey);
+        } catch (PhilterApiKeys.RefusedException e) {
+            SecurityContextHolder.clearContext();
+            switch (e.refusal()) {
+                case MISSING_SCOPE -> response.sendError(HttpServletResponse.SC_FORBIDDEN,
+                        "The Philter API key must hold the users:read scope.");
+                case UNAVAILABLE -> response.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE,
+                        "Philter could not be reached to check the API key.");
+                default -> response.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+            }
+            return;
+        }
+        SecurityContextHolder.getContext().setAuthentication(new UsernamePasswordAuthenticationToken(
+                caller.username(), null, Set.of(new SimpleGrantedAuthority("ROLE_" + caller.role()))));
+        request.setAttribute(BEARER_AUTH_ATTR, Boolean.TRUE);
         filterChain.doFilter(request, response);
-
     }
 
     private static boolean isApiPath(final HttpServletRequest request) {
@@ -112,19 +94,13 @@ public class ApiKeyAuthFilter extends OncePerRequestFilter {
     }
 
     private static String extractBearerToken(final HttpServletRequest request) {
-
         final String header = request.getHeader(HttpHeaders.AUTHORIZATION);
-
         if (header == null) {
             return null;
         }
-
         if (header.regionMatches(true, 0, BEARER_PREFIX, 0, BEARER_PREFIX.length())) {
             return header.substring(BEARER_PREFIX.length()).trim();
         }
-
         return null;
-
     }
-
 }

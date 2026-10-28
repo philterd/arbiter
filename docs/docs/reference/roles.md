@@ -45,8 +45,7 @@ write affordances disabled. Specifically, they can:
   Admin → Compliance Profiles, Admin → Approval Rules, Admin → Weight Sets,
   Admin → Notifications, Admin → Security, Admin → Audit Log** pages — every
   page is visible.
-- **Manage their own account** in Settings — change password, enable / disable
-  2FA, generate or revoke their own API key, set review preferences.
+- **Manage their own account** in Settings: change password and set review preferences.
 
 ## What an AUDITOR cannot do
 
@@ -147,8 +146,6 @@ groups, a team lead has the same permissions as the **USER** column.
 | Feature | USER | Team lead | AUDITOR | ADMIN |
 |---------|:----:|:---------:|:-------:|:-----:|
 | Change own password | ✓ | ✓ | ✓ | ✓ |
-| Enable / disable 2FA on own account | ✓ | ✓ | ✓ | ✓ |
-| Generate / revoke own API key | ✓ | ✓ | ✓ | ✓ |
 | Set own review preferences | ✓ | ✓ | ✓ | ✓ |
 
 ## Group membership
@@ -164,15 +161,11 @@ The role lives in the same field as USER and ADMIN. To assign it:
 
 1. Sign in as an admin.
 2. Go to **Admin → Users**.
-3. On the target user's row, change the **Role** select from User / Admin to
-   **Auditor (read-only)** and click **Save**.
+3. On the person's row, under **In Arbiter**, tick **Auditor (read-only)** and save.
 
-The new role takes effect on the user's next request — they don't need to log
-out and back in. The change is recorded in the audit log as a `USER_UPDATE`
-event with the old and new role names.
-
-The invitation flow currently still presents only an Admin checkbox; to
-invite a new auditor, invite them as a User and edit their role afterwards.
+A Philter administrator is always an Arbiter `ADMIN`, so only a Philter `user` can be an auditor.
+The person's session ends at its next check, and they sign in again with the new role. The change
+is recorded in the audit log as a `USER_UPDATE` event with the new role.
 
 ## Team leads
 

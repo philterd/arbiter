@@ -35,7 +35,6 @@ import ai.philterd.arbiter.repository.WeightSetRepository;
 import ai.philterd.arbiter.service.DestinationTester;
 import ai.philterd.arbiter.service.RedactionService;
 import ai.philterd.arbiter.webapp.controllers.AdminComplianceProfileController;
-import ai.philterd.arbiter.webapp.controllers.AdminController;
 import ai.philterd.arbiter.webapp.controllers.AdminGeneralController;
 import ai.philterd.arbiter.webapp.controllers.AdminGroupController;
 import ai.philterd.arbiter.webapp.controllers.AdminNotificationsController;
@@ -48,7 +47,6 @@ import ai.philterd.arbiter.webapp.controllers.BatchController;
 import ai.philterd.arbiter.webapp.controllers.PolicyController;
 import ai.philterd.arbiter.webapp.controllers.RedactionController;
 import ai.philterd.arbiter.webapp.controllers.ReportingController;
-import ai.philterd.arbiter.webapp.security.MongoUserDetailsService;
 import ai.philterd.arbiter.webapp.security.SecurityConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -71,7 +69,9 @@ import static org.mockito.Mockito.when;
  */
 abstract class WebMvcSliceMocks {
 
-    @MockBean protected ai.philterd.arbiter.service.ApiKeyHashingService apiKeyHashingService;
+    @MockBean protected ai.philterd.arbiter.webapp.security.PhilterApiKeys philterApiKeys;
+    @MockBean protected ai.philterd.arbiter.webapp.security.PhilterSignInService philterSignInService;
+    @MockBean protected ai.philterd.arbiter.webapp.security.PhilterSignInFlow philterSignInFlow;
 
     /** The slice does not auto-configure Actuator, so the aggregate HealthController reads is mocked. */
     @MockBean protected HealthEndpoint healthEndpoint;
@@ -113,6 +113,5 @@ abstract class WebMvcSliceMocks {
     @MockBean protected RedactionCertificateRepository redactionCertificateRepository;
     @MockBean protected ai.philterd.arbiter.repository.FinalizationPolicyRepository finalizationPolicyRepository;
     @MockBean protected ai.philterd.arbiter.repository.ComplianceProfileRepository complianceProfileRepository;
-    @MockBean protected ai.philterd.arbiter.repository.InvitationRepository invitationRepository;
     @MockBean protected MongoOperations mongoOperations;
 }

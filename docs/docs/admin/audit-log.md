@@ -15,8 +15,8 @@ collection in MongoDB. There are two ways to view and export it:
 
 | Action                              | Resource    | Notes                                              |
 | ----------------------------------- | ----------- | -------------------------------------------------- |
-| `LOGIN` (success / failure)         | User        | Authentication outcome. Every form-login attempt produces one row regardless of result. A failure row carries a `reason` detail naming the underlying exception (e.g. `BadCredentialsException`, `LockedException`, `UsernameNotFoundException`) so an operator can tell wrong-password from unknown-user from rate-limited at a glance. The attempted email is always recorded, even when the email doesn't match a known account. |
-| `LOGOUT`                            | User        | Manual sign-out                                     |
+| `LOGIN` (success / failure)         | User        | Sign-in through Philter, with `method: philter`. A failure row carries a `reason`: `BadCredentials`, `Locked`, `RateLimited`, `MfaLocked`, `SignInDisabled`, or `Unavailable`. See [Sign-in through Philter](../security.md#sign-in-through-philter). |
+| `LOGOUT`                            | User        | Sign-out, or a session Arbiter ended, with a `reason` (`philter_session_ended`, `role_changed`, `sign_in_mode_changed`) |
 | `BATCH_CREATE`                      | Batch       | Includes name, group, thresholds                    |
 | `BATCH_GROUP_CHANGE`                | Batch       | Old → new group                                     |
 | `BATCH_THRESHOLDS_CHANGE`           | Batch       | Both PII and Document threshold deltas              |
@@ -43,10 +43,9 @@ collection in MongoDB. There are two ways to view and export it:
 | `FINALIZATION_POLICY_APPLIED`       | Document    | A finalization policy ran after document finalize; payload includes `policyId`, `policyName`, `option`, and `action` |
 | `SPAN_UPDATE`                       | Span        | Status and/or type change                           |
 | `SPAN_REDACT_LIKE`                  | Span        | Counts of new-and-approved spans                    |
-| `USER_CREATE` / `_UPDATE` / `_DELETE` | User      | Admin user management                               |
+| `USER_CREATE` / `_UPDATE`, `USER_PASSWORD_RESET`, `USER_DEACTIVATE` / `_REACTIVATE`, `USER_UNLOCK`, `USER_MFA_UNLOCK` / `_REMOVE`, `USER_SESSIONS_REVOKE` | User | Changes made on the Users page, through Philter |
 | `GROUP_CREATE` / `_UPDATE` / `_DELETE` | Group    | Admin group management                              |
-| `API_KEY_GENERATE` / `_REVOKE`      | User        | Per-user API key lifecycle                          |
-| `PASSWORD_CHANGE`                   | User        | Self-service password change                        |
+| `PASSWORD_CHANGE`                   | User        | Self-service password change, in Philter            |
 | `NOTIFICATION_SETTINGS_CHANGE`      | Settings    | SMTP settings save (excluding the password value)   |
 | `PHILTER_TEST`                      | Philter     | Admin → Philter's Test: Philter's URL, whether it passed, and the HTTP status and reason. Never the API key. |
 | `REDACTED_PDF_REFUSED`              | Redaction   | A redacted PDF was refused rather than produced, with the reason. No document content. |

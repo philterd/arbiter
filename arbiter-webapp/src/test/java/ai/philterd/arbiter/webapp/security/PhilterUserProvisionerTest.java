@@ -21,7 +21,6 @@ import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -57,7 +56,6 @@ class PhilterUserProvisionerTest {
         verify(userRepository).save(saved.capture());
         assertEquals("jdoe", saved.getValue().getEmail());
         assertNotNull(saved.getValue().getId());
-        assertNull(saved.getValue().getPasswordHash());
         assertEquals(Set.of(Roles.USER), saved.getValue().getRoles());
     }
 
@@ -83,18 +81,6 @@ class PhilterUserProvisionerTest {
 
         assertEquals(Roles.USER, provisioner.provision("jdoe", "user"));
         verify(userRepository).save(any());
-    }
-
-    @Test
-    void anApiKeyOnTheRecordIsCleared() {
-        final User user = existing(Roles.USER);
-        user.setApiKey("hash-of-an-old-key");
-        when(userRepository.findByEmail("jdoe")).thenReturn(Optional.of(user));
-
-        provisioner.provision("jdoe", "user");
-
-        assertNull(user.getApiKey());
-        verify(userRepository).save(user);
     }
 
     @Test

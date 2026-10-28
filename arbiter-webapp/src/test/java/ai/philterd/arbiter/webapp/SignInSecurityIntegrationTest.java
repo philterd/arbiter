@@ -10,14 +10,10 @@
 package ai.philterd.arbiter.webapp;
 
 import ai.philterd.arbiter.model.User;
-import ai.philterd.arbiter.webapp.controllers.AdminController;
-import ai.philterd.arbiter.webapp.controllers.InvitationController;
 import ai.philterd.arbiter.webapp.controllers.LoginController;
 import ai.philterd.arbiter.webapp.controllers.PhilterSignInController;
 import ai.philterd.arbiter.webapp.controllers.PhilterUsersController;
-import ai.philterd.arbiter.webapp.security.MongoUserDetailsService;
-import ai.philterd.arbiter.webapp.security.PhilterSignInFlow;
-import ai.philterd.arbiter.webapp.security.PhilterSignInService;
+import ai.philterd.arbiter.webapp.security.PhilterApiKeys;
 import ai.philterd.arbiter.webapp.security.PhilterUserProvisioner;
 import ai.philterd.arbiter.webapp.security.PhilterUsersService;
 import ai.philterd.arbiter.webapp.security.PhilterSessionAuthentication;
@@ -40,34 +36,50 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** The security wiring when people sign in through Philter, built from the real {@link SecurityConfig}. */
-@WebMvcTest(controllers = {LoginController.class, PhilterSignInController.class, InvitationController.class,
-        AdminController.class, PhilterUsersController.class},
-        properties = {"arbiter.sign-in.mode= Philter ",
-                "arbiter.philter.url=http://philter.invalid:8080"})
-@Import({SecurityConfig.class, MongoUserDetailsService.class})
-class PhilterSignInModeIntegrationTest extends WebMvcSliceMocks {
+/** The sign-in and API key wiring, built from the real {@link SecurityConfig}. */
+@WebMvcTest(controllers = {LoginController.class, PhilterSignInController.class, PhilterUsersController.class})
+@Import(SecurityConfig.class)
+class SignInSecurityIntegrationTest extends WebMvcSliceMocks {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ApplicationContext context;
-    @MockBean private PhilterSignInService philterSignInService;
-    @MockBean private PhilterSignInFlow philterSignInFlow;
     @MockBean private PhilterUsersService philterUsersService;
     @MockBean private PhilterUserProvisioner philterUserProvisioner;
 
     @Test
-    void validArbiterApiKeyIsRefused() throws Exception {
-        final User user = new User();
-        user.setEmail("api@example.com");
-        user.setRoles(Set.of("ADMIN"));
-        when(apiKeyHashingService.hash("a-valid-key")).thenReturn("hash");
-        when(userRepository.findByApiKey("hash")).thenReturn(Optional.of(user));
+    void philterApiKeyAuthenticatesTheApi() throws Exception {
+        when(philterApiKeys.resolve("sk_valid")).thenReturn(new PhilterApiKeys.Caller("ci", "USER"));
 
-        mockMvc.perform(post("/api/v1/ingest").header("Authorization", "Bearer a-valid-key")
-                        .contentType("application/json").content("{}"))
+        mockMvc.perform(get("/api/v1/batches").header("Authorization", "Bearer sk_valid"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void refusedApiKeysAreAnsweredByReason() throws Exception {
+        when(philterApiKeys.resolve("sk_rejected"))
+                .thenThrow(new PhilterApiKeys.RefusedException(PhilterApiKeys.Refusal.INVALID));
+        when(philterApiKeys.resolve("sk_no_scope"))
+                .thenThrow(new PhilterApiKeys.RefusedException(PhilterApiKeys.Refusal.MISSING_SCOPE));
+        when(philterApiKeys.resolve("sk_unchecked"))
+                .thenThrow(new PhilterApiKeys.RefusedException(PhilterApiKeys.Refusal.UNAVAILABLE));
+
+        mockMvc.perform(get("/api/v1/batches").header("Authorization", "Bearer sk_rejected"))
                 .andExpect(status().isUnauthorized());
+        mockMvc.perform(get("/api/v1/batches").header("Authorization", "Bearer sk_no_scope"))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(get("/api/v1/batches").header("Authorization", "Bearer sk_unchecked"))
+                .andExpect(status().isServiceUnavailable());
+        mockMvc.perform(get("/api/v1/batches")).andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void bearerKeysAreNotCheckedOutsideTheApi() throws Exception {
+        mockMvc.perform(get("/admin/users").accept("text/html").header("Authorization", "Bearer sk_valid"))
+                .andExpect(redirectedUrlPattern("**/login"));
+        org.mockito.Mockito.verifyNoInteractions(philterApiKeys);
     }
 
     @Test
@@ -78,16 +90,17 @@ class PhilterSignInModeIntegrationTest extends WebMvcSliceMocks {
     }
 
     @Test
-    void signInStepsArePresentAndInvitationsAreNot() throws Exception {
+    void signInStepsArePresentAndLocalOnesAreNot() throws Exception {
         assertEquals(1, context.getBeanNamesForType(PhilterSignInController.class).length);
-        assertEquals(0, context.getBeanNamesForType(InvitationController.class).length);
         mockMvc.perform(get("/sign-in/mfa")).andExpect(redirectedUrl("/login"));
-        assertTrue(mockMvc.perform(get("/invitations/some-token")).andReturn().getResponse().getStatus() >= 400);
+        // The local MFA and invitation pages are gone; unauthenticated callers are sent to sign in.
+        mockMvc.perform(get("/mfa").accept("text/html")).andExpect(redirectedUrlPattern("**/login"));
+        mockMvc.perform(get("/invitations/some-token").accept("text/html"))
+                .andExpect(redirectedUrlPattern("**/login"));
     }
 
     @Test
     void usersPageIsPhiltersAndRenders() throws Exception {
-        assertEquals(0, context.getBeanNamesForType(AdminController.class).length);
         final ai.philterd.philter.model.User reviewer = new ai.philterd.philter.model.User();
         reviewer.setUsername("j.doe@x y");
         reviewer.setRole("user");

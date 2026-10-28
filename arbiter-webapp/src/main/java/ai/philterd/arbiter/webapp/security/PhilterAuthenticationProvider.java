@@ -19,7 +19,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
- * The sign-in form's provider when {@code ARBITER_SIGN_IN_MODE=philter}: sends the username and password
+ * The sign-in form's provider: sends the username and password
  * to Philter's {@code POST /api/sign-in} with the person's address and user agent, so Philter rate limits
  * and lists each person's sessions separately. Arbiter keeps no password and does no lockout of its own;
  * Philter's lockout and rate limit apply.

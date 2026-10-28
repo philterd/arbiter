@@ -15,7 +15,7 @@ import ai.philterd.arbiter.webapp.security.PhilterSessionAuthentication;
 import ai.philterd.arbiter.webapp.security.PhilterSignInFlow;
 import ai.philterd.arbiter.webapp.security.PhilterSignInService;
 import ai.philterd.arbiter.webapp.security.PhilterSignInStepException;
-import ai.philterd.arbiter.webapp.security.TotpService;
+import ai.philterd.arbiter.webapp.security.MfaQrCodes;
 import ai.philterd.philter.model.MfaEnrollment;
 import ai.philterd.philter.model.SignInResponse;
 import ai.philterd.philter.model.exceptions.ClientException;
@@ -56,7 +56,7 @@ class PhilterSignInControllerTest {
 
     private PhilterSignInService signInService;
     private PhilterSignInFlow flow;
-    private TotpService totpService;
+    private MfaQrCodes qrCodes;
     private SecurityContextRepository contextRepository;
     private SessionRegistry sessionRegistry;
     private PhilterSignInController controller;
@@ -68,10 +68,10 @@ class PhilterSignInControllerTest {
     void setUp() {
         signInService = mock(PhilterSignInService.class);
         flow = mock(PhilterSignInFlow.class);
-        totpService = mock(TotpService.class);
+        qrCodes = mock(MfaQrCodes.class);
         contextRepository = mock(SecurityContextRepository.class);
         sessionRegistry = mock(SessionRegistry.class);
-        controller = new PhilterSignInController(signInService, flow, totpService, contextRepository, sessionRegistry,
+        controller = new PhilterSignInController(signInService, flow, qrCodes, contextRepository, sessionRegistry,
                 new HttpSessionCsrfTokenRepository());
         session = new MockHttpSession();
         request = new MockHttpServletRequest();
@@ -185,12 +185,12 @@ class PhilterSignInControllerTest {
         enrollment.setSecret("JBSWY3DPEHPK3PXP");
         enrollment.setOtpauthUri("otpauth://totp/Philter:jdoe?secret=JBSWY3DPEHPK3PXP&issuer=Philter");
         when(signInService.startMfaEnrollment("enc", "a-password-of-16+")).thenReturn(enrollment);
-        when(totpService.qrCodeDataUriForUri(anyString())).thenReturn("data:image/png;base64,AAAA");
+        when(qrCodes.dataUri(anyString())).thenReturn("data:image/png;base64,AAAA");
         final ExtendedModelMap model = new ExtendedModelMap();
 
         assertEquals("sign-in-mfa-enrollment", controller.startMfaEnrollment("a-password-of-16+", session, model));
         assertEquals("data:image/png;base64,AAAA", model.get("qrCodeDataUri"));
-        verify(totpService).qrCodeDataUriForUri(enrollment.getOtpauthUri());
+        verify(qrCodes).dataUri(enrollment.getOtpauthUri());
 
         assertEquals("redirect:/login?mfaEnrolled",
                 controller.confirmMfaEnrollment("123456", session, new ExtendedModelMap()));

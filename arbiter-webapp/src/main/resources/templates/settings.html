@@ -189,23 +189,6 @@
             <div th:if="${success}" class="mb-6 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700"
                  th:text="${success}">Success message</div>
 
-            <!-- Forced password rotation banner. Shown when the
-                 PasswordChangeRequiredInterceptor redirected the user here
-                 because their account is flagged mustChangePassword (an admin
-                 set their initial password or reset it). The banner stays
-                 visible until the user successfully changes the password,
-                 which clears the flag. -->
-            <div th:if="${param.mustChangePassword != null}"
-                 class="mb-6 p-4 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-900">
-                <p class="font-semibold mb-1">Choose a new password to continue</p>
-                <p>
-                    Your account was set up with a password chosen by an
-                    administrator. Pick a new password below before doing
-                    anything else — until you do, every other page redirects
-                    back here.
-                </p>
-            </div>
-
             <div class="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
 
                 <!-- Left column -->
@@ -215,7 +198,7 @@
                         <h3 class="text-lg font-semibold text-gray-900 mb-1">Change password</h3>
                         <p class="text-sm text-gray-600 mb-4">
                             Signed in as <span class="font-medium" sec:authentication="name">user</span>.
-                            <span th:if="${philterSignIn}">Your password is kept by Philter. After a change, sign in again with the new password.</span>
+                            Your password is kept by Philter. After a change, sign in again with the new password.
                         </p>
                         <form th:action="@{/settings/password}" method="post" class="space-y-4">
                             <div>
@@ -225,12 +208,12 @@
                             </div>
                             <div>
                                 <label for="newPassword" class="block text-sm font-medium text-gray-700 mb-1">New password</label>
-                                <input id="newPassword" name="newPassword" type="password" required autocomplete="new-password" th:minlength="${philterSignIn} ? 16 : 12"
+                                <input id="newPassword" name="newPassword" type="password" required autocomplete="new-password" minlength="16"
                                        class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
                             <div>
                                 <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-1">Confirm new password</label>
-                                <input id="confirmPassword" name="confirmPassword" type="password" required autocomplete="new-password" minlength="12"
+                                <input id="confirmPassword" name="confirmPassword" type="password" required autocomplete="new-password" minlength="16"
                                        class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
                             <button type="submit"
@@ -293,112 +276,12 @@
                 <div class="space-y-6">
 
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-1">Two-factor authentication</h3>
-                        <p class="text-sm text-gray-600 mb-4">
-                            Protect your account with a time-based one-time password (TOTP) from an authenticator app.
+                        <h3 class="text-lg font-semibold text-gray-900 mb-1">Two-factor authentication and API keys</h3>
+                        <p class="text-sm text-gray-700">
+                            Two-factor authentication and API keys are managed in Philter. When an administrator
+                            requires two-factor authentication, you set it up at your next sign-in. To call
+                            Arbiter's API, use a Philter API key that holds the <code>users:read</code> scope.
                         </p>
-
-                        <p th:if="${philterSignIn}" class="text-sm text-gray-700">
-                            Two-factor authentication is managed in Philter. When an administrator requires it,
-                            you set it up at your next sign-in.
-                        </p>
-
-                        <div th:if="${mfaEnabled and !philterSignIn}">
-                            <div class="mb-4 flex items-center gap-2">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">Enabled</span>
-                                <span class="text-sm text-gray-600">Two-factor authentication is active on your account.</span>
-                            </div>
-                            <details class="border border-gray-200 rounded-lg p-4">
-                                <summary class="text-sm font-medium text-red-600 cursor-pointer select-none">Disable two-factor authentication</summary>
-                                <p class="mt-3 mb-3 text-sm text-gray-600">Enter your current password and authenticator code to confirm.</p>
-                                <form th:action="@{/settings/mfa/disable}" method="post" class="space-y-3">
-                                    <div>
-                                        <label for="disablePassword" class="block text-xs font-medium text-gray-700 mb-1">Current password</label>
-                                        <input id="disablePassword" name="currentPassword" type="password" required autocomplete="current-password"
-                                               class="block w-full rounded-lg border border-gray-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                    </div>
-                                    <div class="flex gap-2 items-end">
-                                        <div class="flex-1">
-                                            <label for="disableCode" class="block text-xs font-medium text-gray-700 mb-1">Code</label>
-                                            <input id="disableCode" name="code" type="text" inputmode="numeric" pattern="[0-9]{6}"
-                                                   maxlength="6" required autocomplete="one-time-code" placeholder="000000"
-                                                   class="block w-full rounded-lg border border-gray-300 p-2 text-sm text-center font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                        </div>
-                                        <button type="submit"
-                                                class="px-4 py-2 border border-red-600 text-red-600 hover:bg-red-50 font-medium rounded-lg transition duration-200"
-                                                onclick="return confirm('Disable two-factor authentication?');">
-                                            Disable 2FA
-                                        </button>
-                                    </div>
-                                </form>
-                            </details>
-                        </div>
-
-                        <div th:if="${!mfaEnabled and !philterSignIn}">
-                            <div class="mb-4 flex items-center gap-2">
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-600">Not enabled</span>
-                                <span class="text-sm text-gray-600">Add an extra layer of security to your account.</span>
-                            </div>
-                            <a th:href="@{/settings/mfa/setup}"
-                               class="inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
-                                Set up 2FA
-                            </a>
-                        </div>
-                    </div>
-
-                    <div th:if="${philterSignIn}" class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-1">API key</h3>
-                        <p class="text-sm text-gray-600">
-                            Arbiter API keys are not available when you sign in through Philter.
-                        </p>
-                    </div>
-
-                    <div th:unless="${philterSignIn}" class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <h3 class="text-lg font-semibold text-gray-900 mb-1">API key</h3>
-                        <p class="text-sm text-gray-600 mb-4">
-                            Used to authenticate requests to <code>/api/v1/*</code> via the
-                            <code class="text-xs bg-gray-100 px-1 py-0.5 rounded">Authorization: Bearer &lt;api-key&gt;</code> header.
-                        </p>
-
-                        <div th:if="${apiKey}" class="mb-4 p-3 rounded-lg bg-yellow-50 border border-yellow-200 text-sm text-yellow-900">
-                            <p class="font-medium mb-1">Your new API key (copy it now — it will not be shown again):</p>
-                            <code class="block break-all bg-white border border-yellow-300 rounded p-2 text-xs font-mono"
-                                  th:text="${apiKey}">key</code>
-                        </div>
-
-                        <p th:if="${hasApiKey and apiKey == null}" class="text-sm text-gray-700 mb-4">
-                            An API key exists for your account. Generating a new one will replace the previous key.
-                        </p>
-                        <p th:if="${!hasApiKey and apiKey == null}" class="text-sm text-gray-700 mb-4">
-                            No API key set yet.
-                        </p>
-
-                        <p class="text-xs text-gray-600 mb-3">Re-enter your current password to generate or revoke an API key.</p>
-                        <div class="flex flex-col sm:flex-row gap-2 sm:items-end">
-                            <form th:action="@{/settings/api-key}" method="post" class="flex flex-1 gap-2 items-end">
-                                <div class="flex-1">
-                                    <label for="apiKeyGeneratePassword" class="block text-xs font-medium text-gray-700 mb-1">Current password</label>
-                                    <input id="apiKeyGeneratePassword" name="currentPassword" type="password" required autocomplete="current-password"
-                                           class="block w-full rounded-lg border border-gray-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                </div>
-                                <button type="submit"
-                                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200 whitespace-nowrap">
-                                    <span th:text="${hasApiKey or apiKey != null} ? 'Regenerate API key' : 'Generate API key'">Generate API key</span>
-                                </button>
-                            </form>
-                            <form th:if="${hasApiKey or apiKey != null}" th:action="@{/settings/api-key/revoke}" method="post" class="flex flex-1 gap-2 items-end"
-                                  onsubmit="return confirm('Revoke the existing API key? Any clients using it will stop working.');">
-                                <div class="flex-1">
-                                    <label for="apiKeyRevokePassword" class="block text-xs font-medium text-gray-700 mb-1">Current password</label>
-                                    <input id="apiKeyRevokePassword" name="currentPassword" type="password" required autocomplete="current-password"
-                                           class="block w-full rounded-lg border border-gray-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                                </div>
-                                <button type="submit"
-                                        class="px-4 py-2 border border-red-600 text-red-600 hover:bg-red-50 font-medium rounded-lg transition duration-200 whitespace-nowrap">
-                                    Revoke API key
-                                </button>
-                            </form>
-                        </div>
                     </div>
 
                 </div>

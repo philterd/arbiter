@@ -149,18 +149,6 @@ class AuditorWriteRejectFilterTest {
         verify(chain, times(1)).doFilter(any(), any());
     }
 
-    @Test
-    void auditorPostToMfaVerifyIsAllowed() throws Exception {
-        SecurityContextHolder.getContext().setAuthentication(authWith("ROLE_AUDITOR"));
-        final FilterChain chain = mock(FilterChain.class);
-        final MockHttpServletResponse response = new MockHttpServletResponse();
-
-        filter.doFilter(req("POST", "/mfa"), response, chain);
-
-        assertEquals(HttpServletResponse.SC_OK, response.getStatus());
-        verify(chain, times(1)).doFilter(any(), any());
-    }
-
     // ----- Other principals are unaffected -----
 
     @Test

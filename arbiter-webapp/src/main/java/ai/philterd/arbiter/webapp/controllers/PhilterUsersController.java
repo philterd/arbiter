@@ -14,7 +14,6 @@ import ai.philterd.arbiter.philter.PhilterClients;
 import ai.philterd.arbiter.repository.GroupRepository;
 import ai.philterd.arbiter.repository.UserRepository;
 import ai.philterd.arbiter.service.AuditLogService;
-import ai.philterd.arbiter.service.SignInModeCondition;
 import ai.philterd.arbiter.webapp.security.PhilterSessionAuthentication;
 import ai.philterd.arbiter.webapp.security.PhilterUserProvisioner;
 import ai.philterd.arbiter.webapp.security.PhilterUsersService;
@@ -25,7 +24,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.annotation.Conditional;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.session.SessionInformation;
@@ -57,7 +55,6 @@ import java.util.Set;
  */
 @Controller
 @RequestMapping("/admin/users")
-@Conditional(SignInModeCondition.Philter.class)
 public class PhilterUsersController {
 
     static final String PHILTER_ADMIN = "admin";

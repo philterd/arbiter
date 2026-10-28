@@ -52,19 +52,13 @@ public class AuditorWriteRejectFilter extends OncePerRequestFilter {
      * <ul>
      *   <li>{@code /login} — POSTed by the form-login handler.</li>
      *   <li>{@code /logout} — Spring Security's logout POST.</li>
-     *   <li>{@code /mfa} — TOTP verification on the way to a session.</li>
-     *   <li>{@code /settings/**} — password change, 2FA enable/disable, API key
-     *       rotation, review preferences.</li>
-     *   <li>{@code /invitations/**} — token-redemption POST (auditors typically arrive
-     *       through this flow on first sign-in).</li>
+     *   <li>{@code /settings/**}: password change and review preferences.</li>
      * </ul>
      */
     private static final String[] SELF_MANAGEMENT_PREFIXES = {
             "/login",
             "/logout",
-            "/mfa",
-            "/settings",
-            "/invitations"
+            "/settings"
     };
 
     @Override

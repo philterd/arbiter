@@ -23,10 +23,6 @@ services:
       #
       # echo "ARBITER_CRYPTO_SECRET=$(openssl rand -base64 32)" >> .env
       - ARBITER_CRYPTO_SECRET=${ARBITER_CRYPTO_SECRET:?Set ARBITER_CRYPTO_SECRET in .env (see .env.example)}
-      # Initial password for the bootstrap admin (admin@philterd.ai). Used only
-      # when no admin account yet exists in the database. Must be at least 12
-      # characters; Arbiter refuses to start if it is missing or too short.
-      - ARBITER_ADMIN_INITIAL_PASSWORD=ChangeMeOnFirstLogin!
       # The dev compose explicitly opts in to demo-data loading (R2-F4). The
       # default in application.properties is now off — production deployments
       # should never load synthetic data, but the dev stack benefits from it.
@@ -83,7 +79,7 @@ services:
       # Development-only values. Set your own in .env for anything else.
       - PHILTER_ENCRYPTION_KEY=${PHILTER_ENCRYPTION_KEY:-ZGV2LW9ubHktZGV2LW9ubHktZGV2LW9ubHktMDAwMDA=}
       - PHILTER_BOOTSTRAP_API_KEY=${PHILTER_BOOTSTRAP_API_KEY:-sk_devonlydevonlydevonlydevonly0000}
-      # So people can sign in through Philter with ARBITER_SIGN_IN_MODE=philter.
+      # People sign in to Arbiter through Philter.
       - PASSWORD_SIGN_IN_ENABLED=true
       - SSL_ENABLED=false
     volumes:

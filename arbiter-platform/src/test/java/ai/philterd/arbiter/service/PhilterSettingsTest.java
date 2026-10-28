@@ -16,6 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PhilterSettingsTest {
 
@@ -41,5 +42,15 @@ class PhilterSettingsTest {
         final IllegalStateException e = assertThrows(IllegalStateException.class,
                 () -> new PhilterSettings("http://philter:8080", " ", PhilterTlsConfig.none()));
         assertFalse(e.getMessage().contains("philter:8080"));
+    }
+
+    @Test
+    void refusesTheRemovedLocalSignInMode() {
+        final IllegalStateException e = assertThrows(IllegalStateException.class,
+                () -> new PhilterSettings("http://philter:8080", "sk_key", " Local ", PhilterTlsConfig.none()));
+        assertTrue(e.getMessage().contains("ARBITER_SIGN_IN_MODE=local"));
+        // The old Philter value, or none, is accepted and ignored.
+        new PhilterSettings("http://philter:8080", "sk_key", "philter", PhilterTlsConfig.none());
+        new PhilterSettings("http://philter:8080", "sk_key", "", PhilterTlsConfig.none());
     }
 }

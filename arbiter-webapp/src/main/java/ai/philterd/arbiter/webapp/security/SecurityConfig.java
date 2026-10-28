@@ -10,30 +10,21 @@
 package ai.philterd.arbiter.webapp.security;
 
 import ai.philterd.arbiter.repository.UserRepository;
-import ai.philterd.arbiter.service.ApiKeyHashingService;
 import ai.philterd.arbiter.service.AuditLogService;
-import ai.philterd.arbiter.service.SignInSettings;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.AuthenticationProvider;
-import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.ProviderManager;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
-import org.springframework.security.crypto.password.DelegatingPasswordEncoder;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.security.core.session.SessionRegistryImpl;
 import org.springframework.security.web.access.intercept.AuthorizationFilter;
-import org.springframework.security.web.authentication.ExceptionMappingAuthenticationFailureHandler;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
+import org.springframework.security.web.authentication.SavedRequestAwareAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
@@ -45,41 +36,13 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 import java.time.Clock;
 import java.time.Duration;
-import java.util.Map;
 
 @Configuration
 public class SecurityConfig {
 
-    /** {@code local} or {@code philter}; validated by {@link SignInSettings}. */
-    private final boolean philterSignIn;
-
-    public SecurityConfig(@Value("${arbiter.sign-in.mode:local}") final String signInMode) {
-        this.philterSignIn = SignInSettings.MODE_PHILTER.equalsIgnoreCase(signInMode == null ? "" : signInMode.trim());
-    }
-
-    /**
-     * Default for new password hashes: BCrypt with cost 12. Existing SHA-512 hashes that
-     * pre-date this change are still accepted at login time via the legacy fallback below
-     * (they have no encoder prefix). Once a user changes their password — or an admin
-     * resets it — the new hash is BCrypt, prefixed with {@code {bcrypt}}.
-     */
     @Bean
-    public PasswordEncoder passwordEncoder() {
-        final BCryptPasswordEncoder bcrypt = new BCryptPasswordEncoder(12);
-        final DelegatingPasswordEncoder delegating = new DelegatingPasswordEncoder("bcrypt",
-                Map.of(
-                        "bcrypt", bcrypt,
-                        "sha512salted", new Sha512PasswordEncoder()));
-        // Unprefixed hashes (the historical {saltHex}${sha512Hex} format) are matched as
-        // legacy SHA-512 — so existing users can still sign in until their password is rotated.
-        delegating.setDefaultPasswordEncoderForMatches(new Sha512PasswordEncoder());
-        return delegating;
-    }
-
-    @Bean
-    public ApiKeyAuthFilter apiKeyAuthFilter(final UserRepository userRepository,
-                                             final ApiKeyHashingService apiKeyHashingService) {
-        return new ApiKeyAuthFilter(userRepository, apiKeyHashingService, !philterSignIn);
+    public ApiKeyAuthFilter apiKeyAuthFilter(final PhilterApiKeys philterApiKeys) {
+        return new ApiKeyAuthFilter(philterApiKeys);
     }
 
     /**
@@ -121,56 +84,31 @@ public class SecurityConfig {
         return new HttpSessionEventPublisher();
     }
 
+    /** People sign in through Philter, with their Philter username and password. */
     @Bean
-    public MfaAuthenticationSuccessHandler mfaAuthenticationSuccessHandler(
-            final UserRepository userRepository,
-            final SecurityContextRepository securityContextRepository) {
-        return new MfaAuthenticationSuccessHandler(userRepository, securityContextRepository);
-    }
-
-    /**
-     * Local accounts, or in {@code philter} mode Philter's sign-in. The Philter beans are reached
-     * through providers so the local-mode test slices, which do not scan services, need none of them.
-     */
-    @Bean
-    public AuthenticationProvider authenticationProvider(final UserDetailsService userDetailsService,
-                                                         final PasswordEncoder passwordEncoder,
-                                                         final LoginAttemptService loginAttempts,
-                                                         final AuditLogService auditLogService,
-                                                         final ObjectProvider<PhilterSignInService> philterSignInService,
-                                                         final ObjectProvider<PhilterSignInFlow> philterSignInFlow) {
-        if (philterSignIn) {
-            return new PhilterAuthenticationProvider(philterSignInService.getObject(), philterSignInFlow.getObject());
-        }
-        return new LockAwareDaoAuthenticationProvider(userDetailsService, passwordEncoder,
-                loginAttempts, auditLogService);
+    public AuthenticationProvider authenticationProvider(final PhilterSignInService philterSignInService,
+                                                         final PhilterSignInFlow philterSignInFlow) {
+        return new PhilterAuthenticationProvider(philterSignInService, philterSignInFlow);
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(final HttpSecurity http,
                                                    final ApiKeyAuthFilter apiKeyAuthFilter,
                                                    final AuditLogoutHandler auditLogoutHandler,
-                                                   final MfaAuthenticationSuccessHandler mfaSuccessHandler,
                                                    final AuthenticationProvider authenticationProvider,
                                                    final AuditLogService auditLogService,
-                                                   final ObjectProvider<PhilterSignInService> philterSignInService,
-                                                   final ObjectProvider<PhilterSignInFlow> philterSignInFlow,
+                                                   final PhilterSignInService philterSignInService,
+                                                   final PhilterSignInFlow philterSignInFlow,
                                                    final UserRepository userRepository,
                                                    final CsrfTokenRepository csrfTokenRepository,
                                                    @Value("${arbiter.sign-in.check-interval-seconds:60}") final long checkIntervalSeconds)
             throws Exception {
-        final AuthenticationFailureHandler failureHandler;
-        if (philterSignIn) {
-            failureHandler = new PhilterSignInFailureHandler();
-        } else {
-            // Send LockedException to /login?locked so the user sees a distinct message;
-            // every other AuthenticationException maps to the existing /login?error.
-            final ExceptionMappingAuthenticationFailureHandler mapping =
-                    new ExceptionMappingAuthenticationFailureHandler();
-            mapping.setExceptionMappings(Map.of(LockedException.class.getName(), "/login?locked"));
-            mapping.setDefaultFailureUrl("/login?error");
-            failureHandler = mapping;
+        if (checkIntervalSeconds < 0) {
+            throw new IllegalStateException("arbiter.sign-in.check-interval-seconds must be zero or more.");
         }
+        final SavedRequestAwareAuthenticationSuccessHandler successHandler =
+                new SavedRequestAwareAuthenticationSuccessHandler();
+        successHandler.setDefaultTargetUrl("/");
 
         // Paths that ADMIN-or-AUDITOR can read but only ADMIN may mutate. Listed once and
         // reused for the GET-vs-other-method split below so the two matchers stay in sync.
@@ -191,7 +129,7 @@ public class SecurityConfig {
                 // sign-in, counting each failure twice.
                 .authenticationManager(new ProviderManager(authenticationProvider))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/login", "/mfa", "/invitations/**", "/sign-in/**",
+                        .requestMatchers("/login", "/sign-in/**",
                                 "/css/**", "/js/**", "/images/**", "/webjars/**", "/docs/**", "/error").permitAll()
                         // Health endpoint. Unauthenticated so a probe can call it before any
                         // credential exists. Returns the aggregate status and build version
@@ -223,9 +161,9 @@ public class SecurityConfig {
                         .anyRequest().authenticated())
                 .formLogin(form -> form
                         .loginPage("/login")
-                        .usernameParameter(philterSignIn ? "username" : "email")
-                        .successHandler(mfaSuccessHandler)
-                        .failureHandler(failureHandler)
+                        .usernameParameter("username")
+                        .successHandler(successHandler)
+                        .failureHandler(new PhilterSignInFailureHandler())
                         .permitAll())
                 // Plug the SessionRegistry into the security pipeline so the
                 // password-change / role-change paths can expire other live
@@ -236,19 +174,20 @@ public class SecurityConfig {
                 .sessionManagement(s -> s
                         .sessionFixation().changeSessionId()
                         .maximumSessions(-1).sessionRegistry(sessionRegistry()).expiredUrl("/login?expired"))
-                .logout(logout -> {
-                    if (philterSignIn) {
-                        logout.addLogoutHandler(new PhilterSignOutHandler(philterSignInFlow.getObject()));
-                    }
-                    logout
+                .logout(logout -> logout
+                        .addLogoutHandler(new PhilterSignOutHandler(philterSignInFlow))
                         .addLogoutHandler(auditLogoutHandler)
                         .logoutSuccessUrl("/login?logout")
-                        .permitAll();
-                })
+                        .permitAll())
                 .exceptionHandling(ex -> ex.defaultAuthenticationEntryPointFor(
                         new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
                         new AntPathRequestMatcher("/api/**")))
                 .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                // After the session's SecurityContext is loaded, before authorization: a person whose
+                // Philter session key was rejected is signed out of Arbiter rather than served.
+                .addFilterBefore(new PhilterSessionValidationFilter(philterSignInService, userRepository,
+                        auditLogService, Clock.systemUTC(), Duration.ofSeconds(checkIntervalSeconds)),
+                        AuthorizationFilter.class)
                 // Drop session-cookie authentication on /api/** so only Bearer keys count;
                 // runs after the Bearer filter (which marks the request) and before the
                 // authorization gate that decides 200 vs 401.
@@ -291,18 +230,6 @@ public class SecurityConfig {
                         .permissionsPolicy(pp -> pp.policy(
                                 "geolocation=(), microphone=(), camera=(), payment=(), "
                                         + "usb=(), midi=(), magnetometer=(), gyroscope=(), accelerometer=()")));
-        if (philterSignIn) {
-            // After the session's SecurityContext is loaded, before authorization: a person whose
-            // Philter session key was rejected is signed out of Arbiter rather than served.
-            if (checkIntervalSeconds < 0) {
-                throw new IllegalStateException("arbiter.sign-in.check-interval-seconds must be zero or more.");
-            }
-            http.addFilterBefore(new PhilterSessionValidationFilter(philterSignInService.getObject(),
-                    userRepository, auditLogService, Clock.systemUTC(), Duration.ofSeconds(checkIntervalSeconds)),
-                    AuthorizationFilter.class);
-        } else {
-            http.addFilterBefore(new LeftoverPhilterSessionFilter(auditLogService), AuthorizationFilter.class);
-        }
         return http.build();
     }
 }

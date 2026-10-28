@@ -35,7 +35,6 @@ import ai.philterd.arbiter.repository.WeightSetRepository;
 import ai.philterd.arbiter.service.DestinationTester;
 import ai.philterd.arbiter.service.RedactionService;
 import ai.philterd.arbiter.webapp.controllers.AdminComplianceProfileController;
-import ai.philterd.arbiter.webapp.controllers.AdminController;
 import ai.philterd.arbiter.webapp.controllers.AdminGeneralController;
 import ai.philterd.arbiter.webapp.controllers.AdminGroupController;
 import ai.philterd.arbiter.webapp.controllers.AdminNotificationsController;
@@ -48,7 +47,6 @@ import ai.philterd.arbiter.webapp.controllers.BatchController;
 import ai.philterd.arbiter.webapp.controllers.PolicyController;
 import ai.philterd.arbiter.webapp.controllers.RedactionController;
 import ai.philterd.arbiter.webapp.controllers.ReportingController;
-import ai.philterd.arbiter.webapp.security.MongoUserDetailsService;
 import ai.philterd.arbiter.webapp.security.SecurityConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -62,6 +60,7 @@ import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 
+import static ai.philterd.arbiter.webapp.SignedIn.signedIn;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -70,7 +69,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
@@ -87,7 +85,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(controllers = {
         AdminComplianceProfileController.class,
-        AdminController.class,
         AdminGeneralController.class,
         AdminGroupController.class,
         AdminNotificationsController.class,
@@ -102,7 +99,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         RedactionController.class,
         ai.philterd.arbiter.api.controller.HealthController.class,
 })
-@Import({SecurityConfig.class, MongoUserDetailsService.class,
+@Import({SecurityConfig.class,
         ai.philterd.arbiter.service.BatchAccessService.class,
         ai.philterd.arbiter.service.DocumentAccessService.class})
 public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
@@ -118,8 +115,6 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
     }
 
     @Autowired private MockMvc mockMvc;
-    @org.springframework.boot.test.mock.mockito.SpyBean
-    private ai.philterd.arbiter.webapp.security.LoginAttemptService loginAttemptService;
 
 
     // ---------------------------------------------------------------------
@@ -192,40 +187,40 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
 
     @Test
     void userRoleForbiddenFromAdminPaths() throws Exception {
-        mockMvc.perform(get("/admin/general").with(user("u").roles("USER")))
+        mockMvc.perform(get("/admin/general").with(signedIn("u", "USER")))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/admin/users").with(user("u").roles("USER")))
+        mockMvc.perform(get("/admin/users").with(signedIn("u", "USER")))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/admin/groups").with(user("u").roles("USER")))
+        mockMvc.perform(get("/admin/groups").with(signedIn("u", "USER")))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/admin/notifications").with(user("u").roles("USER")))
+        mockMvc.perform(get("/admin/notifications").with(signedIn("u", "USER")))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/admin/audit").with(user("u").roles("USER")))
+        mockMvc.perform(get("/admin/audit").with(signedIn("u", "USER")))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/admin/philter").with(user("u").roles("USER")))
+        mockMvc.perform(get("/admin/philter").with(signedIn("u", "USER")))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/admin/llm-judge").with(user("u").roles("USER")))
+        mockMvc.perform(get("/admin/llm-judge").with(signedIn("u", "USER")))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/admin/weights").with(user("u").roles("USER")))
+        mockMvc.perform(get("/admin/weights").with(signedIn("u", "USER")))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void userRoleForbiddenFromPoliciesAndReporting() throws Exception {
-        mockMvc.perform(get("/policies").with(user("u").roles("USER")))
+        mockMvc.perform(get("/policies").with(signedIn("u", "USER")))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(get("/policies/some-id/edit").with(user("u").roles("USER")))
+        mockMvc.perform(get("/policies/some-id/edit").with(signedIn("u", "USER")))
                 .andExpect(status().isForbidden());
         // /api/v1/policies is reachable from the browser UI via session cookie, so
         // a USER hitting it via the framework matcher gets 403 (not 401) — the
         // session is preserved, the role check fails. The Bearer-only paths
         // (/api/v1/ingest etc.) still strip session auth and 401 — see
         // cookieAuthRejectedOnApiPaths below.
-        mockMvc.perform(get("/api/v1/policies").with(user("u").roles("USER")))
+        mockMvc.perform(get("/api/v1/policies").with(signedIn("u", "USER")))
                 .andExpect(status().isForbidden());
         mockMvc.perform(get("/api/v1/policies/content?name=Default")
-                .with(user("u").roles("USER"))).andExpect(status().isForbidden());
-        mockMvc.perform(get("/reporting").with(user("u").roles("USER")))
+                .with(signedIn("u", "USER"))).andExpect(status().isForbidden());
+        mockMvc.perform(get("/reporting").with(signedIn("u", "USER")))
                 .andExpect(status().isForbidden());
         // /batches is intentionally NOT in this list — it's open to .authenticated() so
         // team leads can reach it. Non-lead USERs see the page filtered to their groups
@@ -236,8 +231,8 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
 
     @Test
     void userRoleAllowedOnRegularPaths() throws Exception {
-        mockMvc.perform(get("/").with(user("u").roles("USER"))).andExpect(status().isOk());
-        mockMvc.perform(get("/upload").with(user("u").roles("USER"))).andExpect(status().isOk());
+        mockMvc.perform(get("/").with(signedIn("u", "USER"))).andExpect(status().isOk());
+        mockMvc.perform(get("/upload").with(signedIn("u", "USER"))).andExpect(status().isOk());
     }
 
     // ---------------------------------------------------------------------
@@ -246,18 +241,18 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
 
     @Test
     void adminRoleReachesAdminPaths() throws Exception {
-        mockMvc.perform(get("/admin/general").with(user("a").roles("ADMIN")))
+        mockMvc.perform(get("/admin/general").with(signedIn("a", "ADMIN")))
                 .andExpect(status().isOk());
-        mockMvc.perform(get("/admin/users").with(user("a").roles("ADMIN")))
+        mockMvc.perform(get("/admin/users").with(signedIn("a", "ADMIN")))
                 .andExpect(status().isOk());
-        mockMvc.perform(get("/policies").with(user("a").roles("ADMIN")))
+        mockMvc.perform(get("/policies").with(signedIn("a", "ADMIN")))
                 .andExpect(status().isOk());
         // /api/v1/policies is browser-UI accessible (the policy editor reads it
         // via fetch with a session cookie) and the framework matcher requires
         // ADMIN, so an admin reaches it just like any UI page.
-        mockMvc.perform(get("/api/v1/policies").with(user("a").roles("ADMIN")))
+        mockMvc.perform(get("/api/v1/policies").with(signedIn("a", "ADMIN")))
                 .andExpect(status().isOk());
-        mockMvc.perform(get("/reporting").with(user("a").roles("ADMIN")))
+        mockMvc.perform(get("/reporting").with(signedIn("a", "ADMIN")))
                 .andExpect(status().isOk());
     }
 
@@ -277,17 +272,17 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
         // Even an authenticated admin gets 401 on the truly programmatic API
         // endpoints without a Bearer token — the session cookie is dropped
         // before the framework's role check has a chance to grant access.
-        mockMvc.perform(post("/api/v1/ingest").with(user("a").roles("ADMIN")).with(csrf()))
+        mockMvc.perform(post("/api/v1/ingest").with(signedIn("a", "ADMIN")).with(csrf()))
                 .andExpect(status().isUnauthorized());
-        mockMvc.perform(get("/api/v1/search?q=hi").with(user("a").roles("ADMIN")))
+        mockMvc.perform(get("/api/v1/search?q=hi").with(signedIn("a", "ADMIN")))
                 .andExpect(status().isUnauthorized());
     }
 
     @Test
     void cookieAuthRejectedOnBearerOnlyApiPaths_user() throws Exception {
-        mockMvc.perform(post("/api/v1/ingest").with(user("u").roles("USER")).with(csrf()))
+        mockMvc.perform(post("/api/v1/ingest").with(signedIn("u", "USER")).with(csrf()))
                 .andExpect(status().isUnauthorized());
-        mockMvc.perform(get("/api/v1/search?q=hi").with(user("u").roles("USER")))
+        mockMvc.perform(get("/api/v1/search?q=hi").with(signedIn("u", "USER")))
                 .andExpect(status().isUnauthorized());
     }
 
@@ -299,30 +294,25 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
         org.mockito.Mockito.when(batchRepository.findAll(org.mockito.ArgumentMatchers.any(
                         org.springframework.data.domain.Pageable.class)))
                 .thenReturn(new org.springframework.data.domain.PageImpl<>(java.util.List.of()));
-        mockMvc.perform(get("/api/v1/queue").with(user("u").roles("USER")))
+        mockMvc.perform(get("/api/v1/queue").with(signedIn("u", "USER")))
                 .andExpect(status().isOk());
-        mockMvc.perform(get("/api/v1/batches").with(user("u").roles("USER")))
+        mockMvc.perform(get("/api/v1/batches").with(signedIn("u", "USER")))
                 .andExpect(status().isOk());
     }
 
     @Test
     void cookieAuthStillWorksOnNonApiPaths() throws Exception {
         // Regression: cookie/session auth still works fine on the UI side.
-        mockMvc.perform(get("/policies").with(user("a").roles("ADMIN")))
+        mockMvc.perform(get("/policies").with(signedIn("a", "ADMIN")))
                 .andExpect(status().isOk());
-        mockMvc.perform(get("/").with(user("u").roles("USER")))
+        mockMvc.perform(get("/").with(signedIn("u", "USER")))
                 .andExpect(status().isOk());
     }
 
     @Test
     void bearerTokenAuthAllowedOnApiPathsWhenRolePermits() throws Exception {
-        final ai.philterd.arbiter.model.User user = new ai.philterd.arbiter.model.User();
-        user.setEmail("admin@example.com");
-        user.setRoles(java.util.Set.of("ADMIN"));
-        org.mockito.Mockito.when(apiKeyHashingService.hash(org.mockito.ArgumentMatchers.anyString()))
-                .thenReturn("hashed-key");
-        org.mockito.Mockito.when(userRepository.findByApiKey("hashed-key"))
-                .thenReturn(java.util.Optional.of(user));
+        org.mockito.Mockito.when(philterApiKeys.resolve("some-api-key"))
+                .thenReturn(new ai.philterd.arbiter.webapp.security.PhilterApiKeys.Caller("admin", "ADMIN"));
 
         mockMvc.perform(get("/api/v1/policies")
                         .header("Authorization", "Bearer some-api-key"))
@@ -333,13 +323,8 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
     void bearerTokenAuthEnforcesRoleOnApiPaths() throws Exception {
         // A USER-role bearer token still gets 403 on the admin-gated /api/v1/policies —
         // bearer auth doesn't bypass authorization, just authentication.
-        final ai.philterd.arbiter.model.User user = new ai.philterd.arbiter.model.User();
-        user.setEmail("user@example.com");
-        user.setRoles(java.util.Set.of("USER"));
-        org.mockito.Mockito.when(apiKeyHashingService.hash(org.mockito.ArgumentMatchers.anyString()))
-                .thenReturn("hashed-key");
-        org.mockito.Mockito.when(userRepository.findByApiKey("hashed-key"))
-                .thenReturn(java.util.Optional.of(user));
+        org.mockito.Mockito.when(philterApiKeys.resolve("some-api-key"))
+                .thenReturn(new ai.philterd.arbiter.webapp.security.PhilterApiKeys.Caller("reviewer", "USER"));
 
         mockMvc.perform(get("/api/v1/policies")
                         .header("Authorization", "Bearer some-api-key"))
@@ -348,8 +333,9 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
 
     @Test
     void invalidBearerTokenStillReturnsUnauthorized() throws Exception {
-        org.mockito.Mockito.when(userRepository.findByApiKey(org.mockito.ArgumentMatchers.anyString()))
-                .thenReturn(java.util.Optional.empty());
+        org.mockito.Mockito.when(philterApiKeys.resolve("not-a-real-key")).thenThrow(
+                new ai.philterd.arbiter.webapp.security.PhilterApiKeys.RefusedException(
+                        ai.philterd.arbiter.webapp.security.PhilterApiKeys.Refusal.INVALID));
 
         mockMvc.perform(get("/api/v1/policies")
                         .header("Authorization", "Bearer not-a-real-key"))
@@ -361,10 +347,11 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
         // On a Bearer-only endpoint, a present-but-invalid Bearer header doesn't
         // upgrade the request — the session cookie is still dropped, and the
         // bad Bearer fails the lookup, so the request is anonymous and 401s.
-        org.mockito.Mockito.when(userRepository.findByApiKey(org.mockito.ArgumentMatchers.anyString()))
-                .thenReturn(java.util.Optional.empty());
+        org.mockito.Mockito.when(philterApiKeys.resolve("not-a-real-key")).thenThrow(
+                new ai.philterd.arbiter.webapp.security.PhilterApiKeys.RefusedException(
+                        ai.philterd.arbiter.webapp.security.PhilterApiKeys.Refusal.INVALID));
 
-        mockMvc.perform(get("/api/v1/search?q=x").with(user("a").roles("ADMIN"))
+        mockMvc.perform(get("/api/v1/search?q=x").with(signedIn("a", "ADMIN"))
                         .header("Authorization", "Bearer not-a-real-key"))
                 .andExpect(status().isUnauthorized());
     }
@@ -375,10 +362,10 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
 
     @Test
     void postWithoutCsrfRejectedOnUiPaths() throws Exception {
-        mockMvc.perform(post("/policies").with(user("a").roles("ADMIN"))
+        mockMvc.perform(post("/policies").with(signedIn("a", "ADMIN"))
                         .param("name", "p").param("content", "{}"))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(post("/admin/general/url").with(user("a").roles("ADMIN"))
+        mockMvc.perform(post("/admin/general/url").with(signedIn("a", "ADMIN"))
                         .param("arbiterUrl", "http://example.com"))
                 .andExpect(status().isForbidden());
     }
@@ -386,7 +373,7 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
     @Test
     void postWithCsrfAcceptedOnUiPaths() throws Exception {
         // Admin POSTs work when CSRF token is present.
-        mockMvc.perform(post("/admin/general/url").with(user("a").roles("ADMIN")).with(csrf())
+        mockMvc.perform(post("/admin/general/url").with(signedIn("a", "ADMIN")).with(csrf())
                         .param("arbiterUrl", "http://example.com"))
                 .andExpect(status().is3xxRedirection());
     }
@@ -404,7 +391,7 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
         // pattern that BatchController uses for in-controller authorization failures.
         // The mutation does not happen — that's the security guarantee being asserted —
         // even though the HTTP status is 302 instead of 403.
-        mockMvc.perform(post("/batches/abc/group").with(user("u").roles("USER")).with(csrf())
+        mockMvc.perform(post("/batches/abc/group").with(signedIn("u", "USER")).with(csrf())
                         .param("groupId", "g1"))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/batches"));
@@ -429,7 +416,7 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
 
     @Test
     void userRoleForbiddenFromAdminToolsPage() throws Exception {
-        mockMvc.perform(get("/admin/tools").with(user("u").roles("USER")))
+        mockMvc.perform(get("/admin/tools").with(signedIn("u", "USER")))
                 .andExpect(status().isForbidden());
     }
 
@@ -438,13 +425,13 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
         // AUDITOR has read access to /admin/general, /admin/audit, /admin/users,
         // etc. but NOT to /admin/tools — the Tools page hosts destructive
         // actions only, so auditors shouldn't see it.
-        mockMvc.perform(get("/admin/tools").with(user("a").roles("AUDITOR")))
+        mockMvc.perform(get("/admin/tools").with(signedIn("a", "AUDITOR")))
                 .andExpect(status().isForbidden());
     }
 
     @Test
     void adminRoleCanReachAdminToolsPage() throws Exception {
-        mockMvc.perform(get("/admin/tools").with(user("a").roles("ADMIN")))
+        mockMvc.perform(get("/admin/tools").with(signedIn("a", "ADMIN")))
                 .andExpect(status().isOk());
     }
 
@@ -459,7 +446,7 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
     @Test
     void userRoleForbiddenFromCleanupDataImports() throws Exception {
         mockMvc.perform(post("/admin/tools/cleanup-data-imports")
-                        .with(user("u").roles("USER")).with(csrf()))
+                        .with(signedIn("u", "USER")).with(csrf()))
                 .andExpect(status().isForbidden());
     }
 
@@ -471,7 +458,7 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
         // role), but pinning this with an explicit test means a refactor that
         // splits the matchers can't accidentally drop the guarantee.
         mockMvc.perform(post("/admin/tools/cleanup-data-imports")
-                        .with(user("a").roles("AUDITOR")).with(csrf()))
+                        .with(signedIn("a", "AUDITOR")).with(csrf()))
                 .andExpect(status().isForbidden());
     }
 
@@ -480,7 +467,7 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
         // Sanity check: a valid admin POST passes the framework gate and reaches
         // the controller, which redirects back to /admin/tools.
         mockMvc.perform(post("/admin/tools/cleanup-data-imports")
-                        .with(user("a").roles("ADMIN")).with(csrf()))
+                        .with(signedIn("a", "ADMIN")).with(csrf()))
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/admin/tools"));
     }
@@ -489,7 +476,7 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
     void postCleanupWithoutCsrfRejectedEvenForAdmin() throws Exception {
         // Belt-and-suspenders: even an admin POST is rejected (403) when the CSRF
         // token is missing, matching the pattern enforced on every other UI POST.
-        mockMvc.perform(post("/admin/tools/cleanup-data-imports").with(user("a").roles("ADMIN")))
+        mockMvc.perform(post("/admin/tools/cleanup-data-imports").with(signedIn("a", "ADMIN")))
                 .andExpect(status().isForbidden());
     }
 
@@ -535,11 +522,11 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
         // these endpoints can move the cursor on data ingestion, which is an
         // operator concern by design.
         mockMvc.perform(post("/admin/data-sources/rdb/some-id/reset-watermark")
-                        .with(user("u").roles("USER")).with(csrf()))
+                        .with(signedIn("u", "USER")).with(csrf()))
                 .andExpect(status().isForbidden());
         mockMvc.perform(post("/admin/data-sources/rdb/some-id/set-watermark")
                         .param("watermark", "12345")
-                        .with(user("u").roles("USER")).with(csrf()))
+                        .with(signedIn("u", "USER")).with(csrf()))
                 .andExpect(status().isForbidden());
     }
 
@@ -550,11 +537,11 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
         // this — the path matcher's other-than-GET rule and AuditorWriteRejectFilter
         // — so even if a refactor removed one, the other would still hold.
         mockMvc.perform(post("/admin/data-sources/rdb/some-id/reset-watermark")
-                        .with(user("a").roles("AUDITOR")).with(csrf()))
+                        .with(signedIn("a", "AUDITOR")).with(csrf()))
                 .andExpect(status().isForbidden());
         mockMvc.perform(post("/admin/data-sources/rdb/some-id/set-watermark")
                         .param("watermark", "12345")
-                        .with(user("a").roles("AUDITOR")).with(csrf()))
+                        .with(signedIn("a", "AUDITOR")).with(csrf()))
                 .andExpect(status().isForbidden());
     }
 
@@ -564,11 +551,11 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
         // Pinning the explicit test here means a refactor that accidentally adds
         // /admin/data-sources/** to the CSRF ignoring list trips immediately.
         mockMvc.perform(post("/admin/data-sources/rdb/some-id/reset-watermark")
-                        .with(user("a").roles("ADMIN")))
+                        .with(signedIn("a", "ADMIN")))
                 .andExpect(status().isForbidden());
         mockMvc.perform(post("/admin/data-sources/rdb/some-id/set-watermark")
                         .param("watermark", "12345")
-                        .with(user("a").roles("ADMIN")))
+                        .with(signedIn("a", "ADMIN")))
                 .andExpect(status().isForbidden());
     }
 
@@ -580,7 +567,7 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
         // would mean the security gate denied. Anything other than 403 proves
         // the security gate allowed it.
         mockMvc.perform(post("/admin/data-sources/rdb/some-id/reset-watermark")
-                        .with(user("a").roles("ADMIN")).with(csrf()))
+                        .with(signedIn("a", "ADMIN")).with(csrf()))
                 .andExpect(result -> {
                     final int s = result.getResponse().getStatus();
                     assertTrue(s != 403 && s != 401,
@@ -588,7 +575,7 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
                 });
         mockMvc.perform(post("/admin/data-sources/rdb/some-id/set-watermark")
                         .param("watermark", "12345")
-                        .with(user("a").roles("ADMIN")).with(csrf()))
+                        .with(signedIn("a", "ADMIN")).with(csrf()))
                 .andExpect(result -> {
                     final int s = result.getResponse().getStatus();
                     assertTrue(s != 403 && s != 401,
@@ -675,7 +662,7 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
         // ROLE_USER reviewers — even authenticated — must not enumerate the API
         // surface. The OpenAPI doc is admin-only.
         for (String path : new String[]{"/v3/api-docs", "/swagger-ui/index.html"}) {
-            mockMvc.perform(get(path).with(user("u").roles("USER")))
+            mockMvc.perform(get(path).with(signedIn("u", "USER")))
                     .andExpect(status().isForbidden());
         }
     }
@@ -740,7 +727,7 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
         when(philterSettings.url()).thenReturn("https://philter.example.com");
         when(philterSettings.apiKey()).thenReturn("sk_key_marker");
 
-        final String body = mockMvc.perform(get("/admin/philter").with(user("a").roles("ADMIN")))
+        final String body = mockMvc.perform(get("/admin/philter").with(signedIn("a", "ADMIN")))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
 
@@ -750,38 +737,46 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
 
     @Test
     void philterTestRequiresCsrfAndAnAdministrator() throws Exception {
-        mockMvc.perform(post("/admin/philter/test").with(user("a").roles("ADMIN")))
+        mockMvc.perform(post("/admin/philter/test").with(signedIn("a", "ADMIN")))
                 .andExpect(status().isForbidden());
-        mockMvc.perform(post("/admin/philter/test").with(user("a").roles("AUDITOR")).with(csrf()))
+        mockMvc.perform(post("/admin/philter/test").with(signedIn("a", "AUDITOR")).with(csrf()))
                 .andExpect(status().isForbidden());
     }
 
     /**
-     * One failed sign-in is one failure. The filter chain has an authentication manager of its own;
-     * with the global one as its parent, the same provider ran twice and each failure counted double
-     * toward the lockout.
+     * One failed sign-in is one call to Philter. The filter chain has an authentication manager of its own;
+     * with the global one as its parent, the same provider ran twice and each failure counted double toward
+     * Philter's lockout.
      */
     @Test
-    void failedSignInRunsTheProviderOnce() throws Exception {
-        when(userRepository.findByEmail("someone@example.com")).thenReturn(java.util.Optional.empty());
+    void failedSignInCallsPhilterOnce() throws Exception {
+        when(philterSignInService.signIn(eq("someone"), eq("wrong-password"), any(), any()))
+                .thenThrow(new ai.philterd.philter.model.exceptions.UnauthorizedException("no"));
+        when(philterSignInFlow.refused(eq("someone"), any()))
+                .thenReturn(new org.springframework.security.authentication.BadCredentialsException("Bad credentials"));
 
         mockMvc.perform(post("/login").with(csrf())
-                        .param("email", "someone@example.com")
+                        .param("username", "someone")
                         .param("password", "wrong-password"))
                 .andExpect(redirectedUrl("/login?error"));
 
-        verify(loginAttemptService, times(1)).onFailure(eq("someone@example.com"), any());
+        verify(philterSignInService, times(1)).signIn(eq("someone"), eq("wrong-password"), any(), any());
     }
 
-    /** With local sign-in, a session signed in through Philter before the switch is ended, not served. */
+    /** A session left from Arbiter's removed local sign-in is ended, not served. */
     @Test
-    void philterSessionIsEndedInLocalMode() throws Exception {
-        final ai.philterd.arbiter.webapp.security.PhilterSessionAuthentication leftover =
-                new ai.philterd.arbiter.webapp.security.PhilterSessionAuthentication("jdoe", "enc",
-                        java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN")));
+    void sessionFromLocalSignInIsEnded() throws Exception {
+        final org.springframework.mock.web.MockHttpSession session = new org.springframework.mock.web.MockHttpSession();
+        final org.springframework.security.core.context.SecurityContext context =
+                org.springframework.security.core.context.SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                "admin@example.com", null,
+                java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN"))));
+        session.setAttribute(org.springframework.security.web.context.HttpSessionSecurityContextRepository
+                .SPRING_SECURITY_CONTEXT_KEY, context);
 
-        mockMvc.perform(get("/admin/users").accept("text/html").with(
-                        org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication(leftover)))
+        mockMvc.perform(get("/admin/general").accept("text/html").session(session))
                 .andExpect(redirectedUrl("/login?expired"));
+        assertTrue(session.isInvalid());
     }
 }

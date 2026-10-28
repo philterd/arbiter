@@ -16,8 +16,8 @@ exactly one role:
   to inspect activity without being able to change it. See
   [Roles and permissions](reference/roles.md) for the full feature matrix.
 
-Each user can also generate a personal **API key** for programmatic access.
-API keys carry the same permissions as the owning user account.
+People sign in through Philter, and call Arbiter's API with a **Philter API key**, which carries
+the permissions of the Philter user that owns it. See [Security](security.md#authentication).
 
 ## Groups
 

@@ -1,8 +1,7 @@
 # Arbiter and Philter for a single host, both storing their data in SQLite.
 #
 # Before the first start, put these in .env next to this file (see .env.example):
-#   ARBITER_CRYPTO_SECRET, ARBITER_ADMIN_INITIAL_PASSWORD,
-#   PHILTER_ENCRYPTION_KEY, PHILTER_BOOTSTRAP_API_KEY, VALKEY_PASSWORD
+#   ARBITER_CRYPTO_SECRET, PHILTER_ENCRYPTION_KEY, PHILTER_BOOTSTRAP_API_KEY, VALKEY_PASSWORD
 #
 # Arbiter needs an API key for a Philter user who is not an administrator, with only the
 # redact and policies:read scopes, so start Philter first and create one:
@@ -15,6 +14,10 @@
 # Then start the rest:
 #
 #   docker compose -f docker-compose.prod.yaml up -d
+#
+# People sign in to Arbiter through Philter. To sign in as Philter's first administrator,
+# "admin", give it a password with PHILTER_BOOTSTRAP_API_KEY, as docs/docs/security.md
+# ("First sign-in") shows; it is an administrator in Arbiter too.
 #
 # Each SQLite database lives in a volume (arbiter-data, philter-data). Back them up;
 # see docs/docs/reference/database.md#backups.
@@ -34,7 +37,6 @@ services:
       - ARBITER_STORE=sqlite
       - ARBITER_SQLITE_PATH=/app/data/arbiter.db
       - ARBITER_CRYPTO_SECRET=${ARBITER_CRYPTO_SECRET:?Set ARBITER_CRYPTO_SECRET in .env (openssl rand -base64 32)}
-      - ARBITER_ADMIN_INITIAL_PASSWORD=${ARBITER_ADMIN_INITIAL_PASSWORD:?Set ARBITER_ADMIN_INITIAL_PASSWORD in .env on first install (12+ chars)}
       - ARBITER_DEMO_DATA_ENABLED=false
       # Arbiter's one Philter, for sign-in, policies, and redaction.
       - ARBITER_PHILTER_URL=http://philter:8080
@@ -77,6 +79,8 @@ services:
       - PHILTER_ENCRYPTION_KEY=${PHILTER_ENCRYPTION_KEY:?Set PHILTER_ENCRYPTION_KEY in .env (openssl rand -base64 32)}
       # The Philter admin's first API key: sk_ followed by 32 letters and digits.
       - PHILTER_BOOTSTRAP_API_KEY=${PHILTER_BOOTSTRAP_API_KEY:?Set PHILTER_BOOTSTRAP_API_KEY in .env}
+      # People sign in to Arbiter with their Philter username and password.
+      - PASSWORD_SIGN_IN_ENABLED=true
       # Plain HTTP: Philter publishes no port and is reachable only by Arbiter on the
       # arbiter network. For HTTPS, set this to true, mount Philter's own certificate
       # (see Philter's TLS settings), and give Arbiter a trust store for it above.

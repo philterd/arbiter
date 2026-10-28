@@ -15,24 +15,14 @@
  */
 package ai.philterd.arbiter.webapp.controllers;
 
-import ai.philterd.arbiter.service.SignInSettings;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 
 @Controller
 public class LoginController {
 
-    private final boolean philterSignIn;
-
-    public LoginController(@Value("${arbiter.sign-in.mode:local}") final String signInMode) {
-        this.philterSignIn = SignInSettings.MODE_PHILTER.equalsIgnoreCase(signInMode == null ? "" : signInMode.trim());
-    }
-
     @GetMapping("/login")
-    public String login(final Model model) {
-        model.addAttribute("philterSignIn", philterSignIn);
+    public String login() {
         return "login";
     }
 

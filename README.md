@@ -42,10 +42,10 @@ docker compose build
 docker compose up
 ```
 
-Arbiter will be available at <http://localhost:8080>. The bootstrap admin
-account is `admin@philterd.ai` with the password set in
-`ARBITER_ADMIN_INITIAL_PASSWORD` in `docker-compose.yaml`. Arbiter refuses
-to start if that variable is missing or shorter than 12 characters.
+Arbiter will be available at <http://localhost:8080>. People sign in with
+their Philter username and password; to sign in as Philter's first
+administrator, `admin`, give it a password as
+[First sign-in](https://philterd.github.io/arbiter/security/#first-sign-in) shows.
 
 Arbiter sends documents to the Philter that `docker-compose.yaml` also starts,
 set by `ARBITER_PHILTER_URL` and `ARBITER_PHILTER_API_KEY`. Its keys there are

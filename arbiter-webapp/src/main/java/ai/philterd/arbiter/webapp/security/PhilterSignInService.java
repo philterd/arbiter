@@ -11,7 +11,7 @@ package ai.philterd.arbiter.webapp.security;
 
 import ai.philterd.arbiter.philter.PhilterClients;
 import ai.philterd.arbiter.philter.PhilterTlsConfig;
-import ai.philterd.arbiter.service.SignInSettings;
+import ai.philterd.arbiter.service.PhilterSettings;
 import ai.philterd.arbiter.service.SymmetricCipher;
 import ai.philterd.philter.PhilterClient;
 import ai.philterd.philter.model.CurrentUser;
@@ -31,11 +31,11 @@ import java.io.IOException;
 @Service
 public class PhilterSignInService {
 
-    private final SignInSettings settings;
+    private final PhilterSettings settings;
     private final PhilterTlsConfig tls;
     private final SymmetricCipher cipher;
 
-    public PhilterSignInService(final SignInSettings settings,
+    public PhilterSignInService(final PhilterSettings settings,
                                 final PhilterTlsConfig tls,
                                 final SymmetricCipher cipher) {
         this.settings = settings;
@@ -81,13 +81,19 @@ public class PhilterSignInService {
         return cipher.encrypt(secret);
     }
 
+    /** The user that owns a Philter API key presented to Arbiter's API. Needs the key to hold {@code users:read}. */
+    public CurrentUser currentUserForApiKey(final String apiKey) throws IOException {
+        return PhilterClients.build(settings.url(), apiKey, tls.sslContext(),
+                PhilterSignInService::currentClientAddress).getCurrentUser();
+    }
+
     /**
      * A client that sends the address of the person whose request is being served, so Philter's audit
      * log records it for every call made on their behalf, not only sign-in.
      */
     PhilterClient client(final String encryptedKey) {
         final String key = encryptedKey == null ? null : cipher.decrypt(encryptedKey);
-        return PhilterClients.build(settings.philterUrl(), key, tls.sslContext(),
+        return PhilterClients.build(settings.url(), key, tls.sslContext(),
                 PhilterSignInService::currentClientAddress);
     }
 

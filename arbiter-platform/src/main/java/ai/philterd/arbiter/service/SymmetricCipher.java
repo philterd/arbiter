@@ -62,8 +62,7 @@ public class SymmetricCipher {
     private final SecureRandom random = new SecureRandom();
 
     public SymmetricCipher(@Value("${arbiter.crypto.secret:}") final String configured) {
-        // Validation lives in CryptoSecretLoader so it can't drift between this and
-        // ApiKeyHashingService; the typed CryptoSecretConfigurationException it throws
+        // Validation lives in CryptoSecretLoader; the typed CryptoSecretConfigurationException it throws
         // is caught by CryptoSecretFailureAnalyzer to render the startup banner instead
         // of a stack trace.
         this.key = new SecretKeySpec(CryptoSecretLoader.load(configured), "AES");
