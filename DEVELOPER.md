@@ -9,12 +9,12 @@ Three Maven modules, dependency order top-to-bottom:
 
 | Module             | Owns                                                                  |
 | ------------------ | --------------------------------------------------------------------- |
-| `arbiter-domain`   | POJOs: `model/`, `dto/`, `util/`, `core/model/`, `philter/`           |
-| `arbiter-platform` | Spring services, repositories, and the MongoDB and SQLite stores. No controllers |
-| `arbiter-webapp`   | Spring Boot entry point, MVC + REST controllers, security, templates  |
+| `philter-workspace-domain`   | POJOs: `model/`, `dto/`, `util/`, `core/model/`, `philter/`           |
+| `philter-workspace-platform` | Spring services, repositories, and the MongoDB and SQLite stores. No controllers |
+| `philter-workspace-webapp`   | Spring Boot entry point, MVC + REST controllers, security, templates  |
 
 Module boundaries are organisational, not visibility — `@ComponentScan`
-covers `ai.philterd.arbiter` regardless of where a class compiles from.
+covers `ai.philterd.workspace` regardless of where a class compiles from.
 
 ## Build, run, test
 
@@ -23,13 +23,13 @@ mvn package                 # full reactor build
 mvn test                    # all modules
 mvn verify                  # also the *IT integration tests; needs Docker
 docker compose -f docker-compose.yaml up --build   # full stack: OpenSearch + ES + Valkey + app on :8080, SQLite store
-ARBITER_STORE=mongodb docker compose -f docker-compose.yaml --profile mongodb up --build   # same, on MongoDB
+PHILTER_WORKSPACE_STORE=mongodb docker compose -f docker-compose.yaml --profile mongodb up --build   # same, on MongoDB
 ./build-image.sh            # multi-arch (amd64 + arm64) image, tagged with the pom version
-./push-image.sh             # publish it to philterd/arbiter, by hand
+./push-image.sh             # publish it to philterd/philter-workspace, by hand
 ```
 
 `mvn verify` runs the integration tests (`*IT`, with Maven Failsafe) as well as
-the unit tests. `PhilterSignInIT` starts the real Arbiter on SQLite with in-memory
+the unit tests. `PhilterSignInIT` starts the real Philter Workspace on SQLite with in-memory
 sessions against a `philterd/philter:4.0.0` container, started with
 Testcontainers, and covers sign-in through Philter, MFA, forced password change,
 expiry, revocation, sign-out, the Users page, Admin → Philter's key check, and
@@ -37,7 +37,7 @@ redaction through that Philter. It takes about a minute and a
 half, most of it waiting for Philter's one-minute idle timeout. The Philter image
 is amd64-only, so on an ARM machine it runs under emulation and is slower.
 
-`build-image.sh` loads `philterd/arbiter:<version>-amd64` and
+`build-image.sh` loads `philterd/philter-workspace:<version>-amd64` and
 `-arm64` locally; `push-image.sh` pushes those two and joins them into the
 plain `<version>` tag in the registry. Both take a version argument; with
 none they read the Maven project version from the root `pom.xml`, so the
@@ -46,20 +46,20 @@ image automatically: run `push-image.sh` yourself from a machine holding the
 Docker Hub credential. Set `ARCHES=amd64` to build just one architecture.
 
 Running the webapp from the IDE needs Valkey reachable, plus MongoDB unless
-you set `ARBITER_STORE=sqlite`:
+you set `PHILTER_WORKSPACE_STORE=sqlite`:
 
 ```sh
 docker compose -f docker-compose.yaml up -d valkey
-# then run ai.philterd.arbiter.webapp.ArbiterApplication with ARBITER_STORE=sqlite,
+# then run ai.philterd.workspace.webapp.PhilterWorkspaceApplication with PHILTER_WORKSPACE_STORE=sqlite,
 # or start MongoDB too and keep the default store:
 docker compose -f docker-compose.yaml --profile mongodb up -d mongodb valkey
 ```
 
-Defaults in `arbiter-webapp/src/main/resources/application.properties`
+Defaults in `philter-workspace-webapp/src/main/resources/application.properties`
 point at `localhost`; the only env vars worth knowing about are
-`ARBITER_STORE`, `SPRING_DATA_MONGODB_URI`, `SPRING_DATA_REDIS_HOST`/`_PORT`, and
-**`arbiter.crypto.secret`** (now required: base64 of 32 random bytes,
-e.g. `openssl rand -base64 32`; Arbiter refuses to start if it isn't
+`PHILTER_WORKSPACE_STORE`, `SPRING_DATA_MONGODB_URI`, `SPRING_DATA_REDIS_HOST`/`_PORT`, and
+**`philter-workspace.crypto.secret`** (now required: base64 of 32 random bytes,
+e.g. `openssl rand -base64 32`; Philter Workspace refuses to start if it isn't
 set or has the wrong shape). The OpenSearch endpoint used for
 full-text search is configured at runtime under
 **Admin → Settings → Full text search** rather than via an env var.
@@ -78,7 +78,7 @@ A few patterns that bite:
   indexes on context load and fails if one is unmocked. Copy the list
   from `AuthorizationIntegrationTest`.
 - **Repositories must work on both stores.** They extend
-  `ArbiterRepository` and declare derived queries only; a MongoDB
+  `WorkspaceRepository` and declare derived queries only; a MongoDB
   `@Query` string is refused by the SQLite store. Anything a derived query
   can't express (ranges on one field, atomic status flips, partial updates)
   goes in a store interface under `store/` with a MongoDB implementation in

@@ -1,16 +1,16 @@
 # Workflow
 
-This page walks through how Arbiter is used end-to-end: how an administrator
+This page walks through how Philter Workspace is used end-to-end: how an administrator
 sets it up, how documents flow through it, and how reviewers approve or reject
-the redactions Arbiter proposes. If you have not yet read
+the redactions Philter Workspace proposes. If you have not yet read
 [Concepts](concepts.md), start there for the vocabulary used below.
 
 ## The big picture
 
-Arbiter is a **human-in-the-loop deidentification reviewer**. It does not
-detect PII on its own — that is Philter's job. Arbiter coordinates the work:
+Philter Workspace is a **human-in-the-loop deidentification reviewer**. It does not
+detect PII on its own — that is Philter's job. Philter Workspace coordinates the work:
 
-1. **An admin connects Arbiter to its Philter**, in Arbiter's environment.
+1. **An admin connects Philter Workspace to its Philter**, in Philter Workspace's environment.
 2. **An admin authors policies in Philter.** A policy tells Philter what counts
    as PII and how to redact each type.
 3. **An admin creates a batch** for a group of related documents and chooses
@@ -23,35 +23,35 @@ detect PII on its own — that is Philter's job. Arbiter coordinates the work:
 6. **The reviewer accepts or rejects each span**, then approves or rejects
    the document as a whole. Decisions are captured in the audit log.
 
-Everything in Arbiter is built around that flow.
+Everything in Philter Workspace is built around that flow.
 
 ## 1. Configure Philter
 
-Arbiter works with one [Philter](https://philterd.ai). It signs
+Philter Workspace works with one [Philter](https://philterd.ai). It signs
 people in through it, lists its policies,
-and sends every batch's documents to it for redaction. Arbiter does not detect
+and sends every batch's documents to it for redaction. Philter Workspace does not detect
 PII itself.
 
 ### Supported Philter versions
 
-This release of Arbiter supports Philter 4.x: 4.0.0 and later 4.x releases. Arbiter reads Philter's
+This release of Philter Workspace supports Philter 4.x: 4.0.0 and later 4.x releases. Philter Workspace reads Philter's
 version from `GET /api/health` on the sign-in page and at each sign-in. For any other major version,
 the sign-in page names the Philter's version and the supported one, and does not show the form.
 Philter 3.x has no `/api/health` and is reported as older than 4.0. When the version cannot be read,
 sign-in goes ahead and reports any failure itself. **Admin → Philter → Test** also reports an
 unsupported version.
 
-### Connecting Arbiter to Philter
+### Connecting Philter Workspace to Philter
 
-Set two environment variables on Arbiter:
+Set two environment variables on Philter Workspace:
 
 | Variable | Purpose |
 |---|---|
-| `ARBITER_PHILTER_URL` | Philter's `http` or `https` URL, such as `http://philter:8080`. |
-| `ARBITER_PHILTER_API_KEY` | The API key Arbiter uses for background work such as ingest, sent as a bearer token. It must not belong to a Philter administrator; see [Philter API key for Arbiter](#philter-api-key-for-arbiter). |
+| `PHILTER_WORKSPACE_PHILTER_URL` | Philter's `http` or `https` URL, such as `http://philter:8080`. |
+| `PHILTER_WORKSPACE_PHILTER_API_KEY` | The API key Philter Workspace uses for background work such as ingest, sent as a bearer token. It must not belong to a Philter administrator; see [Philter API key for Philter Workspace](#philter-api-key-for-philter-workspace). |
 
-Both are required: Arbiter does not start without them. For HTTPS with a
-private certificate authority, or mutual TLS, set the `arbiter.philter.tls.*`
+Both are required: Philter Workspace does not start without them. For HTTPS with a
+private certificate authority, or mutual TLS, set the `philter-workspace.philter.tls.*`
 settings in
 [Philter integration](reference/configuration.md#philter-integration). The URL
 and key are not admin settings, so they cannot be changed from the UI.
@@ -59,48 +59,48 @@ and key are not admin settings, so they cannot be changed from the UI.
 **Admin → Philter** shows the URL and whether the key belongs to a Philter
 administrator. **Test** calls Philter's `/api/health` endpoint and reports its
 Philter version, then makes an authenticated call to confirm Philter accepts the
-key and to check its role. Arbiter also checks the role when it starts, and logs
+key and to check its role. Philter Workspace also checks the role when it starts, and logs
 a warning for an administrator's key. The key keeps working, but the page shows
 a warning until it is replaced. Each Test is recorded in the audit log as
 `PHILTER_TEST`.
 
-### Philter API key for Arbiter
+### Philter API key for Philter Workspace
 
 Philter keeps policies, contexts and their consistent-pseudonymization
 mappings, and the default format-preserving encryption key per user: a key
 reaches only its own user's. Every batch therefore uses the policies and
-contexts of the user who owns `ARBITER_PHILTER_API_KEY`.
+contexts of the user who owns `PHILTER_WORKSPACE_PHILTER_API_KEY`.
 
-That key must not belong to a Philter administrator. Arbiter asks Philter for
+That key must not belong to a Philter administrator. Philter Workspace asks Philter for
 the key's role (`GET /api/limits`) when it starts and on **Test**, which fails
 for an administrator's key. Such a key keeps working, but **Admin → Philter**
 shows a warning until the key's user is no longer an administrator.
 
 `docker-compose.prod.yaml` does not publish Philter's port, so the commands below
 run `curl` in a container on the compose network. `docker network ls` shows its
-name, `<project>_arbiter`; it is `arbiter_arbiter` when the compose project is
-named `arbiter`. Set `PHILTER_ADMIN_KEY` to an administrator's key, such as
+name, `<project>_philter-workspace`; it is `philter-workspace_philter-workspace` when the compose project is
+named `philter-workspace`. Set `PHILTER_ADMIN_KEY` to an administrator's key, such as
 `PHILTER_BOOTSTRAP_API_KEY`.
 
-**For a new deployment**, create a Philter user for Arbiter and a key with only
+**For a new deployment**, create a Philter user for Philter Workspace and a key with only
 the `redact` and `policies:read` scopes:
 
 ```sh
-docker run --rm --network arbiter_arbiter curlimages/curl:8.10.1 -s -X POST "http://philter:8080/api/users" \
+docker run --rm --network philter-workspace_philter-workspace curlimages/curl:8.10.1 -s -X POST "http://philter:8080/api/users" \
   -H "Authorization: Bearer $PHILTER_ADMIN_KEY" -H "Content-Type: application/json" \
-  --data '{"username":"arbiter","role":"user"}'
-docker run --rm --network arbiter_arbiter curlimages/curl:8.10.1 -s -X POST "http://philter:8080/api/users/arbiter/api-keys" \
+  --data '{"username":"philter-workspace","role":"user"}'
+docker run --rm --network philter-workspace_philter-workspace curlimages/curl:8.10.1 -s -X POST "http://philter:8080/api/users/philter-workspace/api-keys" \
   -H "Authorization: Bearer $PHILTER_ADMIN_KEY" -H "Content-Type: application/json" \
   --data '{"scopes":["redact","policies:read"]}'
 ```
 
 The second response holds the key in `apiKey`, shown only once. Set it as
-`ARBITER_PHILTER_API_KEY`. Create Arbiter's
-policies with a key of this user, or as an administrator with `owner=arbiter`
+`PHILTER_WORKSPACE_PHILTER_API_KEY`. Create Philter Workspace's
+policies with a key of this user, or as an administrator with `owner=philter-workspace`
 (which needs `ADMIN_CROSS_USER_ACCESS_ENABLED=true` in Philter); a key with only
 `policies:read` cannot create them.
 
-**If Arbiter already uses an administrator's key**, do not switch to another
+**If Philter Workspace already uses an administrator's key**, do not switch to another
 user's key: that user would not have the policies and contexts your batches use,
 pseudonyms and encrypted values would change, and context mappings cannot be
 moved to another user. Instead, keep the user and remove its administrator role:
@@ -112,32 +112,32 @@ moved to another user. Instead, keep the user and remove its administrator role:
    it also holds):
 
     ```sh
-    docker run --rm --network arbiter_arbiter curlimages/curl:8.10.1 -s -X POST "http://philter:8080/api/users" \
+    docker run --rm --network philter-workspace_philter-workspace curlimages/curl:8.10.1 -s -X POST "http://philter:8080/api/users" \
       -H "Authorization: Bearer $PHILTER_ADMIN_KEY" -H "Content-Type: application/json" \
       --data '{"username":"ops","role":"admin"}'
-    docker run --rm --network arbiter_arbiter curlimages/curl:8.10.1 -s "http://philter:8080/api/api-keys/scopes" \
+    docker run --rm --network philter-workspace_philter-workspace curlimages/curl:8.10.1 -s "http://philter:8080/api/api-keys/scopes" \
       -H "Authorization: Bearer $PHILTER_ADMIN_KEY"
-    docker run --rm --network arbiter_arbiter curlimages/curl:8.10.1 -s -X POST "http://philter:8080/api/users/ops/api-keys" \
+    docker run --rm --network philter-workspace_philter-workspace curlimages/curl:8.10.1 -s -X POST "http://philter:8080/api/users/ops/api-keys" \
       -H "Authorization: Bearer $PHILTER_ADMIN_KEY" -H "Content-Type: application/json" \
       --data '{"scopes":[ every scope name from the previous response ]}'
     ```
 
 2. With the new administrator's key (`OPS_KEY`), or their session on the Users
-   page, make the user that owns Arbiter's key a `user`. For the bootstrap key that
+   page, make the user that owns Philter Workspace's key a `user`. For the bootstrap key that
    user is `admin`:
 
     ```sh
-    docker run --rm --network arbiter_arbiter curlimages/curl:8.10.1 -s -X PUT "http://philter:8080/api/users/admin/role" \
+    docker run --rm --network philter-workspace_philter-workspace curlimages/curl:8.10.1 -s -X PUT "http://philter:8080/api/users/admin/role" \
       -H "Authorization: Bearer $OPS_KEY" -H "Content-Type: application/json" --data '{"role":"user"}'
     ```
 
-3. Narrow Arbiter's key to `redact` and `policies:read`, finding its `id` in the
+3. Narrow Philter Workspace's key to `redact` and `policies:read`, finding its `id` in the
    user's key list:
 
     ```sh
-    docker run --rm --network arbiter_arbiter curlimages/curl:8.10.1 -s "http://philter:8080/api/users/admin/api-keys" \
+    docker run --rm --network philter-workspace_philter-workspace curlimages/curl:8.10.1 -s "http://philter:8080/api/users/admin/api-keys" \
       -H "Authorization: Bearer $OPS_KEY"
-    docker run --rm --network arbiter_arbiter curlimages/curl:8.10.1 -s -X PUT "http://philter:8080/api/api-keys/<id>/scopes" \
+    docker run --rm --network philter-workspace_philter-workspace curlimages/curl:8.10.1 -s -X PUT "http://philter:8080/api/api-keys/<id>/scopes" \
       -H "Authorization: Bearer $OPS_KEY" -H "Content-Type: application/json" \
       --data '{"scopes":["redact","policies:read"]}'
     ```
@@ -153,8 +153,8 @@ declares which PII types to look for and what to do with each
 the [Philter documentation](https://philterd.github.io/philter/).
 
 Policies live in Philter, and belong to the user who owns
-`ARBITER_PHILTER_API_KEY`. Create and change them in Philter, for example with
-the Policy Editor. Arbiter lists them read-only through the Philter API, with
+`PHILTER_WORKSPACE_PHILTER_API_KEY`. Create and change them in Philter, for example with
+the Policy Editor. Philter Workspace lists them read-only through the Philter API, with
 that key:
 
 1. Click **Policies** in the left-side menu.
@@ -163,14 +163,14 @@ that key:
 
 A batch with no policy selected uses Philter's default policy.
 
-Arbiter talks to Philter through the
-[Philter SDK for Java](https://github.com/philterd/philter-sdk-java). Arbiter
+Philter Workspace talks to Philter through the
+[Philter SDK for Java](https://github.com/philterd/philter-sdk-java). Philter Workspace
 reviews plain-text documents. PDF review through Philter is not yet available,
 so a PDF upload fails to ingest.
 
 ## 3. Create a batch
 
-A **batch** is the unit of organisation in Arbiter. Every document belongs
+A **batch** is the unit of organisation in Philter Workspace. Every document belongs
 to exactly one batch. A batch carries:
 
 | Field                | Purpose                                                              |
@@ -206,7 +206,7 @@ For more on batch settings see the
 
 ## 4. Upload documents
 
-Documents enter Arbiter through one of two paths.
+Documents enter Philter Workspace through one of two paths.
 
 ### Through the web UI
 
@@ -218,7 +218,7 @@ Documents enter Arbiter through one of two paths.
    review through Philter is not yet available, so a `.pdf` fails to ingest.
 4. Click **Redact Document**.
 
-Arbiter sends the file to Philter using the batch's
+Philter Workspace sends the file to Philter using the batch's
 policy, persists the document, creates a span for each detection, and
 computes the document's risk score. You then land on a preview page where
 you can download the redacted text or PDF.
@@ -237,7 +237,7 @@ batch is closed.
 
 Ingestion is **asynchronous**. The upload (or `POST /api/v1/ingest`) persists
 the document in `PENDING` and returns immediately; a background worker drains
-the redaction queue oldest-first. Multiple Arbiter replicas can run side by
+the redaction queue oldest-first. Multiple Philter Workspace replicas can run side by
 side: each document is claimed atomically (`PENDING → PROCESSING`) so it is
 never processed twice. Admins watch the queue at **Admin → Ingest Queue**.
 
@@ -263,7 +263,7 @@ even before human review; re-tuning the threshold relabels existing rows on
 the next page load.
 
 If Philter fails for any reason the document moves to `FAILED` and the
-exception is captured both in the Arbiter logs and in a `failureMessage`
+exception is captured both in the Philter Workspace logs and in a `failureMessage`
 field on the document — admins can view the failure detail from the
 **View log** link in the Recent failures table on Ingest Queue.
 
@@ -334,9 +334,9 @@ For more detail see [Reviewing a document](user-guide/reviewing.md).
 
 Putting all the pieces together:
 
-1. **Admin** stands up Arbiter, its database, and Philter, with
-   `ARBITER_PHILTER_URL` and `ARBITER_PHILTER_API_KEY` set.
-2. **Admin** opens **Admin → Philter** and clicks **Test** to confirm Arbiter
+1. **Admin** stands up Philter Workspace, its database, and Philter, with
+   `PHILTER_WORKSPACE_PHILTER_URL` and `PHILTER_WORKSPACE_PHILTER_API_KEY` set.
+2. **Admin** opens **Admin → Philter** and clicks **Test** to confirm Philter Workspace
    reaches Philter with its key.
 3. **Admin** creates a policy tuned to their data in Philter, and checks it is
    listed under **Policies**.

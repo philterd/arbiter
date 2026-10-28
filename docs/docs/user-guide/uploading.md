@@ -2,7 +2,7 @@
 
 The **Add Documents** page (`/upload`) is reachable from the **Add Documents**
 link in the sidebar's Redaction section. It supports several ways to feed
-documents into Arbiter; pick the matching tab at the top of the page:
+documents into Philter Workspace; pick the matching tab at the top of the page:
 
 - **Upload files** — submit a single document from your machine (the
   long-standing default).
@@ -43,13 +43,13 @@ Other formats are not supported through the web UI.
 3. Choose the file with **Document**.
 4. Click **Upload Document**.
 
-The document is **queued** for redaction and Arbiter immediately returns to
+The document is **queued** for redaction and Philter Workspace immediately returns to
 the upload page with a confirmation message. You'll see the document in the
 [Document Queue](queue.md) once a background worker has finished processing it.
 
 ## What happens behind the scenes
 
-When you click Upload Document, Arbiter:
+When you click Upload Document, Philter Workspace:
 
 1. Persists a `Document` row in the chosen batch with status `PENDING` and
    stores the original bytes (text inline; PDFs in a sidecar collection).
@@ -104,7 +104,7 @@ immediately and you can watch progress while the worker pulls documents in.
 1. Pick a **Batch**, a **Priority**, and the **OpenSearch source** (or
    Elasticsearch source) the admin registered.
 2. Click **Ingest from OpenSearch** (or **Ingest from Elasticsearch**).
-3. Arbiter redirects you to the **Background Jobs** page (Redaction sidebar
+3. Philter Workspace redirects you to the **Background Jobs** page (Redaction sidebar
    group → *Background Jobs*) with a confirmation banner. The new job
    starts in `PENDING`, transitions to `RUNNING`, and ends in `COMPLETED`
    or `FAILED`.
@@ -160,7 +160,7 @@ as a **background job**, so the page returns immediately.
 1. Pick a **Batch**, a **Priority**, and the **Local source** the admin
    registered.
 2. Click **Ingest from Local Directory**.
-3. Arbiter redirects you to the **Background Jobs** page with a confirmation
+3. Philter Workspace redirects you to the **Background Jobs** page with a confirmation
    banner. The job moves through `PENDING` → `RUNNING` → `COMPLETED` /
    `FAILED`.
 

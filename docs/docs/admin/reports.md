@@ -227,7 +227,7 @@ has ambiguous cases the team needs to resolve.
 ### Edge cases
 
 - **Both reviewers labeled every token as O.** Cohen's Kappa is degenerate
-  in this case (the standard formula evaluates to 0/0). Arbiter reports
+  in this case (the standard formula evaluates to 0/0). Philter Workspace reports
   **1.000** by convention, reflecting unanimous agreement.
 - **Only one reviewer reviewed.** The document is excluded from the
   pooled matrix until the second reviewer completes their review.

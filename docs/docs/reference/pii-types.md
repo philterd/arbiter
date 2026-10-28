@@ -1,6 +1,6 @@
 # PII types
 
-Arbiter knows about the following PII types, mirroring the upstream Phileas
+Philter Workspace knows about the following PII types, mirroring the upstream Phileas
 filter set. Every type has a default sensitivity weight used by the
 [risk score](risk-score.md); admins can override these per batch on the
 batch's weights page.
@@ -55,7 +55,7 @@ A weight of `0` is allowed and tells the [risk score](risk-score.md) to
 ignore that type entirely (the term still drops out of the unresolved-span
 penalty since that's based on status, not weight).
 
-When you save weights for a batch, Arbiter only persists values that
+When you save weights for a batch, Philter Workspace only persists values that
 **differ** from the default. So changing the global default for a type
-later (in a future Arbiter release) automatically picks up for every batch
+later (in a future Philter Workspace release) automatically picks up for every batch
 that hadn't explicitly overridden it.

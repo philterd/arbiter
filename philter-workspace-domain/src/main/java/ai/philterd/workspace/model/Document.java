@@ -1,0 +1,322 @@
+/*
+ * Copyright 2026 Philterd, LLC.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ */
+package ai.philterd.workspace.model;
+
+import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.Version;
+import org.springframework.data.mongodb.core.index.Indexed;
+
+import java.time.Instant;
+import java.time.LocalDateTime;
+
+@org.springframework.data.mongodb.core.mapping.Document(collection = "documents")
+public class Document {
+
+    @Id
+    private String id;
+
+    /**
+     * Optimistic-locking version. Auto-managed by Spring Data Mongo on every
+     * {@code repository.save(...)} — incremented after a successful write, checked on
+     * the next write. A stale {@code version} (because another thread saved in between)
+     * raises {@code OptimisticLockingFailureException} and the in-memory mutation is
+     * refused. Combined with the pessimistic lock in {@link
+     * ai.philterd.workspace.service.DocumentLockService}, this prevents the
+     * lost-update race where two reviewers race {@code approve} / {@code reject} and
+     * the second {@code save} clobbers the first reviewer's {@code approvedBy} entry.
+     * Null on freshly-built entities — Spring sets it to 0 on the first save.
+     */
+    @Version
+    private Long version;
+
+    @Indexed
+    private String batchId;
+    private String filename;
+    private String storagePath;
+    private String originalText;
+    /**
+     * Redacted text rendered at finalize time. Persisted so the Download button on the
+     * Document Queue still works after a batch's finalization policy has cleared
+     * {@link #originalText} and removed the spans.
+     */
+    private String redactedText;
+    /**
+     * SHA-512 hash (lowercase hex) of the document content as ingested. For text uploads this
+     * is the hash of the UTF-8 bytes; for binary uploads (e.g. PDF) it is the hash of the raw
+     * bytes received. Set once at ingest time and never updated thereafter, so it can be used
+     * to detect duplicates and to attest the original content.
+     */
+    private String contentSha512;
+    /**
+     * Traceability for documents pulled from an external data source. {@code sourceSystem} is
+     * the type of system the document came from (e.g. {@code OPENSEARCH}); {@code sourceUrl} is
+     * the cluster/server URL; {@code sourceIndex} is the index/table/path the document lived
+     * in; and {@code sourceDocId} is the system-specific document id. All four are {@code null}
+     * for hand-uploaded documents.
+     */
+    private String sourceSystem;
+    private String sourceUrl;
+    private String sourceIndex;
+    private String sourceDocId;
+    /** When the document was imported from its external source. Null for direct uploads. */
+    private LocalDateTime importedAt;
+    @Indexed
+    private String status;
+    private double riskScore;
+    private String philterContextId;
+    private LocalDateTime createdAt;
+    private LocalDateTime statusChangedAt;
+    private String failureMessage;
+    /**
+     * Emails of reviewers who have approved this document, in order of first → last approval.
+     * Used to count progress against the batch's approval-rule requirement and to enforce that
+     * the same reviewer cannot approve a document twice.
+     */
+    private java.util.List<String> approvedBy = new java.util.ArrayList<>();
+
+    /**
+     * Stable random number in [0, 1) generated once during persistence. Used by the
+     * dual-approval sampling rule so the same document keeps the same sampling decision
+     * across reads. {@code null} means the document predates the sampling roll — the rule
+     * conservatively treats it as not sampled in.
+     */
+    private Double dualApprovalSamplingRoll;
+
+    /**
+     * Pessimistic-review lock fields. {@code lockExpiresAt} sliding-expires the lock so a
+     * reviewer who walks away without explicitly closing the document automatically frees
+     * it. The lock is acquired/extended via atomic {@code findAndModify} updates so two
+     * reviewers can't grab it at the same millisecond.
+     */
+    private String lockedBy;
+    private Instant lockedAt;
+    private Instant lockExpiresAt;
+
+    /** 1 = Low, 2 = Normal, 3 = High. Defaults to Normal (2). */
+    private int priority = 2;
+
+    /**
+     * Set at ingest time when the parent batch has Blind Double Review enabled and this document
+     * was randomly drawn into the sample. Persisted so the same document keeps the same selection
+     * decision across reads. Stays {@code false} for batches with the feature disabled or for
+     * documents that were not selected.
+     */
+    private boolean doubleReview;
+
+    /**
+     * Email of the reviewer whose approval or rejection first transitioned the document out of
+     * {@code REVIEW_REQUIRED} / {@code AUDIT_REQUIRED}. Set once and never overwritten so the
+     * blind-double-review filter can identify which user is disqualified from the second pass.
+     * {@code null} for documents that have not yet been reviewed.
+     */
+    private String firstReviewer;
+
+    /**
+     * Snapshot of approved PII span ranges (each entry is {@code [start, end]} in document
+     * character offsets) at the moment the first reviewer completed their review. Captured for
+     * blind-double-review documents so an Inter-Annotator Agreement (Cohen's Kappa) report can
+     * compare each reviewer's view independently.
+     */
+    private java.util.List<int[]> firstReviewSpans;
+
+    /**
+     * Email of the second reviewer (the one who provided the blind double review). Distinct from
+     * {@link #firstReviewer}; set the first time a different reviewer reviews a double-review-
+     * flagged document.
+     */
+    private String secondReviewer;
+
+    /**
+     * Snapshot of approved PII span ranges captured at the moment the second reviewer completed
+     * their review. Pairs with {@link #firstReviewSpans}.
+     */
+    private java.util.List<int[]> secondReviewSpans;
+
+    public Document() {
+    }
+
+    public int getPriority() { return priority; }
+    public void setPriority(final int priority) { this.priority = priority; }
+
+    public boolean isDoubleReview() { return doubleReview; }
+    public void setDoubleReview(final boolean doubleReview) { this.doubleReview = doubleReview; }
+
+    public String getFirstReviewer() { return firstReviewer; }
+    public void setFirstReviewer(final String firstReviewer) { this.firstReviewer = firstReviewer; }
+
+    public java.util.List<int[]> getFirstReviewSpans() { return firstReviewSpans; }
+    public void setFirstReviewSpans(final java.util.List<int[]> firstReviewSpans) {
+        this.firstReviewSpans = firstReviewSpans;
+    }
+
+    public String getSecondReviewer() { return secondReviewer; }
+    public void setSecondReviewer(final String secondReviewer) { this.secondReviewer = secondReviewer; }
+
+    public java.util.List<int[]> getSecondReviewSpans() { return secondReviewSpans; }
+    public void setSecondReviewSpans(final java.util.List<int[]> secondReviewSpans) {
+        this.secondReviewSpans = secondReviewSpans;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(final LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getStatusChangedAt() {
+        return statusChangedAt;
+    }
+
+    public void setStatusChangedAt(final LocalDateTime statusChangedAt) {
+        this.statusChangedAt = statusChangedAt;
+    }
+
+    /** Set the status and its change timestamp atomically. */
+    public void changeStatus(final String newStatus) {
+        this.status = newStatus;
+        this.statusChangedAt = LocalDateTime.now();
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public void setId(final String id) {
+        this.id = id;
+    }
+
+    public Long getVersion() { return version; }
+    public void setVersion(final Long version) { this.version = version; }
+
+    public String getBatchId() {
+        return batchId;
+    }
+
+    public void setBatchId(final String batchId) {
+        this.batchId = batchId;
+    }
+
+    public String getFilename() {
+        return filename;
+    }
+
+    public void setFilename(final String filename) {
+        this.filename = filename;
+    }
+
+    public String getStoragePath() {
+        return storagePath;
+    }
+
+    public void setStoragePath(final String storagePath) {
+        this.storagePath = storagePath;
+    }
+
+    public String getOriginalText() {
+        return originalText;
+    }
+
+    public void setOriginalText(final String originalText) {
+        this.originalText = originalText;
+    }
+
+    public String getRedactedText() {
+        return redactedText;
+    }
+
+    public void setRedactedText(final String redactedText) {
+        this.redactedText = redactedText;
+    }
+
+    public String getContentSha512() {
+        return contentSha512;
+    }
+
+    public void setContentSha512(final String contentSha512) {
+        this.contentSha512 = contentSha512;
+    }
+
+    public String getSourceSystem() { return sourceSystem; }
+    public void setSourceSystem(final String sourceSystem) { this.sourceSystem = sourceSystem; }
+
+    public String getSourceUrl() { return sourceUrl; }
+    public void setSourceUrl(final String sourceUrl) { this.sourceUrl = sourceUrl; }
+
+    public String getSourceIndex() { return sourceIndex; }
+    public void setSourceIndex(final String sourceIndex) { this.sourceIndex = sourceIndex; }
+
+    public String getSourceDocId() { return sourceDocId; }
+    public void setSourceDocId(final String sourceDocId) { this.sourceDocId = sourceDocId; }
+
+    public LocalDateTime getImportedAt() { return importedAt; }
+    public void setImportedAt(final LocalDateTime importedAt) { this.importedAt = importedAt; }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(final String status) {
+        this.status = status;
+    }
+
+    public double getRiskScore() {
+        return riskScore;
+    }
+
+    public void setRiskScore(final double riskScore) {
+        this.riskScore = riskScore;
+    }
+
+    public String getPhilterContextId() {
+        return philterContextId;
+    }
+
+    public void setPhilterContextId(final String philterContextId) {
+        this.philterContextId = philterContextId;
+    }
+
+    public String getFailureMessage() {
+        return failureMessage;
+    }
+
+    public void setFailureMessage(final String failureMessage) {
+        this.failureMessage = failureMessage;
+    }
+
+    public java.util.List<String> getApprovedBy() {
+        if (approvedBy == null) approvedBy = new java.util.ArrayList<>();
+        return approvedBy;
+    }
+
+    public void setApprovedBy(final java.util.List<String> approvedBy) {
+        this.approvedBy = approvedBy == null ? new java.util.ArrayList<>() : approvedBy;
+    }
+
+    public Double getDualApprovalSamplingRoll() { return dualApprovalSamplingRoll; }
+    public void setDualApprovalSamplingRoll(final Double dualApprovalSamplingRoll) {
+        this.dualApprovalSamplingRoll = dualApprovalSamplingRoll;
+    }
+
+    public String getLockedBy() { return lockedBy; }
+    public void setLockedBy(final String lockedBy) { this.lockedBy = lockedBy; }
+
+    public Instant getLockedAt() { return lockedAt; }
+    public void setLockedAt(final Instant lockedAt) { this.lockedAt = lockedAt; }
+
+    public Instant getLockExpiresAt() { return lockExpiresAt; }
+    public void setLockExpiresAt(final Instant lockExpiresAt) { this.lockExpiresAt = lockExpiresAt; }
+
+    /** A lock held in the past or unset means no active lock. */
+    public boolean isLocked(final Instant now) {
+        return lockExpiresAt != null && lockedBy != null && lockExpiresAt.isAfter(now);
+    }
+}

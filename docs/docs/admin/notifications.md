@@ -14,7 +14,7 @@ outbound email.
 | Username                 | SMTP auth username                                                              |
 | Password                 | SMTP auth password                                                              |
 | From address             | The `From:` address on outgoing mail                                            |
-| From name                | Optional display name (e.g., "Arbiter")                                         |
+| From name                | Optional display name (e.g., "Philter Workspace")                                         |
 | Use STARTTLS             | Negotiate TLS after `EHLO` on a plain connection (typical for port 587)         |
 | Use implicit SSL/TLS     | Connect over TLS from the start (typical for port 465)                          |
 
@@ -27,7 +27,7 @@ The password field is not pre-filled. To preserve the saved password, leave
 the field blank. To replace it, type a new value and save. To wipe it
 entirely, tick **Clear stored password** and save.
 
-The stored password is held as-is in MongoDB so Arbiter can present it to the
+The stored password is held as-is in MongoDB so Philter Workspace can present it to the
 SMTP server when sending. This is a different threat model from user
 passwords (which are one-way BCrypt-hashed). If you
 need encryption-at-rest for SMTP credentials, deploy MongoDB with WiredTiger
@@ -48,7 +48,7 @@ document with `_id = "notifications"`. The document layout is:
   "username": "alerts@example.com",
   "password": "<as entered>",
   "fromAddress": "no-reply@example.com",
-  "fromName": "Arbiter",
+  "fromName": "Philter Workspace",
   "useStartTls": true,
   "useSsl": false
 }
@@ -60,7 +60,7 @@ itself is never written to the audit log.
 
 ## Inbox notifications (system-driven)
 
-Separate from email, Arbiter also drops messages into a per-user **Inbox**
+Separate from email, Philter Workspace also drops messages into a per-user **Inbox**
 that surfaces with an unread-count badge in the sidebar. Today the
 inbox-driver list is small but worth knowing about:
 

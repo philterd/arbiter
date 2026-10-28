@@ -57,7 +57,7 @@ Two rules govern when a `PENDING` job advances to `RUNNING`:
    same batch — they execute in oldest-first order, each waiting for the
    prior to finish. This rule is enforced atomically by a partial unique
    index on the `background_jobs` collection so it holds even when several
-   replicas of Arbiter run in parallel.
+   replicas of Philter Workspace run in parallel.
 2. **A global concurrency ceiling.** Across the whole deployment, the
    admin caps how many data-import jobs may be `RUNNING` at any one time
    under **Admin → General → Max concurrent data imports**. Default is `1`;
@@ -124,4 +124,4 @@ source, viewable on the Review page's **Document Information** popup:
 - The index the hit lived in (preferred from the hit's own `_index`,
   falling back to the configured query path)
 - The OpenSearch / Elasticsearch `_id`
-- The **Import Timestamp** when Arbiter pulled it in
+- The **Import Timestamp** when Philter Workspace pulled it in

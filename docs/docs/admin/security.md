@@ -11,13 +11,13 @@ MFA, turn on Philter's `mfaRequired` setting; each person then enrolls at their 
 
 ## Data-source host allow-list
 
-Arbiter ships with a host allow-list that gates outbound connections to
+Philter Workspace ships with a host allow-list that gates outbound connections to
 external systems (OpenSearch, Elasticsearch, Ollama, and any
 other URL an admin types into a Test button or saves on a data source).
 The allow-list combines two protections: a **default-deny on private-range
 addresses** (RFC-1918, loopback, and link-local) and an **operator-supplied
 allow-list of public hosts** configured via the
-`arbiter.data-sources.allowed-hosts` property. Both are documented in
+`philter-workspace.data-sources.allowed-hosts` property. Both are documented in
 [Data sources → Trust model and host allow-list](data-sources.md#trust-model-and-host-allow-list).
 
 The **Enable host allow-list** checkbox on **Admin → Security** is the
@@ -51,7 +51,7 @@ appears on the Security page confirming the switch is off.
 
     - Any admin (or anyone who has compromised an admin session) can use
       the data-source Test buttons, ingest workers, or Philter/Ollama
-      probes to reach **internal infrastructure** the Arbiter process
+      probes to reach **internal infrastructure** the Philter Workspace process
       can route to — internal metadata services, intranet HTTP servers,
       bastion hosts, or other private-range systems that should not be
       reachable from operator input.
@@ -64,7 +64,7 @@ appears on the Security page confirming the switch is off.
 
     Disable only as a temporary measure for a known-good, short-lived
     troubleshooting session. Configure
-    `arbiter.data-sources.allowed-hosts` to cover the legitimate hosts
+    `philter-workspace.data-sources.allowed-hosts` to cover the legitimate hosts
     you need to reach, and turn the allow-list back on as soon as
     practical. Toggling produces a `SECURITY_SETTINGS_CHANGE` audit row
     so the off-window is auditable after the fact.

@@ -1,25 +1,25 @@
 # Security
 
-This page summarizes the security model: how Arbiter authenticates users,
+This page summarizes the security model: how Philter Workspace authenticates users,
 how it scopes what they can see, and how it stores secrets.
 
 ## Authentication
 
-People sign in to Arbiter through its Philter, and Philter is the only user store. There are two
+People sign in to Philter Workspace through its Philter, and Philter is the only user store. There are two
 ways to authenticate:
 
 1. **Sign-in** with a Philter username and password, at `/login`. See
    [Sign-in through Philter](#sign-in-through-philter). CSRF protection is enabled for all non-API
    form posts.
-2. **A Philter API key** on Arbiter's API, as `Authorization: Bearer <key>` on requests to
+2. **A Philter API key** on Philter Workspace's API, as `Authorization: Bearer <key>` on requests to
    `/api/**`. See [API keys](#api-keys).
 
-Arbiter has no accounts, passwords, MFA, or API keys of its own.
+Philter Workspace has no accounts, passwords, MFA, or API keys of its own.
 
 #### Session storage
 
 Form-login sessions live in **Valkey** (Redis-protocol compatible) via
-Spring Session, so multiple Arbiter replicas behind a load balancer all
+Spring Session, so multiple Philter Workspace replicas behind a load balancer all
 read and write the same `HttpSession`. Two consequences:
 
 - The load balancer doesn't need sticky sessions — any replica can serve
@@ -32,45 +32,45 @@ The connection is configured by `spring.data.redis.host` /
 
 ### Sign-in through Philter
 
-People sign in to Arbiter with their Philter username and password. Philter keeps the passwords,
+People sign in to Philter Workspace with their Philter username and password. Philter keeps the passwords,
 MFA, lockout, and rate limiting; see Philter's
 [Sign-in Security](https://philterd.github.io/philter/latest/sign_in_security.html). Philter must run
-with `PASSWORD_SIGN_IN_ENABLED=true`, and Arbiter reaches it at `ARBITER_PHILTER_URL` (see
+with `PASSWORD_SIGN_IN_ENABLED=true`, and Philter Workspace reaches it at `PHILTER_WORKSPACE_PHILTER_URL` (see
 [Philter integration](reference/configuration.md#philter-integration)).
 
 - **Sign-in.** The sign-in form sends the username and password to
   Philter's `POST /api/sign-in`, with the person's address and user agent.
-  Arbiter does not store or log the password.
-- **Session key.** Philter returns a session key for the person. Arbiter
+  Philter Workspace does not store or log the password.
+- **Session key.** Philter returns a session key for the person. Philter Workspace
   keeps it only in the server-side session, encrypted with
-  `ARBITER_CRYPTO_SECRET`, and never sends it to the browser.
+  `PHILTER_WORKSPACE_CRYPTO_SECRET`, and never sends it to the browser.
 - **Further steps.** A person enrolled in MFA enters a code
   (`POST /api/sign-in/mfa`). A person whose password an administrator set,
   or who must enroll in MFA, does that first. They are not signed in to
-  Arbiter until every step is done. Changing the password or confirming
+  Philter Workspace until every step is done. Changing the password or confirming
   enrollment ends their Philter sessions, and they sign in again.
-- **Session end.** Arbiter checks the key with Philter at most once a
-  minute (`arbiter.sign-in.check-interval-seconds`; see
-  [Sign-in](reference/configuration.md#sign-in)) while the person uses Arbiter, which also keeps Philter's idle
+- **Session end.** Philter Workspace checks the key with Philter at most once a
+  minute (`philter-workspace.sign-in.check-interval-seconds`; see
+  [Sign-in](reference/configuration.md#sign-in)) while the person uses Philter Workspace, which also keeps Philter's idle
   timeout from expiring. When Philter rejects the key (idle timeout,
-  maximum lifetime, a password reset, revocation, or deactivation), Arbiter
+  maximum lifetime, a password reset, revocation, or deactivation), Philter Workspace
   ends the session on the next check and returns the person to sign in. If
   Philter cannot be reached, the session continues and the next request
   checks again.
-- **Sign-out.** Signing out of Arbiter revokes the key with
+- **Sign-out.** Signing out of Philter Workspace revokes the key with
   `DELETE /api/api-keys/current`.
-- **Philter version.** Arbiter refuses sign-in to a Philter whose major version it does not
+- **Philter version.** Philter Workspace refuses sign-in to a Philter whose major version it does not
   support, before sending the password. See
   [Supported Philter versions](workflow.md#supported-philter-versions).
 - **Refusals.** A wrong password, an unknown username, and a deactivated
   user get the same message. A locked username, an address over Philter's
   rate limit, and locked MFA get the same "locked" message, whether or not
   the username exists.
-- **Roles.** A Philter `admin` is an Arbiter `ADMIN`. A Philter `user` is an
-  Arbiter `USER`, or `AUDITOR` if an Arbiter administrator sets that. The
+- **Roles.** A Philter `admin` is a Philter Workspace `ADMIN`. A Philter `user` is an
+  Philter Workspace `USER`, or `AUDITOR` if a Philter Workspace administrator sets that. The
   role is set at sign-in. When it changes, in Philter or under **Admin →
-  Users**, or the person's Arbiter record is deleted, Arbiter ends their
-  session at its next check and they sign in again with the new role. Arbiter keeps a record for each person,
+  Users**, or the person's Philter Workspace record is deleted, Philter Workspace ends their
+  session at its next check and they sign in again with the new role. Philter Workspace keeps a record for each person,
   named by their Philter username, for group membership and for the user
   recorded on batches, documents, and the audit log. It holds no password,
   MFA secret, or API key.
@@ -82,7 +82,7 @@ with `PASSWORD_SIGN_IN_ENABLED=true`, and Arbiter reaches it at `ARBITER_PHILTER
   `MfaLocked`, `SignInDisabled`, `UnsupportedPhilter`, or `Unavailable`. A session ended because
   Philter rejected its key is a `LOGOUT` with
   `reason: philter_session_ended`, one ended by a role change has
-  `reason: role_changed`, and a session left from Arbiter's removed local sign-in has
+  `reason: role_changed`, and a session left from Philter Workspace's removed local sign-in has
   `reason: sign_in_mode_changed`. Each of those also revokes the
   key, unless Philter had already rejected it. Philter records its own events, such as
   `sign_in_succeeded`, in its audit log.
@@ -90,12 +90,12 @@ with `PASSWORD_SIGN_IN_ENABLED=true`, and Arbiter reaches it at `ARBITER_PHILTER
 ### First sign-in
 
 A new Philter has one administrator, `admin`, with no password. Give it one with
-`PHILTER_BOOTSTRAP_API_KEY`, then sign in to Arbiter as `admin`, which is an Arbiter administrator
+`PHILTER_BOOTSTRAP_API_KEY`, then sign in to Philter Workspace as `admin`, which is a Philter Workspace administrator
 too. With `docker-compose.prod.yaml`, which does not publish Philter's port, run `curl` on the
 compose network (`docker network ls` shows its name):
 
 ```sh
-docker run --rm --network arbiter_arbiter curlimages/curl:8.10.1 -s -X PUT "http://philter:8080/api/users/admin/password" \
+docker run --rm --network philter-workspace_philter-workspace curlimages/curl:8.10.1 -s -X PUT "http://philter:8080/api/users/admin/password" \
   -H "Authorization: Bearer $PHILTER_BOOTSTRAP_API_KEY" -H "Content-Type: application/json" \
   --data '{"password":"a password of 16 or more characters"}'
 ```
@@ -107,51 +107,51 @@ The bootstrap key holds every scope. While it is active, administrators see a wa
 dashboard and under **Admin → Philter**, with a link to Philter's
 [instructions for retiring it](https://philterd.github.io/philter/latest/account/api_keys.html#bootstrapping-an-api-key-for-automation):
 create an administrator key of your own holding every scope, then revoke the bootstrap key with it.
-Arbiter checks with the signed-in administrator's session key and caches the answer for a minute, so
+Philter Workspace checks with the signed-in administrator's session key and caches the answer for a minute, so
 the warning clears within a minute of the revocation.
 
 ### Upgrading from local sign-in
 
-Earlier versions of Arbiter could keep their own accounts (`ARBITER_SIGN_IN_MODE=local`, the old
+Earlier versions of Philter Workspace could keep their own accounts (`PHILTER_WORKSPACE_SIGN_IN_MODE=local`, the old
 default). That mode is removed:
 
-- **Settings.** Remove `ARBITER_SIGN_IN_MODE` and `ARBITER_ADMIN_INITIAL_PASSWORD`. Arbiter refuses
-  to start with `ARBITER_SIGN_IN_MODE=local`. Set `ARBITER_PHILTER_URL` and run Philter with
+- **Settings.** Remove `PHILTER_WORKSPACE_SIGN_IN_MODE` and `PHILTER_WORKSPACE_ADMIN_INITIAL_PASSWORD`. Philter Workspace refuses
+  to start with `PHILTER_WORKSPACE_SIGN_IN_MODE=local`. Set `PHILTER_WORKSPACE_PHILTER_URL` and run Philter with
   `PASSWORD_SIGN_IN_ENABLED=true`.
-- **People.** Create a Philter user for each person, with their Arbiter email address as the
-  username. Philter allows an email address as a username, and Arbiter keys each person's record
+- **People.** Create a Philter user for each person, with their Philter Workspace email address as the
+  username. Philter allows an email address as a username, and Philter Workspace keys each person's record
   by username, so their groups, team leads, Auditor role, and the batches, reviews, and audit
-  entries attributed to them stay theirs. Make a person a Philter `admin` to keep them an Arbiter
+  entries attributed to them stay theirs. Make a person a Philter `admin` to keep them a Philter Workspace
   administrator. A person created with any other username starts with a new record.
-- **Credentials.** On its first start after the upgrade, Arbiter rewrites every user record
+- **Credentials.** On its first start after the upgrade, Philter Workspace rewrites every user record
   without the password hash, MFA secret, and API key that local sign-in kept, and logs how many
   it rewrote. People enroll in MFA again in Philter.
-- **API keys.** Arbiter's own API keys stop working. Use Philter API keys instead; see
+- **API keys.** Philter Workspace's own API keys stop working. Use Philter API keys instead; see
   [API keys](#api-keys).
 - **Sessions.** A session signed in with a local account is ended at its next request, and the
   person signs in through Philter.
 
 ## API keys
 
-Arbiter's API accepts a Philter API key as `Authorization: Bearer <key>` on `/api/**`. Arbiter asks
+Philter Workspace's API accepts a Philter API key as `Authorization: Bearer <key>` on `/api/**`. Philter Workspace asks
 Philter whose key it is with `GET /api/users/me`, so the key must hold Philter's `users:read`
-scope, and the request runs as that Philter user with the role Arbiter gives them (see **Roles**
-above). Arbiter's own calls to Philter use `ARBITER_PHILTER_API_KEY`, so the key needs no other
-scope. Create a key with only `users:read` for an integration that calls Arbiter.
+scope, and the request runs as that Philter user with the role Philter Workspace gives them (see **Roles**
+above). Philter Workspace's own calls to Philter use `PHILTER_WORKSPACE_PHILTER_API_KEY`, so the key needs no other
+scope. Create a key with only `users:read` for an integration that calls Philter Workspace.
 
 | Response | When |
 |---|---|
 | `401` | Philter does not accept the key, or its user is deactivated. |
-| `403` | The key does not hold `users:read`, or the user's Arbiter role does not allow the call. |
+| `403` | The key does not hold `users:read`, or the user's Philter Workspace role does not allow the call. |
 | `503` | Philter could not check the key: it was unreachable, answered with a server error, or rate limited the check. |
 
-Philter's answer is cached for `arbiter.api-keys.cache-seconds` (default 30), keyed by a hash of
-the key, so a revoked key, a deactivation, or a role change applies within that time. Arbiter does
+Philter's answer is cached for `philter-workspace.api-keys.cache-seconds` (default 30), keyed by a hash of
+the key, so a revoked key, a deactivation, or a role change applies within that time. Philter Workspace does
 not store or log the key. A Bearer key is checked only on `/api/**`; on other paths it is ignored.
 A key replaces a session cookie on the same request.
 
-Arbiter's other calls to Philter, such as redaction at ingest, policy
-listing, and finalization, still use `ARBITER_PHILTER_API_KEY`, not a person's
+Philter Workspace's other calls to Philter, such as redaction at ingest, policy
+listing, and finalization, still use `PHILTER_WORKSPACE_PHILTER_API_KEY`, not a person's
 session key.
 
 ## Authorization
@@ -194,7 +194,7 @@ re-applies group restrictions.
 ## Unauthenticated endpoints
 
 Three `GET` paths answer without a credential, so that a container runtime,
-load balancer, or Prometheus scraper can reach Arbiter before any account
+load balancer, or Prometheus scraper can reach Philter Workspace before any account
 exists: `/api/health`, `/actuator/health`, and `/actuator/prometheus`. Every
 other path, API and UI alike, requires authentication.
 
@@ -214,7 +214,7 @@ No other Actuator endpoint is exposed; `env`, `configprops`, `beans`,
 `loggers`, and `heapdump` all return `404`, as do the `/actuator` links page
 and the per-component paths under `/actuator/health/`.
 
-Keep Arbiter's port on an internal network. Where the deployment terminates
+Keep Philter Workspace's port on an internal network. Where the deployment terminates
 TLS at a reverse proxy, block `/actuator` there unless your monitoring needs
 it, and restrict `/api/health` to the monitors that call it if the build
 version should not be visible.
@@ -223,33 +223,33 @@ version should not be visible.
 
 The notification settings include an SMTP password used to talk to a mail
 relay. That password is stored as-is in the `settings` collection so
-Arbiter can present it at send time. Treat the database as sensitive
+Philter Workspace can present it at send time. Treat the database as sensitive
 storage — encrypt at rest at the storage layer or front it with a secret
 manager if your deployment policy demands it.
 
 ## Philter API key
 
-Arbiter sends `ARBITER_PHILTER_API_KEY` to Philter as `Authorization: Bearer …`
+Philter Workspace sends `PHILTER_WORKSPACE_PHILTER_API_KEY` to Philter as `Authorization: Bearer …`
 on its calls that are not made with a person's session key. The key is read from
-the environment at startup and is not stored in Arbiter's database, logged, or
+the environment at startup and is not stored in Philter Workspace's database, logged, or
 shown in the UI. Supply it through a secrets mechanism.
 
-The key must not belong to a Philter administrator, since Arbiter holds it
-for background work such as ingest. Arbiter checks the role Philter reports for
+The key must not belong to a Philter administrator, since Philter Workspace holds it
+for background work such as ingest. Philter Workspace checks the role Philter reports for
 it (`GET /api/limits`) at startup and on **Test** under **Admin → Philter**,
 fails the Test for an administrator's key, and flags the key there and in the
-log until its user is no longer an administrator. Give Arbiter a key with only
+log until its user is no longer an administrator. Give Philter Workspace a key with only
 the `redact` and `policies:read` scopes. For a deployment already using an
 administrator's key, remove that user's administrator role rather than switching
 users, since Philter's policies and contexts belong to the key's user; see
-[Philter API key for Arbiter](workflow.md#philter-api-key-for-arbiter).
+[Philter API key for Philter Workspace](workflow.md#philter-api-key-for-philter-workspace).
 
 ## Encrypted secrets
 
-Secrets Arbiter stores, such as data source credentials, are **encrypted with
+Secrets Philter Workspace stores, such as data source credentials, are **encrypted with
 AES-GCM** before being written to the database:
 
-- 32-byte AES key loaded from the `arbiter.crypto.secret` property. The
+- 32-byte AES key loaded from the `philter-workspace.crypto.secret` property. The
   property must be a **base64-encoded value of exactly 32 random bytes**
   — generate one with `openssl rand -base64 32` (or
   `head -c 32 /dev/urandom | base64`).
@@ -281,7 +281,7 @@ are read with the application's process identity. See
 Document text and the individual PII spans detected inside it are **encrypted
 on disk** in the collections that hold them, in MongoDB or SQLite alike. The encryption uses the
 same AES-GCM construction described above for Philter API keys, with the same
-key (`arbiter.crypto.secret`) — there is no separate per-collection key.
+key (`philter-workspace.crypto.secret`) — there is no separate per-collection key.
 
 The fields encrypted at rest are:
 
@@ -340,7 +340,7 @@ The following fields are **not** part of the at-rest encryption boundary:
 
 ### Key management
 
-The same `arbiter.crypto.secret` that protects credentials and API keys also
+The same `philter-workspace.crypto.secret` that protects credentials and API keys also
 protects PII at rest. Losing the key means **losing access to every
 encrypted field** — back it up at the same operational tier as your database
 backups. Rotating the key requires re-encrypting every existing row; this is
@@ -349,7 +349,7 @@ does not leave half the corpus unreadable.
 
 ## PII never appears in application logs
 
-Arbiter's logging policy is that **document content is never written to a log
+Philter Workspace's logging policy is that **document content is never written to a log
 file or to standard out**, regardless of log level. The fields covered are
 the same ones encrypted at rest in MongoDB:
 
@@ -371,7 +371,7 @@ metadata-only message so a downstream `log.warn(..., e.getMessage())` does
 not regress this contract.
 
 If a richer dump is needed for diagnosis, read the **OpenSearch /
-Elasticsearch cluster's own logs** rather than Arbiter's — those stores
+Elasticsearch cluster's own logs** rather than Philter Workspace's — those stores
 have their own access controls and are part of the same security boundary
 documented above. The bootstrap admin notice on first start is the only
 deliberate write to standard out, and it carries no document PII — just
@@ -379,7 +379,7 @@ the configured admin email and a generated initial password.
 
 ## Document content integrity
 
-Every document Arbiter ingests — whether through the web upload form or
+Every document Philter Workspace ingests — whether through the web upload form or
 through `POST /api/v1/ingest` — has its raw content **SHA-512 hashed** at
 ingest time and the hash recorded on the document row in the `documents`
 collection (field `contentSha512`, lowercase hex). The hash is computed from
@@ -406,7 +406,7 @@ CSRF protection is enabled for HTML form posts and disabled for the
   `/api/v1/review/**`) accept the same session cookie the surrounding HTML
   page uses. The in-page JavaScript calls them with `fetch`. Cross-origin
   abuse is prevented by the browser's same-origin policy plus the absence
-  of a permissive CORS configuration — Arbiter does not expose
+  of a permissive CORS configuration — Philter Workspace does not expose
   `Access-Control-Allow-Origin` for any other origin, so a malicious page
   cannot read responses from these endpoints even if it happened to send
   the user's session cookie.
@@ -418,7 +418,7 @@ CSRF protection is enabled for HTML form posts and disabled for the
   against a logged-in admin being CSRF-pushed into ingesting fake content
   or exporting redacted data through their browser.
 
-There is no CORS configuration shipped — if you front Arbiter with a
+There is no CORS configuration shipped — if you front Philter Workspace with a
 different origin, configure CORS in your reverse proxy or extend
 `SecurityConfig`.
 

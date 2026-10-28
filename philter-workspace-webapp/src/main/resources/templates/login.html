@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd, LLC.
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Philter Workspace - Sign In</title>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+</head>
+<body class="bg-gray-50 min-h-screen flex flex-col">
+    <div th:replace="~{fragments/topbar :: topbar}"></div>
+    <div class="flex-1 flex items-center justify-center p-4">
+    <div class="w-full max-w-sm bg-white p-8 rounded-xl shadow-md border border-gray-100">
+        <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd.png}" alt="Philterd" class="h-8 mx-auto mb-3"></a>
+        <h1 class="text-3xl font-bold text-gray-900 text-center mb-6">Philter Workspace</h1>
+
+        <div th:if="${unsupportedPhilter}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            <span th:text="${unsupportedPhilter}">This Philter is not supported.</span>
+            Contact your administrator.
+        </div>
+        <div th:if="${param.unsupported != null and unsupportedPhilter == null}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            Sign-in was refused because Philter Workspace does not support this Philter's version. Try again later or contact your administrator.
+        </div>
+        <div th:if="${param.error}"class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            Invalid username or password.
+        </div>
+        <div th:if="${param.locked}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            Sign-in is locked after repeated failed attempts. Try again later or contact your administrator.
+        </div>
+        <div th:if="${param.unavailable}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            Sign-in is unavailable. Try again later or contact your administrator.
+        </div>
+        <div th:if="${param.code}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            The code was not accepted. Sign in again.
+        </div>
+        <div th:if="${param.expired}" class="mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-700">
+            Your session has ended. Sign in again.
+        </div>
+        <div th:if="${param.passwordChanged}" class="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
+            Your password is changed. Sign in with the new password.
+        </div>
+        <div th:if="${param.mfaEnrolled}" class="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
+            Two-factor authentication is set up. Sign in again.
+        </div>
+        <div th:if="${param.logout}" class="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700">
+            You have been signed out.
+        </div>
+
+        <form th:unless="${unsupportedPhilter}" th:action="@{/login}" method="post" class="space-y-4">
+            <div>
+                <label for="username" class="block text-sm font-medium text-gray-700 mb-1">Username</label>
+                <input id="username" name="username" type="text" required autofocus autocomplete="username"
+                       autocapitalize="none" spellcheck="false"
+                       class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <div>
+                <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Password</label>
+                <input id="password" name="password" type="password" required
+                       class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            </div>
+            <button type="submit"
+                    class="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition duration-200">
+                Sign In
+            </button>
+        </form>
+        <div class="mt-4 text-center">
+            <button onclick="document.getElementById('forgot-password-msg').classList.toggle('hidden')"
+                    class="text-sm text-blue-600 hover:underline bg-transparent border-none cursor-pointer">
+                Forgot password?
+            </button>
+            <div id="forgot-password-msg" class="hidden mt-2 p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-700">
+                Please contact your administrator to reset your password.
+            </div>
+        </div>
+    </div>
+    </div>
+    <div th:replace="~{fragments/footer :: footer}"></div>
+</body>
+</html>

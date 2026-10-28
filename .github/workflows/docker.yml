@@ -22,23 +22,25 @@ jobs:
           context: .
           push: false
           load: true
-          tags: philterd/arbiter:ci
+          tags: philterd/philter-workspace:ci
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      # Starting with no arbiter.crypto.secret must fail fast rather than boot a
+      # Starting with no philter-workspace.crypto.secret must fail fast rather than boot a
       # deployment with no at-rest encryption key. Running the image proves the jar
       # was assembled correctly and reaches Spring context startup, and it needs no
-      # MongoDB or Valkey to do it.
+      # MongoDB or Valkey to do it. The Philter settings are given (Philter need not be
+      # running), since a missing Philter URL would otherwise stop startup first.
       - name: Smoke test the image
         run: |
-          output=$(docker run --rm philterd/arbiter:ci 2>&1) && status=0 || status=$?
+          output=$(docker run --rm -e PHILTER_WORKSPACE_PHILTER_URL=http://philter:8080 \
+            -e PHILTER_WORKSPACE_PHILTER_API_KEY=sk_smoketest philterd/philter-workspace:ci 2>&1) && status=0 || status=$?
           if [ "$status" -eq 0 ]; then
             echo "Expected a non-zero exit with no crypto secret configured." >&2
             exit 1
           fi
-          echo "$output" | grep -q "arbiter.crypto.secret is not set" || {
+          echo "$output" | grep -q "philter-workspace.crypto.secret is not set" || {
             echo "Did not see the expected crypto-secret startup failure. Output was:" >&2
             echo "$output" >&2
             exit 1
           }
-          echo "Image OK: fails fast without arbiter.crypto.secret."
+          echo "Image OK: fails fast without philter-workspace.crypto.secret."

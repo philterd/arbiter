@@ -1,19 +1,19 @@
 services:
 
-  arbiter:
+  philter-workspace:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: arbiter-app
+    container_name: philter-workspace-app
     ports:
       - "8080:8080"
     environment:
-      # Database: SQLite, in the arbiter-data volume. To use MongoDB instead:
+      # Database: SQLite, in the philter-workspace-data volume. To use MongoDB instead:
       #
-      # ARBITER_STORE=mongodb docker compose --profile mongodb up
-      - ARBITER_STORE=${ARBITER_STORE:-sqlite}
-      - ARBITER_SQLITE_PATH=/app/data/arbiter.db
-      - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/arbiter
+      # PHILTER_WORKSPACE_STORE=mongodb docker compose --profile mongodb up
+      - PHILTER_WORKSPACE_STORE=${PHILTER_WORKSPACE_STORE:-sqlite}
+      - PHILTER_WORKSPACE_SQLITE_PATH=/app/data/philter-workspace.db
+      - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/philter-workspace
       - SPRING_DATA_REDIS_HOST=valkey
       - SPRING_DATA_REDIS_PORT=6379
       - SPRING_SESSION_STORE_TYPE=redis
@@ -21,18 +21,18 @@ services:
       # random bytes. The application refuses to start without it. Generate one
       # and place it in .env (next to this file):
       #
-      # echo "ARBITER_CRYPTO_SECRET=$(openssl rand -base64 32)" >> .env
-      - ARBITER_CRYPTO_SECRET=${ARBITER_CRYPTO_SECRET:?Set ARBITER_CRYPTO_SECRET in .env (see .env.example)}
+      # echo "PHILTER_WORKSPACE_CRYPTO_SECRET=$(openssl rand -base64 32)" >> .env
+      - PHILTER_WORKSPACE_CRYPTO_SECRET=${PHILTER_WORKSPACE_CRYPTO_SECRET:?Set PHILTER_WORKSPACE_CRYPTO_SECRET in .env (see .env.example)}
       # The dev compose explicitly opts in to demo-data loading (R2-F4). The
       # default in application.properties is now off — production deployments
       # should never load synthetic data, but the dev stack benefits from it.
-      - ARBITER_DEMO_DATA_ENABLED=true
-      # Arbiter's one Philter, for sign-in, policies, and redaction. For development the
+      - PHILTER_WORKSPACE_DEMO_DATA_ENABLED=true
+      # Philter Workspace's one Philter, for sign-in, policies, and redaction. For development the
       # key is Philter's bootstrap key, which belongs to an administrator, so Admin → Philter
       # flags it. A deployment uses a key for a user who is not an administrator (see
       # docker-compose.prod.yaml).
-      - ARBITER_PHILTER_URL=http://philter:8080
-      - ARBITER_PHILTER_API_KEY=${PHILTER_BOOTSTRAP_API_KEY:-sk_devonlydevonlydevonlydevonly0000}
+      - PHILTER_WORKSPACE_PHILTER_URL=http://philter:8080
+      - PHILTER_WORKSPACE_PHILTER_API_KEY=${PHILTER_BOOTSTRAP_API_KEY:-sk_devonlydevonlydevonlydevonly0000}
 
     volumes:
       - ./sample-files:/app/sample-files:ro
@@ -47,7 +47,7 @@ services:
       # Mounted read-write so the application can actually write export files.
       - /tmp:/app/output
       # The SQLite database, kept across container rebuilds.
-      - arbiter-data:/app/data
+      - philter-workspace-data:/app/data
     depends_on:
       mongodb:
         condition: service_healthy
@@ -68,28 +68,28 @@ services:
       philter:
         condition: service_started
     networks:
-      - arbiter
+      - philter-workspace
 
   philter:
     image: philterd/philter:${PHILTER_VERSION:-4.0.0}
-    container_name: arbiter-philter
+    container_name: philter-workspace-philter
     environment:
       - STORAGE_TYPE=sqlite
       - SQLITE_PATH=/opt/philter/data/philter.db
       # Development-only values. Set your own in .env for anything else.
       - PHILTER_ENCRYPTION_KEY=${PHILTER_ENCRYPTION_KEY:-ZGV2LW9ubHktZGV2LW9ubHktZGV2LW9ubHktMDAwMDA=}
       - PHILTER_BOOTSTRAP_API_KEY=${PHILTER_BOOTSTRAP_API_KEY:-sk_devonlydevonlydevonlydevonly0000}
-      # People sign in to Arbiter through Philter.
+      # People sign in to Philter Workspace through Philter.
       - PASSWORD_SIGN_IN_ENABLED=true
       - SSL_ENABLED=false
     volumes:
       - philter-data:/opt/philter/data
     networks:
-      - arbiter
+      - philter-workspace
 
   valkey:
     image: valkey/valkey:8-alpine
-    container_name: arbiter-valkey
+    container_name: philter-workspace-valkey
     ports:
       - "6379"
     healthcheck:
@@ -99,11 +99,11 @@ services:
       retries: 5
       start_period: 5s
     networks:
-      - arbiter
+      - philter-workspace
 
   mongodb:
     image: mongo:latest
-    container_name: arbiter-mongodb
+    container_name: philter-workspace-mongodb
     profiles: ["mongodb"]
     ports:
       - "27017:27017"
@@ -114,19 +114,19 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - arbiter
+      - philter-workspace
 
   policy-editor:
     image: philterd/philterd-redaction-policy-editor:latest
-    container_name: arbiter-policy-editor
+    container_name: philter-workspace-policy-editor
     ports:
       - "8081:8080"
     networks:
-      - arbiter
+      - philter-workspace
 
   opensearch:
     image: opensearchproject/opensearch:3.6.0
-    container_name: arbiter-opensearch
+    container_name: philter-workspace-opensearch
     environment:
       - discovery.type=single-node
       - bootstrap.memory_lock=true
@@ -146,11 +146,11 @@ services:
       retries: 10
       start_period: 30s
     networks:
-      - arbiter
+      - philter-workspace
 
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.15.0
-    container_name: arbiter-elasticsearch
+    container_name: philter-workspace-elasticsearch
     environment:
       - discovery.type=single-node
       - bootstrap.memory_lock=true
@@ -172,12 +172,12 @@ services:
       retries: 10
       start_period: 30s
     networks:
-      - arbiter
+      - philter-workspace
 
   # S3-compatible object storage for the demo S3 data source.
   minio:
     image: minio/minio:latest
-    container_name: arbiter-minio
+    container_name: philter-workspace-minio
     command: server /data --console-address ":9001"
     environment:
       - MINIO_ROOT_USER=minioadmin
@@ -192,13 +192,13 @@ services:
       retries: 10
       start_period: 10s
     networks:
-      - arbiter
+      - philter-workspace
 
   # One-shot bootstrap that waits for MinIO to become ready, creates the
-  # "arbiter-demo" bucket, and seeds it with the bundled sample files.
+  # "philter-workspace-demo" bucket, and seeds it with the bundled sample files.
   minio-init:
     image: minio/mc:latest
-    container_name: arbiter-minio-init
+    container_name: philter-workspace-minio-init
     depends_on:
       minio:
         condition: service_healthy
@@ -207,12 +207,12 @@ services:
     entrypoint: >
       /bin/sh -c "
         mc alias set local http://minio:9000 minioadmin minioadmin &&
-        mc mb --ignore-existing local/arbiter-demo &&
-        mc mirror --overwrite /sample-files/ local/arbiter-demo/arbiter-demo/ &&
-        echo 'Seeded arbiter-demo bucket from /sample-files (under arbiter-demo/ prefix).'
+        mc mb --ignore-existing local/philter-workspace-demo &&
+        mc mirror --overwrite /sample-files/ local/philter-workspace-demo/philter-workspace-demo/ &&
+        echo 'Seeded philter-workspace-demo bucket from /sample-files (under philter-workspace-demo/ prefix).'
       "
     networks:
-      - arbiter
+      - philter-workspace
 
   # Lightweight PostgreSQL for the demo Relational Database data source.
   # First-boot initialisation runs every .sql file under
@@ -222,28 +222,28 @@ services:
   # whose SQL query reads from that table.
   postgres:
     image: postgres:16-alpine
-    container_name: arbiter-postgres
+    container_name: philter-workspace-postgres
     environment:
-      - POSTGRES_USER=arbiter_demo
-      - POSTGRES_PASSWORD=arbiter_demo
-      - POSTGRES_DB=arbiter_demo
+      - POSTGRES_USER=philter_workspace_demo
+      - POSTGRES_PASSWORD=philter_workspace_demo
+      - POSTGRES_DB=philter_workspace_demo
     ports:
       - "5432:5432"
     volumes:
       - ./init-postgres.sql:/docker-entrypoint-initdb.d/01-documents.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U arbiter_demo -d arbiter_demo"]
+      test: ["CMD-SHELL", "pg_isready -U philter_workspace_demo -d philter_workspace_demo"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
     networks:
-      - arbiter
+      - philter-workspace
 
 networks:
-  arbiter:
+  philter-workspace:
     driver: bridge
 
 volumes:
-  arbiter-data:
+  philter-workspace-data:
   philter-data:

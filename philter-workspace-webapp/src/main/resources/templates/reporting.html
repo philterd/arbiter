@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd, LLC.
+  -->
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Philter Workspace - Reports</title>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="flex min-h-screen">
+        <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
+            <div class="px-6 py-5 border-b border-gray-200">
+                <h1 class="text-2xl font-bold text-gray-900">Philter Workspace</h1>
+            </div>
+            <nav class="flex-1 px-3 py-4 space-y-1">
+                <a th:href="@{/}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                    </svg>
+                    Dashboard
+                </a>
+                <a th:href="@{/inbox}" class="relative flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                    </svg>
+                    Inbox
+                    <span th:if="${inboxUnreadCount != null and inboxUnreadCount > 0}"
+                          class="ml-auto inline-flex items-center justify-center min-w-[1.25rem] h-5 text-[10px] font-semibold rounded-full bg-red-600 text-white px-1.5"
+                          th:text="${inboxUnreadCount}">3</span>
+                </a>
+                <div class="mt-2 pt-3 border-t border-gray-200 space-y-1">
+                    <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Redaction</p>
+                <a th:href="@{/upload}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12"></path>
+                    </svg>
+                    Add Documents
+                </a>
+                <a th:href="@{/queue}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path>
+                    </svg>
+                    Documents to Review
+                </a>
+                <a th:href="@{/second-opinions}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                    </svg>
+                    Second Opinions
+                </a>
+                </div>
+                <div class="mt-2 pt-2 border-t border-gray-200 space-y-1">
+                    <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Tools</p>
+                <a th:href="@{/jobs}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                </svg>
+                Background Jobs
+                </a>
+                <a th:if="${fullTextSearchEnabled}" th:href="@{/search}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"></path>
+                    </svg>
+                    Search
+                </a>
+                <a th:href="@{/settings}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    Settings
+                </a>
+                </div>
+                <div th:if="${seesBatchesNav}" class="mt-4 pt-3 border-t border-gray-200 space-y-1">
+                    <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Administration</p>
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/data-sources}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path>
+                    </svg>
+                    Data Sources
+                </a>
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/destinations}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
+                    </svg>
+                    Destinations
+                </a>
+
+                <a th:if="${seesBatchesNav}" th:href="@{/batches}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                    </svg>
+                    Batches
+                </a>
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/ingest-queue}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Ingest Queue
+                </a>
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/policies}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Policies
+                </a>
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/compliance-profiles}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                    </svg>
+                    Compliance Profiles
+                </a>
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/rules}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                    </svg>
+                    Approval Rules
+                </a>
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/weights}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path>
+                    </svg>
+                    Weight Sets
+                </a>
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/reporting}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v18h18M9 17v-7m4 7v-12m4 12v-4"></path>
+                    </svg>
+                    Reports
+                </a>
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/audit}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 11h6M9 14h6M9 17h6"></path>
+                    </svg>
+                    Audit Log
+                </a>
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/general}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+                    </svg>
+                    Admin
+                </a>
+                </div>
+            </nav>
+            <div class="px-3 py-4 border-t border-gray-200 text-sm text-gray-600">
+                <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd.png}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
+                <div class="px-3 mb-2">
+                    Signed in as <span class="font-medium" sec:authentication="name">user</span>
+                    <span sec:authorize="hasAnyRole('ADMIN','AUDITOR')" class="ml-1 text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Admin</span>
+                </div>
+                <form th:action="@{/logout}" method="post">
+                    <button type="submit" class="w-full text-left px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100">Sign out</button>
+                </form>
+            </div>
+        </aside>
+
+        <div class="flex-1 flex flex-col min-w-0">
+        <div th:replace="~{fragments/topbar :: topbar}"></div>
+        <main class="flex-1 p-8">
+            <div class="flex items-center justify-between mb-6">
+                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Reports</h2><a href="/docs/admin/reports/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
+            </div>
+
+            <!-- Date range filter -->
+            <form th:action="@{/reporting}" method="get"
+                  class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 flex flex-wrap items-end gap-3">
+                <div>
+                    <label for="startDate" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Start date</label>
+                    <input id="startDate" name="start" type="date" required
+                           th:value="${startDate}"
+                           class="rounded-lg border border-gray-300 bg-white text-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label for="endDate" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">End date</label>
+                    <input id="endDate" name="end" type="date" required
+                           th:value="${endDate}"
+                           class="rounded-lg border border-gray-300 bg-white text-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <button type="submit"
+                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                    Apply
+                </button>
+                <a th:href="@{/reporting}"
+                   class="px-3 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
+                    Last 30 days
+                </a>
+                <span class="text-xs text-gray-500 ml-auto">
+                    Showing documents created from
+                    <span class="font-mono" th:text="${startDate}">YYYY-MM-DD</span>
+                    to
+                    <span class="font-mono" th:text="${endDate}">YYYY-MM-DD</span>
+                    (inclusive).
+                </span>
+            </form>
+
+            <!-- KPI cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Batches</div>
+                    <div class="text-3xl font-bold text-gray-900 mt-1" th:text="${totalBatches}">0</div>
+                    <div class="text-xs text-gray-500 mt-1">
+                        <span th:text="${openBatches}">0</span> open · <span th:text="${closedBatches}">0</span> closed
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Documents</div>
+                    <div class="text-3xl font-bold text-gray-900 mt-1" th:text="${totalDocuments}">0</div>
+                    <div class="text-xs text-gray-500 mt-1">across all visible batches</div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Needs review</div>
+                    <div class="text-3xl font-bold text-yellow-700 mt-1" th:text="${needsReviewTotal}">0</div>
+                    <div class="text-xs text-gray-500 mt-1">documents in REVIEW_REQUIRED or AUDIT_REQUIRED</div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Auto-approved</div>
+                    <div class="text-3xl font-bold text-emerald-700 mt-1" th:text="${autoApprovedTotal}">0</div>
+                    <div class="text-xs text-gray-500 mt-1">below each batch's doc threshold</div>
+                </div>
+            </div>
+
+            <!-- Span KPI cards -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Spans accepted</div>
+                    <div class="text-3xl font-bold text-green-700 mt-1" th:text="${spansAcceptedTotal}">0</div>
+                    <div class="text-xs text-gray-500 mt-1">PII detections approved by reviewers</div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Spans rejected</div>
+                    <div class="text-3xl font-bold text-red-700 mt-1" th:text="${spansRejectedTotal}">0</div>
+                    <div class="text-xs text-gray-500 mt-1">false positives or incorrect detections</div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Manually created</div>
+                    <div class="text-3xl font-bold text-amber-700 mt-1" th:text="${spansManualTotal}">0</div>
+                    <div class="text-xs text-gray-500 mt-1">spans the redactor missed; reviewer added</div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Edit rate</div>
+                    <div class="text-3xl font-bold text-gray-900 mt-1"
+                         th:text="${#numbers.formatDecimal(globalEditRate * 100, 1, 1) + '%'}">0.0%</div>
+                    <div class="text-xs text-gray-500 mt-1">manual ÷ (accepted + rejected + manual)</div>
+                </div>
+            </div>
+
+            <!-- Status breakdown -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">Documents by status</h3>
+                    <div class="grid grid-cols-[1fr_auto] gap-4 items-center">
+                        <div class="space-y-2">
+                            <div th:each="entry : ${statusCounts}" class="flex items-center justify-between text-sm">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                                      th:classappend="${entry.key == 'APPROVED'} ? 'bg-green-100 text-green-800' :
+                                                      (${entry.key == 'AUTO_APPROVED'} ? 'bg-emerald-100 text-emerald-800' :
+                                                      (${entry.key == 'REVIEW_REQUIRED'} ? 'bg-yellow-100 text-yellow-800' :
+                                                      (${entry.key == 'AUDIT_REQUIRED'} ? 'bg-amber-100 text-amber-800' :
+                                                      (${entry.key == 'PENDING'} ? 'bg-blue-100 text-blue-800' :
+                                                      (${entry.key == 'REJECTED' or entry.key == 'FAILED'} ? 'bg-red-100 text-red-800' :
+                                                      'bg-gray-100 text-gray-800')))))"
+                                      th:text="${entry.key}">STATUS</span>
+                                <span class="font-medium text-gray-900" th:text="${entry.value}">0</span>
+                            </div>
+                        </div>
+                        <svg id="statusPie" width="160" height="160" viewBox="0 0 100 100"
+                             class="shrink-0" role="img" aria-label="Documents by status pie chart">
+                            <circle cx="50" cy="50" r="48" fill="#f3f4f6"></circle>
+                            <text x="50" y="55" text-anchor="middle"
+                                  font-size="6" fill="#9ca3af" id="statusPieEmpty">No documents</text>
+                        </svg>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 class="text-lg font-semibold text-gray-900 mb-3">Average risk score</h3>
+                    <div class="text-5xl font-bold text-gray-900"
+                         th:text="${#numbers.formatDecimal(avgRiskScore, 1, 3)}">0.000</div>
+                    <p class="text-xs text-gray-500 mt-2">
+                        Mean across <span th:text="${totalDocuments}">0</span> document<span th:if="${totalDocuments != 1}">s</span>.
+                        Range is 0.000 (no risk) to 1.000 (clamped maximum).
+                    </p>
+                </div>
+            </div>
+
+            <!-- Per-domain aggregates -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">Per domain</h3>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Aggregated across all batches sharing the same domain. Use the Domains
+                        filter above to focus on, or compare, a specific subset (e.g. Legal vs Healthcare).
+                    </p>
+                </div>
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Domain</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Batches</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Docs</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-green-700 uppercase tracking-wider">Accepted</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-red-700 uppercase tracking-wider">Rejected</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Manual</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Edit rate</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        <tr th:if="${#lists.isEmpty(domainRows)}">
+                            <td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500">
+                                No batches in scope.
+                            </td>
+                        </tr>
+                        <tr th:each="r : ${domainRows}" class="hover:bg-gray-50">
+                            <td class="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900"
+                                th:text="${r.domain}">Domain</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right" th:text="${r.batches}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right" th:text="${r.documents}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-green-700 text-right font-medium" th:text="${r.spansAccepted}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-red-700 text-right font-medium" th:text="${r.spansRejected}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-amber-700 text-right font-medium" th:text="${r.spansManual}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right"
+                                th:classappend="${r.editRate >= 0.20} ? 'text-red-700 font-semibold' : (${r.editRate >= 0.10} ? 'text-amber-700' : '')"
+                                th:text="${#numbers.formatDecimal(r.editRate * 100, 1, 1) + '%'}">0.0%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Per-reviewer counts in the selected date range -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">Reviews per user</h3>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Approvals and rejections each user recorded in the selected date range,
+                        derived from the audit log. Sorted by total decisions, highest first.
+                    </p>
+                </div>
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-green-700 uppercase tracking-wider">Approvals</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-red-700 uppercase tracking-wider">Rejections</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total reviews</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        <tr th:if="${#lists.isEmpty(reviewerRows)}">
+                            <td colspan="4" class="px-6 py-8 text-center text-sm text-gray-500">
+                                No approve/reject actions in this range.
+                            </td>
+                        </tr>
+                        <tr th:each="r : ${reviewerRows}" class="hover:bg-gray-50">
+                            <td class="px-6 py-3 text-sm text-gray-900 font-medium" th:text="${r.email}">user@example.com</td>
+                            <td class="px-3 py-3 text-sm text-gray-900 text-right" th:text="${r.approvals}">0</td>
+                            <td class="px-3 py-3 text-sm text-gray-900 text-right" th:text="${r.rejections}">0</td>
+                            <td class="px-3 py-3 text-sm font-semibold text-gray-900 text-right" th:text="${r.total}">0</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Per-policy aggregates -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">Per Policy</h3>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Aggregated across all batches sharing a policy. Sorted by edit rate descending: high values flag policies that are letting too much through (or false-positiving) so reviewers are doing extra manual work.
+                    </p>
+                </div>
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Policy</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Batches</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Docs</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-green-700 uppercase tracking-wider">Accepted</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-red-700 uppercase tracking-wider">Rejected</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Manual</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Edit rate</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        <tr th:if="${#lists.isEmpty(policyRows)}">
+                            <td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500">
+                                No batches in scope.
+                            </td>
+                        </tr>
+                        <tr th:each="r : ${policyRows}" class="hover:bg-gray-50">
+                            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-900" th:text="${r.policyName}">Policy</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right" th:text="${r.batches}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right" th:text="${r.documents}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-green-700 text-right font-medium" th:text="${r.spansAccepted}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-red-700 text-right font-medium" th:text="${r.spansRejected}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-amber-700 text-right font-medium" th:text="${r.spansManual}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right"
+                                th:classappend="${r.editRate >= 0.20} ? 'text-red-700 font-semibold' : (${r.editRate >= 0.10} ? 'text-amber-700' : '')"
+                                th:text="${#numbers.formatDecimal(r.editRate * 100, 1, 1) + '%'}">0.0%</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Documents by batch and priority -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-8">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">Documents by batch and priority</h3>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Document counts grouped by batch and priority, broken out by status.
+                        The <span class="font-medium">Not yet approved</span> column totals
+                        documents that still need reviewer attention
+                        (<code>PENDING</code> + <code>REVIEW_REQUIRED</code> +
+                        <code>AUDIT_REQUIRED</code>) — use it to see, for example, how many
+                        High-priority documents in a batch still need a human decision.
+                        Sorted by batch name, then priority highest first.
+                    </p>
+                </div>
+                <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Priority</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total</th>
+                            <th th:each="s : ${knownStatuses}"
+                                class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                th:text="${s}">STATUS</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Not yet approved</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        <tr th:if="${#lists.isEmpty(priorityBatchRows)}">
+                            <td th:colspan="${4 + #lists.size(knownStatuses)}"
+                                class="px-6 py-8 text-center text-sm text-gray-500">
+                                No documents in scope.
+                            </td>
+                        </tr>
+                        <tr th:each="r : ${priorityBatchRows}" class="hover:bg-gray-50">
+                            <td class="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900"
+                                th:text="${r.batchName}">Batch</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm">
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full"
+                                      th:classappend="${r.priority == 3} ? 'bg-red-100 text-red-800'
+                                                    : (${r.priority == 1} ? 'bg-blue-100 text-blue-800'
+                                                                          : 'bg-gray-100 text-gray-700')"
+                                      th:text="${r.priorityLabel}">Normal</span>
+                            </td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right font-medium"
+                                th:text="${r.total}">0</td>
+                            <td th:each="s : ${knownStatuses}"
+                                class="px-3 py-3 whitespace-nowrap text-sm text-gray-700 text-right"
+                                th:with="v=${r.statusCounts[s]}"
+                                th:text="${v != null ? v : 0}"
+                                th:classappend="${v == null or v == 0} ? 'text-gray-300' : ''">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-right font-semibold"
+                                th:classappend="${r.notApproved > 0} ? 'text-amber-700' : 'text-gray-300'"
+                                th:text="${r.notApproved}">0</td>
+                        </tr>
+                    </tbody>
+                </table>
+                </div>
+            </div>
+
+            <!-- Per-batch table -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <div class="px-6 py-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900">Per-batch breakdown</h3>
+                </div>
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
+                            <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Policy</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Docs</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-green-700 uppercase tracking-wider">Accepted</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-red-700 uppercase tracking-wider">Rejected</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Manual</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Edit rate</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Auto-approved</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Avg risk</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        <tr th:if="${#lists.isEmpty(batchRows)}">
+                            <td colspan="9" class="px-6 py-8 text-center text-sm text-gray-500">
+                                No batches in scope.
+                            </td>
+                        </tr>
+                        <tr th:each="row : ${batchRows}" class="hover:bg-gray-50">
+                            <td class="px-6 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                                <span th:text="${row.name}">name</span>
+                                <span th:if="${row.closed}"
+                                      class="ml-2 px-2 inline-flex text-[10px] leading-5 font-semibold rounded-full bg-gray-200 text-gray-700 uppercase tracking-wide">Closed</span>
+                            </td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm">
+                                <div class="text-gray-900" th:text="${row.policyName}">Policy</div>
+                            </td>
+                            <td class="px-6 py-3 whitespace-nowrap text-sm text-gray-900 text-right" th:text="${row.documentCount}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-green-700 text-right font-medium" th:text="${row.spansAccepted}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-red-700 text-right font-medium" th:text="${row.spansRejected}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-amber-700 text-right font-medium" th:text="${row.spansManual}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right"
+                                th:classappend="${row.editRate >= 0.20} ? 'text-red-700 font-semibold' : (${row.editRate >= 0.10} ? 'text-amber-700' : '')"
+                                th:text="${#numbers.formatDecimal(row.editRate * 100, 1, 1) + '%'}">0.0%</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-emerald-700 text-right font-medium"
+                                th:text="${row.autoApproved}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right"
+                                th:text="${#numbers.formatDecimal(row.avgRiskScore, 1, 3)}">0.000</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Inter-Annotator Agreement (Cohen's Kappa) — only renders rows for batches
+                 with Blind Double Review enabled. The score is at the token level: each
+                 word is labeled PII or O for each reviewer, then Cohen's Kappa is computed
+                 across the pooled token decisions for every double-reviewed document in
+                 the batch. >= 0.8 → green (substantial agreement); 0.6–0.79 → amber;
+                 < 0.6 → red (a major training gap or ambiguous redaction policy). -->
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mt-8">
+                <div class="px-6 py-4 border-b border-gray-100">
+                    <h3 class="text-base font-semibold text-gray-900">Inter-Annotator Agreement (IAA)</h3>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Cohen's Kappa at the token level for batches with Blind Double Review enabled.
+                        Each whitespace-delimited word is labeled PII (covered by an approved span) or O,
+                        and a single kappa is pooled across every double-reviewed document in the batch.
+                    </p>
+                </div>
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                title="Documents with completed first and second reviews">Documents</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                title="Total tokens compared across all double-reviewed documents">Tokens</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Cohen's Kappa</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        <tr th:if="${#lists.isEmpty(iaaRows)}">
+                            <td colspan="4" class="px-6 py-8 text-center text-sm text-gray-500">
+                                No batches with Blind Double Review enabled in the current scope.
+                            </td>
+                        </tr>
+                        <tr th:each="r : ${iaaRows}" class="hover:bg-gray-50">
+                            <td class="px-6 py-3 text-sm font-medium text-gray-900" th:text="${r.batchName}">batch</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right" th:text="${r.doubleReviewedDocs}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right" th:text="${r.totalTokens}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-right">
+                                <span th:if="${r.kappa == null}" class="text-gray-400 italic">— not enough data —</span>
+                                <span th:if="${r.kappa != null}"
+                                      class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold"
+                                      th:classappend="${r.kappa >= 0.8} ? 'bg-green-100 text-green-800'
+                                                       : (${r.kappa >= 0.6} ? 'bg-amber-100 text-amber-800'
+                                                       : 'bg-red-100 text-red-800')"
+                                      th:text="${#numbers.formatDecimal(r.kappa, 1, 3)}">0.000</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+        <div th:replace="~{fragments/footer :: footer}"></div>
+        </div>
+    </div>
+
+    <script th:nonce="${cspNonce}" th:inline="javascript">
+        /*<![CDATA[*/
+        (function () {
+            const counts = /*[[${statusCounts}]]*/ {};
+            const svg = document.getElementById('statusPie');
+            if (!svg) return;
+
+            // Status → fill color (matches the rounded-full pill colors used elsewhere).
+            const COLORS = {
+                APPROVED:        '#16a34a', // green-600
+                AUTO_APPROVED:   '#059669', // emerald-600
+                REVIEW_REQUIRED: '#ca8a04', // yellow-600
+                AUDIT_REQUIRED:  '#d97706', // amber-600
+                PENDING:         '#2563eb', // blue-600
+                REJECTED:        '#dc2626', // red-600
+                FAILED:          '#991b1b', // red-800
+            };
+            const FALLBACK = '#9ca3af'; // gray-400
+
+            const entries = Object.entries(counts).filter(([, v]) => Number(v) > 0);
+            const total = entries.reduce((sum, [, v]) => sum + Number(v), 0);
+
+            // Clear existing children before redrawing.
+            while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+            const SVG_NS = 'http://www.w3.org/2000/svg';
+            const cx = 50, cy = 50, r = 48;
+
+            if (total === 0) {
+                const bg = document.createElementNS(SVG_NS, 'circle');
+                bg.setAttribute('cx', cx); bg.setAttribute('cy', cy); bg.setAttribute('r', r);
+                bg.setAttribute('fill', '#f3f4f6');
+                svg.appendChild(bg);
+                const t = document.createElementNS(SVG_NS, 'text');
+                t.setAttribute('x', cx); t.setAttribute('y', cy + 2);
+                t.setAttribute('text-anchor', 'middle');
+                t.setAttribute('font-size', '6');
+                t.setAttribute('fill', '#9ca3af');
+                t.textContent = 'No documents';
+                svg.appendChild(t);
+                return;
+            }
+
+            // Single-slice 100% case: render a full circle (the arc trick draws nothing for 360°).
+            if (entries.length === 1) {
+                const c = document.createElementNS(SVG_NS, 'circle');
+                c.setAttribute('cx', cx); c.setAttribute('cy', cy); c.setAttribute('r', r);
+                c.setAttribute('fill', COLORS[entries[0][0]] || FALLBACK);
+                const title = document.createElementNS(SVG_NS, 'title');
+                title.textContent = `${entries[0][0]}: ${entries[0][1]} (100%)`;
+                c.appendChild(title);
+                svg.appendChild(c);
+                return;
+            }
+
+            let cursor = -Math.PI / 2; // start at 12 o'clock
+            for (const [status, count] of entries) {
+                const fraction = Number(count) / total;
+                const angle = fraction * 2 * Math.PI;
+                const next = cursor + angle;
+                const x1 = cx + r * Math.cos(cursor);
+                const y1 = cy + r * Math.sin(cursor);
+                const x2 = cx + r * Math.cos(next);
+                const y2 = cy + r * Math.sin(next);
+                const largeArc = angle > Math.PI ? 1 : 0;
+                const d = `M ${cx},${cy} L ${x1.toFixed(3)},${y1.toFixed(3)} ` +
+                          `A ${r},${r} 0 ${largeArc} 1 ${x2.toFixed(3)},${y2.toFixed(3)} Z`;
+
+                const path = document.createElementNS(SVG_NS, 'path');
+                path.setAttribute('d', d);
+                path.setAttribute('fill', COLORS[status] || FALLBACK);
+                path.setAttribute('stroke', '#ffffff');
+                path.setAttribute('stroke-width', '0.5');
+                const title = document.createElementNS(SVG_NS, 'title');
+                const pct = (fraction * 100).toFixed(1);
+                title.textContent = `${status}: ${count} (${pct}%)`;
+                path.appendChild(title);
+                svg.appendChild(path);
+
+                cursor = next;
+            }
+        })();
+        /*]]>*/
+    </script>
+</body>
+</html>

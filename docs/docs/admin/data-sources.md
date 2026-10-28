@@ -1,6 +1,6 @@
 # Data sources
 
-Data sources let admins point Arbiter at an external place where documents
+Data sources let admins point Philter Workspace at an external place where documents
 already live — an OpenSearch or Elasticsearch index, an S3 bucket, a
 relational database, or a local filesystem directory — instead of (or in
 addition to) uploading files one at a time. Once registered, a data source
@@ -9,7 +9,7 @@ becomes selectable on the **Add Documents** page.
 The page is at `/admin/data-sources`, also reachable from the **Data Sources**
 link in the sidebar's Administration section. ROLE_ADMIN only.
 
-Data sources are the *input* half of Arbiter's I/O. For where finalized
+Data sources are the *input* half of Philter Workspace's I/O. For where finalized
 redacted documents go *out*, see [Destinations](destinations.md).
 
 > **Status:** All five source types — **OpenSearch**, **Elasticsearch**,
@@ -56,12 +56,12 @@ Two **Test** buttons are available:
 
 - The **Test** button beside the **Add** button on the form sends the
   **current form values** (endpoint, query, optional username/password) to
-  Arbiter — handy while you're tuning a new source before saving it.
+  Philter Workspace — handy while you're tuning a new source before saving it.
 - A **Test** action button on each saved row sends the stored values
-  (Arbiter decrypts the saved password server-side; the cleartext is never
+  (Philter Workspace decrypts the saved password server-side; the cleartext is never
   handed back to the browser).
 
-Either way, Arbiter connects to OpenSearch, runs the query, and shows up to
+Either way, Philter Workspace connects to OpenSearch, runs the query, and shows up to
 the **first 10 hits** in a popup along with the reported total. A green
 *Success* bar tops the popup when the query worked; otherwise a red error
 bar shows the reason. Test does not save anything, so it's safe to use
@@ -94,7 +94,7 @@ can pull arbitrarily large result sets without exhausting memory:
    the saved body says `"size": 5000`, only 100 hits land per page.
 2. The worker walks the page, pulls each hit's text-field value, sets
    traceability fields (see below), and pushes the document onto the
-   Arbiter ingest queue.
+   Philter Workspace ingest queue.
 3. It then asks the server for the next scroll page and keeps going until a
    page returns zero hits, at which point it deletes the scroll context.
 
@@ -102,7 +102,7 @@ Each imported document records traceability back to its source: the
 `sourceSystem` (`OPENSEARCH` or `ELASTICSEARCH`), the cluster URL, the
 index the hit came from (preferred from each hit's `_index`, falling back
 to the configured query path), the OpenSearch / Elasticsearch `_id`, and an
-**Import Timestamp** of when Arbiter pulled it. Reviewers see all of this
+**Import Timestamp** of when Philter Workspace pulled it. Reviewers see all of this
 on the **Document Information** popup on the Review page.
 
 Job progress is visible in real time on the **Background Jobs** page (under
@@ -131,7 +131,7 @@ Credentials are not shown in the listing table. The Endpoint URL column shows
 
 The shipped Docker compose stack registers a **Demo MinIO (S3-compatible)**
 data source pointing at the bundled `minio` service (`http://minio:9000`,
-bucket `arbiter-demo`) so the S3 path can be exercised without an AWS
+bucket `philter-workspace-demo`) so the S3 path can be exercised without an AWS
 account. See [Getting started](../getting-started.md) for the full demo
 layout.
 
@@ -151,7 +151,7 @@ The following policy is a starting point — replace `my-bucket` and
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "ArbiterListPrefix",
+      "Sid": "WorkspaceListPrefix",
       "Effect": "Allow",
       "Action": "s3:ListBucket",
       "Resource": "arn:aws:s3:::my-bucket",
@@ -162,7 +162,7 @@ The following policy is a starting point — replace `my-bucket` and
       }
     },
     {
-      "Sid": "ArbiterReadObjects",
+      "Sid": "WorkspaceReadObjects",
       "Effect": "Allow",
       "Action": "s3:GetObject",
       "Resource": "arn:aws:s3:::my-bucket/archive/2026/*"
@@ -192,7 +192,7 @@ attachment mechanics differ.
 | Name              | yes      | Unique among RDB sources                                                   |
 | JDBC URL          | yes      | Standard JDBC URL, e.g. `jdbc:postgresql://host:5432/dbname`               |
 | SQL query         | yes      | `SELECT` whose **first column** holds the document text. An optional column named `filename` (case-insensitive) supplies the per-row filename. See [How rows map to documents](#how-rows-map-to-documents) below. |
-| Watermark column  | no       | Result-column name whose value Arbiter reads from each row and advances the per-source watermark to on a successful run. Pair with a `:lastKey` placeholder in the SQL above for incremental ingest — see [Incremental ingest with watermarks](#incremental-ingest-with-watermarks) below. Leave blank for a full-scan ingest each time. |
+| Watermark column  | no       | Result-column name whose value Philter Workspace reads from each row and advances the per-source watermark to on a successful run. Pair with a `:lastKey` placeholder in the SQL above for incremental ingest — see [Incremental ingest with watermarks](#incremental-ingest-with-watermarks) below. Leave blank for a full-scan ingest each time. |
 | Username          | no       | Encrypted at rest                                                          |
 | Password          | no       | Encrypted at rest                                                          |
 
@@ -204,7 +204,7 @@ in the listing table.
 #### Read-only safeguard
 
 Relational data sources are intended for **reading documents**, never
-mutating them. Before saving, Arbiter scans the SQL for the keywords
+mutating them. Before saving, Philter Workspace scans the SQL for the keywords
 **`DELETE`**, **`TRUNCATE`**, and **`DROP`** as whole words
 (case-insensitive). If any of those appear, the data source is **rejected**
 — nothing is saved — and the admin sees an error like *"SQL query contains
@@ -218,7 +218,7 @@ The match is whole-word-only, so legitimate column names like
 
 #### How rows map to documents
 
-Each row in the result set becomes one document. Arbiter reads two
+Each row in the result set becomes one document. Philter Workspace reads two
 things from every row:
 
 - **Document text** — the value of **column 1** of the SELECT list,
@@ -247,7 +247,7 @@ FROM documents WHERE imported_at IS NULL
 A `SELECT *` works as long as the schema happens to put the text column
 first; explicit aliasing is safer.
 
-> **Filenames are the dedupe key.** Arbiter records
+> **Filenames are the dedupe key.** Philter Workspace records
 > `(data-source id, filename)` for every imported row and skips
 > subsequent rows with the same key. If you rely on the synthesised
 > `row-N.txt` fallback and the underlying table is later reordered or
@@ -269,7 +269,7 @@ The mechanism has three moving parts:
 
 1. **The `:lastKey` placeholder in the SQL.** Reference it in a `WHERE`
    predicate against the same column you name as the watermark.
-   Arbiter substitutes the stored watermark value at execution time:
+   Philter Workspace substitutes the stored watermark value at execution time:
    - On the **first run** (or after a reset), `:lastKey` becomes the
      SQL literal `NULL`. Use `COALESCE(:lastKey, …)` to pick a starting
      floor.
@@ -278,7 +278,7 @@ The mechanism has three moving parts:
      last row of the previous run.
 
 2. **The Watermark column.** Names the result column whose value
-   Arbiter reads from each row. After a successful run completes,
+   Philter Workspace reads from each row. After a successful run completes,
    the source's stored watermark is advanced to that column's
    last-seen value (which, given `ORDER BY` on the same column, is
    also the largest value seen) and an `RDB_WATERMARK_ADVANCE` audit
@@ -288,7 +288,7 @@ The mechanism has three moving parts:
 
 3. **The `ORDER BY` on the watermark column.** Without it the
    "last-seen value" is whatever the database happened to emit last,
-   which is undefined for a `SELECT` without an `ORDER BY`. Arbiter
+   which is undefined for a `SELECT` without an `ORDER BY`. Philter Workspace
    does not enforce this — it's the admin's responsibility. A missing
    `ORDER BY` won't break ingest, but the watermark will advance
    erratically and miss rows.
@@ -352,7 +352,7 @@ inserts you want to ingest** and that the SQL's `ORDER BY` matches.
 ##### Changing the SQL or watermark column on an active source
 
 When a source has already advanced its watermark and the admin edits
-either the SQL or the watermark column, Arbiter refuses the save
+either the SQL or the watermark column, Philter Workspace refuses the save
 until the **Reset watermark** confirmation is checked on the Edit
 form. The reasoning is symmetric:
 
@@ -425,7 +425,7 @@ can be exercised without standing up a database by hand. See
 
 #### Example SQL queries
 
-The queries below cover the common shapes Arbiter operators reach for.
+The queries below cover the common shapes Philter Workspace operators reach for.
 Every example follows the two contracts laid out in [How rows map to
 documents](#how-rows-map-to-documents): **column 1 is the document
 text** (positional, name irrelevant), and the optional **`filename`
@@ -480,7 +480,7 @@ reads column **1** by position.
 ##### Joining a documents table with a per-row metadata table
 
 Sometimes the filename lives elsewhere — e.g. an attachment table
-keyed on `document_id`. The join is yours to write; Arbiter only
+keyed on `document_id`. The join is yours to write; Philter Workspace only
 needs the two contractual columns on the result.
 
 ```sql
@@ -489,7 +489,7 @@ SELECT d.body,
   FROM documents d
   LEFT JOIN attachments a
     ON a.document_id = d.id AND a.role = 'original'
- WHERE d.imported_into_arbiter = FALSE
+ WHERE d.imported_into_philter_workspace = FALSE
 ```
 
 The `LEFT JOIN` keeps documents without a matching attachment;
@@ -514,7 +514,7 @@ SELECT body,
 ##### Incremental ingest with an integer primary key
 
 The canonical keyset-paginated shape. Set **Watermark column** to
-`id`; Arbiter advances it after each successful run. See
+`id`; Philter Workspace advances it after each successful run. See
 [Incremental ingest with watermarks](#incremental-ingest-with-watermarks)
 for the cross-driver variants and the `COALESCE` first-run idiom.
 
@@ -562,7 +562,7 @@ String, so cast it back to the column type in the predicate.
 > `updated_at > X`, which skips any other row at exactly time `X`.
 > For tables with multiple rows per timestamp, prefer an integer PK
 > watermark, or design the predicate as
-> `(updated_at, id) > (:lastKey_ts, :lastKey_id)` — which Arbiter
+> `(updated_at, id) > (:lastKey_ts, :lastKey_id)` — which Philter Workspace
 > doesn't natively support (only a single `:lastKey` placeholder
 > is substituted), so this is a documented limitation.
 
@@ -648,10 +648,10 @@ re-enqueued.
 ## Trust model and host allow-list
 
 Data sources are administered by users with `ROLE_ADMIN`. The product
-intentionally **trusts admins** to point Arbiter at internal services —
+intentionally **trusts admins** to point Philter Workspace at internal services —
 that's what the feature is for — and the Test buttons issue HTTP / JDBC
 calls to whatever URL the admin types. In a typical deployment this is
-fine: admins run Arbiter and have at least as much network access as the
+fine: admins run Philter Workspace and have at least as much network access as the
 application process.
 
 In a multi-tenant or zero-trust deployment where the application server
@@ -660,8 +660,8 @@ reach (the [SSRF](https://owasp.org/www-community/attacks/Server_Side_Request_Fo
 risk), there is a defense-in-depth setting that pins acceptable hosts:
 
 ```properties
-# application.properties / arbiter-webapp
-arbiter.data-sources.allowed-hosts=opensearch.internal,*.search.example.com
+# application.properties / philter-workspace-webapp
+philter-workspace.data-sources.allowed-hosts=opensearch.internal,*.search.example.com
 ```
 
 The format is a comma-separated list. Each entry is either an exact
@@ -673,14 +673,14 @@ When configured, every URL on every admin **Test** click and every
 saved-source ingest job is checked against the list. This covers OpenSearch
 / Elasticsearch data sources and Ollama instance endpoints
 (**Admin → LLM-as-a-Judge**). Philter's URL is set in the environment
-(`ARBITER_PHILTER_URL`) and is not checked. A non-matching host is rejected with the
+(`PHILTER_WORKSPACE_PHILTER_URL`) and is not checked. A non-matching host is rejected with the
 error *"Endpoint host is not permitted."* The check applies even to
 **already-saved** instances: if a host is removed from the allow-list
 later, a Test click on an existing row is also rejected.
 
 ### Private-range default-deny
 
-Private-range addresses are blocked by default. Arbiter resolves the
+Private-range addresses are blocked by default. Philter Workspace resolves the
 configured hostname and rejects it if it resolves to a loopback address
 (`127.x.x.x`), an RFC-1918 private range (`10.x.x.x`, `172.16–31.x.x`,
 `192.168.x.x`), or a link-local address (`169.254.x.x`). This applies to
@@ -691,7 +691,7 @@ literal private IP (e.g. `http://127.0.0.1:9200` or
 resolution.
 
 The reason this exists by default — even before any operator has set
-`arbiter.data-sources.allowed-hosts` — is **server-side request forgery
+`philter-workspace.data-sources.allowed-hosts` — is **server-side request forgery
 (SSRF)**. The application process can usually reach private addresses
 the operator does not intend to expose through admin-supplied URLs:
 cloud instance-metadata endpoints (`169.254.169.254` on AWS / GCP /
@@ -703,10 +703,10 @@ without requiring any configuration.
 The default-deny is **not absolute**. There are two ways to admit a
 private host:
 
-1. **Add it to `arbiter.data-sources.allowed-hosts`.** When the
-   property is set, Arbiter checks the resolved host against every
+1. **Add it to `philter-workspace.data-sources.allowed-hosts`.** When the
+   property is set, Philter Workspace checks the resolved host against every
    pattern — including private addresses. So
-   `arbiter.data-sources.allowed-hosts=opensearch.internal,192.168.1.100`
+   `philter-workspace.data-sources.allowed-hosts=opensearch.internal,192.168.1.100`
    admits exactly those two hosts (one of which is private). Hostnames
    that resolve to a private address are admitted the same way, as long
    as the hostname matches a pattern. This is the supported way to
@@ -722,7 +722,7 @@ private host:
 
 ### Allow-list behavior summary
 
-| `arbiter.data-sources.allowed-hosts` | Public host | Private host |
+| `philter-workspace.data-sources.allowed-hosts` | Public host | Private host |
 | --- | --- | --- |
 | unset / blank (default) | accepted | rejected |
 | set, host matches a pattern | accepted | accepted |
@@ -753,7 +753,7 @@ Every credential that admins type into the Data Sources page is encrypted with
 AES-GCM before being written to MongoDB. See
 [Security · Encrypted secrets](../security.md#encrypted-secrets) for
 the full description (key derivation, IV format, base64 layout, and the
-`arbiter.crypto.secret` property). The plaintext is never displayed back; the
+`philter-workspace.crypto.secret` property). The plaintext is never displayed back; the
 table only shows a status (`Configured` / `Ambient` / `From URL` /
 `••••••`).
 

@@ -1,19 +1,19 @@
-# Arbiter
+# Philter Workspace
 
-Arbiter is a human-in-the-loop deidentification platform. It runs your
+Philter Workspace is a human-in-the-loop deidentification platform. It runs your
 documents through the [Philter / Phileas](https://www.philterd.ai) PII
 detector and gives reviewers a fast, focused workflow for confirming or
 correcting every detection before the document leaves the redactor.
 
 For full documentation — installation, configuration, user and admin
 guides, REST API reference, and more — see
-<https://philterd.github.io/arbiter>.
+<https://philterd.github.io/philter-workspace>.
 
 Questions, feedback, or want to contribute? [Join the Philterd Slack
 workspace](https://philterd.ai/slack/) to connect with other users and
 developers.
 
-![Arbiter](arbiter.png)
+![Philter Workspace](philter-workspace.png)
 
 ## Quick start
 
@@ -23,10 +23,10 @@ Copy the example file and generate a cryptographically random 256-bit key:
 
 ```shell
 cp .env.example .env
-echo "ARBITER_CRYPTO_SECRET=$(openssl rand -base64 32)" > .env
+echo "PHILTER_WORKSPACE_CRYPTO_SECRET=$(openssl rand -base64 32)" > .env
 ```
 
-`ARBITER_CRYPTO_SECRET` must be a base64-encoded 32-byte value. Arbiter
+`PHILTER_WORKSPACE_CRYPTO_SECRET` must be a base64-encoded 32-byte value. Philter Workspace
 refuses to start if it is missing, not valid base64, or does not decode to
 exactly 32 bytes.
 
@@ -36,27 +36,27 @@ exactly 32 bytes.
 docker compose build
 ```
 
-**3. Start Arbiter.**
+**3. Start Philter Workspace.**
 
 ```shell
 docker compose up
 ```
 
-Arbiter will be available at <http://localhost:8080>. People sign in with
+Philter Workspace will be available at <http://localhost:8080>. People sign in with
 their Philter username and password; to sign in as Philter's first
 administrator, `admin`, give it a password as
-[First sign-in](https://philterd.github.io/arbiter/security/#first-sign-in) shows.
+[First sign-in](https://philterd.github.io/philter-workspace/security/#first-sign-in) shows.
 
-Arbiter sends documents to the Philter that `docker-compose.yaml` also starts,
-set by `ARBITER_PHILTER_URL` and `ARBITER_PHILTER_API_KEY`. Its keys there are
+Philter Workspace sends documents to the Philter that `docker-compose.yaml` also starts,
+set by `PHILTER_WORKSPACE_PHILTER_URL` and `PHILTER_WORKSPACE_PHILTER_API_KEY`. Its keys there are
 for development only; for a deployment, see `docker-compose.prod.yaml` and
-[Configure Philter](https://philterd.github.io/arbiter/workflow/#1-configure-philter).
+[Configure Philter](https://philterd.github.io/philter-workspace/workflow/#1-configure-philter).
 
 ## Building the Docker image
 
 `build-image.sh` builds the image for `linux/amd64` and `linux/arm64`.
 `push-image.sh` publishes it to
-[`philterd/arbiter`](https://hub.docker.com/r/philterd/arbiter) on Docker
+[`philterd/philter-workspace`](https://hub.docker.com/r/philterd/philter-workspace) on Docker
 Hub. Both take a version as their first argument; with none, they use the
 Maven project version from `pom.xml`, so an unversioned build is tagged with
 what it actually contains.
@@ -87,7 +87,7 @@ Pass `latest` explicitly to publish under that tag:
 
 ## Related Philterd open source projects
 
-Arbiter is part of a wider family of open source data-privacy tools from
+Philter Workspace is part of a wider family of open source data-privacy tools from
 Philterd. The full catalog lives at
 <https://www.philterd.ai/open-source-software/>.
 

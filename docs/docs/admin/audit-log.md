@@ -1,6 +1,6 @@
 # Audit log
 
-Every state-changing action in Arbiter is recorded in the **`audit_log`**
+Every state-changing action in Philter Workspace is recorded in the **`audit_log`**
 collection in MongoDB. There are two ways to view and export it:
 
 - **Admin → Audit log** (`/admin/audit`) — filtered slices across the whole
@@ -16,7 +16,7 @@ collection in MongoDB. There are two ways to view and export it:
 | Action                              | Resource    | Notes                                              |
 | ----------------------------------- | ----------- | -------------------------------------------------- |
 | `LOGIN` (success / failure)         | User        | Sign-in through Philter, with `method: philter`. A failure row carries a `reason`: `BadCredentials`, `Locked`, `RateLimited`, `MfaLocked`, `SignInDisabled`, `UnsupportedPhilter`, or `Unavailable`. See [Sign-in through Philter](../security.md#sign-in-through-philter). |
-| `LOGOUT`                            | User        | Sign-out, or a session Arbiter ended, with a `reason` (`philter_session_ended`, `role_changed`, `sign_in_mode_changed`) |
+| `LOGOUT`                            | User        | Sign-out, or a session Philter Workspace ended, with a `reason` (`philter_session_ended`, `role_changed`, `sign_in_mode_changed`) |
 | `BATCH_CREATE`                      | Batch       | Includes name, group, thresholds                    |
 | `BATCH_GROUP_CHANGE`                | Batch       | Old → new group                                     |
 | `BATCH_THRESHOLDS_CHANGE`           | Batch       | Both PII and Document threshold deltas              |
@@ -116,7 +116,7 @@ restriction; the underlying API endpoint
 (`GET /api/v1/documents/{id}/history.csv`) also rejects non-admin requests
 with HTTP 403.
 
-The export itself is audited. Before generating the CSV, Arbiter writes a
+The export itself is audited. Before generating the CSV, Philter Workspace writes a
 `DOCUMENT_AUDIT_EXPORT` entry capturing the admin who initiated the
 download and the timestamp. Because the entry is recorded *before* the
 audit log is queried, and the CSV is sorted newest-first, the export event
@@ -151,7 +151,7 @@ original document using the character offsets and page number.
 
 Every call that sends document content to an Ollama instance produces a
 `DOCUMENT_PII_SENT_TO_LLM` entry. The event is written **before** the HTTP
-request leaves Arbiter so the record exists even when Ollama is unreachable
+request leaves Philter Workspace so the record exists even when Ollama is unreachable
 or returns an error.
 
 | Field in `details`  | Content                                                         |
@@ -168,11 +168,11 @@ document's ID — even for Second Opinion calls, which originate from a span —
 because the full document text is always included in the prompt.
 
 !!! warning "Ollama logging"
-    Arbiter sends the full unredacted document text and all PII span values
+    Philter Workspace sends the full unredacted document text and all PII span values
     to Ollama in the request body. **Ollama must be deployed with request-body
     logging disabled.** If `OLLAMA_DEBUG=1` is set or your Ollama deployment
     forwards request bodies to an external logging sink, PII will appear in
-    logs outside Arbiter's security boundary. See
+    logs outside Philter Workspace's security boundary. See
     [Admin → LLM-as-a-Judge](../admin/security.md) for configuration
     requirements.
 
@@ -180,7 +180,7 @@ because the full document text is always included in the prompt.
 
 Audit entries are stored in MongoDB and are indexed by timestamp, the actor's
 email, action, resource type, and resource ID so the Audit Log search remains
-fast as the collection grows. Arbiter does not automatically expire entries —
+fast as the collection grows. Philter Workspace does not automatically expire entries —
 set up a database-level TTL on the timestamp field or a periodic deletion job
 if you need bounded retention.
 
@@ -189,5 +189,5 @@ if you need bounded retention.
 If writing an audit entry fails (e.g., MongoDB is unavailable for a moment),
 the action it describes still succeeds — the audit service swallows the
 exception and logs a warning. This trades audit completeness for application
-availability; review logs from the Arbiter process for any
+availability; review logs from the Philter Workspace process for any
 "Failed to write audit log entry" warnings.

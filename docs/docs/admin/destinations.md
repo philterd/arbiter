@@ -1,6 +1,6 @@
 # Destinations
 
-Destinations are the places Arbiter writes finalized redacted documents to.
+Destinations are the places Philter Workspace writes finalized redacted documents to.
 They are the counterpart of [data sources](data-sources.md): a data source
 brings documents *in* for redaction; a destination sends them *out* once the
 review process is complete. Multiple destinations of multiple types can
@@ -11,7 +11,7 @@ The page is at `/admin/destinations`, also reachable from the
 only.
 
 > **Status:** Destinations can be **created**, **edited**, **removed**, and
-> **tested** from this page today, but Arbiter does not yet emit finalized
+> **tested** from this page today, but Philter Workspace does not yet emit finalized
 > documents to them. Batches do not currently expose a destination picker, and
 > the finalize flow does not write to any destination. Configurations created
 > here are stored and verified (the **Test** button works end-to-end) but
@@ -56,7 +56,7 @@ prefix.
 | Secret key   | no       | Encrypted at rest                                                                                                     |
 
 Access key and secret key are validated as a pair — provide both or neither.
-Leaving them blank means Arbiter uses whatever ambient AWS credentials the
+Leaving them blank means Philter Workspace uses whatever ambient AWS credentials the
 application process has (environment variables, instance profile, shared
 credentials file, etc.). The listing table shows a **Credentials** badge
 that reads **Configured** if explicit credentials were stored, **Ambient**
@@ -77,7 +77,7 @@ The following policy is a starting point — replace `my-redacted-bucket` and
   "Version": "2012-10-17",
   "Statement": [
     {
-      "Sid": "ArbiterWriteObjects",
+      "Sid": "WorkspaceWriteObjects",
       "Effect": "Allow",
       "Action": "s3:PutObject",
       "Resource": "arn:aws:s3:::my-redacted-bucket/finalized/*"
@@ -102,7 +102,7 @@ attachment mechanics differ.
 
 If you use the **Test** button (see below), the test code path also calls
 `s3:PutObject` — so the same write-only policy is sufficient. The test
-object is not deleted by Arbiter; if you want test artefacts cleaned up
+object is not deleted by Philter Workspace; if you want test artefacts cleaned up
 automatically, grant `s3:DeleteObject` separately, or remove them by hand.
 
 ## Testing a destination
@@ -117,15 +117,15 @@ What each Test does:
 
 | Type            | What the Test button does                                                                       |
 | --------------- | ----------------------------------------------------------------------------------------------- |
-| Local Directory | Writes a small file `arbiter-test-<epoch>.txt` to the configured directory.                      |
-| Amazon S3       | Puts a small text object at `<bucketKey>/arbiter-test-<epoch>.txt` in the configured bucket.     |
+| Local Directory | Writes a small file `philter-workspace-test-<epoch>.txt` to the configured directory.                      |
+| Amazon S3       | Puts a small text object at `<bucketKey>/philter-workspace-test-<epoch>.txt` in the configured bucket.     |
 
 The test artifact is left behind so an operator can verify it landed where
 expected; clean it up by hand if you don't want test files lingering. Test
 does not save the destination, so it's safe to use repeatedly while you're
 tuning credentials or paths. **Test does not produce an audit-log entry.**
 
-For S3, Arbiter creates the SDK client with cross-region access enabled and
+For S3, Philter Workspace creates the SDK client with cross-region access enabled and
 defaults the initial region to `us-east-1`; the SDK redirects to the
 bucket's actual region as needed.
 
@@ -160,7 +160,7 @@ before being written to MongoDB. The same scheme protects data-source
 passwords. See
 [Security · Encrypted secrets](../security.md#encrypted-secrets) for the full
 description (key derivation, IV format, base64 layout, and the
-`arbiter.crypto.secret` property). The plaintext is never displayed back;
+`philter-workspace.crypto.secret` property). The plaintext is never displayed back;
 the table only shows a **Configured** / **Ambient** badge.
 
 ## Removing a destination

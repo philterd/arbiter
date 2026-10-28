@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd, LLC.
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  ~
+  ~ Unless required by applicable law or agreed to in writing, software
+  ~ distributed under the License is distributed on an "AS IS" BASIS,
+  ~ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  ~ See the License for the specific language governing permissions and
+  ~ limitations under the License.
+  -->
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Philter Workspace - Background Jobs</title>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <meta http-equiv="refresh" content="10">
+</head>
+<body class="bg-gray-50">
+    <div class="flex min-h-screen">
+        <aside class="w-64 bg-white border-r border-gray-200 flex flex-col">
+            <div class="px-6 py-5 border-b border-gray-200">
+                <h1 class="text-2xl font-bold text-gray-900">Philter Workspace</h1>
+            </div>
+            <nav class="flex-1 px-3 py-4 space-y-1">
+                <a th:href="@{/}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                    </svg>
+                    Dashboard
+                </a>
+                <a th:href="@{/inbox}" class="relative flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                    </svg>
+                    Inbox
+                </a>
+                <div class="mt-2 pt-3 border-t border-gray-200 space-y-1">
+                    <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Redaction</p>
+                <a th:href="@{/upload}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12"></path>
+                    </svg>
+                    Add Documents
+                </a>
+                <a th:href="@{/queue}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path>
+                    </svg>
+                    Documents to Review
+                </a>
+                <a th:href="@{/second-opinions}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.86 9.86 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                    </svg>
+                    Second Opinions
+                </a>
+                </div>
+                <div class="mt-2 pt-2 border-t border-gray-200 space-y-1">
+                    <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Tools</p>
+                <a th:href="@{/jobs}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
+                    </svg>
+                    Background Jobs
+                </a>
+                <a th:if="${fullTextSearchEnabled}" th:href="@{/search}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"></path>
+                    </svg>
+                    Search
+                </a>
+                <a th:href="@{/settings}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                    </svg>
+                    Settings
+                </a>
+                </div>
+                <div th:if="${seesBatchesNav}" class="mt-4 pt-3 border-t border-gray-200 space-y-1">
+                    <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Administration</p>
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/data-sources}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path>
+                    </svg>
+                    Data Sources
+                </a>
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/destinations}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
+                    </svg>
+                    Destinations
+                </a>
+
+                <a th:if="${seesBatchesNav}" th:href="@{/batches}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                    </svg>
+                    Batches
+                </a>
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/ingest-queue}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    Ingest Queue
+                </a>
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/policies}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Policies
+                </a>
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/compliance-profiles}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                    </svg>
+                    Compliance Profiles
+                </a>
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/rules}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+                    </svg>
+                    Approval Rules
+                </a>
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/weights}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"></path>
+                    </svg>
+                    Weight Sets
+                </a>
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/reporting}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v18h18M9 17v-7m4 7v-12m4 12v-4"></path>
+                    </svg>
+                    Reports
+                </a>
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/audit}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 11h6M9 14h6M9 17h6"></path>
+                    </svg>
+                    Audit Log
+                </a>
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/general}"
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
+                    </svg>
+                    Admin
+                </a>
+                </div>
+            </nav>
+            <div class="px-3 py-4 border-t border-gray-200 text-sm text-gray-600">
+                <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd.png}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
+                <div class="px-3 mb-2">
+                    Signed in as <span class="font-medium" sec:authentication="name">user</span>
+                    <span sec:authorize="hasAnyRole('ADMIN','AUDITOR')" class="ml-1 text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Admin</span>
+                </div>
+                <form th:action="@{/logout}" method="post">
+                    <button type="submit" class="w-full text-left px-3 py-2 rounded-md text-gray-700 hover:bg-gray-100">
+                        Sign out
+                    </button>
+                </form>
+            </div>
+        </aside>
+
+        <div class="flex-1 flex flex-col min-w-0">
+        <div th:replace="~{fragments/topbar :: topbar}"></div>
+        <main class="flex-1 p-8">
+            <div class="flex items-center justify-between mb-6">
+                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Background Jobs</h2><a href="/docs/user-guide/background-jobs/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
+                <p class="text-xs text-gray-500">This page auto-refreshes every 10&nbsp;seconds.</p>
+            </div>
+
+            <div th:if="${error}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
+                 th:text="${error}">Error</div>
+            <div th:if="${success}" class="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700"
+                 th:text="${success}">Success</div>
+
+            <div class="mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200 text-xs text-blue-800 flex items-start gap-2">
+                <svg class="h-4 w-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                <span>
+                    Jobs older than
+                    <strong th:text="${maxVisibleAgeDays}">7</strong>
+                    days are not shown here. The matching import and export
+                    audit events have been logged and remain available on the
+                    <a th:href="@{/admin/audit}" class="underline font-medium">Audit Log</a>
+                    page.
+                </span>
+            </div>
+
+            <div th:each="section : ${sections}" class="mb-8">
+            <h3 class="text-lg font-semibold text-gray-900 mb-3" th:text="${section.label}">Data Import Jobs</h3>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+                                title="Source for import jobs; destination for export jobs">Source / Destination</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Progress</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1">Details</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-100">
+                        <tr th:if="${#lists.isEmpty(section.jobs)}">
+                            <td colspan="6" class="px-6 py-8 text-center text-sm text-gray-500">
+                                No <span th:text="${#strings.toLowerCase(section.label)}">background jobs</span> have been started yet.
+                            </td>
+                        </tr>
+                        <tr th:each="j : ${section.jobs}" class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"
+                                th:text="${j.type == 'OPENSEARCH_INGEST' ? 'OpenSearch Ingest'
+                                          : (j.type == 'ELASTICSEARCH_INGEST' ? 'Elasticsearch Ingest'
+                                          : (j.type == 'LOCAL_DIRECTORY_INGEST' ? 'Local Directory Ingest'
+                                          : (j.type == 'BATCH_EXPORT' ? ('Batch Export'
+                                                  + (j.dataFormat != null ? ' (' + j.dataFormat + ')' : ''))
+                                          : j.type)))}">type</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700"
+                                th:text="${j.type == 'BATCH_EXPORT'
+                                          ? (j.destinationName != null
+                                                  ? j.destinationName + ' (' + (j.destinationKind != null ? j.destinationKind : '') + ')'
+                                                  : '—')
+                                          : (j.sourceName != null ? j.sourceName : '—')}">source-or-destination</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-700"
+                                th:text="${j.batchName != null ? j.batchName : '—'}">batch</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <span th:switch="${j.status}">
+                                    <span th:case="'PENDING'"
+                                          class="inline-flex px-2 text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">PENDING</span>
+                                    <span th:case="'RUNNING'"
+                                          class="inline-flex px-2 text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">RUNNING</span>
+                                    <span th:case="'COMPLETED'"
+                                          class="inline-flex px-2 text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">COMPLETED</span>
+                                    <span th:case="'FAILED'"
+                                          class="inline-flex px-2 text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800"
+                                          th:title="${j.errorMessage}">FAILED</span>
+                                    <span th:case="*"
+                                          class="inline-flex px-2 text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800"
+                                          th:text="${j.status}">STATUS</span>
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-sm text-gray-700 align-top">
+                                <span th:if="${j.totalDocuments >= 0}"
+                                      th:text="${j.processedDocuments + ' of ' + j.totalDocuments
+                                                + (j.failedDocuments > 0 ? ' (' + j.failedDocuments + ' failed)' : '')}">
+                                    0 of 0
+                                </span>
+                                <span th:if="${j.totalDocuments &lt; 0}"
+                                      th:text="${j.processedDocuments
+                                                + (j.failedDocuments > 0 ? ' processed, ' + j.failedDocuments + ' failed' : ' processed')}">
+                                    0 processed
+                                </span>
+                                <div th:if="${not #strings.isEmpty(j.errorMessage)}"
+                                     class="mt-1 text-xs text-red-700">
+                                    <span th:text="${j.errorMessage}">job error</span>
+                                    <a th:if="${j.errorMessage != null and #strings.contains(j.errorMessage, 'allow-list')}"
+                                       href="/docs/admin/data-sources/#trust-model-and-host-allow-list"
+                                       target="_blank" rel="noopener"
+                                       class="ml-1 underline font-medium">
+                                        How to update the allow-list
+                                    </a>
+                                </div>
+                                <details th:if="${j.failureMessages != null and !#lists.isEmpty(j.failureMessages)}"
+                                         class="mt-1">
+                                    <summary class="cursor-pointer text-xs text-red-700 hover:text-red-900">
+                                        Show failure details
+                                    </summary>
+                                    <ul class="mt-1 ml-4 list-disc text-xs text-red-700 space-y-0.5">
+                                        <li th:each="msg : ${j.failureMessages}" th:text="${msg}">reason</li>
+                                        <li th:if="${j.failedDocuments > j.failureMessages.size()}"
+                                            class="text-gray-500 italic"
+                                            th:text="${'… ' + (j.failedDocuments - j.failureMessages.size())
+                                                       + ' more (see application log)'}">more</li>
+                                    </ul>
+                                </details>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm">
+                                <button type="button"
+                                        class="job-details-btn text-blue-600 hover:text-blue-800 font-medium"
+                                        th:attr="data-started=${j.startedAt == null ? '—' : @timestampFormatter.format(j.startedAt)},
+                                                 data-finished=${j.finishedAt == null ? '—' : @timestampFormatter.format(j.finishedAt)},
+                                                 data-started-by=${#strings.isEmpty(j.createdBy) ? '—' : j.createdBy},
+                                                 data-job-type=${j.type == 'OPENSEARCH_INGEST' ? 'OpenSearch Ingest'
+                                                                  : (j.type == 'ELASTICSEARCH_INGEST' ? 'Elasticsearch Ingest'
+                                                                  : (j.type == 'LOCAL_DIRECTORY_INGEST' ? 'Local Directory Ingest'
+                                                                  : (j.type == 'BATCH_EXPORT' ? ('Batch Export'
+                                                                          + (j.dataFormat != null ? ' (' + j.dataFormat + ')' : ''))
+                                                                  : j.type)))},
+                                                 data-source=${j.type == 'BATCH_EXPORT'
+                                                                  ? (j.destinationName != null
+                                                                          ? j.destinationName + ' (' + (j.destinationKind != null ? j.destinationKind : '') + ')'
+                                                                          : '—')
+                                                                  : (j.sourceName != null ? j.sourceName : '—')},
+                                                 data-batch=${j.batchName != null ? j.batchName : '—'},
+                                                 data-successful=${j.processedDocuments},
+                                                 data-failed=${j.failedDocuments},
+                                                 data-skipped=${j.skippedDocuments}">
+                                    Details
+                                </button>
+                                <!-- Log button: only rendered for data-import jobs (the only type
+                                     that produces per-file entries). Clicking fetches the log
+                                     from /api/v1/jobs/{id}/log and renders it in a modal. -->
+                                <button th:if="${j.category == 'DATA_IMPORT'}"
+                                        type="button"
+                                        class="job-log-btn ml-3 text-blue-600 hover:text-blue-800 font-medium"
+                                        th:attr="data-job-id=${j.id},
+                                                 data-job-label=${(j.sourceName != null ? j.sourceName : '—')
+                                                                  + ' → ' + (j.batchName != null ? j.batchName : '—')}">
+                                    Log
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            </div>
+        </main>
+        <div th:replace="~{fragments/footer :: footer}"></div>
+        </div>
+    </div>
+
+    <!-- Job details modal — populated via the data-* attributes on each row's Details button. -->
+    <div id="jobDetailsModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-md p-6">
+            <div class="flex items-start justify-between mb-3">
+                <h3 class="text-lg font-semibold text-gray-900">Job details</h3>
+                <button type="button" id="jobDetailsClose"
+                        class="text-gray-400 hover:text-gray-700 -mt-1 -mr-1 p-1"
+                        aria-label="Close">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none"
+                         stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <dl class="text-sm text-gray-700 space-y-2">
+                <div class="flex justify-between gap-4">
+                    <dt class="text-gray-500">Type</dt>
+                    <dd id="jobDetailsType" class="text-right font-medium text-gray-900">—</dd>
+                </div>
+                <div class="flex justify-between gap-4">
+                    <dt class="text-gray-500">Source / Destination</dt>
+                    <dd id="jobDetailsSource" class="text-right text-gray-900">—</dd>
+                </div>
+                <div class="flex justify-between gap-4">
+                    <dt class="text-gray-500">Batch</dt>
+                    <dd id="jobDetailsBatch" class="text-right text-gray-900">—</dd>
+                </div>
+                <div class="flex justify-between gap-4">
+                    <dt class="text-gray-500">Started</dt>
+                    <dd id="jobDetailsStarted" class="text-right text-gray-900">—</dd>
+                </div>
+                <div class="flex justify-between gap-4">
+                    <dt class="text-gray-500">Finished</dt>
+                    <dd id="jobDetailsFinished" class="text-right text-gray-900">—</dd>
+                </div>
+                <div class="flex justify-between gap-4">
+                    <dt class="text-gray-500">Started by</dt>
+                    <dd id="jobDetailsStartedBy" class="text-right text-gray-900">—</dd>
+                </div>
+                <div class="border-t border-gray-100 pt-2 mt-2 flex justify-between gap-4">
+                    <dt class="text-gray-500">Successful</dt>
+                    <dd id="jobDetailsSuccessful" class="text-right font-medium text-green-700">0</dd>
+                </div>
+                <div class="flex justify-between gap-4">
+                    <dt class="text-gray-500">Failed</dt>
+                    <dd id="jobDetailsFailed" class="text-right font-medium text-red-700">0</dd>
+                </div>
+                <div class="flex justify-between gap-4">
+                    <dt class="text-gray-500">Skipped</dt>
+                    <dd id="jobDetailsSkipped" class="text-right font-medium text-amber-700">0</dd>
+                </div>
+            </dl>
+            <div class="flex justify-end mt-5">
+                <button type="button" id="jobDetailsCloseBtn"
+                        class="px-4 py-1.5 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script th:nonce="${cspNonce}">
+        (function () {
+            const modal = document.getElementById('jobDetailsModal');
+            if (!modal) return;
+            const fields = {
+                type: document.getElementById('jobDetailsType'),
+                source: document.getElementById('jobDetailsSource'),
+                batch: document.getElementById('jobDetailsBatch'),
+                started: document.getElementById('jobDetailsStarted'),
+                finished: document.getElementById('jobDetailsFinished'),
+                startedBy: document.getElementById('jobDetailsStartedBy'),
+                successful: document.getElementById('jobDetailsSuccessful'),
+                failed: document.getElementById('jobDetailsFailed'),
+                skipped: document.getElementById('jobDetailsSkipped'),
+            };
+
+            function open(btn) {
+                fields.type.textContent = btn.dataset.jobType || '—';
+                fields.source.textContent = btn.dataset.source || '—';
+                fields.batch.textContent = btn.dataset.batch || '—';
+                fields.started.textContent = btn.dataset.started || '—';
+                fields.finished.textContent = btn.dataset.finished || '—';
+                fields.startedBy.textContent = btn.dataset.startedBy || '—';
+                fields.successful.textContent = btn.dataset.successful || '0';
+                fields.failed.textContent = btn.dataset.failed || '0';
+                fields.skipped.textContent = btn.dataset.skipped || '0';
+                modal.classList.remove('hidden');
+            }
+            function close() { modal.classList.add('hidden'); }
+
+            document.querySelectorAll('.job-details-btn').forEach(btn => {
+                btn.addEventListener('click', () => open(btn));
+            });
+            document.getElementById('jobDetailsClose').addEventListener('click', close);
+            document.getElementById('jobDetailsCloseBtn').addEventListener('click', close);
+            // Click-outside dismisses (clicking the dimmed backdrop, not the panel itself).
+            modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
+            });
+        })();
+    </script>
+
+    <!-- Job log modal — populated by an AJAX fetch of /api/v1/jobs/{id}/log when
+         the user clicks Log on a data-import row. Renders one row per file with the
+         outcome (SUCCESS / SKIPPED / FAILED), filename, source-side id, and any
+         failure reason. The endpoint is access-scoped so non-admin reviewers see
+         404 for jobs whose batch they can't access. -->
+    <div id="jobLogModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            <div class="px-6 py-4 border-b border-gray-200 flex items-start justify-between">
+                <div>
+                    <h3 class="text-lg font-semibold text-gray-900">Import log</h3>
+                    <p id="jobLogLabel" class="text-xs text-gray-500 mt-0.5">Job</p>
+                </div>
+                <button type="button" id="jobLogCloseX"
+                        class="text-gray-400 hover:text-gray-700 text-xl leading-none px-2"
+                        aria-label="Close">&times;</button>
+            </div>
+            <div class="px-6 py-5">
+                <div id="jobLogStatus" class="text-sm text-gray-500 mb-3">Loading…</div>
+                <div id="jobLogTableWrapper" class="hidden">
+                    <table class="min-w-full divide-y divide-gray-200 text-sm">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Time</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">File</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Outcome</th>
+                                <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Detail</th>
+                            </tr>
+                        </thead>
+                        <tbody id="jobLogTableBody" class="divide-y divide-gray-100"></tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="px-6 py-3 border-t border-gray-100 flex items-center justify-between gap-3">
+                <div id="jobLogPager" class="flex items-center gap-2 text-sm text-gray-600 hidden">
+                    <button type="button" id="jobLogPrev"
+                            class="px-3 py-1.5 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
+                        Previous
+                    </button>
+                    <span id="jobLogPageInfo" class="text-xs text-gray-500">Page 1 of 1</span>
+                    <button type="button" id="jobLogNext"
+                            class="px-3 py-1.5 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-md disabled:opacity-50 disabled:cursor-not-allowed">
+                        Next
+                    </button>
+                </div>
+                <button type="button" id="jobLogCloseBtn"
+                        class="ml-auto px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script th:nonce="${cspNonce}" th:inline="javascript">
+        /*<![CDATA[*/
+        (function () {
+            const PAGE_SIZE = 10;
+            const modal = document.getElementById('jobLogModal');
+            const labelEl = document.getElementById('jobLogLabel');
+            const statusEl = document.getElementById('jobLogStatus');
+            const tableWrapper = document.getElementById('jobLogTableWrapper');
+            const tbody = document.getElementById('jobLogTableBody');
+            const pager = document.getElementById('jobLogPager');
+            const prevBtn = document.getElementById('jobLogPrev');
+            const nextBtn = document.getElementById('jobLogNext');
+            const pageInfo = document.getElementById('jobLogPageInfo');
+
+            // Active job + current page kept on closure so Previous/Next don't need
+            // to walk the table state.
+            let currentJobId = null;
+            let currentPage = 0;
+
+            function openModal() { modal.classList.remove('hidden'); }
+            function closeModal() { modal.classList.add('hidden'); }
+
+            function escapeHtml(s) {
+                if (s == null) return '';
+                return String(s)
+                    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+            }
+
+            function outcomeBadge(outcome) {
+                const o = String(outcome || '').toUpperCase();
+                const cls = o === 'SUCCESS' ? 'bg-green-100 text-green-800'
+                          : o === 'SKIPPED' ? 'bg-yellow-100 text-yellow-800'
+                          : o === 'FAILED'  ? 'bg-red-100 text-red-800'
+                          :                   'bg-gray-100 text-gray-700';
+                return '<span class="inline-flex px-2 text-xs leading-5 font-semibold rounded-full '
+                        + cls + '">' + escapeHtml(o) + '</span>';
+            }
+
+            async function loadPage(jobId, page) {
+                tableWrapper.classList.add('hidden');
+                tbody.innerHTML = '';
+                statusEl.textContent = 'Loading…';
+                statusEl.classList.remove('hidden', 'text-red-700');
+                pager.classList.add('hidden');
+                try {
+                    const url = '/api/v1/jobs/' + encodeURIComponent(jobId) + '/log'
+                            + '?page=' + page + '&size=' + PAGE_SIZE;
+                    const resp = await fetch(url, { headers: { Accept: 'application/json' } });
+                    if (resp.status === 404) {
+                        statusEl.textContent = 'Job not found or you do not have access to it.';
+                        return;
+                    }
+                    if (!resp.ok) {
+                        statusEl.textContent = 'Failed to load log: HTTP ' + resp.status;
+                        statusEl.classList.add('text-red-700');
+                        return;
+                    }
+                    const body = await resp.json();
+                    const items = (body && Array.isArray(body.items)) ? body.items : [];
+                    const totalItems = (body && typeof body.totalItems === 'number') ? body.totalItems : items.length;
+                    const totalPages = (body && typeof body.totalPages === 'number') ? body.totalPages : 1;
+                    if (totalItems === 0) {
+                        statusEl.textContent = 'No log entries yet — the job may not have started, '
+                                + 'or it may be an older job from before per-file logging was added.';
+                        return;
+                    }
+                    statusEl.classList.add('hidden');
+                    tableWrapper.classList.remove('hidden');
+                    tbody.innerHTML = items.map(function (r) {
+                        return '<tr class="hover:bg-gray-50">'
+                            + '<td class="px-3 py-2 whitespace-nowrap text-xs text-gray-500 font-mono">'
+                                + escapeHtml(r.timestamp) + '</td>'
+                            + '<td class="px-3 py-2 text-sm text-gray-900">'
+                                + '<div class="font-medium">' + escapeHtml(r.filename) + '</div>'
+                                + (r.sourceDocId ? '<div class="text-xs text-gray-500 font-mono">'
+                                    + escapeHtml(r.sourceDocId) + '</div>' : '')
+                                + '</td>'
+                            + '<td class="px-3 py-2 whitespace-nowrap">' + outcomeBadge(r.outcome) + '</td>'
+                            + '<td class="px-3 py-2 text-sm text-gray-700">' + escapeHtml(r.message) + '</td>'
+                            + '</tr>';
+                    }).join('');
+                    // Show the pager only when there's more than one page — a single
+                    // page of results doesn't need stepping controls.
+                    if (totalPages > 1) {
+                        pager.classList.remove('hidden');
+                        pageInfo.textContent = 'Page ' + (page + 1) + ' of ' + totalPages
+                                + ' (' + totalItems + ' entries)';
+                        prevBtn.disabled = page <= 0;
+                        nextBtn.disabled = page >= totalPages - 1;
+                    }
+                } catch (err) {
+                    statusEl.textContent = 'Failed to load log: ' + err.message;
+                    statusEl.classList.add('text-red-700');
+                }
+            }
+
+            function openLog(jobId, label) {
+                currentJobId = jobId;
+                currentPage = 0;
+                labelEl.textContent = label || ('Job ' + jobId);
+                openModal();
+                loadPage(jobId, 0);
+            }
+
+            prevBtn.addEventListener('click', function () {
+                if (currentJobId == null || currentPage <= 0) return;
+                currentPage -= 1;
+                loadPage(currentJobId, currentPage);
+            });
+            nextBtn.addEventListener('click', function () {
+                if (currentJobId == null) return;
+                currentPage += 1;
+                loadPage(currentJobId, currentPage);
+            });
+
+            document.querySelectorAll('.job-log-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    openLog(btn.dataset.jobId, btn.dataset.jobLabel);
+                });
+            });
+            document.getElementById('jobLogCloseX').addEventListener('click', closeModal);
+            document.getElementById('jobLogCloseBtn').addEventListener('click', closeModal);
+            modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(); });
+            document.addEventListener('keydown', function (e) {
+                if (e.key === 'Escape' && !modal.classList.contains('hidden')) closeModal();
+            });
+        })();
+        /*]]>*/
+    </script>
+</body>
+</html>

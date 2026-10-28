@@ -1,6 +1,6 @@
 # REST API
 
-Arbiter exposes a JSON-over-HTTP API under `/api/v1`. The API surface is split
+Philter Workspace exposes a JSON-over-HTTP API under `/api/v1`. The API surface is split
 into two categories that authenticate differently. A few paths sit outside
 both: the unauthenticated [health and metrics endpoints](#health-and-metrics).
 
@@ -19,8 +19,8 @@ scope, sent on every request:
 Authorization: Bearer <philter-api-key>
 ```
 
-Arbiter checks the key with Philter and runs the request as the Philter user that owns it, with
-that person's Arbiter role and groups. Arbiter has no API keys of its own. See
+Philter Workspace checks the key with Philter and runs the request as the Philter user that owns it, with
+that person's Philter Workspace role and groups. Philter Workspace has no API keys of its own. See
 [API keys](../security.md#api-keys) for how the key is checked and cached.
 
 | Status | Meaning |
@@ -45,14 +45,14 @@ small and stable:
 
 ### Session-allowed (browser-UI shared)
 
-The remaining `/api/v1/**` endpoints are used by Arbiter's own web UI and accept either a Philter
+The remaining `/api/v1/**` endpoints are used by Philter Workspace's own web UI and accept either a Philter
 API key or the browser's session cookie. Cross-origin abuse is blocked by the browser's same-origin
 policy plus the absence of a permissive CORS configuration. Endpoints in this category are called
 out below per-section.
 
 ## Health and metrics
 
-Arbiter serves three unauthenticated paths for monitoring: `/api/health`,
+Philter Workspace serves three unauthenticated paths for monitoring: `/api/health`,
 `/actuator/health`, and `/actuator/prometheus`. All three accept `GET` only.
 They are reachable before any credential exists so a container runtime, load
 balancer, uptime monitor, or Prometheus scraper can call them.
@@ -69,7 +69,7 @@ because it is not a versioned business endpoint.
 }
 ```
 
-`status` is Arbiter's aggregate health, so a broken dependency is visible here
+`status` is Philter Workspace's aggregate health, so a broken dependency is visible here
 rather than being masked by the fact that the process still answers. `UP`
 returns `200`; any other status returns `503` with that status in the body, so
 a monitor that reads only the status code still sees the fault.
@@ -89,7 +89,7 @@ seconds by default), because that is how long the driver waits before it
 declares the server unusable. Monitors with a shorter timeout see the request
 time out, which they should also treat as unhealthy. Add
 `?serverSelectionTimeoutMS=5000` to `spring.data.mongodb.uri` if you want a
-faster answer, keeping in mind it applies to every Arbiter query, not just
+faster answer, keeping in mind it applies to every Philter Workspace query, not just
 health.
 
 A deployment that runs with full text search turned off is not marked down for
@@ -99,12 +99,12 @@ Settings** if you do not run a cluster. See
 [Full text search](../admin/full-text-search.md).
 
 `applicationVersion` is the build version recorded in the jar at package time.
-It reads `unknown` when Arbiter runs from classes built outside Maven (an IDE,
+It reads `unknown` when Philter Workspace runs from classes built outside Maven (an IDE,
 for example), where no build metadata file exists.
 
 The response names no component behind the status and carries no deployment or
 document state, but it does disclose the running build version to anyone who
-can reach the port. Keep Arbiter's port on an internal network, or block the
+can reach the port. Keep Philter Workspace's port on an internal network, or block the
 path at your reverse proxy if you do not want that version visible.
 
 ### `GET /actuator/health`
@@ -140,11 +140,11 @@ appear as route templates (`/documents/{id}`), never as the concrete paths a
 reviewer visited, and no document text, entity value, or user identity is
 exported.
 
-Scraping it does disclose how Arbiter is being used: request volumes, error
+Scraping it does disclose how Philter Workspace is being used: request volumes, error
 rates, and which routes are exercised. Treat the endpoint as internal, and
 block `/actuator` at your reverse proxy if your scraper does not need it.
 
-Health and `prometheus` are the only Actuator endpoints Arbiter exposes.
+Health and `prometheus` are the only Actuator endpoints Philter Workspace exposes.
 Everything else Actuator can serve, including `env`, `configprops`, `beans`,
 `loggers`, and `heapdump`, returns `404`, as do the `/actuator` links page and
 the per-component paths under `/actuator/health/`.
@@ -536,7 +536,7 @@ These endpoints proxy a configured Ollama instance to provide an LLM second
 opinion on the redactor's output. Configuration lives under
 **Admin → LLM-as-a-Judge**.
 
-!!! warning "PII leaves Arbiter on every call"
+!!! warning "PII leaves Philter Workspace on every call"
     Both `explain` and `second-opinion` send the full unredacted document text
     and all PII span values to Ollama. Each call is recorded in the audit log
     as `DOCUMENT_PII_SENT_TO_LLM` **before** the HTTP request is sent, so the
@@ -592,8 +592,8 @@ batch dialogs. The framework gates them to `ROLE_ADMIN` or
 
 ### `GET /api/v1/policies`
 
-Session-allowed. List the policies in Arbiter's Philter that
-`ARBITER_PHILTER_API_KEY` can use.
+Session-allowed. List the policies in Philter Workspace's Philter that
+`PHILTER_WORKSPACE_PHILTER_API_KEY` can use.
 
 Response:
 
@@ -627,7 +627,7 @@ Response:
 The following paths exist under `/api/v1/**` but are intended only for the
 in-page JavaScript that drives the review UI. They are session-callable, do
 nothing harmful in isolation, and are documented here purely so that traffic
-from arbiter's own UI doesn't look surprising in HTTP logs:
+from philter-workspace's own UI doesn't look surprising in HTTP logs:
 
 | Path | Purpose |
 |---|---|

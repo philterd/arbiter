@@ -1,6 +1,6 @@
-# Arbiter Project Guidelines
+# Philter Workspace Project Guidelines
 
-Arbiter is a human-in-the-loop PII redaction and ML annotation tool designed for high-security, air-gapped environments. These guidelines must be strictly followed to maintain the security and integrity of the system.
+Philter Workspace is a human-in-the-loop PII redaction and ML annotation tool designed for high-security, air-gapped environments. These guidelines must be strictly followed to maintain the security and integrity of the system.
 
 ## Data Privacy & Logging
 - **Strict Prohibition on PII Leakage:** Never include PII (Personally Identifiable Information) in log messages, exception stack traces, or any writes to `System.out` or `System.err`.

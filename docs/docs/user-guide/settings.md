@@ -48,13 +48,13 @@ sign in again with the new password.
 
 ### Forgotten password
 
-Arbiter has no self-service password reset. For a forgotten password or a locked sign-in, ask your
+Philter Workspace has no self-service password reset. For a forgotten password or a locked sign-in, ask your
 administrator, who resets or unlocks it under **Admin → Users**.
 
 ## API keys
 
-To call Arbiter's [REST API](../reference/api.md), use a Philter API key that holds the
-`users:read` scope. Philter manages your keys; Arbiter has none of its own. See
+To call Philter Workspace's [REST API](../reference/api.md), use a Philter API key that holds the
+`users:read` scope. Philter manages your keys; Philter Workspace has none of its own. See
 [API keys](../security.md#api-keys).
 
 ## Audit trail

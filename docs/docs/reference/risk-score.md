@@ -66,7 +66,7 @@ Below the default Document Threshold of `0.25`, so this document is shown as
 
 ## What about Anchor Words?
 
-The original formula uses "unresolved Anchor Words" for $A$. Arbiter doesn't
+The original formula uses "unresolved Anchor Words" for $A$. Philter Workspace doesn't
 track anchor words separately, so today $A$ is the count of spans with
 status `PENDING` — the closest available proxy. If the redactor exposes
 anchor-word information in a future version, $A$ can swap to that without

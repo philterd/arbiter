@@ -8,8 +8,8 @@ role.
 People sign in through Philter (see
 [Sign-in through Philter](../security.md#sign-in-through-philter)), so the Users page
 lists Philter's users and changes them through Philter's Users API, acting as you:
-Philter checks that you are an administrator, and its audit log names you. Arbiter
-keeps each person's Arbiter role (User or Auditor) and groups. Auditors can open
+Philter checks that you are an administrator, and its audit log names you. Philter Workspace
+keeps each person's Philter Workspace role (User or Auditor) and groups. Auditors can open
 the page, but Philter shows its users only to Philter administrators.
 
 ### Add a Philter user
@@ -17,19 +17,19 @@ the page, but Philter shows its users only to Philter administrators.
 Enter a username, an optional email address, and a first password of at least 16
 characters, and tick **Administrator** to make them a Philter administrator. Give
 the password to the person yourself; Philter makes them choose their own at first
-sign-in. Arbiter creates their Arbiter record at once, so you can add them to
+sign-in. Philter Workspace creates their Philter Workspace record at once, so you can add them to
 groups before they sign in. A username cannot contain `/`, `\`, `;`, `%`, or
 control characters, and cannot be reused, even after the user is deactivated.
 
-### In Arbiter
+### In Philter Workspace
 
-- **Auditor (read-only)** makes a user an Arbiter `AUDITOR`. A Philter
-  administrator is always an Arbiter `ADMIN`.
+- **Auditor (read-only)** makes a user a Philter Workspace `AUDITOR`. A Philter
+  administrator is always a Philter Workspace `ADMIN`.
 - **Groups** sets the person's groups. A group needs at least one member, so you
   cannot remove a group's only member here. Removing someone from a group also
   removes them as its team lead. Team leads are chosen on the Groups page.
 
-Saving creates the person's Arbiter record if they have not signed in yet. A user
+Saving creates the person's Philter Workspace record if they have not signed in yet. A user
 added in Philter directly appears in the list, marked "Not signed in yet", and gets
 a record when you save here or when they first sign in.
 
@@ -48,20 +48,20 @@ a record when you save here or when they first sign in.
 - **Sign out everywhere** ends all of the person's sessions.
 - **Deactivate** stops the person signing in and their API keys working, and
   ends their sessions. Philter does not delete users, so **Reactivate** restores
-  them. Their Arbiter record is kept, so batches, reviews, and the audit log still
+  them. Their Philter Workspace record is kept, so batches, reviews, and the audit log still
   name them, and their groups return on reactivation.
 
 Changing someone's role, resetting their password, deactivating them, or signing
-them out also ends their Arbiter sessions.
+them out also ends their Philter Workspace sessions.
 
 You cannot change your own role, password, or two-factor authentication, or
 deactivate yourself, here; use **Settings** for your password, or ask another
 administrator.
 
-### Arbiter records without a Philter user
+### Philter Workspace records without a Philter user
 
-Below the list, the page shows any Arbiter record with no Philter user, such as a
-person from Arbiter's removed local sign-in who has no Philter user with their email
+Below the list, the page shows any Philter Workspace record with no Philter user, such as a
+person from Philter Workspace's removed local sign-in who has no Philter user with their email
 address as username (see
 [Upgrading from local sign-in](../security.md#upgrading-from-local-sign-in)). Nobody can sign in as
 one, but it still counts as a group member and team lead. **Delete record**
@@ -72,7 +72,7 @@ loaded.
 
 ### API-only users
 
-A user with no password, such as an account for automation that calls Arbiter's
+A user with no password, such as an account for automation that calls Philter Workspace's
 API with a Philter API key (see [API keys](../security.md#api-keys)), is marked
 **API only**. It cannot sign in, and here it can only be deactivated
 or reactivated, so it is not given a password by accident. Manage it with
@@ -103,8 +103,8 @@ want to avoid orphaning them.
 
 ## Defaults
 
-Arbiter creates no accounts: the first administrator is Philter's `admin` (see
+Philter Workspace creates no accounts: the first administrator is Philter's `admin` (see
 [First sign-in](../security.md#first-sign-in)). On first start with empty `groups` and
-the demo loader enabled, Arbiter creates a `Default` group containing every existing
+the demo loader enabled, Philter Workspace creates a `Default` group containing every existing
 user and assigns the seeded sample-files batch to it. This is placeholder
 configuration; add real users and groups before going live.

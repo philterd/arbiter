@@ -31,7 +31,7 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
-IMAGE=${IMAGE:-philterd/arbiter}
+IMAGE=${IMAGE:-philterd/philter-workspace}
 ARCHES=${ARCHES:-"amd64 arm64"}
 
 for arch in $ARCHES; do

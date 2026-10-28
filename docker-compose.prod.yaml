@@ -1,64 +1,64 @@
-# Arbiter and Philter for a single host, both storing their data in SQLite.
+# Philter Workspace and Philter for a single host, both storing their data in SQLite.
 #
 # Before the first start, put these in .env next to this file (see .env.example):
-#   ARBITER_CRYPTO_SECRET, PHILTER_ENCRYPTION_KEY, PHILTER_BOOTSTRAP_API_KEY, VALKEY_PASSWORD
+#   PHILTER_WORKSPACE_CRYPTO_SECRET, PHILTER_ENCRYPTION_KEY, PHILTER_BOOTSTRAP_API_KEY, VALKEY_PASSWORD
 #
-# Arbiter needs an API key for a Philter user who is not an administrator, with only the
+# Philter Workspace needs an API key for a Philter user who is not an administrator, with only the
 # redact and policies:read scopes, so start Philter first and create one:
 #
 #   docker compose -f docker-compose.prod.yaml up -d philter
 #
 # Create the user and key with PHILTER_BOOTSTRAP_API_KEY as docs/docs/workflow.md
-# ("Philter API key for Arbiter") shows, and put the key in .env as
-# ARBITER_PHILTER_API_KEY. That user owns the policies and contexts Arbiter uses.
+# ("Philter API key for Philter Workspace") shows, and put the key in .env as
+# PHILTER_WORKSPACE_PHILTER_API_KEY. That user owns the policies and contexts Philter Workspace uses.
 # Then start the rest:
 #
 #   docker compose -f docker-compose.prod.yaml up -d
 #
-# People sign in to Arbiter through Philter. To sign in as Philter's first administrator,
+# People sign in to Philter Workspace through Philter. To sign in as Philter's first administrator,
 # "admin", give it a password with PHILTER_BOOTSTRAP_API_KEY, as docs/docs/security.md
-# ("First sign-in") shows; it is an administrator in Arbiter too.
+# ("First sign-in") shows; it is an administrator in Philter Workspace too.
 #
-# Each SQLite database lives in a volume (arbiter-data, philter-data). Back them up;
+# Each SQLite database lives in a volume (philter-workspace-data, philter-data). Back them up;
 # see docs/docs/reference/database.md#backups.
 services:
 
-  arbiter:
+  philter-workspace:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: arbiter-app
+    container_name: philter-workspace-app
     restart: unless-stopped
-    # Session cookies are Secure-only, so serve Arbiter to users through a reverse proxy
+    # Session cookies are Secure-only, so serve Philter Workspace to users through a reverse proxy
     # or load balancer that terminates HTTPS.
     ports:
       - "8080:8080"
     environment:
-      - ARBITER_STORE=sqlite
-      - ARBITER_SQLITE_PATH=/app/data/arbiter.db
-      - ARBITER_CRYPTO_SECRET=${ARBITER_CRYPTO_SECRET:?Set ARBITER_CRYPTO_SECRET in .env (openssl rand -base64 32)}
-      - ARBITER_DEMO_DATA_ENABLED=false
-      # Arbiter's one Philter, for sign-in, policies, and redaction.
-      - ARBITER_PHILTER_URL=http://philter:8080
-      # Not required here, so Philter can be started alone first; Arbiter refuses to start without it.
-      - ARBITER_PHILTER_API_KEY=${ARBITER_PHILTER_API_KEY:-}
-      # Arbiter refuses private-network hosts unless they are listed. Listing hosts also
+      - PHILTER_WORKSPACE_STORE=sqlite
+      - PHILTER_WORKSPACE_SQLITE_PATH=/app/data/philter-workspace.db
+      - PHILTER_WORKSPACE_CRYPTO_SECRET=${PHILTER_WORKSPACE_CRYPTO_SECRET:?Set PHILTER_WORKSPACE_CRYPTO_SECRET in .env (openssl rand -base64 32)}
+      - PHILTER_WORKSPACE_DEMO_DATA_ENABLED=false
+      # Philter Workspace's one Philter, for sign-in, policies, and redaction.
+      - PHILTER_WORKSPACE_PHILTER_URL=http://philter:8080
+      # Not required here, so Philter can be started alone first; Philter Workspace refuses to start without it.
+      - PHILTER_WORKSPACE_PHILTER_API_KEY=${PHILTER_WORKSPACE_PHILTER_API_KEY:-}
+      # Philter Workspace refuses private-network hosts unless they are listed. Listing hosts also
       # refuses public ones not listed, unless that check is relaxed under Admin → Security.
       # Add your data sources and destinations here, comma-separated.
-      - ARBITER_DATA_SOURCES_ALLOWED_HOSTS=${ARBITER_DATA_SOURCES_ALLOWED_HOSTS:-philter}
+      - PHILTER_WORKSPACE_DATA_SOURCES_ALLOWED_HOSTS=${PHILTER_WORKSPACE_DATA_SOURCES_ALLOWED_HOSTS:-philter}
       # Sessions.
       - SPRING_DATA_REDIS_HOST=valkey
       - SPRING_DATA_REDIS_PORT=6379
       - SPRING_DATA_REDIS_PASSWORD=${VALKEY_PASSWORD:?Set VALKEY_PASSWORD in .env}
       # Mutual TLS to Philter, when Philter (or a proxy in front of it) serves HTTPS and
       # requires a client certificate. Uncomment these and the ./certs volume below, and set
-      # ARBITER_PHILTER_URL to https://<host matching Philter's certificate>:8080.
-      # - ARBITER_PHILTER_TLS_KEY_STORE=/app/certs/arbiter-client.p12
-      # - ARBITER_PHILTER_TLS_KEY_STORE_PASSWORD=${ARBITER_PHILTER_TLS_KEY_STORE_PASSWORD}
-      # - ARBITER_PHILTER_TLS_TRUST_STORE=/app/certs/philter-ca.p12
-      # - ARBITER_PHILTER_TLS_TRUST_STORE_PASSWORD=${ARBITER_PHILTER_TLS_TRUST_STORE_PASSWORD}
+      # PHILTER_WORKSPACE_PHILTER_URL to https://<host matching Philter's certificate>:8080.
+      # - PHILTER_WORKSPACE_PHILTER_TLS_KEY_STORE=/app/certs/philter-workspace-client.p12
+      # - PHILTER_WORKSPACE_PHILTER_TLS_KEY_STORE_PASSWORD=${PHILTER_WORKSPACE_PHILTER_TLS_KEY_STORE_PASSWORD}
+      # - PHILTER_WORKSPACE_PHILTER_TLS_TRUST_STORE=/app/certs/philter-ca.p12
+      # - PHILTER_WORKSPACE_PHILTER_TLS_TRUST_STORE_PASSWORD=${PHILTER_WORKSPACE_PHILTER_TLS_TRUST_STORE_PASSWORD}
     volumes:
-      - arbiter-data:/app/data
+      - philter-workspace-data:/app/data
       # - ./certs:/app/certs:ro
     depends_on:
       valkey:
@@ -66,11 +66,11 @@ services:
       philter:
         condition: service_started
     networks:
-      - arbiter
+      - philter-workspace
 
   philter:
     image: philterd/philter:${PHILTER_VERSION:-4.0.0}
-    container_name: arbiter-philter
+    container_name: philter-workspace-philter
     restart: unless-stopped
     environment:
       - STORAGE_TYPE=sqlite
@@ -79,11 +79,11 @@ services:
       - PHILTER_ENCRYPTION_KEY=${PHILTER_ENCRYPTION_KEY:?Set PHILTER_ENCRYPTION_KEY in .env (openssl rand -base64 32)}
       # The Philter admin's first API key: sk_ followed by 32 letters and digits.
       - PHILTER_BOOTSTRAP_API_KEY=${PHILTER_BOOTSTRAP_API_KEY:?Set PHILTER_BOOTSTRAP_API_KEY in .env}
-      # People sign in to Arbiter with their Philter username and password.
+      # People sign in to Philter Workspace with their Philter username and password.
       - PASSWORD_SIGN_IN_ENABLED=true
-      # Plain HTTP: Philter publishes no port and is reachable only by Arbiter on the
-      # arbiter network. For HTTPS, set this to true, mount Philter's own certificate
-      # (see Philter's TLS settings), and give Arbiter a trust store for it above.
+      # Plain HTTP: Philter publishes no port and is reachable only by Philter Workspace on the
+      # philter-workspace network. For HTTPS, set this to true, mount Philter's own certificate
+      # (see Philter's TLS settings), and give Philter Workspace a trust store for it above.
       - SSL_ENABLED=false
       # Names are found by the PhEye model in Philter's image (ph-eye-pii-en-small), which
       # Philter's default policy uses, so no separate PhEye service is needed. To use one,
@@ -91,11 +91,11 @@ services:
     volumes:
       - philter-data:/opt/philter/data
     networks:
-      - arbiter
+      - philter-workspace
 
   valkey:
     image: valkey/valkey:8-alpine
-    container_name: arbiter-valkey
+    container_name: philter-workspace-valkey
     restart: unless-stopped
     command: ["valkey-server", "--requirepass", "${VALKEY_PASSWORD:?Set VALKEY_PASSWORD in .env}"]
     environment:
@@ -107,12 +107,12 @@ services:
       retries: 5
       start_period: 10s
     networks:
-      - arbiter
+      - philter-workspace
 
 networks:
-  arbiter:
+  philter-workspace:
     driver: bridge
 
 volumes:
-  arbiter-data:
+  philter-workspace-data:
   philter-data:

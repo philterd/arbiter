@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# Builds the Arbiter Docker image for amd64 and arm64. Pushing it is a separate,
+# Builds the Philter Workspace Docker image for amd64 and arm64. Pushing it is a separate,
 # manual step: see push-image.sh.
 #
 # Each architecture is built and loaded under its own tag, so both are here to
@@ -33,15 +33,15 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
-IMAGE=${IMAGE:-philterd/arbiter}
+IMAGE=${IMAGE:-philterd/philter-workspace}
 ARCHES=${ARCHES:-"amd64 arm64"}
 
 # The default builder cannot cross-build, so use a container builder.
-docker buildx inspect arbiter-builder > /dev/null 2>&1 ||
-    docker buildx create --name arbiter-builder --driver docker-container > /dev/null
+docker buildx inspect philter-workspace-builder > /dev/null 2>&1 ||
+    docker buildx create --name philter-workspace-builder --driver docker-container > /dev/null
 
 for arch in $ARCHES; do
-    docker buildx build --builder arbiter-builder \
+    docker buildx build --builder philter-workspace-builder \
         --platform "linux/${arch}" --load \
         -t "${IMAGE}:${VERSION}-${arch}" "${SCRIPT_DIR}"
 done

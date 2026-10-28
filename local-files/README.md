@@ -1,8 +1,8 @@
 # Local-directory data-source test fixture
 
-This directory is mounted **read-only** into the `arbiter-app` container at
+This directory is mounted **read-only** into the `philter-workspace-app` container at
 `/app/local-files` by `docker-compose.yaml`. It exists so that local-directory
-data sources can be exercised end-to-end against a Dockerized Arbiter without
+data sources can be exercised end-to-end against a Dockerized Philter Workspace without
 mounting an arbitrary host path.
 
 ## Trying it out

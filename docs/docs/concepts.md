@@ -16,7 +16,7 @@ exactly one role:
   to inspect activity without being able to change it. See
   [Roles and permissions](reference/roles.md) for the full feature matrix.
 
-People sign in through Philter, and call Arbiter's API with a **Philter API key**, which carries
+People sign in through Philter, and call Philter Workspace's API with a **Philter API key**, which carries
 the permissions of the Philter user that owns it. See [Security](security.md#authentication).
 
 ## Groups
@@ -98,7 +98,7 @@ relabeling so the audit sample stays visible.
 
 Newly received documents (whether uploaded through the UI or submitted via the
 [REST API](reference/api.md)) are persisted as `PENDING` and placed on a
-shared redaction queue kept in Arbiter's database. A background worker drains the queue
+shared redaction queue kept in Philter Workspace's database. A background worker drains the queue
 oldest-first, claiming each document atomically (`PENDING → PROCESSING`) so
 multiple replicas can run safely. Once Philter completes, the worker writes
 the spans, computes the risk score, and transitions the document to its final
@@ -242,6 +242,6 @@ on the [Full text search](admin/full-text-search.md) admin page.
 
 Every state-changing action — login, logout, batch changes, span and document
 updates, settings changes — is written to the `audit_log` collection in
-Arbiter's database with the actor's email, the resource touched, a timestamp, and
+Philter Workspace's database with the actor's email, the resource touched, a timestamp, and
 context-specific details. Admins can browse and export the log under
 **Admin → Audit log**.

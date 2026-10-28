@@ -18,12 +18,12 @@
          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>ai.philterd.arbiter</groupId>
-    <artifactId>arbiter</artifactId>
+    <groupId>ai.philterd.workspace</groupId>
+    <artifactId>philter-workspace</artifactId>
     <version>1.0.0-SNAPSHOT</version>
     <packaging>pom</packaging>
-    <name>arbiter</name>
-    <description>Arbiter - Document Redaction Web Application</description>
+    <name>philter-workspace</name>
+    <description>Philter Workspace - Document Redaction Web Application</description>
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
@@ -31,9 +31,9 @@
         <relativePath/>
     </parent>
     <modules>
-        <module>arbiter-domain</module>
-        <module>arbiter-platform</module>
-        <module>arbiter-webapp</module>
+        <module>philter-workspace-domain</module>
+        <module>philter-workspace-platform</module>
+        <module>philter-workspace-webapp</module>
     </modules>
     <properties>
         <java.version>21</java.version>
@@ -71,13 +71,13 @@
                 <version>${philter.sdk.version}</version>
             </dependency>
             <dependency>
-                <groupId>ai.philterd.arbiter</groupId>
-                <artifactId>arbiter-domain</artifactId>
+                <groupId>ai.philterd.workspace</groupId>
+                <artifactId>philter-workspace-domain</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>
-                <groupId>ai.philterd.arbiter</groupId>
-                <artifactId>arbiter-platform</artifactId>
+                <groupId>ai.philterd.workspace</groupId>
+                <artifactId>philter-workspace-platform</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

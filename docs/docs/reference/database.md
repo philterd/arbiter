@@ -1,27 +1,27 @@
 # Database
 
-Arbiter stores its data (batches, documents, spans, users, the audit log, and
-settings) in one of two databases. Choose one with `arbiter.store` (or the
-`ARBITER_STORE` environment variable):
+Philter Workspace stores its data (batches, documents, spans, users, the audit log, and
+settings) in one of two databases. Choose one with `philter-workspace.store` (or the
+`PHILTER_WORKSPACE_STORE` environment variable):
 
-| `arbiter.store` | Database | Use it for |
+| `philter-workspace.store` | Database | Use it for |
 | --------------- | -------- | ---------- |
-| `mongodb` (default) | A MongoDB server | Deployments that run more than one Arbiter instance, or that already operate MongoDB. |
-| `sqlite` | A single file on the Arbiter host | Single-node deployments, including air-gapped ones, that would rather not run a database server. |
+| `mongodb` (default) | A MongoDB server | Deployments that run more than one Philter Workspace instance, or that already operate MongoDB. |
+| `sqlite` | A single file on the Philter Workspace host | Single-node deployments, including air-gapped ones, that would rather not run a database server. |
 
-Both stores support the same features. Arbiter refuses to start if
-`arbiter.store` is set to anything else.
+Both stores support the same features. Philter Workspace refuses to start if
+`philter-workspace.store` is set to anything else.
 
 The bundled `docker-compose.yaml` uses SQLite, with the database in the
-`arbiter-data` volume. To run it on MongoDB instead, start the MongoDB service
+`philter-workspace-data` volume. To run it on MongoDB instead, start the MongoDB service
 with its profile:
 
 ```
-ARBITER_STORE=mongodb docker compose --profile mongodb up
+PHILTER_WORKSPACE_STORE=mongodb docker compose --profile mongodb up
 ```
 
-`docker-compose.prod.yaml` runs Arbiter and Philter on one host, each with
-its own SQLite database in a volume (`arbiter-data` and `philter-data`). The
+`docker-compose.prod.yaml` runs Philter Workspace and Philter on one host, each with
+its own SQLite database in a volume (`philter-workspace-data` and `philter-data`). The
 comments at the top of the file list the secrets it needs in `.env`.
 
 Valkey is still required for sessions with either store. See
@@ -29,71 +29,71 @@ Valkey is still required for sessions with either store. See
 
 ## MongoDB
 
-Set `spring.data.mongodb.uri` to the server's connection URI. Arbiter creates
+Set `spring.data.mongodb.uri` to the server's connection URI. Philter Workspace creates
 its collections and indexes on first use. See
 [Configuration](configuration.md#database) for the related settings.
 
 ## SQLite
 
-With `arbiter.store=sqlite`, Arbiter keeps everything in one SQLite database
+With `philter-workspace.store=sqlite`, Philter Workspace keeps everything in one SQLite database
 file and creates its tables and indexes on startup. No other database software
 is needed.
 
 | Property | Default | Purpose |
 | -------- | ------- | ------- |
-| `arbiter.sqlite.path` | `./data/arbiter.db` | The database file. Arbiter creates the directory if it is missing. |
-| `arbiter.sqlite.pool-size` | `8` | Connections to the file. Reads run in parallel; writes take turns. |
-| `arbiter.sqlite.busy-timeout-ms` | `30000` | How long a write waits for another write to finish before it fails. |
-| `arbiter.sqlite.synchronous` | `FULL` | SQLite's `synchronous` setting. `FULL` writes each commit to disk before it returns, so a committed change survives a power loss. `NORMAL` is faster, but the most recent commits can be lost on power loss. |
+| `philter-workspace.sqlite.path` | `./data/philter-workspace.db` | The database file. Philter Workspace creates the directory if it is missing. |
+| `philter-workspace.sqlite.pool-size` | `8` | Connections to the file. Reads run in parallel; writes take turns. |
+| `philter-workspace.sqlite.busy-timeout-ms` | `30000` | How long a write waits for another write to finish before it fails. |
+| `philter-workspace.sqlite.synchronous` | `FULL` | SQLite's `synchronous` setting. `FULL` writes each commit to disk before it returns, so a committed change survives a power loss. `NORMAL` is faster, but the most recent commits can be lost on power loss. |
 
 Each property can also be set as an environment variable, for example
-`ARBITER_SQLITE_PATH`.
+`PHILTER_WORKSPACE_SQLITE_PATH`.
 
 ### Running one instance
 
-A SQLite database belongs to one Arbiter process. Run a single Arbiter
+A SQLite database belongs to one Philter Workspace process. Run a single Philter Workspace
 instance against a given file, and keep the file on a local disk: SQLite's
 locking is not reliable on network file systems such as NFS or SMB. To run
-several Arbiter instances behind a load balancer, use MongoDB.
+several Philter Workspace instances behind a load balancer, use MongoDB.
 
-Arbiter uses SQLite's write-ahead log, so the database is three files: the
-`arbiter.db` file and, while Arbiter is running, `arbiter.db-wal` and
-`arbiter.db-shm` next to it. Keep all three together.
+Philter Workspace uses SQLite's write-ahead log, so the database is three files: the
+`philter-workspace.db` file and, while Philter Workspace is running, `philter-workspace.db-wal` and
+`philter-workspace.db-shm` next to it. Keep all three together.
 
 ### In a container
 
 The container's working directory is `/app`, so the default file is
-`/app/data/arbiter.db`. Mount a volume at `/app/data` so the database
+`/app/data/philter-workspace.db`. Mount a volume at `/app/data` so the database
 outlives the container:
 
 ```
-docker run -e ARBITER_STORE=sqlite -v arbiter-data:/app/data ...
+docker run -e PHILTER_WORKSPACE_STORE=sqlite -v philter-workspace-data:/app/data ...
 ```
 
 ### Backups
 
 Back up a running instance with SQLite's online backup, which produces a
-consistent copy while Arbiter keeps working:
+consistent copy while Philter Workspace keeps working:
 
 ```
-sqlite3 /app/data/arbiter.db ".backup '/backups/arbiter-$(date +%F).db'"
+sqlite3 /app/data/philter-workspace.db ".backup '/backups/philter-workspace-$(date +%F).db'"
 ```
 
-`VACUUM INTO '/backups/arbiter.db'` from the `sqlite3` shell does the same and
-also compacts the copy. Copying `arbiter.db` with ordinary file tools is safe
-only while Arbiter is stopped, and must include any `-wal` file.
+`VACUUM INTO '/backups/philter-workspace.db'` from the `sqlite3` shell does the same and
+also compacts the copy. Copying `philter-workspace.db` with ordinary file tools is safe
+only while Philter Workspace is stopped, and must include any `-wal` file.
 
-Restore by stopping Arbiter and putting the backup in place of `arbiter.db`
+Restore by stopping Philter Workspace and putting the backup in place of `philter-workspace.db`
 (and removing any leftover `-wal` and `-shm` files).
 
 ### Encryption at rest
 
 Document text, detected PII, comments, and the other fields listed in
-[Security](../security.md#pii-at-rest) are encrypted by Arbiter before they are
+[Security](../security.md#pii-at-rest) are encrypted by Philter Workspace before they are
 written, exactly as with MongoDB. The rest of the file (names, statuses,
 timestamps, email addresses of users) is not. Place the file on an encrypted
 volume to protect it as a whole, and restrict file permissions to the account
-Arbiter runs as.
+Philter Workspace runs as.
 
 ### Inspecting the data
 
@@ -104,22 +104,22 @@ Each collection is a table with `id`, `version`, and `doc` columns, where
 SELECT json_extract(doc, '$.status'), COUNT(*) FROM documents GROUP BY 1;
 ```
 
-Change data through Arbiter rather than by editing the file. Arbiter relies on
+Change data through Philter Workspace rather than by editing the file. Philter Workspace relies on
 the `version` column to detect conflicting edits.
 
 ## Upgrading
 
 ### One running import per batch
 
-Arbiter runs at most one data import per batch at a time, enforced by a
+Philter Workspace runs at most one data import per batch at a time, enforced by a
 unique index on running import jobs. Earlier versions left S3 imports out of
 that index (`uniq_running_data_import_per_batch`). The corrected index is named
 `uniq_running_data_import_per_batch_v2` (`ix_background_jobs_uniq_running_data_import_per_batch_v2`
 in SQLite), and both stores create it on startup.
 
-Arbiter cannot create the new index, and does not start, if a batch already
+Philter Workspace cannot create the new index, and does not start, if a batch already
 has more than one running import, which the old index allowed when one of them
-was an S3 import. Before upgrading, stop every Arbiter instance and look for
+was an S3 import. Before upgrading, stop every Philter Workspace instance and look for
 such batches.
 
 MongoDB:
@@ -175,5 +175,5 @@ DROP INDEX IF EXISTS "ix_background_jobs_uniq_running_data_import_per_batch";
 
 ## Switching stores
 
-Changing `arbiter.store` does not move data. An instance switched from MongoDB
+Changing `philter-workspace.store` does not move data. An instance switched from MongoDB
 to SQLite (or back) starts with an empty database.

@@ -1,7 +1,7 @@
 # Full text search
 
 Full text search is the optional capability that lets reviewers find documents
-by their content. When enabled, every document Arbiter ingests is also pushed
+by their content. When enabled, every document Philter Workspace ingests is also pushed
 into an **OpenSearch** cluster, and the **Search** page in the sidebar plus
 the [`GET /api/v1/search`](../reference/api.md) endpoint serve queries from
 that index.
@@ -39,14 +39,14 @@ The Full text search card carries five fields:
 |--------------|----------|-----------------------------------------------------------------------------------------|
 | Enabled      | yes      | Master on/off switch. **Enabled by default** for new and legacy installs.                |
 | Endpoint     | yes      | Base URL of the OpenSearch cluster, including scheme and port (e.g. `http://opensearch:9200`). |
-| Index name   | yes      | Lower-case letters, digits, `-`, `_`, `+`. Defaults to `arbiter-documents`.              |
+| Index name   | yes      | Lower-case letters, digits, `-`, `_`, `+`. Defaults to `philter-workspace-documents`.              |
 | Username     | no       | Optional HTTP basic-auth username for clusters that require it.                         |
 | Password     | no       | Optional basic-auth password. Encrypted at rest with AES-GCM (the same scheme as data-source credentials). Leave blank to keep the previously stored value; tick **Clear stored password** to wipe it back to none. |
 
-Click **Save**. Arbiter immediately tries to reach the cluster and one of
+Click **Save**. Philter Workspace immediately tries to reach the cluster and one of
 four things happens:
 
-1. **The index does not exist** — Arbiter creates it with the canonical
+1. **The index does not exist** — Philter Workspace creates it with the canonical
    mapping (one `text` field on `originalText` for full-text matching, plus
    keyword fields on `id`, `batchId`, `filename`, and `status` for filters)
    and the settings are saved. A success banner confirms the new index.
@@ -76,16 +76,16 @@ The save event is recorded in the [audit log](audit-log.md) as a
 
 A single OpenSearch cluster can host multiple deployments by giving each
 its own index. Pick a name that is descriptive enough to identify the
-deployment when looking at the cluster directly — e.g. `arbiter-staging`,
-`arbiter-prod-redactions`. The index is created on first save; renaming it
+deployment when looking at the cluster directly — e.g. `philter-workspace-staging`,
+`philter-workspace-prod-redactions`. The index is created on first save; renaming it
 later writes a brand-new empty index, so the search page will be empty
 until enough new documents are ingested.
 
 ### Mapping comparison rules
 
-Arbiter compares only the canonical fields that the search code reads back
+Philter Workspace compares only the canonical fields that the search code reads back
 (`id`, `batchId`, `filename`, `status`, `originalText`). Extra fields on the
-existing index — added by hand, by another tenant, by a previous Arbiter
+existing index — added by hand, by another tenant, by a previous Philter Workspace
 version — are **tolerated**. A mapping is reported as a mismatch only when:
 
 - A canonical field is missing entirely from the existing index.
@@ -99,7 +99,7 @@ catching the differences that actually break search.
 ## Disabling full text search
 
 Untick **Enable** on the same form and click **Save**. Disabling does not
-require the cluster to be reachable — Arbiter writes the setting and skips
+require the cluster to be reachable — Philter Workspace writes the setting and skips
 the OpenSearch probe entirely. This means you can turn the feature off even
 if the OpenSearch cluster is currently down.
 
@@ -188,28 +188,28 @@ when full text search is enabled:
   PII backups.
 - **Encrypt the network path.** Use **HTTPS** for the endpoint
   (`https://` in the field above) so the document text isn't exposed on
-  the wire between Arbiter and OpenSearch. A `http://` endpoint is fine
-  only if Arbiter and OpenSearch are co-located on a trusted network
+  the wire between Philter Workspace and OpenSearch. A `http://` endpoint is fine
+  only if Philter Workspace and OpenSearch are co-located on a trusted network
   segment that isn't shared with anything else — a single Docker bridge
   network on the same host, for example.
 - **Require authentication.** Configure OpenSearch's security plugin (or
   your reverse proxy) to require basic auth, and enter the username and
-  password into this form. Arbiter encrypts the password at rest with the
+  password into this form. Philter Workspace encrypts the password at rest with the
   same AES-GCM scheme used for data-source credentials. **Anonymous
   access to the cluster equals anonymous access to every PII document
-  Arbiter has ever ingested.**
-- **Scope the credential to least privilege.** The user Arbiter logs in
+  Philter Workspace has ever ingested.**
+- **Scope the credential to least privilege.** The user Philter Workspace logs in
   as needs only:
     - `indices:data/write/index` and `indices:admin/create` /
-      `indices:admin/get` on the configured index name (so Arbiter can
+      `indices:admin/get` on the configured index name (so Philter Workspace can
       create the index on first save and write documents on every ingest).
     - `indices:data/read/search` on the same index (so the Search page
       can run match and `more_like_this` queries).
     Avoid cluster-wide admin or all-indices grants.
 - **Restrict network reachability.** Bind OpenSearch to a private network
   interface; don't expose `9200` on a public IP. Lock the firewall down
-  to the subnets that Arbiter runs on.
-- **Audit OpenSearch access independently.** Arbiter writes
+  to the subnets that Philter Workspace runs on.
+- **Audit OpenSearch access independently.** Philter Workspace writes
   `DOCUMENT_PII_SENT_TO_LLM` rows when text leaves for an LLM, but it
   does **not** write a per-document audit row for every OpenSearch index
   operation (those happen on every ingest and would flood the audit log).
@@ -241,7 +241,7 @@ OpenSearch as needing its own encryption.
   and password and re-save.
 - **Mapping mismatch dialog every time** — something is creating the index
   with a non-canonical mapping (a templated index, an external indexer, or
-  manual `curl` setup). Either delete the index out-of-band so Arbiter can
+  manual `curl` setup). Either delete the index out-of-band so Philter Workspace can
   recreate it, or click **Continue with existing index** and accept the
   divergence.
 - **Health reports `DOWN` and every other dependency looks fine** — full

@@ -1,5 +1,5 @@
 .idea/
 target/
 .env
-CLAUDE.md# SQLite store (arbiter.store=sqlite) default location
+CLAUDE.md# SQLite store (philter-workspace.store=sqlite) default location
 /data/

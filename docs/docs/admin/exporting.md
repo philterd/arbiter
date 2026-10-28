@@ -1,6 +1,6 @@
 # Exporting annotations
 
-Arbiter can export a batch's reviewed annotations to a [destination](destinations.md)
+Philter Workspace can export a batch's reviewed annotations to a [destination](destinations.md)
 as labeled data for downstream pipelines. An export runs as a
 [background job](../user-guide/background-jobs.md): it reads the batch's
 **APPROVED** documents page by page (so a large batch is never loaded into memory

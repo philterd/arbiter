@@ -1,10 +1,10 @@
-site_name: Arbiter
-repo_url: https://github.com/philterd/arbiter
-site_url: https://philterd.github.io/arbiter/
+site_name: Philter Workspace
+repo_url: https://github.com/philterd/philter-workspace
+site_url: https://philterd.github.io/philter-workspace/
 edit_uri: '?query=docs/docs/'
 copyright: Copyright 2026 Philterd, LLC.
 site_author: philterd
-site_description: User guide for Arbiter, the human-in-the-loop deidentification tool.
+site_description: User guide for Philter Workspace, the human-in-the-loop deidentification tool.
 theme:
   name: material
   locale: en

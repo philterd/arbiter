@@ -1,6 +1,6 @@
 # Roles and permissions
 
-Arbiter has three roles. Every user has exactly one of them.
+Philter Workspace has three roles. Every user has exactly one of them.
 
 | Role | Purpose |
 |------|---------|
@@ -161,9 +161,9 @@ The role lives in the same field as USER and ADMIN. To assign it:
 
 1. Sign in as an admin.
 2. Go to **Admin → Users**.
-3. On the person's row, under **In Arbiter**, tick **Auditor (read-only)** and save.
+3. On the person's row, under **In Philter Workspace**, tick **Auditor (read-only)** and save.
 
-A Philter administrator is always an Arbiter `ADMIN`, so only a Philter `user` can be an auditor.
+A Philter administrator is always a Philter Workspace `ADMIN`, so only a Philter `user` can be an auditor.
 The person's session ends at its next check, and they sign in again with the new role. The change
 is recorded in the audit log as a `USER_UPDATE` event with the new role.
 

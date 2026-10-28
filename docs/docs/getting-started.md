@@ -2,33 +2,33 @@
 
 ## Prerequisites
 
-- A running MongoDB instance Arbiter can reach, or nothing extra with the
+- A running MongoDB instance Philter Workspace can reach, or nothing extra with the
   SQLite store (see [Database](reference/database.md))
 - A running Valkey instance for sessions
-- A running OpenSearch instance Arbiter can reach (for full-text search)
-- A running Philter 4.x that Arbiter can call (`docker-compose.yaml`
+- A running OpenSearch instance Philter Workspace can reach (for full-text search)
+- A running Philter 4.x that Philter Workspace can call (`docker-compose.yaml`
   starts one for development)
 
 ## Configuration
 
-Arbiter reads its settings from `application.properties` (or matching
+Philter Workspace reads its settings from `application.properties` (or matching
 environment variables); see [Configuration](reference/configuration.md) for the
 full reference. The settings most operators need to set are:
 
 | Property                                  | Purpose                                                |
 | ----------------------------------------- | ------------------------------------------------------ |
-| `arbiter.store`                           | `mongodb` (default) or `sqlite`. See [Database](reference/database.md). |
-| `arbiter.sqlite.path`                     | The SQLite database file, with `arbiter.store=sqlite` (default `./data/arbiter.db`) |
+| `philter-workspace.store`                           | `mongodb` (default) or `sqlite`. See [Database](reference/database.md). |
+| `philter-workspace.sqlite.path`                     | The SQLite database file, with `philter-workspace.store=sqlite` (default `./data/philter-workspace.db`) |
 | `spring.data.mongodb.uri`                 | Connection URI for MongoDB                             |
-| `spring.data.mongodb.database`            | Database name (default: `arbiter`)                     |
-| `arbiter.philter.url`                     | **Required.** The URL of Arbiter's Philter (`ARBITER_PHILTER_URL`), such as `http://philter:8080` |
-| `arbiter.philter.api-key`                 | **Required.** The Philter API key for background work such as ingest (`ARBITER_PHILTER_API_KEY`), for a Philter user who is not an administrator. Set it through the environment. |
-| `arbiter.crypto.secret`                   | **Required.** Base64-encoded 32 random bytes used as the AES-256 key for encrypting data-source credentials and other stored secrets at rest. Generate with `openssl rand -base64 32`. Arbiter refuses to start if this is unset, not valid base64, or doesn't decode to exactly 32 bytes. |
-| `arbiter.ingest-queue.poll-millis`        | Worker poll interval (default `5000`)                  |
-| `arbiter.demo-data.enabled`               | Load sample files at startup if collections are empty  |
-| `arbiter.demo-data.directory`             | Directory of files to seed (default: `sample-files`)   |
+| `spring.data.mongodb.database`            | Database name (default: `philter-workspace`)                     |
+| `philter-workspace.philter.url`                     | **Required.** The URL of Philter Workspace's Philter (`PHILTER_WORKSPACE_PHILTER_URL`), such as `http://philter:8080` |
+| `philter-workspace.philter.api-key`                 | **Required.** The Philter API key for background work such as ingest (`PHILTER_WORKSPACE_PHILTER_API_KEY`), for a Philter user who is not an administrator. Set it through the environment. |
+| `philter-workspace.crypto.secret`                   | **Required.** Base64-encoded 32 random bytes used as the AES-256 key for encrypting data-source credentials and other stored secrets at rest. Generate with `openssl rand -base64 32`. Philter Workspace refuses to start if this is unset, not valid base64, or doesn't decode to exactly 32 bytes. |
+| `philter-workspace.ingest-queue.poll-millis`        | Worker poll interval (default `5000`)                  |
+| `philter-workspace.demo-data.enabled`               | Load sample files at startup if collections are empty  |
+| `philter-workspace.demo-data.directory`             | Directory of files to seed (default: `sample-files`)   |
 
-Arbiter needs a running Philter 4.x; it does not detect PII itself.
+Philter Workspace needs a running Philter 4.x; it does not detect PII itself.
 See [Configure Philter](workflow.md#1-configure-philter).
 
 The OpenSearch cluster used to power the full-text search index is
@@ -40,13 +40,13 @@ on first startup so the values are written to the database.
 
 ## First run
 
-Arbiter creates no accounts: people sign in with their Philter username and password, and the
+Philter Workspace creates no accounts: people sign in with their Philter username and password, and the
 first administrator is Philter's `admin`. Give it a password with `PHILTER_BOOTSTRAP_API_KEY`, then
 sign in at `/login` as `admin`; see [First sign-in](security.md#first-sign-in). The shipped
 `docker-compose.yaml` runs a Philter with development-only keys.
 
 On the first start with **empty `batches` / `documents` / `spans` collections and demo data
-enabled**, Arbiter loads any files under the configured demo directory into a sample batch and runs
+enabled**, Philter Workspace loads any files under the configured demo directory into a sample batch and runs
 them through the redactor so the queue isn't empty.
 
 ## What you'll see after sign-in
@@ -72,6 +72,38 @@ them through the redactor so the queue isn't empty.
 Group membership scopes what reviewers see. By default reviewers only see
 batches and documents in groups they belong to; admins can toggle a "Limit to
 my groups" checkbox to switch between scoped and global views.
+
+## Upgrading from Arbiter
+
+Philter Workspace was named Arbiter. Moving an Arbiter deployment to Philter Workspace changes the
+following. The old names are not read.
+
+- **Environment variables and properties.** Every `ARBITER_*` variable is now
+  `PHILTER_WORKSPACE_*` (for example `PHILTER_WORKSPACE_CRYPTO_SECRET` and
+  `PHILTER_WORKSPACE_PHILTER_URL`), and every `arbiter.*` property is now `philter-workspace.*`.
+  Keep the crypto secret's value: it decrypts the data already stored.
+- **Docker image.** `philterd/philter-workspace` replaces `philterd/arbiter`.
+- **Compose.** The service is `philter-workspace`, its container `philter-workspace-app`, its network
+  `philter-workspace`, and its data volume `philter-workspace-data`. The SQLite file is
+  `/app/data/philter-workspace.db` and the MongoDB database is `philter-workspace`. To keep existing
+  data, stop Arbiter, then copy its SQLite files (the database and any `-wal` and `-shm` files
+  beside it) into the new volume under the new name (`docker volume ls` shows both volumes' names),
+  or for MongoDB set `SPRING_DATA_MONGODB_URI` to the old database
+  (`mongodb://mongodb:27017/arbiter`):
+
+    ```sh
+    docker run --rm -v <old>_arbiter-data:/from -v <new>_philter-workspace-data:/to alpine \
+      sh -c 'for f in /from/arbiter.db*; do cp "$f" "/to/philter-workspace.db${f#/from/arbiter.db}"; done'
+    ```
+
+- **Philter Workspace URL.** The URL saved under **Admin → General** is not carried over; save it
+  again.
+- **Full text search.** The default index name is `philter-workspace-documents`. A deployment that
+  used the old default, `arbiter-documents`, sets that name under **Admin → General → Full text
+  search** to keep its index.
+- **Unchanged.** Stored PII stays readable with the same crypto secret, and the audit log's hash
+  chain continues.
+- **Documentation** is at <https://philterd.github.io/philter-workspace/>.
 
 ## Next steps
 
