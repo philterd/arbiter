@@ -12,7 +12,7 @@ package ai.philterd.workspace.webapp.ui;
 import java.util.List;
 
 /**
- * Philter's rule for the names it uses in request paths, such as a custom list's or a context's
+ * Philter's rule for the names it uses in request paths, such as a custom list's, a context's, or a hold's reference
  * ({@code PathSafeNames} in Philter), checked here so a form can say what is wrong before Philter refuses it.
  */
 public final class PhilterNames {
@@ -22,14 +22,17 @@ public final class PhilterNames {
     private PhilterNames() {
     }
 
-    /** What is wrong with {@code name} (already trimmed) as a name of {@code what}, such as "list", or null. */
-    public static String problem(final String name, final String what) {
+    /**
+     * What is wrong with {@code name} (already trimmed) as {@code label}, such as "list name" or "hold reference",
+     * or null.
+     */
+    public static String problem(final String name, final String label) {
         if (name == null || name.isEmpty()) {
-            return "Enter a name.";
+            return "Enter a " + label.substring(label.lastIndexOf(' ') + 1) + ".";
         }
         if (".".equals(name) || "..".equals(name) || FORBIDDEN.stream().anyMatch(name::contains)
                 || name.chars().anyMatch(Character::isISOControl)) {
-            return "A " + what + " name cannot contain /, \\, ;, or %, and cannot be . or ..";
+            return "A " + label + " cannot contain /, \\, ;, or %, and cannot be . or ..";
         }
         return null;
     }

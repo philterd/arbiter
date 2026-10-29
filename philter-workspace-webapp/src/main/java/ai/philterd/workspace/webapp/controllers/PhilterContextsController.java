@@ -208,7 +208,7 @@ public class PhilterContextsController {
         final String trimmed = name == null ? "" : name.trim();
         final String chosenScope = SCOPES.containsKey(scope) ? scope : DisambiguationScope.DOCUMENT;
         final ContextForm form = new ContextForm(trimmed, owner, disambiguation, chosenScope, ledger, false);
-        final String nameProblem = PhilterNames.problem(trimmed, "context");
+        final String nameProblem = PhilterNames.problem(trimmed, "context name");
         if (nameProblem != null) {
             return form(model, form, new FormErrors(nameProblem, Map.of("name", nameProblem)));
         }

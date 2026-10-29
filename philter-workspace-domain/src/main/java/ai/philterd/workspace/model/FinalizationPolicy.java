@@ -30,7 +30,10 @@ public class FinalizationPolicy {
     public static final String OPTION_DELETE_IMMEDIATELY = "DELETE_IMMEDIATELY";
     /** Delete 48 hours after finalize. */
     public static final String OPTION_DELETE_AFTER_48H = "DELETE_AFTER_48H";
-    /** Retain indefinitely (legal hold). */
+    /**
+     * Keep the original documents in Philter Workspace, never deleting them. Not a Philter legal hold, which blocks
+     * deletion of Philter's ledger evidence (Admin, Legal Holds); the stored value keeps its old name.
+     */
     public static final String OPTION_LEGAL_HOLD = "LEGAL_HOLD";
 
     /** Stable order, label per option — used to drive the admin form. */
@@ -39,7 +42,7 @@ public class FinalizationPolicy {
         m.put(OPTION_DELETE_AFTER_X_DAYS, "Delete original documents after X days");
         m.put(OPTION_DELETE_IMMEDIATELY, "Delete original documents immediately after finalizing");
         m.put(OPTION_DELETE_AFTER_48H, "Delete original documents after 48 hours");
-        m.put(OPTION_LEGAL_HOLD, "Leave original documents (legal hold)");
+        m.put(OPTION_LEGAL_HOLD, "Keep original documents (never delete them)");
         return m;
     }
 

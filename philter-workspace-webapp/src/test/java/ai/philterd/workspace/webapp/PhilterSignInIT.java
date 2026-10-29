@@ -404,6 +404,52 @@ class PhilterSignInIT {
     }
 
     @Test
+    void legalHoldsArePlacedAndReleasedThroughPhilter() throws Exception {
+        final MockHttpSession session = new MockHttpSession();
+        final String address = newAddress();
+        assertEquals("/", signIn(session, address, "admin", ADMIN_PASSWORD).getResponse().getRedirectedUrl());
+        final String reference = "it-hold-" + HexFormat.of().formatHex(bytes(3));
+
+        mockMvc.perform(post("/admin/holds/new").session(session).with(csrf()).with(from(address))
+                        .param("reference", reference).param("scope", "document_chain")
+                        .param("documentId", "it-document-1").param("reason", "Matter 2026-17"))
+                .andExpect(redirectedUrl("/admin/holds"));
+        final ai.philterd.philter.model.LegalHoldResponse placed = bootstrap().getHold(reference);
+        assertEquals("document_chain", placed.getScopeType());
+        assertEquals("it-document-1", placed.getScopeValue());
+        assertEquals("Matter 2026-17", placed.getReason());
+
+        final String listed = mockMvc.perform(get("/admin/holds").param("q", reference).session(session)
+                .with(from(address))).andReturn().getResponse().getContentAsString();
+        assertTrue(listed.contains(">" + reference + "<") && listed.contains(">it-document-1<")
+                && listed.contains(">Matter 2026-17<"), listed);
+        final String again = mockMvc.perform(post("/admin/holds/new").session(session).with(csrf())
+                        .with(from(address)).param("reference", reference).param("scope", "user"))
+                .andReturn().getResponse().getContentAsString();
+        assertTrue(again.contains("A hold with that reference already exists."), again);
+
+        // A user hold names its owner, which Philter fills in.
+        final String userHold = reference + "-user";
+        mockMvc.perform(post("/admin/holds/new").session(session).with(csrf()).with(from(address))
+                        .param("reference", userHold).param("scope", "user"))
+                .andExpect(redirectedUrl("/admin/holds"));
+        assertEquals("admin", bootstrap().getHold(userHold).getScopeValue());
+
+        final String other = createUser("holds", password());
+        assertTrue(mockMvc.perform(get("/admin/holds").param("owner", other).session(session).with(from(address)))
+                .andReturn().getResponse().getContentAsString().contains("ADMIN_CROSS_USER_ACCESS_ENABLED=true"));
+
+        for (final String each : java.util.List.of(reference, userHold)) {
+            mockMvc.perform(post("/admin/holds/release").session(session).with(csrf()).with(from(address))
+                            .param("reference", each))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash()
+                            .attribute("success", "Hold \"" + each + "\" released."));
+        }
+        assertTrue(bootstrap().listHolds(null, null).getItems().stream()
+                .noneMatch(h -> h.getReference().startsWith(reference)), "released in Philter");
+    }
+
+    @Test
     void revocationInPhilterEndsTheWorkspaceSession() throws Exception {
         final String password = password();
         final String user = createSignedUpUser("revoke", password);

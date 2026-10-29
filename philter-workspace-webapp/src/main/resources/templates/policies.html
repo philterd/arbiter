@@ -154,6 +154,9 @@
                         <p class="text-xs text-gray-500 mb-3">
                             Each batch must reference one of these. Choose what should happen to the
                             original document files when documents in the batch are finalized.
+                            <span class="font-medium">Keep original documents</span> is not a Philter legal hold,
+                            which protects Philter's ledger evidence; those are under
+                            <a th:href="@{/admin/holds}" class="text-blue-600 hover:text-blue-800">Admin, Legal Holds</a>.
                         </p>
                         <form th:action="@{/policies/finalization}" method="post" class="space-y-3">
                             <div>

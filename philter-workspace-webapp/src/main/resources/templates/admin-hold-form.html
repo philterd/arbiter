@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd, LLC.
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  -->
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Philter Workspace - Place Legal Hold</title>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="flex min-h-screen">
+        <aside th:replace="~{fragments/admin-sidebar :: sidebar}"></aside>
+        <div class="flex-1 flex flex-col min-w-0">
+        <div th:replace="~{fragments/topbar :: topbar}"></div>
+        <main class="flex-1 p-8">
+            <div class="flex items-center justify-between mb-2">
+                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Admin</h2><a href="/docs/admin/legal-holds/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
+            </div>
+            <nav class="flex border-b border-gray-200 mb-6 text-sm">
+                <a th:href="@{/admin/general}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">General</a>
+                <a th:href="@{/admin/users}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Users</a>
+                <a th:href="@{/admin/groups}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Groups</a>
+                <a th:href="@{/admin/notifications}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Notifications</a>
+                <a th:href="@{/admin/llm-judge}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">LLM-as-a-Judge</a>
+                <a th:href="@{/admin/philter}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Philter</a>
+                <a th:href="@{/admin/holds}" aria-current="page" class="px-4 py-2 text-blue-700 font-medium border-b-2 border-blue-600">Legal Holds</a>
+                <a th:href="@{/admin/security}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Security</a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/tools}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Tools</a>
+            </nav>
+
+            <div class="max-w-2xl">
+            <a th:href="@{${backUrl}}" class="text-sm text-blue-600 hover:text-blue-800">Back to legal holds</a>
+            <h3 class="mt-2 text-2xl font-bold text-gray-900">Place a legal hold</h3>
+            <p th:if="${form.owner() != null}" class="mt-1 text-sm text-gray-600">On the evidence of <span class="font-medium" th:text="${form.owner()}">jdoe</span></p>
+            <p class="mt-2 text-sm text-gray-600">Philter refuses to delete or purge the ledger evidence a hold covers
+                until the hold is released. Only you, or a Philter administrator, can release it.</p>
+
+            <div class="mt-4" th:replace="~{fragments/forms :: errors(${errors})}"></div>
+
+            <form th:action="@{/admin/holds/new}" method="post" class="mt-4 space-y-5">
+                <input th:if="${form.owner() != null}" type="hidden" name="owner" th:value="${form.owner()}">
+                <div>
+                    <label for="reference" class="block text-sm font-medium text-gray-700 mb-1">Reference</label>
+                    <input id="reference" name="reference" type="text" required maxlength="200" autocomplete="off"
+                           th:value="${form.reference()}"
+                           th:attr="aria-describedby=${errors != null and errors.has('reference')} ? 'reference-error' : 'reference-help'"
+                           class="block w-full max-w-md rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <p id="reference-help" class="mt-1 text-xs text-gray-500">Your name for the hold, such as a matter
+                        number, unique among this user's holds. It cannot contain /, \, ;, or %. Philter's audit log
+                        records it.</p>
+                    <p th:replace="~{fragments/forms :: field-error(${errors}, 'reference')}"></p>
+                </div>
+                <fieldset class="space-y-2">
+                    <legend class="block text-sm font-medium text-gray-700 mb-1">What it covers</legend>
+                    <label class="flex items-start gap-2 text-sm">
+                        <input type="radio" name="scope" value="document_chain" class="mt-0.5"
+                               th:checked="${form.scope() == 'document_chain'}">
+                        <span>One document's ledger chain</span>
+                    </label>
+                    <div class="ml-6">
+                        <label for="documentId" class="block text-xs font-medium text-gray-600 mb-1">Document ID in Philter's ledger</label>
+                        <input id="documentId" name="documentId" type="text" maxlength="200" autocomplete="off"
+                               spellcheck="false" th:value="${form.documentId()}"
+                               th:attr="aria-describedby=${errors != null and errors.has('documentId')} ? 'documentId-error' : null"
+                               class="block w-full max-w-md rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <p th:replace="~{fragments/forms :: field-error(${errors}, 'documentId')}"></p>
+                    </div>
+                    <label class="flex items-start gap-2 text-sm">
+                        <input type="radio" name="scope" value="user" class="mt-0.5"
+                               th:checked="${form.scope() == 'user'}">
+                        <span>All of the user's ledger evidence</span>
+                    </label>
+                </fieldset>
+                <div>
+                    <label for="reason" class="block text-sm font-medium text-gray-700 mb-1">
+                        Reason <span class="text-gray-400 font-normal">(optional)</span></label>
+                    <textarea id="reason" name="reason" rows="3" maxlength="1000" th:text="${form.reason()}"
+                              class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button type="submit"
+                            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Place hold</button>
+                    <a th:href="@{${backUrl}}" class="text-sm text-blue-600 hover:text-blue-800">Cancel</a>
+                </div>
+            </form>
+            </div>
+        </main>
+        <div th:replace="~{fragments/footer :: footer}"></div>
+        </div>
+    </div>
+    <script th:replace="~{fragments/scripts :: philter-ui}"></script>
+</body>
+</html>

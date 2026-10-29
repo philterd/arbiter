@@ -157,7 +157,7 @@ public class PhilterListsController {
         final String owner = ownerFor(authentication, requestedOwner);
         final String trimmed = name == null ? "" : name.trim();
         final ListForm form = new ListForm(trimmed, owner, description, items, "", false);
-        final String nameProblem = PhilterNames.problem(trimmed, "list");
+        final String nameProblem = PhilterNames.problem(trimmed, "list name");
         if (nameProblem != null) {
             return form(model, form, new FormErrors(nameProblem, Map.of("name", nameProblem)), true);
         }
