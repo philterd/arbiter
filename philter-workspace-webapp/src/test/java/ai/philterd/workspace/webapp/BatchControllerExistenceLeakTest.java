@@ -197,7 +197,7 @@ class BatchControllerExistenceLeakTest {
         // The destination arg is intentionally invalid — the existence/access checks
         // run first, so neither path should reach the destination parsing.
         assertMissAndDeniedAreIndistinguishable(id -> controller.export(
-                id, "LOCAL:ignored", "JSONL",
+                id, "LOCAL:ignored", "JSONL", "exclude",
                 nonLead(), id.equals("b-missing") ? missFlash : deniedFlash),
                 missFlash, deniedFlash);
     }

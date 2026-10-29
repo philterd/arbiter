@@ -453,8 +453,8 @@
                 Batch: <span id="exportBatchName" class="font-medium">batch</span>
             </p>
             <p class="text-xs text-gray-500 mb-4">
-                Exports every document in this batch with status APPROVED, including
-                each approved span, to the chosen destination as a single file.
+                Exports the documents in this batch with status APPROVED, with their
+                approved redactions, to the chosen destination.
             </p>
             <div class="space-y-4">
                 <div>
@@ -481,6 +481,19 @@
                         <option value="BIO">BIO — token-per-line NER format, one .bio file per document</option>
                         <option value="PHEYE">PhEye training: text plus spans (start, end, label), all documents in a single JSONL file</option>
                     </select>
+                </div>
+                <div>
+                    <label for="exportThresholdAccepted" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Redactions No Person Decided</label>
+                    <select id="exportThresholdAccepted" name="thresholdAccepted"
+                            class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="exclude" selected>Leave out documents that have any</option>
+                        <option value="include">Include them</option>
+                    </select>
+                    <p class="text-xs text-gray-500 mt-1">
+                        Redactions accepted by the PII Threshold were not decided by a person. As training
+                        data they teach a model its own guesses. JSONL marks each redaction's
+                        <code>decidedBy</code>; BIO and PhEye cannot.
+                    </p>
                 </div>
             </div>
             <div class="flex items-center justify-end gap-2 mt-6">
@@ -938,6 +951,8 @@
                 if (destSel && destSel.options.length > 0) {
                     destSel.selectedIndex = 0;
                 }
+                const thresholdSel = document.getElementById('exportThresholdAccepted');
+                if (thresholdSel) thresholdSel.value = 'exclude';
                 modal.classList.remove('hidden');
             }
 

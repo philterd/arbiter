@@ -68,7 +68,7 @@ and export them:
 | `LOCAL_DESTINATION_CREATE` / `_UPDATE` / `_DELETE` | LocalDirectoryDestination | Local directory destination added, edited, or removed |
 | `BATCH_DOMAIN_CHANGE`               | Batch       | Old → new domain                                    |
 | `BATCH_RULES_ADD` / `_UPDATE` / `_REMOVE` | Batch | An approval rule set attached to, changed on, or removed from a batch |
-| `BATCH_EXPORT`                      | Batch       | A batch export written to a destination, or failing to be; with the format, destination, and document count |
+| `BATCH_EXPORT`                      | Batch       | A batch export written to a destination, or failing to be; with the format, destination, document count, whether documents with redactions no person decided were left out, and how many |
 | `DOCUMENT_QUEUED`                   | Document    | A web upload queued for redaction; the filename is recorded as a hash |
 | `DOCUMENT_COMMENT_ADD`              | Document    | A comment added to a document; its length, not its text |
 | `DOCUMENT_SEARCH`                   | Document    | A full-text search; the query is recorded as a hash, with its length and the result count |

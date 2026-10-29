@@ -707,6 +707,7 @@ public class BatchController {
     public String export(@PathVariable final String batchId,
                          @RequestParam("destination") final String destinationCombined,
                          @RequestParam(value = "format", defaultValue = "JSONL") final String formatRaw,
+                         @RequestParam(value = "thresholdAccepted", defaultValue = "exclude") final String thresholdAccepted,
                          final Authentication authentication,
                          final RedirectAttributes redirectAttributes) {
         final Batch batch = batchRepository.findById(batchId).orElse(null);
@@ -740,8 +741,10 @@ public class BatchController {
         }
 
         final String actorEmail = authentication == null ? null : authentication.getName();
+        final boolean excludeThresholdAccepted = !"include".equalsIgnoreCase(thresholdAccepted.trim());
         final ai.philterd.workspace.service.BatchExportService.Result result =
-                batchExportService.enqueueExport(batchId, format, kind, destinationId, actorEmail);
+                batchExportService.enqueueExport(batchId, format, kind, destinationId, excludeThresholdAccepted,
+                        actorEmail);
         if (!result.isOk()) {
             redirectAttributes.addFlashAttribute("error",
                     "Export could not be queued: " + result.getError());
@@ -751,6 +754,8 @@ public class BatchController {
                 "Export queued for batch \"" + batch.getName() + "\" — "
                         + result.getApprovedCount()
                         + (result.getApprovedCount() == 1 ? " approved document" : " approved documents")
+                        + (excludeThresholdAccepted
+                                ? ", leaving out any with redactions no person decided" : "")
                         + ". See the Background Jobs page for progress.");
         return "redirect:/batches";
     }

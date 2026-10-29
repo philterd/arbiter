@@ -552,4 +552,26 @@ class BatchControllerTest {
         assertEquals("Batch \"Empty\" closed.", success(ra));
         verify(batchRepository).save(b);
     }
+
+    @Test
+    void exportsLeaveOutRedactionsNoPersonDecidedUnlessAskedToIncludeThem() {
+        final Batch b = new Batch();
+        b.setId("b1");
+        b.setName("Claims");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
+        final ai.philterd.workspace.service.BatchExportService.Format jsonl =
+                ai.philterd.workspace.service.BatchExportService.Format.JSONL;
+        final ai.philterd.workspace.service.BatchExportService.DestinationKind local =
+                ai.philterd.workspace.service.BatchExportService.DestinationKind.LOCAL;
+        when(batchExportService.enqueueExport(any(), any(), any(), any(), org.mockito.ArgumentMatchers.anyBoolean(), any()))
+                .thenReturn(ai.philterd.workspace.service.BatchExportService.Result.queued("job", 3));
+
+        final RedirectAttributes excluded = flash();
+        controller.export("b1", "LOCAL:dest", "JSONL", "exclude", admin(), excluded);
+        verify(batchExportService).enqueueExport("b1", jsonl, local, "dest", true, "admin@x.com");
+        assertTrue(success(excluded).contains("leaving out any with redactions no person decided"), success(excluded));
+
+        controller.export("b1", "LOCAL:dest", "JSONL", "include", admin(), flash());
+        verify(batchExportService).enqueueExport("b1", jsonl, local, "dest", false, "admin@x.com");
+    }
 }

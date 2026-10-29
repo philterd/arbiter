@@ -155,4 +155,13 @@ public class Span {
         this.statusChangedAt = LocalDateTime.now();
         this.statusChangedBy = actorEmail;
     }
+
+    /**
+     * Whether a person decided this span: added it by hand, or set its status (accepting, refusing,
+     * resetting, or Redact All Like This). A span whose status was only set at ingest from the
+     * batch's PII Threshold was not. Changing only a span's type does not count.
+     */
+    public boolean decidedByPerson() {
+        return manuallyCreated || (statusChangedBy != null && !statusChangedBy.isBlank());
+    }
 }

@@ -24,7 +24,7 @@ loaders) don't go through this page — they enqueue documents directly.
 | Source        | The data source the job is pulling from (its display name on the [Data Sources](../admin/data-sources.md) page) |
 | Batch         | The batch the imported documents are landing in                                                                 |
 | Status        | One of `PENDING` / `RUNNING` / `COMPLETED` / `FAILED`. Failed jobs surface the top-level error on hover.        |
-| Progress      | `processed of total` when the search backend reported a total, or `N processed` when it did not                 |
+| Progress      | `processed of total` when the total is known, or `N processed` when it is not, followed by any failed and skipped counts |
 | Details       | A blue **Details** link that opens a popup with the job's Type, Source, Batch, Started/Finished timestamps, Started by, and the per-outcome counts (Successful, Failed, Skipped). |
 
 ## Status flow
@@ -82,10 +82,14 @@ existing document keeps its current review state. Skipped hits show up in:
   data-import jobs).
 - The completion notification dropped into the user's inbox.
 
+A batch export also counts documents as skipped: those it left out because they
+have redactions no person decided (see
+[Exporting annotations](../admin/exporting.md#redactions-no-person-decided)).
+
 ## Failure details
 
-When a job records `processedDocuments` lower than `totalDocuments`, some
-hits failed individually (most commonly because the configured **Text
+When a job records `processedDocuments` lower than `totalDocuments` and the
+difference is not skipped documents, some hits failed individually (most commonly because the configured **Text
 field** was missing on the hit's `_source`, or the search server returned
 an error for that document). The Progress column shows the failure count
 and a **Show failure details** disclosure that lists per-hit reasons —

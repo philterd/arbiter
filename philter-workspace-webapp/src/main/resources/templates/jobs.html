@@ -267,12 +267,14 @@
                             <td class="px-6 py-4 text-sm text-gray-700 align-top">
                                 <span th:if="${j.totalDocuments >= 0}"
                                       th:text="${j.processedDocuments + ' of ' + j.totalDocuments
-                                                + (j.failedDocuments > 0 ? ' (' + j.failedDocuments + ' failed)' : '')}">
+                                                + (j.failedDocuments > 0 ? ' (' + j.failedDocuments + ' failed)' : '')
+                                                + (j.skippedDocuments > 0 ? ' (' + j.skippedDocuments + ' skipped)' : '')}">
                                     0 of 0
                                 </span>
                                 <span th:if="${j.totalDocuments &lt; 0}"
                                       th:text="${j.processedDocuments
-                                                + (j.failedDocuments > 0 ? ' processed, ' + j.failedDocuments + ' failed' : ' processed')}">
+                                                + (j.failedDocuments > 0 ? ' processed, ' + j.failedDocuments + ' failed' : ' processed')
+                                                + (j.skippedDocuments > 0 ? ', ' + j.skippedDocuments + ' skipped' : '')}">
                                     0 processed
                                 </span>
                                 <div th:if="${not #strings.isEmpty(j.errorMessage)}"

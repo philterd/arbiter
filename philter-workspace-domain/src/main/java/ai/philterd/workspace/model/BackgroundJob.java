@@ -170,6 +170,11 @@ public class BackgroundJob {
     private String destinationName;
     /** For {@link #TYPE_BATCH_EXPORT}: the chosen data format (e.g. {@code JSONL}). */
     private String dataFormat;
+    /**
+     * For {@link #TYPE_BATCH_EXPORT}: leave out documents with any approved span that no person
+     * decided (accepted at ingest by the batch's PII Threshold). Counted in {@link #skippedDocuments}.
+     */
+    private boolean excludeThresholdAccepted;
 
     public BackgroundJob() {
     }
@@ -244,4 +249,9 @@ public class BackgroundJob {
 
     public String getDataFormat() { return dataFormat; }
     public void setDataFormat(final String dataFormat) { this.dataFormat = dataFormat; }
+
+    public boolean isExcludeThresholdAccepted() { return excludeThresholdAccepted; }
+    public void setExcludeThresholdAccepted(final boolean excludeThresholdAccepted) {
+        this.excludeThresholdAccepted = excludeThresholdAccepted;
+    }
 }

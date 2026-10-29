@@ -30,7 +30,8 @@ import java.util.Map;
  *   "text": "<original document text>",
  *   "entities": [
  *     {"start": <inclusive char offset>, "end": <exclusive char offset>,
- *      "label": "<span type>", "text": "<span text>"}, ...
+ *      "label": "<span type>", "text": "<span text>",
+ *      "decidedBy": "person" | "threshold"}, ...
  *   ],
  *   "metadata": {
  *     "doc_id": "<document id>",
@@ -39,12 +40,19 @@ import java.util.Map;
  *   }
  * }
  * }</pre>
+ *
+ * <p>{@code decidedBy} is {@code "person"} when a person added the span or set its status, and
+ * {@code "threshold"} when it was accepted at ingest by the batch's PII Threshold and never decided
+ * by a person (see {@link Span#decidedByPerson()}). It does not name the person.
  */
 @Service
 public class JsonlExportRenderer {
 
     /** Span status that opts a span into the export. */
     public static final String APPROVED_STATUS = "APPROVED";
+
+    public static final String DECIDED_BY_PERSON = "person";
+    public static final String DECIDED_BY_THRESHOLD = "threshold";
 
     private final ObjectMapper objectMapper;
 
@@ -80,6 +88,7 @@ public class JsonlExportRenderer {
                 entity.put("end", s.getLocation().characterEnd());
                 entity.put("label", s.getType() == null ? "" : s.getType());
                 entity.put("text", s.getText() == null ? "" : s.getText());
+                entity.put("decidedBy", s.decidedByPerson() ? DECIDED_BY_PERSON : DECIDED_BY_THRESHOLD);
                 entities.add(entity);
                 confidenceSum += s.getConfidence();
                 confidenceCount++;

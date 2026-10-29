@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -899,5 +900,73 @@ class ReviewControllerTest {
                         TestAuth.user("alice@example.com")));
         assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
         verify(spanRepository, never()).save(any());
+    }
+
+    // ---- who decided a span (#40): exports tell person-decided spans from threshold-accepted ones ----
+
+    /** A span the batch's PII Threshold accepted at ingest: status set with no actor. */
+    private static Span thresholdAccepted(final String id, final int start, final int end, final String text) {
+        final Span s = span(id, "d1", "person", "PENDING", start, end, text);
+        s.changeStatus("APPROVED");
+        return s;
+    }
+
+    @Test
+    void aSpanSetAtIngestAndNeverTouchedWasNotDecidedByAPerson() {
+        final Span untouched = thresholdAccepted("s1", 0, 3, "the");
+        assertFalse(untouched.decidedByPerson());
+
+        // Changing only its type does not decide it either.
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(untouched));
+        when(spanRepository.save(any(Span.class))).thenAnswer(inv -> inv.getArgument(0));
+        assertFalse(controller.updateSpan("s1", new SpanUpdateRequest(null, "ssn"), ADMIN).decidedByPerson());
+    }
+
+    @Test
+    void aSpanAPersonAcceptedWasDecidedByThem() {
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(span("s1", "d1", "ssn", "PENDING", 0, 3, "the")));
+        when(spanRepository.save(any(Span.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertTrue(controller.updateSpan("s1", new SpanUpdateRequest("APPROVED", null), ADMIN).decidedByPerson());
+    }
+
+    @Test
+    void aSpanAPersonRefusedThenResetWasDecidedByThem() {
+        final Span span = thresholdAccepted("s1", 0, 3, "the");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(span));
+        when(spanRepository.save(any(Span.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        controller.updateSpan("s1", new SpanUpdateRequest("REJECTED", null), ADMIN);
+        final Span reset = controller.resetSpan("s1", new ReviewController.ResetSpanRequest("APPROVED"), ADMIN);
+
+        assertEquals("APPROVED", reset.getStatus());
+        assertTrue(reset.decidedByPerson());
+    }
+
+    @Test
+    void aSpanAddedByHandWasDecidedByAPerson() {
+        final Document doc = document("d1", "Hello world, this is a sample document.");
+        doc.setBatchId("b1");
+        when(documentRepository.findById("d1")).thenReturn(Optional.of(doc));
+        when(spanRepository.save(any(Span.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        assertTrue(controller.createSpan("d1", new ReviewController.CreateSpanRequest("ssn", 0, 5), ADMIN)
+                .decidedByPerson());
+    }
+
+    @Test
+    void redactAllLikeThisDecidesTheSpansItApproves() {
+        final String text = "alpha and alpha";
+        final Span source = span("s1", "d1", "person", "PENDING", 0, 5, "alpha");
+        final Span second = thresholdAccepted("s2", 10, 15, "alpha");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(source));
+        when(documentRepository.findById("d1")).thenReturn(Optional.of(document("d1", text)));
+        when(spanRepository.findByDocumentId("d1")).thenReturn(List.of(source, second));
+        when(spanRepository.save(any(Span.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        controller.redactAllLike("s1", ADMIN);
+
+        assertTrue(source.decidedByPerson());
+        assertTrue(second.decidedByPerson());
     }
 }

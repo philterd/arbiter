@@ -134,6 +134,7 @@ public class BatchExportService {
                                 final Format format,
                                 final DestinationKind destinationKind,
                                 final String destinationId,
+                                final boolean excludeThresholdAccepted,
                                 final String actorEmail) {
         if (format == null) {
             return Result.failure("Data format is required.");
@@ -164,6 +165,7 @@ public class BatchExportService {
         job.setDestinationId(destinationId);
         job.setDestinationName(destinationName);
         job.setDataFormat(format.name());
+        job.setExcludeThresholdAccepted(excludeThresholdAccepted);
         job.setStatus(BackgroundJob.STATUS_PENDING);
         job.setTotalDocuments(approvedCount);
         job.setCreatedAt(Instant.now());
@@ -247,8 +249,10 @@ public class BatchExportService {
         // The rendered output lives in a temp file (not in memory); always remove it once shipped.
         try {
             if (rendered.documentCount == 0) {
-                finish(job, BackgroundJob.STATUS_FAILED,
-                        "Batch \"" + batch.getName() + "\" had no exportable documents at write time.");
+                finish(job, BackgroundJob.STATUS_FAILED, job.getSkippedDocuments() > 0
+                        ? "Every approved document in batch \"" + batch.getName() + "\" has redactions accepted by "
+                                + "the PII Threshold that no person decided, and the export leaves those out."
+                        : "Batch \"" + batch.getName() + "\" had no exportable documents at write time.");
                 return;
             }
 
@@ -261,6 +265,8 @@ public class BatchExportService {
             auditDetails.put("destinationKind", kind.name());
             auditDetails.put("destinationId", job.getDestinationId());
             auditDetails.put("documentCount", rendered.documentCount);
+            auditDetails.put("excludeThresholdAccepted", job.isExcludeThresholdAccepted());
+            auditDetails.put("skippedDocuments", job.getSkippedDocuments());
             auditDetails.put("bytes", rendered.bytes);
             auditDetails.put("filename", filename);
 
@@ -295,6 +301,7 @@ public class BatchExportService {
         final String batchSlug = slugify(batch.getName());
         long written = 0;
         long failed = 0;
+        long skipped = 0;
         long bytes = 0;
         int page = 0;
         while (true) {
@@ -304,6 +311,10 @@ public class BatchExportService {
             if (slice == null || slice.isEmpty()) break;
             for (Document doc : slice.getContent()) {
                 final List<Span> spans = spanRepository.findByDocumentId(doc.getId());
+                if (job.isExcludeThresholdAccepted() && hasThresholdAccepted(spans)) {
+                    skipped++;
+                    continue;
+                }
                 final String body = bioRenderer.render(doc, spans);
                 if (body.isEmpty()) {
                     // Document with no source text — count as failed so the operator
@@ -330,6 +341,7 @@ public class BatchExportService {
             // the export streams.
             job.setProcessedDocuments(written);
             job.setFailedDocuments(failed);
+            job.setSkippedDocuments(skipped);
             backgroundJobRepository.save(job);
             if (!slice.hasNext()) break;
             page++;
@@ -342,12 +354,15 @@ public class BatchExportService {
         auditDetails.put("destinationId", job.getDestinationId());
         auditDetails.put("documentCount", written);
         auditDetails.put("failedDocuments", failed);
+        auditDetails.put("excludeThresholdAccepted", job.isExcludeThresholdAccepted());
+        auditDetails.put("skippedDocuments", skipped);
         auditDetails.put("bytes", bytes);
         auditLogService.log("BATCH_EXPORT", "Batch", job.getBatchId(), auditDetails);
 
         if (written == 0) {
             finish(job, BackgroundJob.STATUS_FAILED,
-                    "BIO export wrote 0 documents (" + failed + " failed).");
+                    "BIO export wrote 0 documents (" + failed + " failed, " + skipped
+                            + " left out for redactions no person decided).");
             return;
         }
         finishSuccess(job, (int) written,
@@ -393,6 +408,7 @@ public class BatchExportService {
         final Path tempFile = Files.createTempFile("philter-workspace-export-", ".jsonl");
         int written = 0;
         long failed = 0;
+        long skipped = 0;
         try (Writer writer = Files.newBufferedWriter(tempFile, StandardCharsets.UTF_8)) {
             int page = 0;
             while (true) {
@@ -402,6 +418,10 @@ public class BatchExportService {
                 if (slice == null || slice.isEmpty()) break;
                 for (Document doc : slice.getContent()) {
                     final List<Span> spans = spanRepository.findByDocumentId(doc.getId());
+                    if (job.isExcludeThresholdAccepted() && hasThresholdAccepted(spans)) {
+                        skipped++;
+                        continue;
+                    }
                     final String line;
                     try {
                         line = lineRenderer.render(doc, spans);
@@ -424,6 +444,7 @@ public class BatchExportService {
                 // go rather than only at completion.
                 job.setProcessedDocuments(written);
                 job.setFailedDocuments(failed);
+                job.setSkippedDocuments(skipped);
                 backgroundJobRepository.save(job);
                 if (!slice.hasNext()) break;
                 page++;
@@ -434,6 +455,16 @@ public class BatchExportService {
             throw e;
         }
         return new RenderedFile(tempFile, written, Files.size(tempFile));
+    }
+
+    /**
+     * Whether any exported (APPROVED) span was accepted by the PII Threshold at ingest without a
+     * person deciding it. Dropping only those spans would leave their text labeled as not PII, so the
+     * whole document is left out instead.
+     */
+    static boolean hasThresholdAccepted(final List<Span> spans) {
+        return spans != null && spans.stream()
+                .anyMatch(s -> JsonlExportRenderer.APPROVED_STATUS.equals(s.getStatus()) && !s.decidedByPerson());
     }
 
     // Package-private for direct R2-F9 unit testing — the rule "no exception

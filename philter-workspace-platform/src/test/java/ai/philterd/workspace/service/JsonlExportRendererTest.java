@@ -88,6 +88,25 @@ class JsonlExportRendererTest {
     }
 
     @Test
+    void marksWhetherAPersonDecidedEachEntityWithoutNamingThem() throws Exception {
+        final Span threshold = span("PERSON", "John Doe", 13, 21, 0.96, "APPROVED");
+        final Span accepted = span("DATE", "2023-10-12", 39, 49, 0.70, "APPROVED");
+        accepted.setStatusChangedBy("bob@example.com");
+        final Span added = span("ORG", "Mayo Clinic", 53, 64, 1.00, "APPROVED");
+        added.setManuallyCreated(true);
+
+        final String line = renderer.render(doc("DOC-001",
+                "The patient, John Doe, was admitted on 2023-10-12 to Mayo Clinic.", "alice@example.com"),
+                List.of(threshold, accepted, added));
+        final JsonNode entities = mapper.readTree(line).get("entities");
+
+        assertEquals("threshold", entities.get(0).get("decidedBy").asText());
+        assertEquals("person", entities.get(1).get("decidedBy").asText());
+        assertEquals("person", entities.get(2).get("decidedBy").asText());
+        assertFalse(line.contains("bob@example.com"));
+    }
+
+    @Test
     void filtersOutNonApprovedSpans() throws Exception {
         // PENDING and REJECTED spans must not leak into entities — the export is
         // for "what reviewers signed off on", not "what the redactor saw".
