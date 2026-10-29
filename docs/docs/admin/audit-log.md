@@ -1,7 +1,14 @@
 # Audit log
 
-Every state-changing action in Philter Workspace is recorded in the **`audit_log`**
-collection in MongoDB. There are two ways to view and export it:
+Philter Workspace's audit log supplements Philter's. It records what only Philter Workspace knows
+about: batches, documents, spans, reviews, finalization, data sources and imports, LLM calls, the
+inbox, groups, and Philter Workspace's own settings. Sign-ins, users, passwords, MFA, API keys,
+webhooks, policies, lists, contexts, legal holds, ledgers, and Philter's settings are recorded in
+[Philter's audit log](#philters-audit-log) instead, which is readable from **Audit Log → Philter**.
+The [two logs together](#philter-workspaces-and-philters) cover what people do in Philter Workspace.
+
+Philter Workspace's entries are kept in the **`audit_log`** collection. There are two ways to view
+and export them:
 
 - **Admin → Audit log** (`/admin/audit`) — filtered slices across the whole
   system, exported as JSON or CSV. Admins only.
@@ -15,8 +22,7 @@ collection in MongoDB. There are two ways to view and export it:
 
 | Action                              | Resource    | Notes                                              |
 | ----------------------------------- | ----------- | -------------------------------------------------- |
-| `LOGIN` (success / failure)         | User        | Sign-in through Philter, with `method: philter`. A failure row carries a `reason`: `BadCredentials`, `Locked`, `RateLimited`, `MfaLocked`, `SignInDisabled`, `UnsupportedPhilter`, or `Unavailable`. See [Sign-in through Philter](../security.md#sign-in-through-philter). |
-| `LOGOUT`                            | User        | Sign-out, or a session Philter Workspace ended, with a `reason` (`philter_session_ended`, `role_changed`, `sign_in_mode_changed`) |
+| `LOGIN` (failure only)            | User        | A sign-in Philter never recorded, with a `reason`: `UnsupportedPhilter` (Philter is not 4.x), `Unavailable` (Philter could not be reached or answered with an error), `SignInDisabled` (Philter's password sign-in is off), or `NoSessionKey` (Philter accepted the sign-in but issued no session key). Other sign-ins are in Philter's log. See [Sign-in through Philter](../security.md#sign-in-through-philter). |
 | `BATCH_CREATE`                      | Batch       | Includes name, group, thresholds                    |
 | `BATCH_GROUP_CHANGE`                | Batch       | Old → new group                                     |
 | `BATCH_THRESHOLDS_CHANGE`           | Batch       | Both PII and Document threshold deltas              |
@@ -43,14 +49,9 @@ collection in MongoDB. There are two ways to view and export it:
 | `FINALIZATION_POLICY_APPLIED`       | Document    | A finalization policy ran after document finalize; payload includes `policyId`, `policyName`, `option`, and `action` |
 | `SPAN_UPDATE`                       | Span        | Status and/or type change                           |
 | `SPAN_REDACT_LIKE`                  | Span        | Counts of new-and-approved spans                    |
-| `USER_CREATE` / `_UPDATE`, `USER_PASSWORD_RESET`, `USER_DEACTIVATE` / `_REACTIVATE`, `USER_UNLOCK`, `USER_MFA_UNLOCK` / `_REMOVE`, `USER_SESSIONS_REVOKE` | User | Changes made on the Users page, through Philter |
+| `USER_UPDATE`                       | User        | A person's Philter Workspace role (User or Auditor) or groups changed under Admin → Users |
+| `USER_DELETE`                       | User        | A Philter Workspace user record deleted under Admin → Users → Records |
 | `GROUP_CREATE` / `_UPDATE` / `_DELETE` | Group    | Admin group management                              |
-| `PASSWORD_CHANGE`                   | User        | Self-service password change, in Philter            |
-| `LEGAL_HOLD_SET` / `LEGAL_HOLD_RELEASE` | LegalHold | A Philter legal hold placed or released under Admin → Legal Holds: whose evidence (`owner`, or `self`) and, when placed, its `scopeType`. The reference is not recorded. See [Legal holds](legal-holds.md). |
-| `LEDGER_EXPORT` / `LEDGER_DELETE`  | Ledger      | A Philter ledger chain exported or deleted under Admin → Ledgers: the `documentId` and whose chain (`owner`, or `self`). The export itself is never recorded. See [Ledgers](ledgers.md). |
-| `PHILTER_SETTINGS_UPDATE`          | PhilterSettings | Philter's settings changed under Admin → Philter → Settings: the names of the settings that `changed`, never their values. See [Philter settings](philter-settings.md). |
-| `PHILTER_AUDIT_EXPORT`             | PhilterAudit | Philter's audit log exported as CSV: the `from` and `to` days. |
-| `MFA_ENROLL` / `MFA_REMOVE`, `API_KEY_SCOPES_CHANGE` / `API_KEY_REVOKE`, `WEBHOOK_SET` / `WEBHOOK_REMOVE` | User | Changes to the person's own Philter account on Settings. A key is named by its Philter ID; a webhook's URL and secret are not recorded (`WEBHOOK_SET` records whether the secret changed). |
 | `NOTIFICATION_SETTINGS_CHANGE`      | Settings    | SMTP settings save (excluding the password value)   |
 | `PHILTER_TEST`                      | Philter     | Admin → Philter's Test: Philter's URL, whether it passed, and the HTTP status and reason. Never the API key. |
 | `REDACTED_PDF_REFUSED`              | Redaction   | A redacted PDF was refused rather than produced, with the reason. No document content. |
@@ -59,9 +60,30 @@ collection in MongoDB. There are two ways to view and export it:
 | `OPENSEARCH_DATASOURCE_CREATE` / `_UPDATE` / `_DELETE` | OpenSearchDataSource | Data source registered, edited (with `passwordChanged` boolean), or removed (see [Data sources](data-sources.md)) |
 | `ELASTICSEARCH_DATASOURCE_CREATE` / `_UPDATE` / `_DELETE` | ElasticsearchDataSource | Same shape as OpenSearch — separate collection, separate audit lineage |
 | `S3_DATASOURCE_CREATE` / `_DELETE`  | S3DataSource | S3 data source registered or removed                |
-| `RDB_DATASOURCE_CREATE` / `_DELETE` | RelationalDbDataSource | Relational database data source registered or removed |
+| `RDB_DATASOURCE_CREATE` / `_UPDATE` / `_DELETE` | RelationalDbDataSource | Relational database data source registered or removed |
 | `RDB_DANGEROUS_SQL_BLOCKED`         | RelationalDbDataSource | An RDB save was rejected because the SQL contains a disallowed keyword (`DELETE`, `TRUNCATE`, `DROP`). Payload includes the matched keywords and offending SQL; entityId is `null` because nothing was saved. |
 | `LOCAL_DATASOURCE_CREATE` / `_DELETE` | LocalDirectoryDataSource | Local directory data source registered or removed |
+| `RDB_DANGEROUS_JDBC_URL_BLOCKED`    | RelationalDbDataSource | An RDB save was refused because its JDBC URL is not allowed; the URL is recorded without credentials |
+| `RDB_WATERMARK_ADVANCE` / `_RESET` / `_SET_MANUAL` | RelationalDbDataSource | The incremental-import watermark moved after an import, was reset, or was set by an admin |
+| `LOCAL_DESTINATION_CREATE` / `_UPDATE` / `_DELETE` | LocalDirectoryDestination | Local directory destination added, edited, or removed |
+| `BATCH_DOMAIN_CHANGE`               | Batch       | Old → new domain                                    |
+| `BATCH_RULES_ADD` / `_UPDATE` / `_REMOVE` | Batch | An approval rule set attached to, changed on, or removed from a batch |
+| `BATCH_EXPORT`                      | Batch       | A batch export written to a destination, or failing to be; with the format, destination, and document count |
+| `DOCUMENT_QUEUED`                   | Document    | A web upload queued for redaction; the filename is recorded as a hash |
+| `DOCUMENT_COMMENT_ADD`              | Document    | A comment added to a document; its length, not its text |
+| `DOCUMENT_SEARCH`                   | Document    | A full-text search; the query is recorded as a hash, with its length and the result count |
+| `SPAN_CREATE` / `SPAN_DELETE` / `SPAN_RESET` | Span | A reviewer added, deleted, or reset a span      |
+| `FINALIZATION_POLICY_CREATE` / `_UPDATE` / `_DELETE` | FinalizationPolicy | Batch finalization policy management |
+| `COMPLIANCE_PROFILE_CREATE` / `_EDIT` / `_ARCHIVE` / `_DELETE` | ComplianceProfile | Compliance profile management |
+| `WEIGHT_SET_CREATE` / `_UPDATE` / `_DELETE` | WeightSet | Weight set management                         |
+| `INGEST_QUEUE_REMOVE`, `INGEST_QUEUE_FAILURE_CLEAR`, `INGEST_QUEUE_FAILURES_CLEAR_ALL` | Document / Settings | An admin removed a queued document or cleared ingest failures; filenames are recorded as hashes |
+| `OLLAMA_INSTANCE_CREATE` / `_DELETE` / `_TEST` | OllamaInstance | An Ollama instance added, removed, or tested    |
+| `LLM_JUDGE_DEFAULTS_CHANGE`         | Settings    | The default Ollama instances for LLM-as-a-Judge changed |
+| `GENERAL_SETTINGS_CHANGE`           | Settings    | An Admin → General setting saved: the Philter Workspace URL, upload size limit, data-import concurrency, time zone, or full-text search, with the previous value |
+| `SECURITY_SETTINGS_CHANGE`          | Settings    | The data-source host allow-list turned on or off     |
+| `NOTIFICATION_SETTINGS_TEST`        | Settings    | A test email sent from the notification settings     |
+| `USER_SETTINGS_CHANGE`              | User        | A person's review preferences saved under Settings   |
+| `ADMIN_TOOLS_CLEANUP_DATA_IMPORTS`  | Tools       | Finished data-import jobs and their logs deleted under Admin → Tools |
 
 Each entry stores:
 
@@ -71,6 +93,35 @@ Each entry stores:
 - `outcome` (`SUCCESS` / `FAILURE`)
 - `ipAddress` (honors `X-Forwarded-For` first hop)
 - `details` (per-action contextual map; never includes secrets)
+
+## Philter Workspace's and Philter's
+
+Each action Philter Workspace audits is in exactly one of the two logs. The table above lists
+Philter Workspace's. Earlier versions also wrote the actions below, which Philter's audit log
+records, naming the same person, so Philter Workspace no longer writes them. Entries already written
+are kept, and are queried and exported like any other.
+
+| No longer written                    | Recorded by Philter as                                            |
+| ------------------------------------ | ----------------------------------------------------------------- |
+| `LOGIN` (success)                    | `sign_in_succeeded`                                               |
+| `LOGIN` (failure: `BadCredentials`, `Locked`, `RateLimited`, `MfaLocked`) | `sign_in_failed`, `sign_in_locked`, `sign_in_rate_limited`, `user_mfa_locked` |
+| `LOGOUT`                             | `api_key_deleted` (the session key revoked) or `api_key_expired`  |
+| `PASSWORD_CHANGE`                    | `user_password_changed`                                           |
+| `USER_CREATE`                        | `user_created`                                                    |
+| `USER_UPDATE` (Philter role or email) | `user_role_changed`, `user_email_changed`                        |
+| `USER_PASSWORD_RESET`                | `user_password_reset`, or `user_password_set` for a user who had no password |
+| `USER_DEACTIVATE` / `_REACTIVATE`    | `user_deactivated`, `user_reactivated`                            |
+| `USER_UNLOCK`                        | `sign_in_unlocked`                                                |
+| `USER_MFA_UNLOCK` / `_REMOVE`        | `user_mfa_unlocked`, `user_mfa_removed`                           |
+| `USER_SESSIONS_REVOKE`               | `api_key_deleted`                                                 |
+| `MFA_ENROLL` / `MFA_REMOVE`          | `user_mfa_enrolled`, `user_mfa_removed`                           |
+| `API_KEY_SCOPES_CHANGE` / `API_KEY_REVOKE` | `api_key_scopes_changed`, `api_key_deleted`                 |
+| `WEBHOOK_SET` / `WEBHOOK_REMOVE`     | `webhook_configured`, `webhook_removed`                           |
+| `LEGAL_HOLD_SET` / `LEGAL_HOLD_RELEASE` | `legal_hold_set`, `legal_hold_released` (and `admin_cross_user_access` naming an administrator acting for another user) |
+| `LEDGER_EXPORT` / `LEDGER_DELETE`    | `redaction_ledger_exported`, `redaction_ledger_deleted`           |
+| `PHILTER_SETTINGS_UPDATE`            | `settings_updated`                                                |
+| `PHILTER_AUDIT_EXPORT`               | `audit_log_exported`                                              |
+| `API_KEY_GENERATE` / `API_KEY_REVOKE` (Philter Workspace's own keys) | Philter Workspace no longer has API keys of its own; Philter's keys are audited as `api_key_created` and `api_key_deleted` |
 
 ## Export
 

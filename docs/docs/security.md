@@ -77,15 +77,14 @@ with `PASSWORD_SIGN_IN_ENABLED=true`, and Philter Workspace reaches it at `PHILT
 - **Users.** The Users page manages Philter's users through its Users API, with the signed-in
   administrator's session key (see
   [Users](admin/users-and-groups.md#users-adminusers)).
-- **Audit.** Sign-ins are recorded as `LOGIN` with `method: philter`, and a
-  failure's `reason` is one of `BadCredentials`, `Locked`, `RateLimited`,
-  `MfaLocked`, `SignInDisabled`, `UnsupportedPhilter`, or `Unavailable`. A session ended because
-  Philter rejected its key is a `LOGOUT` with
-  `reason: philter_session_ended`, one ended by a role change has
-  `reason: role_changed`, and a session left from Philter Workspace's removed local sign-in has
-  `reason: sign_in_mode_changed`. Each of those also revokes the
-  key, unless Philter had already rejected it. Philter records its own events, such as
-  `sign_in_succeeded`, in its audit log.
+- **Audit.** Philter records sign-ins (`sign_in_succeeded`, `sign_in_failed`, and the locks)
+  and sign-outs (the session key's `api_key_deleted`) in its audit log, readable from **Audit
+  Log → Philter**. Philter Workspace's log records only a sign-in Philter never saw, as a `LOGIN`
+  failure with `method: philter` and a `reason` of `UnsupportedPhilter`, `Unavailable`,
+  `SignInDisabled`, or `NoSessionKey`. A session Philter Workspace ends because Philter rejected its
+  key, the person's role changed, or it was left from the removed local sign-in also revokes the
+  key, unless Philter had already rejected it; the application log notes which. See
+  [Audit log](admin/audit-log.md#philter-workspaces-and-philters).
 
 ### First sign-in
 

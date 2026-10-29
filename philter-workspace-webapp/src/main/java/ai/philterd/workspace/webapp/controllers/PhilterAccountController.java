@@ -23,8 +23,6 @@ import ai.philterd.philter.model.exceptions.PhilterError;
 import ai.philterd.philter.model.exceptions.SignInThrottledException;
 import ai.philterd.philter.model.exceptions.UnauthorizedException;
 import ai.philterd.workspace.philter.PhilterClients;
-import ai.philterd.workspace.repository.UserRepository;
-import ai.philterd.workspace.service.AuditLogService;
 import ai.philterd.workspace.service.PhilterSettings;
 import ai.philterd.workspace.webapp.security.MfaQrCodes;
 import ai.philterd.workspace.webapp.security.PhilterAccountService;
@@ -79,18 +77,13 @@ public class PhilterAccountController {
     private final PhilterSignInService signInService;
     private final PhilterSettings philter;
     private final MfaQrCodes qrCodes;
-    private final AuditLogService auditLogService;
-    private final UserRepository userRepository;
 
     public PhilterAccountController(final PhilterAccountService account, final PhilterSignInService signInService,
-                                    final PhilterSettings philter, final MfaQrCodes qrCodes,
-                                    final AuditLogService auditLogService, final UserRepository userRepository) {
+                                    final PhilterSettings philter, final MfaQrCodes qrCodes) {
         this.account = account;
         this.signInService = signInService;
         this.philter = philter;
         this.qrCodes = qrCodes;
-        this.auditLogService = auditLogService;
-        this.userRepository = userRepository;
     }
 
     /**
@@ -150,7 +143,6 @@ public class PhilterAccountController {
         }
         try {
             signInService.confirmMfaEnrollment(person.getEncryptedSessionKey(), code.trim());
-            audit(person, "MFA_ENROLL", Map.of());
         } catch (Exception e) {
             if (e instanceof UnauthorizedException) {
                 return PhilterSessions.end(request);
@@ -173,7 +165,6 @@ public class PhilterAccountController {
         }
         try {
             account.removeMfa(person.getEncryptedSessionKey(), code.trim());
-            audit(person, "MFA_REMOVE", Map.of());
             flash.addFlashAttribute("success", "Multi-factor authentication removed.");
         } catch (Exception e) {
             if (e instanceof UnauthorizedException) {
@@ -265,7 +256,6 @@ public class PhilterAccountController {
                         FormErrors.of("A key keeps at least one scope. To stop it working, revoke it."));
             }
             final ApiKey saved = account.setScopes(key, id, chosen);
-            audit(person, "API_KEY_SCOPES_CHANGE", Map.of("keyId", id, "scopes", String.join(",", chosen)));
             flash.addFlashAttribute("success", "Scopes of " + saved.getPrefix() + " changed.");
         } catch (Exception e) {
             if (e instanceof UnauthorizedException) {
@@ -312,7 +302,6 @@ public class PhilterAccountController {
         }
         try {
             account.revoke(person.getEncryptedSessionKey(), id);
-            audit(person, "API_KEY_REVOKE", Map.of("keyId", id));
             flash.addFlashAttribute("success", "Key revoked.");
         } catch (Exception e) {
             if (e instanceof UnauthorizedException) {
@@ -378,8 +367,6 @@ public class PhilterAccountController {
             try {
                 account.setWebhook(person.getEncryptedSessionKey(), trimmedUrl,
                         trimmedSecret.isEmpty() ? null : trimmedSecret);
-                // Neither the URL nor the secret is recorded, as in Philter's own audit log.
-                audit(person, "WEBHOOK_SET", Map.of("secretChanged", !trimmedSecret.isEmpty()));
                 flash.addFlashAttribute("success", trimmedSecret.isEmpty() ? "Webhook saved."
                         : "Webhook saved. Philter does not show the secret again; make sure the receiving service has it.");
                 return "redirect:" + WEBHOOK_PATH;
@@ -416,7 +403,6 @@ public class PhilterAccountController {
         }
         try {
             account.removeWebhook(person.getEncryptedSessionKey());
-            audit(person, "WEBHOOK_REMOVE", Map.of());
             flash.addFlashAttribute("success", "Webhook removed.");
         } catch (Exception e) {
             if (e instanceof UnauthorizedException) {
@@ -449,14 +435,6 @@ public class PhilterAccountController {
     }
 
     // ---- helpers
-
-    /** Records a change to the person's own Philter account in Philter Workspace's audit log; Philter audits it too. */
-    private void audit(final PhilterSessionAuthentication person, final String action, final Map<String, Object> details) {
-        final Map<String, Object> all = new LinkedHashMap<>(details);
-        all.put("method", "philter");
-        final String recordId = userRepository.findByEmail(person.getName()).map(u -> u.getId()).orElse(null);
-        auditLogService.log(action, "User", recordId, all);
-    }
 
     static Confirmation webhookRemoval() {
         return new Confirmation("Remove your webhook?",

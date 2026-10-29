@@ -190,6 +190,12 @@
                 <a th:href="@{/admin/audit}" aria-current="page" class="px-3 py-1.5 rounded-md font-medium bg-blue-50 text-blue-700">Philter Workspace</a>
                 <a th:href="@{/admin/audit/philter}" class="px-3 py-1.5 rounded-md font-medium text-gray-600 hover:bg-gray-100">Philter</a>
             </nav>
+            <p class="text-sm text-gray-600 mb-4 max-w-3xl">Philter Workspace's audit log supplements Philter's: it
+                records batches, documents, spans, reviews, finalization, data sources and imports, LLM calls, the
+                inbox, groups, and Philter Workspace's settings. Sign-ins, users, passwords, MFA, API keys, webhooks,
+                policies, lists, contexts, legal holds, ledgers, and Philter's settings are in
+                <a th:href="@{/admin/audit/philter}" class="text-blue-600 hover:text-blue-800">Philter's audit log</a>.
+                Entries this log wrote for them before are kept.</p>
 
             <!-- Tab bar. Same pattern used elsewhere in the admin UI: ?tab=… on
                  load picks the active panel, click handlers swap panels and
@@ -239,7 +245,7 @@
                             <div>
                                 <label for="qAction" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Action</label>
                                 <input id="qAction" name="action" type="text"
-                                       placeholder="e.g. LOGIN, DOCUMENT_APPROVAL, USER_UPDATE"
+                                       placeholder="e.g. DOCUMENT_APPROVAL, BATCH_CREATE, USER_UPDATE"
                                        class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
                             </div>
                         </div>

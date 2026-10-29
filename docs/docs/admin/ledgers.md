@@ -52,5 +52,6 @@ recovery), and not while a [legal hold](legal-holds.md) covers the chain or anot
 change for the same user is running. The page says which applies, except that Philter does not say
 which of the last two refused it.
 
-Exports and deletions are recorded in Philter Workspace's audit log as `LEDGER_EXPORT` and
-`LEDGER_DELETE`, with the document ID and whose chain it is.
+Philter records reads, exports, and deletions in its audit log (`redaction_ledger_query`,
+`redaction_ledger_exported`, and `redaction_ledger_deleted`), readable from **Audit Log →
+Philter**. Philter Workspace's own log does not repeat them.

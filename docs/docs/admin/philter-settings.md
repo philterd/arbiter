@@ -25,5 +25,5 @@ connection to Philter.
   `LEDGER_DELETION_ENABLED` are on. They are read-only here.
 
 Only the settings you change are sent, so a setting someone else changed while you had the page open
-is not overwritten. Saving is recorded in Philter Workspace's audit log as `PHILTER_SETTINGS_UPDATE`,
-naming the settings that changed but not their values.
+is not overwritten. Philter records saving in its audit log (`settings_updated`, naming the
+settings that changed but not their values), readable from **Audit Log → Philter**.

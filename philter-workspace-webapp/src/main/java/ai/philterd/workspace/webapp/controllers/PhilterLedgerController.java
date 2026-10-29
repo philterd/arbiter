@@ -17,7 +17,6 @@ import ai.philterd.philter.model.exceptions.ErrorReasons;
 import ai.philterd.philter.model.exceptions.PhilterError;
 import ai.philterd.philter.model.exceptions.UnauthorizedException;
 import ai.philterd.workspace.philter.PhilterClients;
-import ai.philterd.workspace.service.AuditLogService;
 import ai.philterd.workspace.service.AuthUtils;
 import ai.philterd.workspace.webapp.security.PhilterLedgerService;
 import ai.philterd.workspace.webapp.security.PhilterSessionAuthentication;
@@ -86,11 +85,9 @@ public class PhilterLedgerController {
     static final String UNREADABLE = "An entry in this chain can no longer be read, so Philter does not export it.";
 
     private final PhilterLedgerService ledger;
-    private final AuditLogService auditLogService;
 
-    public PhilterLedgerController(final PhilterLedgerService ledger, final AuditLogService auditLogService) {
+    public PhilterLedgerController(final PhilterLedgerService ledger) {
         this.ledger = ledger;
-        this.auditLogService = auditLogService;
     }
 
     /** One chain in the list: its first entry, whose it is when not the person's own, and its links. */
@@ -202,7 +199,6 @@ public class PhilterLedgerController {
                     ? UNREADABLE : actionError(e, owner));
             return new ModelAndView("redirect:" + VIEW_PATH + query(documentId, owner));
         }
-        audit("LEDGER_EXPORT", owner, Map.of("documentId", documentId));
         final byte[] body = GSON.toJson(export).getBytes(StandardCharsets.UTF_8);
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
@@ -234,7 +230,6 @@ public class PhilterLedgerController {
         final String owner = ownerFor(authentication, requestedOwner);
         try {
             ledger.delete(person.getEncryptedSessionKey(), documentId, owner);
-            audit("LEDGER_DELETE", owner, Map.of("documentId", documentId));
             flash.addFlashAttribute("success", "Ledger chain for document " + documentId + " deleted.");
         } catch (Exception e) {
             if (e instanceof UnauthorizedException) {
@@ -291,17 +286,6 @@ public class PhilterLedgerController {
     static String fileName(final String documentId) {
         final String safe = documentId.replaceAll("[^A-Za-z0-9._-]", "_");
         return "ledger-" + (safe.length() > 100 ? safe.substring(0, 100) : safe) + ".json";
-    }
-
-    /**
-     * Records a ledger action in Philter Workspace's audit log. The document ID is Philter's identifier, not
-     * personal information; the export itself is never recorded.
-     */
-    private void audit(final String action, final String owner, final Map<String, Object> details) {
-        final Map<String, Object> all = new LinkedHashMap<>(details);
-        all.put("method", "philter");
-        all.put("owner", owner == null ? "self" : owner);
-        auditLogService.log(action, "Ledger", null, all);
     }
 
     private static String deleteError(final Exception e, final String owner) {

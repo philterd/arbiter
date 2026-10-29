@@ -45,6 +45,6 @@ again, unless another hold still covers it. Only the person who placed a hold, o
 administrator, can release it. Philter refuses a change while it is deleting or changing holds on
 the same user's evidence; try again shortly.
 
-Placing and releasing a hold are recorded in Philter Workspace's audit log as `LEGAL_HOLD_SET`
-and `LEGAL_HOLD_RELEASE`, with whose evidence it is and, for a placed hold, its scope. The
-reference is recorded only in Philter's audit log.
+Philter records placing and releasing a hold in its audit log (`legal_hold_set` and
+`legal_hold_released`, with the reference), readable from **Audit Log → Philter**. Philter
+Workspace's own log does not repeat them.

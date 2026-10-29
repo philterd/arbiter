@@ -18,7 +18,6 @@ import ai.philterd.philter.model.UpdateAdminSettingsRequest;
 import ai.philterd.philter.model.exceptions.PhilterError;
 import ai.philterd.philter.model.exceptions.UnauthorizedException;
 import ai.philterd.workspace.philter.PhilterClients;
-import ai.philterd.workspace.service.AuditLogService;
 import ai.philterd.workspace.service.AuthUtils;
 import ai.philterd.workspace.webapp.security.PhilterAdminService;
 import ai.philterd.workspace.webapp.security.PhilterSessionAuthentication;
@@ -80,11 +79,9 @@ public class PhilterAdminController {
             + "Philter's settings since you opened this page, reload it and make your change again.";
 
     private final PhilterAdminService philter;
-    private final AuditLogService auditLogService;
 
-    public PhilterAdminController(final PhilterAdminService philter, final AuditLogService auditLogService) {
+    public PhilterAdminController(final PhilterAdminService philter) {
         this.philter = philter;
-        this.auditLogService = auditLogService;
     }
 
     /** The form's values: Philter's settings as read, or as the administrator submitted them. */
@@ -218,9 +215,6 @@ public class PhilterAdminController {
                     : FormErrors.from(e).message();
             return settingsAgain(person, authentication, model, submitted, original, message);
         }
-        // Names the settings that changed, never their values: the Phield API key is a secret.
-        auditLogService.log("PHILTER_SETTINGS_UPDATE", "PhilterSettings", null,
-                Map.of("method", "philter", "changed", String.join(",", changed)));
         flash.addFlashAttribute("success", "Philter's settings saved.");
         if (saved.getWarnings() != null && !saved.getWarnings().isEmpty()) {
             flash.addFlashAttribute("warnings", saved.getWarnings());
@@ -317,9 +311,6 @@ public class PhilterAdminController {
                     ? NOT_ADMIN : FormErrors.from(e).message());
             return new ModelAndView("redirect:" + AUDIT_PATH);
         }
-        // Recorded once Philter has answered, before the download starts, so a download cut short is still recorded.
-        auditLogService.log("PHILTER_AUDIT_EXPORT", "PhilterAudit", null, Map.of("method", "philter",
-                "from", from.toString(), "to", to.toString()));
         response.setContentType("text/csv");
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setHeader(HttpHeaders.CONTENT_DISPOSITION,
@@ -347,7 +338,7 @@ public class PhilterAdminController {
                 // The last page asks only for what the cap leaves, so a download holds at most the cap.
                 page = philter.exportPage(key, from, to, next, Math.min(EXPORT_PAGE, MAXIMUM_EXPORT_EVENTS - rows));
             } catch (Exception e) {
-                // The download has started, so the failure can only end it short; the audit entry says so.
+                // The download has started, so the failure can only end it short; the log says so.
                 log.warn("Philter's audit export stopped after {} events: {}", rows, PhilterClients.describe(e));
                 complete = false;
                 break;

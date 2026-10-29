@@ -269,8 +269,8 @@ public class PhilterUsersController {
             return refused(e, request, flash, "A user with that username already exists in Philter, "
                     + "active or deactivated.");
         }
-        final ai.philterd.workspace.model.User record = provisioner.setWorkspaceRole(name, role, false);
-        audit("USER_CREATE", record.getId(), name, Map.of("role", role));
+        // Philter's audit log records the new user (user_created); Philter Workspace's record follows it.
+        provisioner.setWorkspaceRole(name, role, false);
         flash.addFlashAttribute("success", "User \"" + name + "\" added. They choose their own password at first sign-in.");
         return REDIRECT;
     }
@@ -298,7 +298,6 @@ public class PhilterUsersController {
         }
         provisioner.applyPhilterRole(username, role);
         expireSessions(username);
-        audit("USER_UPDATE", recordId(username), username, Map.of("philterRole", role));
         flash.addFlashAttribute("success", "\"" + username + "\" is now " + (PHILTER_ADMIN.equals(role)
                 ? "an administrator." : "a user."));
         return REDIRECT;
@@ -320,7 +319,6 @@ public class PhilterUsersController {
         } catch (Exception e) {
             return refused(e, request, flash, "The email address was not changed.");
         }
-        audit("USER_UPDATE", recordId(username), username, Map.of("emailChanged", true));
         flash.addFlashAttribute("success", "Email address of \"" + username + "\" updated.");
         return REDIRECT;
     }
@@ -342,7 +340,6 @@ public class PhilterUsersController {
             return refused(e, request, flash, "The password was not reset. Try again.");
         }
         expireSessions(username);
-        audit("USER_PASSWORD_RESET", recordId(username), username, Map.of());
         flash.addFlashAttribute("success", "Password of \"" + username + "\" reset. They choose a new one at "
                 + "next sign-in, and their current sessions have ended.");
         return REDIRECT;
@@ -363,7 +360,6 @@ public class PhilterUsersController {
                     + "already deactivated or the last active administrator.");
         }
         expireSessions(username);
-        audit("USER_DEACTIVATE", recordId(username), username, Map.of());
         flash.addFlashAttribute("success", "\"" + username + "\" deactivated.");
         return REDIRECT;
     }
@@ -381,7 +377,6 @@ public class PhilterUsersController {
         } catch (Exception e) {
             return refused(e, request, flash, "\"" + username + "\" is already active.");
         }
-        audit("USER_REACTIVATE", recordId(username), username, Map.of());
         flash.addFlashAttribute("success", "\"" + username + "\" reactivated.");
         return REDIRECT;
     }
@@ -399,7 +394,6 @@ public class PhilterUsersController {
         } catch (Exception e) {
             return refused(e, request, flash, "Sign-in for \"" + username + "\" is not locked.");
         }
-        audit("USER_UNLOCK", recordId(username), username, Map.of());
         flash.addFlashAttribute("success", "Sign-in for \"" + username + "\" unlocked.");
         return REDIRECT;
     }
@@ -417,7 +411,6 @@ public class PhilterUsersController {
         } catch (Exception e) {
             return refused(e, request, flash, "Two-factor authentication for \"" + username + "\" is not locked.");
         }
-        audit("USER_MFA_UNLOCK", recordId(username), username, Map.of());
         flash.addFlashAttribute("success", "Two-factor authentication for \"" + username + "\" unlocked.");
         return REDIRECT;
     }
@@ -435,7 +428,6 @@ public class PhilterUsersController {
         } catch (Exception e) {
             return refused(e, request, flash, "\"" + username + "\" has no two-factor authentication to remove.");
         }
-        audit("USER_MFA_REMOVE", recordId(username), username, Map.of());
         flash.addFlashAttribute("success", "Two-factor authentication removed from \"" + username
                 + "\". They set it up again at next sign-in if it is required.");
         return REDIRECT;
@@ -456,7 +448,6 @@ public class PhilterUsersController {
             return refused(e, request, flash, "\"" + username + "\" was not signed out.");
         }
         expireSessions(username);
-        audit("USER_SESSIONS_REVOKE", recordId(username), username, Map.of("revoked", revoked));
         flash.addFlashAttribute("success", "\"" + username + "\" signed out everywhere.");
         return REDIRECT;
     }
@@ -669,10 +660,6 @@ public class PhilterUsersController {
 
     private void expireSessions(final String username) {
         sessionRegistry.getAllSessions(username, false).forEach(SessionInformation::expireNow);
-    }
-
-    private String recordId(final String username) {
-        return userRepository.findByEmail(username).map(ai.philterd.workspace.model.User::getId).orElse(null);
     }
 
     private void audit(final String action, final String recordId, final String username,

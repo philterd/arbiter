@@ -17,7 +17,6 @@ import ai.philterd.philter.model.exceptions.ErrorReasons;
 import ai.philterd.philter.model.exceptions.PhilterError;
 import ai.philterd.philter.model.exceptions.UnauthorizedException;
 import ai.philterd.workspace.philter.PhilterClients;
-import ai.philterd.workspace.service.AuditLogService;
 import ai.philterd.workspace.service.AuthUtils;
 import ai.philterd.workspace.webapp.security.PhilterHoldsService;
 import ai.philterd.workspace.webapp.security.PhilterSessionAuthentication;
@@ -79,11 +78,9 @@ public class PhilterHoldsController {
                     + "release it.");
 
     private final PhilterHoldsService holds;
-    private final AuditLogService auditLogService;
 
-    public PhilterHoldsController(final PhilterHoldsService holds, final AuditLogService auditLogService) {
+    public PhilterHoldsController(final PhilterHoldsService holds) {
         this.holds = holds;
-        this.auditLogService = auditLogService;
     }
 
     /** One hold in the list, with whose evidence it covers when not the person's own. */
@@ -174,7 +171,6 @@ public class PhilterHoldsController {
         hold.setReason(reason.isBlank() ? null : reason.trim());
         try {
             holds.place(person.getEncryptedSessionKey(), hold, owner);
-            audit("LEGAL_HOLD_SET", owner, Map.of("scopeType", chosenScope));
         } catch (Exception e) {
             if (e instanceof UnauthorizedException) {
                 return PhilterSessions.end(request);
@@ -207,7 +203,6 @@ public class PhilterHoldsController {
         final String owner = ownerFor(authentication, requestedOwner);
         try {
             holds.release(person.getEncryptedSessionKey(), reference, owner);
-            audit("LEGAL_HOLD_RELEASE", owner, Map.of());
             flash.addFlashAttribute("success", "Hold \"" + reference + "\" released.");
         } catch (Exception e) {
             if (e instanceof UnauthorizedException) {
@@ -234,17 +229,6 @@ public class PhilterHoldsController {
     }
 
     // ---- helpers
-
-    /**
-     * Records a hold change in Philter Workspace's audit log, naming whose evidence it is. The reference is left
-     * out, since it is free text that can name a person; Philter's audit log keeps it.
-     */
-    private void audit(final String action, final String owner, final Map<String, Object> details) {
-        final Map<String, Object> all = new LinkedHashMap<>(details);
-        all.put("method", "philter");
-        all.put("owner", owner == null ? "self" : owner);
-        auditLogService.log(action, "LegalHold", null, all);
-    }
 
     private static Row row(final LegalHoldResponse hold, final String owner) {
         return new Row(hold, owner, release(hold.getReference(), owner));

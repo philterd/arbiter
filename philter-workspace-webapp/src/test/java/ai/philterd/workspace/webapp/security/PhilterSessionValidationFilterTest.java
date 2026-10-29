@@ -51,7 +51,6 @@ class PhilterSessionValidationFilterTest {
     private static final long NOW = 1_800_000_000_000L;
 
     private PhilterSignInService signInService;
-    private AuditLogService auditLogService;
     private UserRepository userRepository;
     private PhilterSessionValidationFilter filter;
     private MockHttpSession session;
@@ -62,10 +61,9 @@ class PhilterSessionValidationFilterTest {
     @BeforeEach
     void setUp() {
         signInService = mock(PhilterSignInService.class);
-        auditLogService = mock(AuditLogService.class);
         userRepository = mock(UserRepository.class);
         stored(Roles.USER);
-        filter = new PhilterSessionValidationFilter(signInService, userRepository, auditLogService,
+        filter = new PhilterSessionValidationFilter(signInService, userRepository,
                 Clock.fixed(Instant.ofEpochMilli(NOW), ZoneOffset.UTC));
         session = new MockHttpSession();
         request = new MockHttpServletRequest("GET", "/queue");
@@ -132,8 +130,6 @@ class PhilterSessionValidationFilterTest {
         assertTrue(session.isInvalid());
         assertNull(SecurityContextHolder.getContext().getAuthentication());
         assertEquals("/login?expired", response.getRedirectedUrl());
-        verify(auditLogService).logForUser(eq("jdoe"), eq("LOGOUT"), eq("User"), eq(null),
-                eq(AuditLogService.OUTCOME_SUCCESS), any());
     }
 
     @Test
@@ -199,8 +195,6 @@ class PhilterSessionValidationFilterTest {
 
         assertTrue(session.isInvalid());
         verify(chain, never()).doFilter(any(), any());
-        verify(auditLogService).logForUser(eq("jdoe"), eq("LOGOUT"), eq("User"), eq(null),
-                eq(AuditLogService.OUTCOME_SUCCESS), eq(Map.of("reason", "role_changed")));
     }
 
     @Test
@@ -246,8 +240,6 @@ class PhilterSessionValidationFilterTest {
 
         assertTrue(session.isInvalid());
         verify(signInService).signOut("enc-key");
-        verify(auditLogService).logForUser(eq("jdoe"), eq("LOGOUT"), eq("User"), eq(null),
-                eq(AuditLogService.OUTCOME_SUCCESS), eq(Map.of("reason", "role_changed")));
     }
 
     @Test
@@ -283,7 +275,7 @@ class PhilterSessionValidationFilterTest {
     @Test
     void intervalOfZeroChecksEveryRequest() throws Exception {
         final PhilterSessionValidationFilter everyRequest = new PhilterSessionValidationFilter(signInService,
-                userRepository, auditLogService, Clock.fixed(Instant.ofEpochMilli(NOW), ZoneOffset.UTC),
+                userRepository, Clock.fixed(Instant.ofEpochMilli(NOW), ZoneOffset.UTC),
                 java.time.Duration.ZERO);
         when(signInService.currentUser("enc-key")).thenReturn(active(true));
 

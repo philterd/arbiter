@@ -87,8 +87,8 @@ class PhilterSignInFlowTest {
         assertEquals("ROLE_ADMIN", auth.getAuthorities().iterator().next().getAuthority());
         assertFalse(auth.toString().contains("sk_session"));
         assertFalse(auth.toString().contains("jdoe"));
-        verify(auditLogService).logForUser(eq("jdoe"), eq("LOGIN"), eq("User"), eq(null),
-                eq(AuditLogService.OUTCOME_SUCCESS), eq(Map.of("method", "philter")));
+        // Philter's audit log records the sign-in, so Philter Workspace's does not repeat it.
+        verify(auditLogService, never()).logForUser(any(), any(), any(), any(), any(), any());
     }
 
     @Test
@@ -146,8 +146,16 @@ class PhilterSignInFlowTest {
         final AuthenticationException e = flow.refused("jdoe", new UnauthorizedException("Unauthorized"));
 
         assertInstanceOf(BadCredentialsException.class, e);
+        // Philter recorded the refusal itself.
+        verify(auditLogService, never()).logForUser(any(), any(), any(), any(), any(), any());
+    }
+
+    @Test
+    void aSignInPhilterNeverSawIsAudited() {
+        flow.refused("jdoe", new java.io.IOException("connection refused"));
+
         verify(auditLogService).logForUser(eq("jdoe"), eq("LOGIN"), eq("User"), eq(null),
-                eq(AuditLogService.OUTCOME_FAILURE), eq(Map.of("reason", "BadCredentials", "method", "philter")));
+                eq(AuditLogService.OUTCOME_FAILURE), eq(Map.of("reason", "Unavailable", "method", "philter")));
     }
 
     @Test
@@ -179,17 +187,6 @@ class PhilterSignInFlowTest {
         when(signInService.currentUser("enc(sk_session)")).thenReturn(me("jdoe", "user"));
         when(provisioner.provision("jdoe", "user"))
                 .thenThrow(new org.springframework.dao.DuplicateKeyException("concurrent first sign-in"));
-
-        assertThrows(AuthenticationServiceException.class, () -> flow.complete(key("sk_session"), "jdoe"));
-        verify(signInService).signOut("enc(sk_session)");
-    }
-
-    @Test
-    void keyIsRevokedWhenTheSignInCannotBeAudited() throws IOException {
-        when(signInService.currentUser("enc(sk_session)")).thenReturn(me("jdoe", "user"));
-        when(provisioner.provision("jdoe", "user")).thenReturn("USER");
-        org.mockito.Mockito.doThrow(new IllegalStateException("audit store down")).when(auditLogService)
-                .logForUser(eq("jdoe"), eq("LOGIN"), any(), any(), eq(AuditLogService.OUTCOME_SUCCESS), any());
 
         assertThrows(AuthenticationServiceException.class, () -> flow.complete(key("sk_session"), "jdoe"));
         verify(signInService).signOut("enc(sk_session)");

@@ -33,8 +33,8 @@ import java.util.Map;
 
 /**
  * Turns Philter's answer to a sign-in into a Philter Workspace sign-in: the person is signed in, or has another
- * step to complete ({@link PhilterSignInStepException}), or is refused. Every outcome except a pending
- * step writes a {@code LOGIN} audit entry, without the password.
+ * step to complete ({@link PhilterSignInStepException}), or is refused. Philter audits the sign-ins it handles;
+ * only a refusal it never sees writes a {@code LOGIN} audit entry here, without the password.
  */
 @Service
 public class PhilterSignInFlow {
@@ -85,9 +85,8 @@ public class PhilterSignInFlow {
         final String role;
         try {
             me = signInService.currentUser(encryptedKey);
+            // A successful sign-in is in Philter's audit log (sign_in_succeeded), so it is not repeated here.
             role = provisioner.provision(me.getUsername(), me.getRole());
-            auditLogService.logForUser(me.getUsername(), "LOGIN", "User", null,
-                    AuditLogService.OUTCOME_SUCCESS, Map.of("method", "philter"));
         } catch (Exception e) {
             signOutQuietly(encryptedKey);
             throw refused(name, e);
@@ -151,10 +150,21 @@ public class PhilterSignInFlow {
         return agent.length() > MAX_USER_AGENT_LENGTH ? agent.substring(0, MAX_USER_AGENT_LENGTH) : agent;
     }
 
+    /**
+     * Audits a refused sign-in only when Philter's audit log does not have it: Philter records the sign-ins it
+     * refuses itself (a wrong password, a lock, the rate limit, locked MFA), but not one it never received or
+     * one Philter Workspace refused after it.
+     */
     private AuthenticationException fail(final String username, final String reason,
                                          final AuthenticationException e) {
-        auditLogService.logForUser(username, "LOGIN", "User", null, AuditLogService.OUTCOME_FAILURE,
-                Map.of("reason", reason, "method", "philter"));
+        if (UNSEEN_BY_PHILTER.contains(reason)) {
+            auditLogService.logForUser(username, "LOGIN", "User", null, AuditLogService.OUTCOME_FAILURE,
+                    Map.of("reason", reason, "method", "philter"));
+        }
         return e;
     }
+
+    /** Refusals Philter's audit log does not record, which Philter Workspace's does. */
+    static final java.util.Set<String> UNSEEN_BY_PHILTER =
+            java.util.Set.of("UnsupportedPhilter", "Unavailable", "SignInDisabled", "NoSessionKey");
 }

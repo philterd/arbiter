@@ -145,8 +145,7 @@ class PhilterHoldsPageTest extends WebMvcSliceMocks {
         assertEquals("document_chain", sent.getValue().getScopeType());
         assertEquals("doc-123", sent.getValue().getScopeValue());
         assertEquals("Matter 2026-17", sent.getValue().getReason());
-        verify(auditLogService).log(eq("LEGAL_HOLD_SET"), eq("LegalHold"), isNull(),
-                eq(Map.of("scopeType", "document_chain", "method", "philter", "owner", "ws")));
+        verify(auditLogService, never()).log(eq("LEGAL_HOLD_SET"), any(), any(), any());
     }
 
     @Test
@@ -213,7 +212,6 @@ class PhilterHoldsPageTest extends WebMvcSliceMocks {
                 .andExpect(redirectedUrl("/admin/holds?owner=ws"))
                 .andExpect(flash().attribute("success", "Hold \"matter-17\" released."));
         verify(holds).release(KEY, "matter-17", "ws");
-        verify(auditLogService).log(eq("LEGAL_HOLD_RELEASE"), eq("LegalHold"), isNull(),
-                eq(Map.of("method", "philter", "owner", "ws")));
+        verify(auditLogService, never()).log(eq("LEGAL_HOLD_RELEASE"), any(), any(), any());
     }
 }

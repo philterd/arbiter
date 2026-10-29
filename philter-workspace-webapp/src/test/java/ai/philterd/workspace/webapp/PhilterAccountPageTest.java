@@ -225,8 +225,7 @@ class PhilterAccountPageTest extends WebMvcSliceMocks {
                 .andExpect(redirectedUrl("/settings/api-keys"))
                 .andExpect(flash().attribute("success", "Key revoked."));
         verify(account).revoke(KEY, "k1");
-        verify(auditLogService).log(eq("API_KEY_REVOKE"), eq("User"), any(),
-                eq(java.util.Map.of("keyId", "k1", "method", "philter")));
+        verify(auditLogService, never()).log(eq("API_KEY_REVOKE"), any(), any(), any());
     }
 
     @Test
@@ -281,8 +280,7 @@ class PhilterAccountPageTest extends WebMvcSliceMocks {
                 .andExpect(redirectedUrl("/settings/webhook"))
                 .andExpect(flash().attribute("success", "Webhook saved."));
         verify(account).setWebhook(KEY, "https://hooks.example.com/new", null);
-        verify(auditLogService).log(eq("WEBHOOK_SET"), eq("User"), any(),
-                eq(java.util.Map.of("secretChanged", false, "method", "philter")));
+        verify(auditLogService, never()).log(eq("WEBHOOK_SET"), any(), any(), any());
     }
 
     @Test

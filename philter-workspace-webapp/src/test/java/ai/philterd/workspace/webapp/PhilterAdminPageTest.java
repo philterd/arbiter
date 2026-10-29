@@ -141,8 +141,7 @@ class PhilterAdminPageTest extends WebMvcSliceMocks {
         assertNull(sent.getValue().getMfaAvailable(), "unchanged settings are not sent");
         assertNull(sent.getValue().getWebhookAllowlist());
         assertNull(sent.getValue().getPhieldUrl());
-        verify(auditLogService).log(eq("PHILTER_SETTINGS_UPDATE"), eq("PhilterSettings"), isNull(),
-                eq(Map.of("method", "philter", "changed", "mfaRequired,phieldApiKey")));
+        verify(auditLogService, never()).log(eq("PHILTER_SETTINGS_UPDATE"), any(), any(), any());
     }
 
     @Test
@@ -256,8 +255,7 @@ class PhilterAdminPageTest extends WebMvcSliceMocks {
                 result.getResponse().getContentAsString());
         assertEquals("attachment; filename=\"philter-audit-2026-10-01-to-2026-10-02.csv\"",
                 result.getResponse().getHeader("Content-Disposition"));
-        verify(auditLogService).log(eq("PHILTER_AUDIT_EXPORT"), eq("PhilterAudit"), isNull(),
-                eq(Map.of("method", "philter", "from", "2026-10-01", "to", "2026-10-02")));
+        verify(auditLogService, never()).log(eq("PHILTER_AUDIT_EXPORT"), any(), any(), any());
     }
 
     @Test

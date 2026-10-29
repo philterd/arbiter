@@ -159,8 +159,7 @@ class PhilterLedgerPageTest extends WebMvcSliceMocks {
         final LedgerExport downloaded = GSON.fromJson(result.getResponse().getContentAsString(), LedgerExport.class);
         assertEquals("jdoe@example.com", downloaded.getEntries().get(0).getToken());
         assertEquals("pem", downloaded.getSigningKeys().get("k"));
-        verify(auditLogService).log(eq("LEDGER_EXPORT"), eq("Ledger"), isNull(),
-                eq(Map.of("documentId", "a/b c", "method", "philter", "owner", "self")));
+        verify(auditLogService, never()).log(eq("LEDGER_EXPORT"), any(), any(), any());
     }
 
     @Test

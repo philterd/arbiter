@@ -55,6 +55,23 @@ class AuditLogAdminControllerTest {
     }
 
     @Test
+    void entriesOfActionsNoLongerWrittenAreStillExported() throws Exception {
+        // Philter records these now (issue #46), but entries written before are kept and exported as before.
+        when(auditLogQueryService.find(any(), any(), any(), any(), any(), any(Integer.class))).thenReturn(List.of(
+                entry("LOGOUT", Instant.parse("2026-05-05T10:00:00Z")),
+                entry("PASSWORD_CHANGE", Instant.parse("2026-05-05T09:00:00Z")),
+                entry("DOCUMENT_APPROVAL", Instant.parse("2026-05-05T08:00:00Z"))));
+        final org.springframework.mock.web.MockHttpServletResponse response =
+                new org.springframework.mock.web.MockHttpServletResponse();
+
+        controller.export(null, null, null, null, null, "csv", response);
+
+        final String csv = response.getContentAsString();
+        org.junit.jupiter.api.Assertions.assertTrue(csv.contains("LOGOUT") && csv.contains("PASSWORD_CHANGE")
+                && csv.contains("DOCUMENT_APPROVAL"), csv);
+    }
+
+    @Test
     void previewDelegatesToQueryServiceWithLimitOf10() {
         final List<AuditLog> stub = List.of(entry("LOGIN", Instant.parse("2026-05-05T10:00:00Z")));
         when(auditLogQueryService.find(any(), any(), any(), any(), any(), eq(10))).thenReturn(stub);

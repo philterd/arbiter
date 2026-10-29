@@ -106,7 +106,7 @@ Philter keeps a delivery that ended for 30 days by default.
 
 ## Audit trail
 
-Every `PASSWORD_CHANGE`, preferences change (`USER_SETTINGS_CHANGE`), and change to your MFA,
-API keys, or webhook is recorded in the audit log with your username and a timestamp. Admins can
-review these from
-[Admin Settings → Audit log](../admin/audit-log.md).
+A preferences change is recorded in Philter Workspace's audit log as `USER_SETTINGS_CHANGE`.
+Changes to your password, MFA, API keys, and webhook are made in Philter, which records them in its
+own audit log, naming you. Admins can review both from
+[Audit Log](../admin/audit-log.md).

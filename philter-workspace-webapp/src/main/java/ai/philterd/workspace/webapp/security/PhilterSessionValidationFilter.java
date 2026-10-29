@@ -12,7 +12,6 @@ package ai.philterd.workspace.webapp.security;
 import ai.philterd.workspace.model.User;
 import ai.philterd.workspace.philter.PhilterClients;
 import ai.philterd.workspace.repository.UserRepository;
-import ai.philterd.workspace.service.AuditLogService;
 import ai.philterd.philter.model.CurrentUser;
 import ai.philterd.philter.model.exceptions.UnauthorizedException;
 import jakarta.servlet.FilterChain;
@@ -31,7 +30,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.time.Clock;
 import java.time.Duration;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -56,25 +54,21 @@ public class PhilterSessionValidationFilter extends OncePerRequestFilter {
 
     private final PhilterSignInService signInService;
     private final UserRepository userRepository;
-    private final AuditLogService auditLogService;
     private final Clock clock;
     private final Duration interval;
 
     public PhilterSessionValidationFilter(final PhilterSignInService signInService,
                                           final UserRepository userRepository,
-                                          final AuditLogService auditLogService,
                                           final Clock clock) {
-        this(signInService, userRepository, auditLogService, clock, DEFAULT_INTERVAL);
+        this(signInService, userRepository, clock, DEFAULT_INTERVAL);
     }
 
     public PhilterSessionValidationFilter(final PhilterSignInService signInService,
                                           final UserRepository userRepository,
-                                          final AuditLogService auditLogService,
                                           final Clock clock,
                                           final Duration interval) {
         this.signInService = signInService;
         this.userRepository = userRepository;
-        this.auditLogService = auditLogService;
         this.clock = clock;
         this.interval = interval;
     }
@@ -146,8 +140,8 @@ public class PhilterSessionValidationFilter extends OncePerRequestFilter {
                 log.warn("Could not revoke a Philter session key: {}", PhilterClients.describe(e));
             }
         }
-        auditLogService.logForUser(username, "LOGOUT", "User", null,
-                AuditLogService.OUTCOME_SUCCESS, Map.of("reason", reason));
+        // Philter's audit log records the key's revocation or expiry, so the session's end is not audited here.
+        log.info("Ended a Philter Workspace session: {}", reason);
         session.invalidate();
         SecurityContextHolder.clearContext();
         final String path = request.getRequestURI();

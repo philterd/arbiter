@@ -10,7 +10,6 @@
 package ai.philterd.workspace.webapp.security;
 
 import ai.philterd.workspace.repository.UserRepository;
-import ai.philterd.workspace.service.AuditLogService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -94,9 +93,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(final HttpSecurity http,
                                                    final ApiKeyAuthFilter apiKeyAuthFilter,
-                                                   final AuditLogoutHandler auditLogoutHandler,
                                                    final AuthenticationProvider authenticationProvider,
-                                                   final AuditLogService auditLogService,
                                                    final PhilterSignInService philterSignInService,
                                                    final PhilterSignInFlow philterSignInFlow,
                                                    final UserRepository userRepository,
@@ -176,7 +173,6 @@ public class SecurityConfig {
                         .maximumSessions(-1).sessionRegistry(sessionRegistry()).expiredUrl("/login?expired"))
                 .logout(logout -> logout
                         .addLogoutHandler(new PhilterSignOutHandler(philterSignInFlow))
-                        .addLogoutHandler(auditLogoutHandler)
                         .logoutSuccessUrl("/login?logout")
                         .permitAll())
                 .exceptionHandling(ex -> ex.defaultAuthenticationEntryPointFor(
@@ -186,7 +182,7 @@ public class SecurityConfig {
                 // After the session's SecurityContext is loaded, before authorization: a person whose
                 // Philter session key was rejected is signed out of Philter Workspace rather than served.
                 .addFilterBefore(new PhilterSessionValidationFilter(philterSignInService, userRepository,
-                        auditLogService, Clock.systemUTC(), Duration.ofSeconds(checkIntervalSeconds)),
+                        Clock.systemUTC(), Duration.ofSeconds(checkIntervalSeconds)),
                         AuthorizationFilter.class)
                 // Drop session-cookie authentication on /api/** so only Bearer keys count;
                 // runs after the Bearer filter (which marks the request) and before the

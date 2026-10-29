@@ -41,7 +41,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 
-import java.util.Map;
 
 /**
  * A person's own settings: their review preferences, their Philter account (username, email, and role), and
@@ -154,9 +153,7 @@ public class SettingsController {
                     + "password, or sign in again.");
             return "redirect:/settings";
         }
-        final User user = userRepository.findByEmail(philter.getName()).orElse(null);
-        auditLogService.log("PASSWORD_CHANGE", "User", user == null ? null : user.getId(),
-                Map.of("method", "philter"));
+        // Philter's audit log records the change (user_password_changed), so it is not repeated here.
         final HttpSession session = request.getSession(false);
         if (session != null) {
             session.invalidate();
