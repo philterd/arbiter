@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd, LLC.
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  -->
+<html xmlns:th="http://www.thymeleaf.org">
+<body>
+    <!-- The Policies page's tabs; activeTab names the selected one. -->
+    <div th:fragment="tabs(activeTab)" class="border-b border-gray-200 mb-6">
+        <nav class="-mb-px flex flex-wrap gap-x-6">
+            <a th:href="@{/policies}" th:attr="aria-current=${activeTab == 'redaction'} ? 'page' : null"
+               th:classappend="${activeTab == 'redaction'} ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+               class="whitespace-nowrap px-1 py-3 border-b-2 text-sm font-medium">
+                Redaction Policies
+            </a>
+            <a th:href="@{/policies/lists}" th:attr="aria-current=${activeTab == 'lists'} ? 'page' : null"
+               th:classappend="${activeTab == 'lists'} ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+               class="whitespace-nowrap px-1 py-3 border-b-2 text-sm font-medium">
+                Custom Lists
+            </a>
+            <a th:href="@{/policies/redact-lists}" th:attr="aria-current=${activeTab == 'redact-lists'} ? 'page' : null"
+               th:classappend="${activeTab == 'redact-lists'} ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+               class="whitespace-nowrap px-1 py-3 border-b-2 text-sm font-medium">
+                Always and Never Redact
+            </a>
+            <a th:href="@{/policies/finalization}" th:attr="aria-current=${activeTab == 'finalization'} ? 'page' : null"
+               th:classappend="${activeTab == 'finalization'} ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+               class="whitespace-nowrap px-1 py-3 border-b-2 text-sm font-medium">
+                Batch Finalization Policies
+            </a>
+        </nav>
+    </div>
+</body>
+</html>

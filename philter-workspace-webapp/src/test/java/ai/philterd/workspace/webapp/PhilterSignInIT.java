@@ -529,6 +529,70 @@ class PhilterSignInIT {
     }
 
     @Test
+    void listsAreManagedThroughPhilterAsTheSignedInPerson() throws Exception {
+        final MockHttpSession session = new MockHttpSession();
+        final String address = newAddress();
+        assertEquals("/", signIn(session, address, "admin", ADMIN_PASSWORD).getResponse().getRedirectedUrl());
+        final String name = "it-list-" + HexFormat.of().formatHex(bytes(3));
+
+        // A custom list is created, listed, replaced, and deleted as admin.
+        mockMvc.perform(post("/policies/lists/new").session(session).with(csrf()).with(from(address))
+                        .param("name", name).param("description", "code names")
+                        .param("items", "Project Phoenix\r\n\r\nBluebird"))
+                .andExpect(redirectedUrl("/policies/lists"));
+        assertEquals(java.util.List.of("Project Phoenix", "Bluebird"), bootstrap().getList(name, "admin").getItems());
+        final String listed = mockMvc.perform(get("/policies/lists").param("q", name).session(session)
+                .with(from(address))).andReturn().getResponse().getContentAsString();
+        assertTrue(listed.contains(">" + name + "<") && listed.contains(">code names<"), listed);
+        final String again = mockMvc.perform(post("/policies/lists/new").session(session).with(csrf())
+                        .with(from(address)).param("name", name).param("items", "x"))
+                .andReturn().getResponse().getContentAsString();
+        assertTrue(again.contains("A list with that name already exists."), again);
+
+        mockMvc.perform(post("/policies/lists/edit").session(session).with(csrf()).with(from(address))
+                        .param("name", name).param("description", "code names")
+                        .param("originalDescription", "code names").param("items", "Bluebird"))
+                .andExpect(redirectedUrl("/policies/lists"));
+        final ai.philterd.philter.model.CustomList replaced = bootstrap().getList(name, "admin");
+        assertEquals(java.util.List.of("Bluebird"), replaced.getItems());
+        assertEquals("code names", replaced.getDescription(), "an unchanged description is kept");
+
+        // Philter refuses another user's lists without ADMIN_CROSS_USER_ACCESS_ENABLED, and the page says so.
+        final String other = createUser("lists", password());
+        assertTrue(mockMvc.perform(get("/policies/lists").param("owner", other).session(session)
+                        .with(from(address))).andReturn().getResponse().getContentAsString()
+                .contains("ADMIN_CROSS_USER_ACCESS_ENABLED=true"));
+
+        mockMvc.perform(post("/policies/lists/delete").session(session).with(csrf()).with(from(address))
+                .param("name", name)).andExpect(redirectedUrl("/policies/lists"));
+        assertTrue(bootstrap().listCustomLists("admin", null).getItems().stream()
+                .noneMatch(l -> name.equals(l.getName())), "deleted");
+
+        // A redact list is replaced at the revision the page read; a save with that revision again is refused.
+        final ai.philterd.philter.model.RedactList always = ai.philterd.philter.model.RedactList.ALWAYS;
+        final String page = mockMvc.perform(get("/policies/redact-lists").session(session).with(from(address)))
+                .andReturn().getResponse().getContentAsString();
+        final String revision = String.valueOf(bootstrap().getRedactList(always, "admin").getRevision());
+        assertTrue(page.contains("name=\"revision\" value=\"" + revision + "\""), page);
+        mockMvc.perform(post("/policies/redact-lists").session(session).with(csrf()).with(from(address))
+                        .param("list", "always").param("terms", name + "\r\nBluebird").param("revision", revision))
+                .andExpect(redirectedUrl("/policies/redact-lists"));
+        final ai.philterd.philter.model.RedactListTerms saved = bootstrap().getRedactList(always, "admin");
+        assertEquals(java.util.List.of(name, "Bluebird"), saved.getTerms());
+        final String stale = mockMvc.perform(post("/policies/redact-lists").session(session).with(csrf())
+                        .with(from(address)).param("list", "always").param("terms", "mine").param("revision", revision))
+                .andReturn().getResponse().getContentAsString();
+        assertTrue(stale.contains("Someone changed this list after you opened it"), stale);
+        assertTrue(stale.contains("name=\"revision\" value=\"" + saved.getRevision() + "\""), "Philter's current revision");
+        assertEquals(saved.getTerms(), bootstrap().getRedactList(always, "admin").getTerms(), "nothing was written");
+
+        mockMvc.perform(post("/policies/redact-lists").session(session).with(csrf()).with(from(address))
+                        .param("list", "always").param("terms", "").param("revision", String.valueOf(saved.getRevision())))
+                .andExpect(redirectedUrl("/policies/redact-lists"));
+        assertTrue(bootstrap().getRedactList(always, "admin").getTerms().isEmpty(), "an empty save clears the list");
+    }
+
+    @Test
     void anAdministratorsApiKeyIsFlaggedUnderAdminPhilter() throws Exception {
         final MockHttpSession session = new MockHttpSession();
         final String address = newAddress();

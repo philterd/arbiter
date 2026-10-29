@@ -19,7 +19,7 @@
         <a th:href="@{${confirmation.pageUrl()}}" th:attr="data-confirm-dialog=${id}" th:class="${linkClass}"
            th:text="${label}">Delete</a>
         <dialog th:id="${id}" th:attr="aria-labelledby=|${id}-title|"
-                class="w-full max-w-md rounded-xl p-0 shadow-xl backdrop:bg-gray-900/40">
+                class="!m-auto w-full max-w-md whitespace-normal rounded-xl p-0 shadow-xl backdrop:bg-gray-900/40">
             <div class="p-6 text-left">
                 <div th:replace="~{fragments/confirm :: confirm-body(${id}, ${confirmation})}"></div>
                 <div class="mt-6 flex justify-end gap-3">
@@ -35,8 +35,8 @@
 
     <!-- What the dialog and the confirm page both say. -->
     <div th:fragment="confirm-body(id, confirmation)">
-        <h3 th:id="|${id}-title|" class="text-lg font-semibold text-gray-900" th:text="${confirmation.title()}">Delete?</h3>
-        <p class="mt-2 text-sm text-gray-600" th:text="${confirmation.message()}">This cannot be undone.</p>
+        <h3 th:id="|${id}-title|" class="text-lg font-semibold text-gray-900 break-words" th:text="${confirmation.title()}">Delete?</h3>
+        <p class="mt-2 text-sm text-gray-600 break-words" th:text="${confirmation.message()}">This cannot be undone.</p>
         <ul th:if="${!confirmation.affected().isEmpty()}" class="mt-3 list-disc pl-5 text-sm text-gray-700">
             <li th:each="item : ${confirmation.affected()}" th:text="${item}">item</li>
         </ul>

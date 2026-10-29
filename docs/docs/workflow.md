@@ -196,6 +196,45 @@ of that user. A policy you create as yourself is not available to batches.
 
 A batch with no policy selected uses Philter's default policy.
 
+### Custom lists
+
+A **custom list** is a named group of terms kept in Philter. A policy refers to one as
+`list:name`, in a custom dictionary's terms to redact them, or in its ignored terms to
+leave them alone. See Philter's
+[Managing Custom Lists](https://philterd.github.io/philter/latest/redaction/custom_lists.html).
+
+The **Custom Lists** tab of the Policies page manages your lists through Philter's API as
+you, like policies:
+
+- The list shows each list's name, description, and number of items. Search by name.
+- **New list** takes a name, an optional description (up to 200 characters), and the
+  items, one per line (up to 100 items of up to 50 characters each). Blank lines are left
+  out and each item is trimmed. A name cannot contain `/`, `\`, `;`, or `%`, and a list
+  cannot be renamed.
+- **Edit** replaces a list's items and description. Auditors see **View** instead.
+- **Delete** asks you to confirm. Redaction with a policy that still refers to the list
+  fails until the policy no longer does, and a deleted list cannot be restored.
+- **Owner** (administrators only) shows another user's lists, by username, or **Every
+  user's**, as on the Policies list.
+
+### Always and never redact lists
+
+Terms on your **always redact** list are redacted, and terms on your **never redact** list
+are left alone, in every redaction you make, whatever the policy. See Philter's
+[Always and Never Redact Lists](https://philterd.github.io/philter/latest/redaction/redact_lists.html).
+
+The **Always and Never Redact** tab of the Policies page shows both lists, one term per
+line (up to 1,000 terms of up to 100 characters each). Saving one replaces it in full,
+and saving an empty list clears it. The save is made only if the list is unchanged since
+you opened the page; if someone else changed it, nothing is saved, the list shows
+Philter's current terms, and your edits are shown below it to apply again. **Owner**
+(administrators only) shows one other user's lists.
+
+Batches use the custom lists and the always and never redact lists of the user that owns
+`PHILTER_WORKSPACE_PHILTER_API_KEY`, as with [policies](#policies-for-batches). An
+administrator reaches them by entering that username in the **Owner** filter, which needs
+`ADMIN_CROSS_USER_ACCESS_ENABLED=true` in Philter.
+
 Philter Workspace talks to Philter through the
 [Philter SDK for Java](https://github.com/philterd/philter-sdk-java). Philter Workspace
 reviews plain-text documents. PDF review through Philter is not yet available,
