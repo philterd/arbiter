@@ -2,7 +2,7 @@
 
 A document's **risk score** is a number in `[0.0, 1.0]` that summarizes how
 much PII the redactor found and how unresolved it is. It drives the queue's
-sort order and the **`AUTO_APPROVED`** label.
+sort order and the queue's **Low risk** badge.
 
 ## Formula
 
@@ -61,8 +61,9 @@ $A = 2$ (spans 2 and 4 are `PENDING`), so $\mathrm{Penalty}(A) = 2$.
 
 $R = \min(1.0,\ (4.15 + 2) / 200) = \min(1.0,\ 0.03075) = 0.0308$.
 
-Below the default Document Threshold of `0.25`, so this document is shown as
-**`AUTO_APPROVED`** in the queue.
+Below the default Document Threshold of `0.25`, so the queue marks this
+document **Low risk**. It is still `REVIEW_REQUIRED`: spans 2 and 4 are
+`PENDING` and need a reviewer's decision.
 
 ## What about Anchor Words?
 

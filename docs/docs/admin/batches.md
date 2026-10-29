@@ -23,7 +23,7 @@ creation dialog. Fill in:
 | Blind Double Review  | unchecked | When checked, a random sample of incoming documents is selected for an independent second review by a different reviewer. Default sample is **10%**; the percentage field accepts an integer 1–100. **Both the on/off flag and the percentage are write-once — they cannot be changed after the batch is created.** See [Blind Double Review](#blind-double-review) below. |
 | Domain               | —       | Optional grouping tag used in the Reports page aggregates                                  |
 | PII Threshold        | `0.80`  | Per-span confidence floor for auto-accepting detections                                    |
-| Document Threshold   | `0.25`  | Risk-score ceiling for auto-approving whole documents                                      |
+| Document Threshold   | `0.25`  | Risk score at or below which a document is marked Low risk in the queue. It approves nothing. |
 | Audit Sampling Rate  | `0.10`  | Fraction of would-be auto-approved documents pulled into review                            |
 
 Click **Create** in the dialog footer to save, or **Cancel** (or press

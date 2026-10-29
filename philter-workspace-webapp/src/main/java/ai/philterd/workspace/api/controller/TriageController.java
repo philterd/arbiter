@@ -244,7 +244,8 @@ public class TriageController {
                 .toList();
     }
 
-    private static final Set<String> USER_DECIDED_STATUSES = Set.of("APPROVED", "REJECTED", "FAILED", "FINALIZED");
+    /** Statuses of documents not (yet) redacted, so their risk score was never computed. */
+    private static final Set<String> UNSCORED_STATUSES = Set.of("PENDING", "PROCESSING", "FAILED", "SKIPPED");
 
     /**
      * Document statuses that mean "still in the ingest queue, not yet redacted." The Document
@@ -265,12 +266,11 @@ public class TriageController {
             row.put("riskScore", doc.getRiskScore());
             row.put("batchId", doc.getBatchId());
             row.put("batchName", batchNames.getOrDefault(doc.getBatchId(), doc.getBatchId()));
+            // A risk indicator only: the batch's Document Threshold approves nothing, so the
+            // status above is the document's real one. Unredacted documents have no score.
             final Double threshold = batchDocumentThresholds.get(doc.getBatchId());
-            final boolean autoApproved = threshold != null
-                    && !USER_DECIDED_STATUSES.contains(doc.getStatus())
-                    && !"AUDIT_REQUIRED".equals(doc.getStatus())
-                    && doc.getRiskScore() <= threshold;
-            row.put("autoApproved", autoApproved);
+            row.put("lowRisk", threshold != null && !UNSCORED_STATUSES.contains(doc.getStatus())
+                    && doc.getRiskScore() <= threshold);
             row.put("documentThreshold", threshold);
             row.put("sourceAvailable", doc.getOriginalText() != null && !doc.getOriginalText().isEmpty());
             row.put("daysInQueue", doc.getCreatedAt() == null

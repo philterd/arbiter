@@ -53,7 +53,7 @@ A **batch** is a container for documents. It has:
 | Name                  | Human-readable label                                                                   |
 | Group                 | Which user group can see and act on it                                                 |
 | PII Threshold         | Per-span confidence floor for *auto-accepting* PII detections (default `0.8`)          |
-| Document Threshold    | Risk-score ceiling for *auto-approving* documents (default `0.25`)                     |
+| Document Threshold    | Risk score at or below which a document is marked *Low risk* in the queue (default `0.25`). It approves nothing. |
 | Audit Sampling Rate   | Fraction of would-be auto-approved documents pulled into review for audit (default `0.10`) |
 | PII type weights      | Per-type sensitivity for the risk score (see [PII types](reference/pii-types.md))      |
 | Policy                | Name of the Philter policy used during redaction (else Philter's default policy)       |
@@ -88,11 +88,11 @@ Document statuses:
 | `FAILED`          | Redaction failed and the document was stored without spans         |
 | `SKIPPED`         | Placeholder row written when an OpenSearch / Elasticsearch import detected a duplicate `(sourceIndex, sourceDocId)` and chose not to re-enqueue. Carries source attribution but no content. |
 
-The queue also surfaces an `AUTO_APPROVED` *display label* for any non-terminal
-document whose risk score is at or below the batch's Document Threshold,
-overlaying the underlying status — retuning the threshold relabels existing
-rows. Documents in `AUDIT_REQUIRED` are deliberately excluded from this
-relabeling so the audit sample stays visible.
+The queue always shows a document's stored status. A document whose risk score
+is at or below the batch's Document Threshold also gets a **Low risk** badge
+beside its risk score. The badge is a risk indicator, not an approval: a
+`REVIEW_REQUIRED` document with a low risk score still has redactions to
+decide. Retuning the threshold changes the badges on existing rows.
 
 ## Ingest queue
 

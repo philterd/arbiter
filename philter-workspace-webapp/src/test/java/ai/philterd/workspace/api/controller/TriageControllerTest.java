@@ -201,25 +201,28 @@ class TriageControllerTest {
     }
 
     @Test
-    void autoApprovedFlagFlipsAtThreshold() {
-        final Document below = doc("d1", "b1", "REVIEW_REQUIRED", 0.10);
-        final Document above = doc("d2", "b1", "REVIEW_REQUIRED", 0.50);
-        final Document approved = doc("d3", "b1", "APPROVED", 0.05); // user-decided wins
-        // The Blind Double Review filter normally hides APPROVED rows from the queue;
-        // mark this row as a double-review case with another reviewer so it passes the
-        // filter and we can keep verifying the autoApproved derivation on it.
-        approved.setDoubleReview(true);
-        approved.setFirstReviewer("other-reviewer@example.com");
+    void theDocumentThresholdMarksLowRiskWithoutChangingTheStatus() {
+        final Document pendingSpans = doc("d1", "b1", "REVIEW_REQUIRED", 0.10);
+        final Document atThreshold = doc("d2", "b1", "AUDIT_REQUIRED", 0.25);
+        final Document above = doc("d3", "b1", "REVIEW_REQUIRED", 0.50);
+        final Document failed = doc("d4", "b1", "FAILED", 0.0); // never scored
+        final Document queued = doc("d5", "b1", "PENDING", 0.0); // not redacted yet
         when(documentRepository.findByStatusNotIn(any(), any(PageRequest.class)))
-                .thenReturn(new PageImpl<>(List.of(below, above, approved), PageRequest.of(0, 10), 3));
+                .thenReturn(new PageImpl<>(List.of(pendingSpans, atThreshold, above, failed, queued), PageRequest.of(0, 10), 5));
         when(batchRepository.findAllById(any()))
                 .thenReturn(List.of(batch("b1", "g1", "B", 0.25)));
 
         final Page<Map<String, Object>> page = controller.getQueue(0, 10, null, null, null, false, "riskScore", "desc", TestAuth.admin("admin@example.com"));
 
-        assertEquals(true, page.getContent().get(0).get("autoApproved"));
-        assertEquals(false, page.getContent().get(1).get("autoApproved"));
-        assertEquals(false, page.getContent().get(2).get("autoApproved")); // already APPROVED
+        // A document with undecided spans keeps its real status, however low its risk score.
+        assertEquals("REVIEW_REQUIRED", page.getContent().get(0).get("status"));
+        assertEquals(true, page.getContent().get(0).get("lowRisk"));
+        assertEquals("AUDIT_REQUIRED", page.getContent().get(1).get("status"));
+        assertEquals(true, page.getContent().get(1).get("lowRisk"));
+        assertEquals(false, page.getContent().get(2).get("lowRisk"));
+        assertEquals(false, page.getContent().get(3).get("lowRisk"));
+        assertEquals(false, page.getContent().get(4).get("lowRisk"));
+        assertTrue(page.getContent().stream().noneMatch(row -> row.containsKey("autoApproved")));
     }
 
     @Test

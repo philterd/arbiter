@@ -20,10 +20,9 @@ considered redacted.
 - **Scores risk** for each document using a configurable, weighted formula that
   combines span confidence, PII-type sensitivity, and a length-aware penalty for
   unresolved detections.
-- **Auto-approves** documents whose risk score is below a per-batch threshold,
-  so reviewers focus only on the documents that need human eyes — with a
-  configurable **audit sampling rate** that randomly pulls a fraction of those
-  back for spot-checks.
+- **Auto-approves** documents with no redactions left to decide, so reviewers
+  focus on the documents that need them, with a configurable **audit sampling
+  rate** that randomly pulls a fraction of those back for spot-checks.
 - **Optionally requires dual approval** per batch — admins choose conditions
   under **Approval Rules**, and matching documents need approvals from two
   different reviewers before they move to `APPROVED`.

@@ -228,7 +228,7 @@ Response is a Spring `Page<Map>` shape:
       "riskScore": 0.0,
       "batchId": "string",
       "batchName": "string",
-      "autoApproved": false,
+      "lowRisk": false,
       "documentThreshold": 0.25,
       "priority": 2
     }
@@ -240,10 +240,12 @@ Response is a Spring `Page<Map>` shape:
 }
 ```
 
-`autoApproved` is the **derived** display flag: it's true when the document's
-risk score is at or below `documentThreshold` and the document is neither in a
-user-decided terminal state (`APPROVED`, `REJECTED`, `FAILED`) nor in
-`AUDIT_REQUIRED`. The stored `status` field is independent.
+`lowRisk` is true when the document's risk score is at or below its batch's
+`documentThreshold`. It is always false for documents with no risk score: those
+not yet redacted (`PENDING`, `PROCESSING`) and those never redacted (`FAILED`,
+`SKIPPED`). It is a risk indicator only and approves nothing; `status`
+is the document's stored status. It replaced the `autoApproved` flag, which
+was true for documents that were not approved.
 
 ### `GET /api/v1/batches`
 

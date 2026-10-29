@@ -74,9 +74,8 @@ claimed document it:
         - sampled in → `AUDIT_REQUIRED`
         - not sampled → `AUTO_APPROVED`
 
-If the document's risk score is at or below the batch's Document Threshold and
-the document isn't in `AUDIT_REQUIRED`, the queue will show it as
-**`AUTO_APPROVED`** even before any human review.
+If the document's risk score is at or below the batch's Document Threshold, the
+queue marks it **Low risk**. That does not change its status or approve it.
 
 Admins can monitor the queue at **Admin → Ingest Queue** and remove
 still-pending documents from there.

@@ -51,7 +51,6 @@ public class ReportingController {
     private static final List<String> KNOWN_STATUSES = List.of(
             "PENDING", "REVIEW_REQUIRED", "AUDIT_REQUIRED", "AUTO_APPROVED",
             "APPROVED", "REJECTED", "FAILED", "FINALIZED");
-    private static final Set<String> USER_DECIDED = Set.of("APPROVED", "REJECTED", "FAILED", "FINALIZED");
     // Statuses that mean the document still needs reviewer attention. Used to compute
     // the "not yet approved" total in the per-batch / per-priority breakdown.
     private static final Set<String> NOT_YET_APPROVED = Set.of(
@@ -183,8 +182,7 @@ public class ReportingController {
                 riskScoreSum += d.getRiskScore();
                 batchRiskSum += d.getRiskScore();
                 if ("REVIEW_REQUIRED".equals(status) || "AUDIT_REQUIRED".equals(status)) needsReviewTotal++;
-                if (!USER_DECIDED.contains(status) && !"AUDIT_REQUIRED".equals(status)
-                        && d.getRiskScore() <= batch.getDocumentThreshold()) {
+                if ("AUTO_APPROVED".equals(status)) {
                     batchAutoApproved++;
                     autoApprovedTotal++;
                 }

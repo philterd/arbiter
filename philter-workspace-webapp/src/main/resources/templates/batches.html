@@ -511,7 +511,7 @@
                     <h3 class="text-lg font-semibold text-gray-900">Create batch</h3>
                     <p class="text-xs text-gray-500 mt-0.5">
                         PII threshold: spans with confidence ≥ threshold are auto-accepted.
-                        Document threshold: documents with risk score ≤ threshold are marked Auto-Approved.
+                        Document threshold: documents with risk score ≤ threshold are marked Low risk in the Documents list. It approves nothing.
                     </p>
                 </div>
                 <button type="button" id="createBatchCloseX"
@@ -628,7 +628,7 @@
                     <div>
                         <label for="newBatchDocumentThreshold" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Document Threshold</label>
                         <input id="newBatchDocumentThreshold" type="number" name="documentThreshold" step="0.01" min="0" max="1" value="0.25"
-                               title="Document threshold (0.0–1.0)"
+                               title="Document threshold (0.0–1.0): documents at or below it are marked Low risk"
                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                 </div>
@@ -669,7 +669,7 @@
                     <label for="thresholdsDoc" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Document Threshold</label>
                     <input id="thresholdsDoc" type="number" name="documentThreshold" step="0.01" min="0" max="1" required
                            class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <p class="text-xs text-gray-500 mt-1">Documents with risk score ≤ threshold are marked Auto-Approved.</p>
+                    <p class="text-xs text-gray-500 mt-1">Documents with risk score ≤ threshold are marked Low risk in the Documents list. It approves nothing.</p>
                 </div>
                 <div>
                     <label for="thresholdsAudit" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Audit Sampling Rate</label>

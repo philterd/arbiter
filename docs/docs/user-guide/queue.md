@@ -29,9 +29,10 @@ The status pill colors are:
 - Blue — `PENDING`
 - Red — `REJECTED`, `FAILED`
 
-`AUTO_APPROVED` is shown in place of the underlying status for any document
-whose risk score is at or below its batch's Document Threshold and that hasn't
-been explicitly approved or rejected.
+The Status column always shows the document's stored status. A document whose
+risk score is at or below its batch's Document Threshold has a **Low risk**
+badge beside its risk score. The badge does not approve the document: a
+`REVIEW_REQUIRED` document marked Low risk still has redactions to decide.
 
 ## Priority column
 
@@ -51,11 +52,10 @@ on the first click).
 
 ## Filters
 
-- **Batch** — narrow the list to a single batch.
-- **Status** — narrow the list to a single status value (the `AUTO_APPROVED`
-  label is presentational; filter by the underlying status to see those rows).
-- **Clear** — wipes both filters.
-- **Refresh** — re-fetches without changing filters or pagination.
+- **Batch**: narrow the list to a single batch.
+- **Status**: narrow the list to a single status value.
+- **Clear**: wipes both filters.
+- **Refresh**: re-fetches without changing filters or pagination.
 
 Each filter change resets pagination to page 1.
 

@@ -51,7 +51,7 @@ A row of four high-level counters across the top of the page:
 | **Batches**      | Total visible batches in the date range. Sub-line splits open vs. closed.           |
 | **Documents**    | Total documents across those batches.                                               |
 | **Needs review** | Documents in `REVIEW_REQUIRED` or `AUDIT_REQUIRED` status (yellow highlight).       |
-| **Auto-approved**| Documents whose risk score is at or below their batch's Document Threshold and that haven't been explicitly approved or rejected (emerald highlight). |
+| **Auto-approved**| Documents in `AUTO_APPROVED` status: no redactions were left to decide at ingest and audit sampling did not select them (emerald highlight). |
 
 ## Span KPI cards
 
@@ -161,7 +161,7 @@ The bottom-of-page comprehensive table — one row per batch in scope:
 | Rejected         | Spans rejected.                                                                  |
 | Manual           | Spans manually added.                                                            |
 | Edit rate        | `manual ÷ (accepted + rejected + manual)`. Color thresholds as above.            |
-| Auto-approved    | Documents auto-approved (below the document threshold and never user-decided).   |
+| Auto-approved    | Documents in `AUTO_APPROVED` status.                                             |
 | Avg risk         | Mean risk score across this batch's documents.                                   |
 
 Sorted by document count descending, with a name tie-break.

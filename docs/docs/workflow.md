@@ -290,7 +290,7 @@ to exactly one batch. A batch carries:
 | Group                | Which user group can see and act on this batch (visibility scope).   |
 | Policy               | Which Philter policy to apply, or Philter's default policy.          |
 | PII Threshold        | Per-span confidence floor for auto-accepting detections.             |
-| Document Threshold   | Risk-score ceiling for auto-approving whole documents.               |
+| Document Threshold   | Risk score at or below which a document is marked Low risk. It approves nothing. |
 | PII type weights     | Per-type sensitivity used in the risk score.                         |
 | Closed flag          | A closed batch refuses new documents.                                |
 
@@ -304,8 +304,9 @@ Only administrators can create, modify, or close a batch. To create one:
     - **PII Threshold** (default `0.80`) — spans whose confidence is at or
       above this value are auto-accepted. Lower values give the redactor
       more autonomy; higher values send more spans to the reviewer.
-    - **Document Threshold** (default `0.25`) — documents whose risk score
-      is at or below this value are auto-approved without human review.
+    - **Document Threshold** (default `0.25`): documents whose risk score
+      is at or below this value are marked **Low risk** in the queue. It
+      does not approve them or change their status.
 3. Click **Create** in the dialog footer.
 
 After creation, anyone with access to the batch can adjust the group,
@@ -368,10 +369,10 @@ When the worker picks up a document, for each one:
 5. The document is indexed in OpenSearch (full original text + metadata) and
    appears in the queue.
 
-A document whose risk score is at or below the batch's Document Threshold
-and that isn't in `AUDIT_REQUIRED` is shown with the `AUTO_APPROVED` label
-even before human review; re-tuning the threshold relabels existing rows on
-the next page load.
+A document whose risk score is at or below the batch's Document Threshold is
+marked **Low risk** in the queue, beside its stored status. The Document
+Threshold does not approve documents; only step 4 sets `AUTO_APPROVED`. Re-tuning the threshold changes the badges on existing rows
+on the next page load.
 
 If Philter fails for any reason the document moves to `FAILED` and the
 exception is captured both in the Philter Workspace logs and in a `failureMessage`

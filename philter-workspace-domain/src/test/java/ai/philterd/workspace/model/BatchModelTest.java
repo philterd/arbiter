@@ -141,7 +141,7 @@ class BatchModelTest {
         assertEquals(0.8, b.getConfidenceThreshold(), 1e-9,
                 "Default confidence threshold (0.8) is the documented PII auto-accept floor.");
         assertEquals(0.25, b.getDocumentThreshold(), 1e-9,
-                "Default document threshold (0.25) is the documented auto-approve ceiling.");
+                "Default document threshold (0.25) is the documented Low risk ceiling.");
         assertEquals(0.10, b.getAuditSamplingRate(), 1e-9,
                 "Default audit sampling rate (10%) matches the docs.");
     }
