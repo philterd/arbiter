@@ -6,7 +6,9 @@ across the deployment.
 ## Multi-factor authentication
 
 People sign in through Philter, which handles their MFA, so this tab has no MFA setting. To require
-MFA, turn on Philter's `mfaRequired` setting; each person then enrolls at their next sign-in. See
+MFA, turn on Philter's `mfaRequired` setting; each person then enrolls at their next sign-in. With
+Philter's `mfaAvailable` setting on, people can also set up and remove MFA themselves under
+[Settings](../user-guide/settings.md#multi-factor-authentication). See
 [Sign-in through Philter](../security.md#sign-in-through-philter).
 
 ## Data-source host allow-list

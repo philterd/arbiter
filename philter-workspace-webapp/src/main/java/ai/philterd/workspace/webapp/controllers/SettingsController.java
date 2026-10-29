@@ -28,6 +28,11 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import ai.philterd.philter.model.exceptions.UnauthorizedException;
+import ai.philterd.workspace.philter.PhilterClients;
+import ai.philterd.workspace.webapp.security.PhilterSessions;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,12 +44,15 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import java.util.Map;
 
 /**
- * A person's own settings: their review preferences, and their password, which is kept by Philter. MFA
- * and API keys are managed in Philter.
+ * A person's own settings: their review preferences, their Philter account (username, email, and role), and
+ * their password and MFA, which Philter keeps. Their API keys and webhook are on {@link PhilterAccountController}'s
+ * tabs.
  */
 @Controller
 @RequestMapping("/settings")
 public class SettingsController {
+
+    private static final Logger log = LoggerFactory.getLogger(SettingsController.class);
 
     private final UserRepository userRepository;
     private final AuditLogService auditLogService;
@@ -62,9 +70,21 @@ public class SettingsController {
     }
 
     @GetMapping
-    public String settings(final Authentication authentication, final Model model) {
+    public String settings(final Authentication authentication, final HttpServletRequest request, final Model model) {
         model.addAttribute("userSettings", userSettingsService.loadForEmail(
                 authentication == null ? null : authentication.getName()));
+        if (authentication instanceof PhilterSessionAuthentication philter) {
+            try {
+                model.addAttribute("account", philterSignInService.currentUser(philter.getEncryptedSessionKey()));
+            } catch (UnauthorizedException e) {
+                return PhilterSessions.end(request);
+            } catch (Exception e) {
+                log.warn("Could not read the signed-in person's Philter account: {}", PhilterClients.describe(e));
+                model.addAttribute("accountError", "Philter could not be reached, so your account details and "
+                        + "multi-factor authentication cannot be shown.");
+            }
+        }
+        model.addAttribute("activeTab", "account");
         return "settings";
     }
 

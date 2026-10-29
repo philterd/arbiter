@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd, LLC.
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  -->
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Philter Workspace - Set Up MFA</title>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="flex min-h-screen">
+        <aside th:replace="~{fragments/settings-sidebar :: sidebar}"></aside>
+        <div class="flex-1 flex flex-col min-w-0">
+        <div th:replace="~{fragments/topbar :: topbar}"></div>
+        <main class="flex-1 p-8 max-w-xl">
+            <a th:href="@{/settings}" class="text-sm text-blue-600 hover:text-blue-800">Back to settings</a>
+            <h2 class="mt-2 text-3xl font-bold text-gray-900">Set up multi-factor authentication</h2>
+
+            <div th:if="${error}" role="alert" class="mt-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
+                 th:text="${error}">Error</div>
+
+            <form th:unless="${qrCodeDataUri}" th:action="@{/settings/mfa/start}" method="post" class="mt-4 space-y-4">
+                <p class="text-sm text-gray-700">Enter your current password to start. A wrong password counts toward
+                    locking your sign-in.</p>
+                <div>
+                    <label for="currentPassword" class="block text-sm font-medium text-gray-700 mb-1">Current password</label>
+                    <input id="currentPassword" name="currentPassword" type="password" required autofocus
+                           autocomplete="current-password"
+                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div class="flex items-center gap-4">
+                    <button type="submit"
+                            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Continue</button>
+                    <a th:href="@{/settings}" class="text-sm text-blue-600 hover:text-blue-800">Cancel</a>
+                </div>
+            </form>
+
+            <div th:if="${qrCodeDataUri}" class="mt-4">
+                <p class="text-sm text-gray-700 mb-4">Scan the QR code with your authenticator app, or enter the key,
+                    then enter the code the app shows. You are then signed out, and sign in again with a code.</p>
+                <img th:src="${qrCodeDataUri}" alt="QR code for your authenticator app"
+                     class="w-48 h-48 border border-gray-200 rounded-lg p-1">
+                <p class="mt-2 text-xs text-gray-500 break-all">Or enter this key: <span class="font-mono" th:text="${secret}">KEY</span></p>
+                <form th:action="@{/settings/mfa/confirm}" method="post" class="mt-4 space-y-4">
+                    <div>
+                        <label for="code" class="block text-sm font-medium text-gray-700 mb-1">Code from your authenticator app</label>
+                        <input id="code" name="code" type="text" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+                               required autofocus autocomplete="one-time-code"
+                               class="block w-40 rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <button type="submit"
+                            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Turn on MFA</button>
+                </form>
+            </div>
+        </main>
+        <div th:replace="~{fragments/footer :: footer}"></div>
+        </div>
+    </div>
+</body>
+</html>

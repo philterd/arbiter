@@ -23,7 +23,9 @@
     -->
     <div th:fragment="paged-table(list, tableHead, tableRows, emptyText)"
          class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <table th:if="${list.total() > 0 and !list.pastEnd()}" class="min-w-full divide-y divide-gray-200">
+        <!-- A table wider than the page scrolls sideways rather than being cut off. -->
+        <div th:if="${list.total() > 0 and !list.pastEnd()}" class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr><th:block th:replace="${tableHead}"></th:block></tr>
             </thead>
@@ -31,6 +33,7 @@
                 <th:block th:replace="${tableRows}"></th:block>
             </tbody>
         </table>
+        </div>
         <div th:if="${list.total() == 0}" class="px-6 py-8 text-center text-sm text-gray-500">
             <span th:if="${list.filtered()}">Nothing matches the search and filters.
                 <a th:href="@{${list.clearUrl()}}" class="text-blue-600 hover:text-blue-800">Clear them</a>.</span>

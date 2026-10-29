@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd, LLC.
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  -->
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Philter Workspace - Key Scopes</title>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="flex min-h-screen">
+        <aside th:replace="~{fragments/settings-sidebar :: sidebar}"></aside>
+        <div class="flex-1 flex flex-col min-w-0">
+        <div th:replace="~{fragments/topbar :: topbar}"></div>
+        <main class="flex-1 p-8 max-w-3xl">
+            <a th:href="@{/settings/api-keys}" class="text-sm text-blue-600 hover:text-blue-800">Back to API keys</a>
+            <h2 class="mt-2 text-3xl font-bold text-gray-900">Scopes of <span class="font-mono" th:text="${key.prefix}">sk_1234567...</span></h2>
+            <p class="mt-2 text-sm text-gray-600">Clear the scopes this key no longer needs. Philter Workspace cannot add
+                a scope: Philter does not let a sign-in session widen a key.</p>
+            <p th:if="${workspace}" class="mt-2 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                This is the key Philter Workspace uses for batches. Without <code>redact</code>, ingest and
+                batch redaction stop; without <code>policies:read</code>, the batch dialogs and the Policies
+                page's "Used by batches" cannot list the policies batches use.</p>
+
+            <div class="mt-4" th:replace="~{fragments/forms :: errors(${errors})}"></div>
+
+            <form th:action="@{/settings/api-keys/scopes}" method="post" class="mt-4 space-y-4">
+                <input type="hidden" name="id" th:value="${key.id}">
+                <fieldset class="space-y-2">
+                    <legend class="sr-only">Scopes</legend>
+                    <label th:each="s, ss : ${offered}" class="flex items-start gap-2 text-sm">
+                        <input type="checkbox" name="scopes" th:value="${s.key}" checked class="mt-0.5">
+                        <span><code th:text="${s.key}">redact</code>
+                            <span th:if="${!s.value.isEmpty()}" class="text-gray-600" th:text="|: ${s.value}|">description</span></span>
+                    </label>
+                </fieldset>
+                <div class="flex items-center gap-4">
+                    <button type="submit"
+                            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Save</button>
+                    <a th:href="@{/settings/api-keys}" class="text-sm text-blue-600 hover:text-blue-800">Cancel</a>
+                </div>
+            </form>
+        </main>
+        <div th:replace="~{fragments/footer :: footer}"></div>
+        </div>
+    </div>
+</body>
+</html>

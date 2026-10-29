@@ -234,8 +234,13 @@ message quotes the text.
 <div th:replace="~{fragments/forms :: json-editor('policy', 'policy', ${policyJson}, ${policyError})}"></div>
 ```
 
-**Scripts.** A page that uses the confirm or JSON editor fragments includes
-the shared script once, at the bottom:
+**Generated secret.** A `<button type="button" data-generate-secret="field-id" hidden>`
+fills that field with a random 32-character secret when clicked. The script
+shows the button, so without JavaScript it stays hidden and the person types
+a secret.
+
+**Scripts.** A page that uses the confirm, JSON editor, or generated secret
+fragments includes the shared script once, at the bottom:
 
 ```html
 <script th:replace="~{fragments/scripts :: philter-ui}"></script>

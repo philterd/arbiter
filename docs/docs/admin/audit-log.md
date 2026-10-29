@@ -46,6 +46,7 @@ collection in MongoDB. There are two ways to view and export it:
 | `USER_CREATE` / `_UPDATE`, `USER_PASSWORD_RESET`, `USER_DEACTIVATE` / `_REACTIVATE`, `USER_UNLOCK`, `USER_MFA_UNLOCK` / `_REMOVE`, `USER_SESSIONS_REVOKE` | User | Changes made on the Users page, through Philter |
 | `GROUP_CREATE` / `_UPDATE` / `_DELETE` | Group    | Admin group management                              |
 | `PASSWORD_CHANGE`                   | User        | Self-service password change, in Philter            |
+| `MFA_ENROLL` / `MFA_REMOVE`, `API_KEY_SCOPES_CHANGE` / `API_KEY_REVOKE`, `WEBHOOK_SET` / `WEBHOOK_REMOVE` | User | Changes to the person's own Philter account on Settings. A key is named by its Philter ID; a webhook's URL and secret are not recorded (`WEBHOOK_SET` records whether the secret changed). |
 | `NOTIFICATION_SETTINGS_CHANGE`      | Settings    | SMTP settings save (excluding the password value)   |
 | `PHILTER_TEST`                      | Philter     | Admin → Philter's Test: Philter's URL, whether it passed, and the HTTP status and reason. Never the API key. |
 | `REDACTED_PDF_REFUSED`              | Redaction   | A redacted PDF was refused rather than produced, with the reason. No document content. |

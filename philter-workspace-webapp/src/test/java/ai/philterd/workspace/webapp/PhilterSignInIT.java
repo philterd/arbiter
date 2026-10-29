@@ -304,6 +304,106 @@ class PhilterSignInIT {
     }
 
     @Test
+    void aPersonManagesTheirOwnMfaKeysAndWebhookFromSettings() throws Exception {
+        // A long-lived key, made before the user first signs in, since Philter lets an administrator make one
+        // only for a user who has never had a key.
+        final String first = password();
+        final String password = password();
+        final String user = createUser("account", first);
+        final String prefix = bootstrap().createApiKey(user, java.util.List.of("redact", "lists:read")).getApiKey()
+                .substring(0, 12) + "...";
+        final SignInResponse limited = bootstrap().signIn(user, first);
+        PhilterClients.build(philterUrl(), limited.getApiKey(), (javax.net.ssl.SSLContext) null)
+                .changePassword(first, password);
+        final UpdateAdminSettingsRequest available = new UpdateAdminSettingsRequest();
+        available.setMfaAvailable(true);
+        bootstrap().updateAdminSettings(available);
+        final String address = newAddress();
+        MockHttpSession session = new MockHttpSession();
+        assertEquals("/", signIn(session, address, user, password).getResponse().getRedirectedUrl());
+
+        final String settings = mockMvc.perform(get("/settings").session(session).with(from(address)))
+                .andReturn().getResponse().getContentAsString();
+        assertTrue(settings.contains(">" + user + "<") && settings.contains(">user<"), settings);
+        assertTrue(settings.contains("href=\"/settings/mfa\""), "MFA can be set up");
+
+        // API keys: listed, narrowed, and revoked.
+        final String keys = mockMvc.perform(get("/settings/api-keys").session(session).with(from(address)))
+                .andReturn().getResponse().getContentAsString();
+        assertTrue(keys.contains(prefix) && keys.contains("redact, lists:read"), keys);
+        final java.util.regex.Matcher id = java.util.regex.Pattern.compile("/settings/api-keys/scopes\\?id=([^\"&]+)")
+                .matcher(keys);
+        assertTrue(id.find(), "a Scopes link");
+        mockMvc.perform(post("/settings/api-keys/scopes").session(session).with(csrf()).with(from(address))
+                        .param("id", id.group(1)).param("scopes", "redact"))
+                .andExpect(redirectedUrl("/settings/api-keys"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash()
+                        .attribute("success", "Scopes of " + prefix + " changed."));
+        assertTrue(mockMvc.perform(get("/settings/api-keys").session(session).with(from(address))).andReturn()
+                .getResponse().getContentAsString().contains(">redact<"), "narrowed in Philter");
+        mockMvc.perform(post("/settings/api-keys/revoke").session(session).with(csrf()).with(from(address))
+                        .param("id", id.group(1)))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash()
+                        .attribute("success", "Key revoked."));
+        assertFalse(mockMvc.perform(get("/settings/api-keys").session(session).with(from(address))).andReturn()
+                .getResponse().getContentAsString().contains(prefix), "revoked in Philter");
+
+        // Webhook: a loopback URL is refused by Philter's default allowlist; a public one is set and tested.
+        mockMvc.perform(post("/settings/webhook").session(session).with(csrf()).with(from(address))
+                        .param("url", "https://127.0.0.1/hook").param("secret", "s".repeat(24)))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash()
+                        .attribute("error", org.hamcrest.Matchers.containsString("allowlist")));
+        mockMvc.perform(post("/settings/webhook").session(session).with(csrf()).with(from(address))
+                        .param("url", "https://hooks.example.com/philter").param("secret", "s".repeat(24)))
+                .andExpect(redirectedUrl("/settings/webhook"));
+        final String webhook = mockMvc.perform(get("/settings/webhook").session(session).with(from(address)))
+                .andReturn().getResponse().getContentAsString();
+        assertTrue(webhook.contains("value=\"https://hooks.example.com/philter\"")
+                && webhook.contains("A webhook is set, with a secret."), webhook);
+        // A new URL with the secret left blank keeps the secret.
+        mockMvc.perform(post("/settings/webhook").session(session).with(csrf()).with(from(address))
+                        .param("url", "https://hooks.example.com/other").param("secretSet", "true"))
+                .andExpect(redirectedUrl("/settings/webhook"));
+        final String moved = mockMvc.perform(get("/settings/webhook").session(session).with(from(address)))
+                .andReturn().getResponse().getContentAsString();
+        assertTrue(moved.contains("value=\"https://hooks.example.com/other\"")
+                && moved.contains("A webhook is set, with a secret."), moved);
+        final String tested = String.valueOf(mockMvc.perform(post("/settings/webhook/test").session(session)
+                .with(csrf()).with(from(address))).andReturn().getFlashMap().values());
+        assertTrue(tested.contains("The test event was"), tested);
+        mockMvc.perform(post("/settings/webhook/remove").session(session).with(csrf()).with(from(address)))
+                .andExpect(redirectedUrl("/settings/webhook"));
+        assertTrue(mockMvc.perform(get("/settings/webhook").session(session).with(from(address))).andReturn()
+                .getResponse().getContentAsString().contains("No webhook is set."), "removed");
+
+        // MFA: set up with the password and a code, which ends the session; then removed with a code.
+        final String page = mockMvc.perform(post("/settings/mfa/start").session(session).with(csrf())
+                        .with(from(address)).param("currentPassword", password))
+                .andReturn().getResponse().getContentAsString();
+        final java.util.regex.Matcher secret = java.util.regex.Pattern
+                .compile("<span class=\"font-mono\">([A-Z2-7]+)</span>").matcher(page);
+        assertTrue(secret.find(), page);
+        final long enrolledAt = currentStep();
+        mockMvc.perform(post("/settings/mfa/confirm").session(session).with(csrf()).with(from(address))
+                        .param("code", code(secret.group(1), enrolledAt)))
+                .andExpect(redirectedUrl("/login?mfaEnrolled"));
+        assertTrue(bootstrap().getUser(user).isMfaEnabled());
+
+        session = new MockHttpSession();
+        assertEquals("/sign-in/mfa", signIn(session, address, user, password).getResponse().getRedirectedUrl());
+        final long signedInAt = nextStep(enrolledAt);
+        mockMvc.perform(post("/sign-in/mfa").session(session).with(csrf()).with(from(address))
+                .param("code", code(secret.group(1), signedInAt))).andExpect(redirectedUrl("/"));
+        assertTrue(mockMvc.perform(get("/settings").session(session).with(from(address))).andReturn().getResponse()
+                .getContentAsString().contains("action=\"/settings/mfa/remove\""));
+        mockMvc.perform(post("/settings/mfa/remove").session(session).with(csrf()).with(from(address))
+                        .param("code", code(secret.group(1), nextStep(signedInAt))))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash()
+                        .attribute("success", "Multi-factor authentication removed."));
+        assertFalse(bootstrap().getUser(user).isMfaEnabled());
+    }
+
+    @Test
     void revocationInPhilterEndsTheWorkspaceSession() throws Exception {
         final String password = password();
         final String user = createSignedUpUser("revoke", password);

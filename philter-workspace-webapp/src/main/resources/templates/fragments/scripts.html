@@ -11,7 +11,7 @@
 <html xmlns:th="http://www.thymeleaf.org">
 <body>
     <!--
-        The script behind the confirm and json-editor fragments. Include it once, at the bottom of the
+        The script behind the confirm and json-editor fragments, and secret generation. Include it once, at the bottom of the
         page. It carries the request's CSP nonce and binds with addEventListener, since the CSP refuses
         inline event handlers. Without it the pages still work: confirm links open the confirm page, and
         JSON is checked when the form is submitted.
@@ -47,6 +47,27 @@
                     area.setAttribute('aria-invalid', problem ? 'true' : 'false');
                 };
                 area.addEventListener('input', check);
+            });
+            // A button that fills a field with a random secret, as for a webhook. Hidden without JavaScript.
+            document.querySelectorAll('button[data-generate-secret]').forEach(function (button) {
+                var field = document.getElementById(button.getAttribute('data-generate-secret'));
+                if (!field || !window.crypto || !window.crypto.getRandomValues) {
+                    return;
+                }
+                button.hidden = false;
+                button.addEventListener('click', function () {
+                    var characters = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+                    var values = new Uint32Array(32);
+                    window.crypto.getRandomValues(values);
+                    var secret = '';
+                    for (var i = 0; i < values.length; i++) {
+                        secret += characters.charAt(values[i] % characters.length);
+                    }
+                    field.type = 'text';
+                    field.value = secret;
+                    field.focus();
+                    field.select();
+                });
             });
         })();
     </script>
