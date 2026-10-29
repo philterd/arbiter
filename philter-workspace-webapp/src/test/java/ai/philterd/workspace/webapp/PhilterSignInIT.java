@@ -450,6 +450,51 @@ class PhilterSignInIT {
     }
 
     @Test
+    void ledgerChainsAreBrowsedVerifiedAndExportedThroughPhilter() throws Exception {
+        final MockHttpSession session = new MockHttpSession();
+        final String address = newAddress();
+        assertEquals("/", signIn(session, address, "admin", ADMIN_PASSWORD).getResponse().getRedirectedUrl());
+        final String suffix = HexFormat.of().formatHex(bytes(3));
+        final String context = "it-ledger-" + suffix;
+        final String policy = "it-ledger-policy-" + suffix;
+        final String filename = "it-ledger-" + suffix + ".txt";
+        bootstrap().createContext(context, false, "document", true, null);
+        bootstrap().savePolicy(policy, "{\"identifiers\":{\"emailAddress\":{\"emailAddressFilterStrategies\":"
+                + "[{\"strategy\":\"REDACT\"}]}}}", "admin");
+        bootstrap().filter(context, policy, filename, "Write to jdoe@example.com about the claim.");
+
+        final String listed = mockMvc.perform(get("/admin/ledgers").param("q", filename).session(session)
+                .with(from(address))).andReturn().getResponse().getContentAsString();
+        assertTrue(listed.contains(">" + filename + "<"), listed);
+        final java.util.regex.Matcher document = java.util.regex.Pattern
+                .compile("/admin/ledgers/view\\?document=([^\"&]+)").matcher(listed);
+        assertTrue(document.find(), "a View link");
+        final String documentId = java.net.URLDecoder.decode(document.group(1), java.nio.charset.StandardCharsets.UTF_8);
+
+        // Philter signs every entry, so a chain it just wrote verifies, and its entries carry no original value.
+        final String view = mockMvc.perform(get("/admin/ledgers/view").param("document", documentId).session(session)
+                .with(from(address))).andReturn().getResponse().getContentAsString();
+        assertTrue(view.contains("The chain verifies.") && view.contains(">Start of chain<")
+                && view.contains(">email-address<"), view);
+        assertFalse(view.contains("jdoe@example.com"), "the page shows no original value");
+
+        final MvcResult exported = mockMvc.perform(post("/admin/ledgers/export").session(session).with(csrf())
+                .with(from(address)).param("document", documentId)).andExpect(status().isOk()).andReturn();
+        final ai.philterd.philter.model.LedgerExport export = new com.google.gson.Gson().fromJson(
+                exported.getResponse().getContentAsString(), ai.philterd.philter.model.LedgerExport.class);
+        assertEquals(documentId, export.getDocumentId());
+        assertTrue(export.getEntries().stream().anyMatch(e -> "jdoe@example.com".equals(e.getToken())),
+                "the export carries the original values, so it can be verified offline");
+        assertFalse(export.getSigningKeys().isEmpty(), "and the keys to check the signatures");
+
+        // This Philter does not set LEDGER_DELETION_ENABLED, so it refuses the delete, and the page says why.
+        mockMvc.perform(post("/admin/ledgers/delete").session(session).with(csrf()).with(from(address))
+                        .param("document", documentId))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash()
+                        .attribute("error", org.hamcrest.Matchers.containsString("LEDGER_DELETION_ENABLED=true")));
+    }
+
+    @Test
     void revocationInPhilterEndsTheWorkspaceSession() throws Exception {
         final String password = password();
         final String user = createSignedUpUser("revoke", password);

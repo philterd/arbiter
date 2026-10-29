@@ -40,6 +40,7 @@ nav:
       - Exporting annotations: admin/exporting.md
       - Audit log: admin/audit-log.md
       - Legal holds: admin/legal-holds.md
+      - Ledgers: admin/ledgers.md
       - Reports: admin/reports.md
       - Full text search: admin/full-text-search.md
       - Notifications: admin/notifications.md

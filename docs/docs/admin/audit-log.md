@@ -47,6 +47,7 @@ collection in MongoDB. There are two ways to view and export it:
 | `GROUP_CREATE` / `_UPDATE` / `_DELETE` | Group    | Admin group management                              |
 | `PASSWORD_CHANGE`                   | User        | Self-service password change, in Philter            |
 | `LEGAL_HOLD_SET` / `LEGAL_HOLD_RELEASE` | LegalHold | A Philter legal hold placed or released under Admin → Legal Holds: whose evidence (`owner`, or `self`) and, when placed, its `scopeType`. The reference is not recorded. See [Legal holds](legal-holds.md). |
+| `LEDGER_EXPORT` / `LEDGER_DELETE`  | Ledger      | A Philter ledger chain exported or deleted under Admin → Ledgers: the `documentId` and whose chain (`owner`, or `self`). The export itself is never recorded. See [Ledgers](ledgers.md). |
 | `MFA_ENROLL` / `MFA_REMOVE`, `API_KEY_SCOPES_CHANGE` / `API_KEY_REVOKE`, `WEBHOOK_SET` / `WEBHOOK_REMOVE` | User | Changes to the person's own Philter account on Settings. A key is named by its Philter ID; a webhook's URL and secret are not recorded (`WEBHOOK_SET` records whether the secret changed). |
 | `NOTIFICATION_SETTINGS_CHANGE`      | Settings    | SMTP settings save (excluding the password value)   |
 | `PHILTER_TEST`                      | Philter     | Admin → Philter's Test: Philter's URL, whether it passed, and the HTTP status and reason. Never the API key. |
