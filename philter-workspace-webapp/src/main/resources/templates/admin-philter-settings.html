@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd, LLC.
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  -->
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Philter Workspace - Philter Settings</title>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="flex min-h-screen">
+        <aside th:replace="~{fragments/admin-sidebar :: sidebar}"></aside>
+        <div class="flex-1 flex flex-col min-w-0">
+        <div th:replace="~{fragments/topbar :: topbar}"></div>
+        <main class="flex-1 p-8">
+            <div class="flex items-center justify-between mb-2">
+                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Admin</h2><a href="/docs/admin/philter-settings/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
+            </div>
+            <nav class="flex border-b border-gray-200 mb-6 text-sm">
+                <a th:href="@{/admin/general}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">General</a>
+                <a th:href="@{/admin/users}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Users</a>
+                <a th:href="@{/admin/groups}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Groups</a>
+                <a th:href="@{/admin/notifications}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Notifications</a>
+                <a th:href="@{/admin/llm-judge}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">LLM-as-a-Judge</a>
+                <a th:href="@{/admin/philter}" aria-current="page" class="px-4 py-2 text-blue-700 font-medium border-b-2 border-blue-600">Philter</a>
+                <a th:href="@{/admin/holds}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Legal Holds</a>
+                <a th:href="@{/admin/ledgers}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Ledgers</a>
+                <a th:href="@{/admin/security}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Security</a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/tools}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Tools</a>
+            </nav>
+
+            <nav class="flex gap-2 mb-4 text-sm" aria-label="Philter">
+                <a th:href="@{/admin/philter}" class="px-3 py-1.5 rounded-md font-medium text-gray-600 hover:bg-gray-100">Connection</a>
+                <a th:href="@{/admin/philter/settings}" aria-current="page" class="px-3 py-1.5 rounded-md font-medium bg-blue-50 text-blue-700">Settings</a>
+            </nav>
+
+            <div th:if="${error}" role="alert" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
+                 th:text="${error}">Error</div>
+            <div th:if="${success}" class="mb-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700"
+                 th:text="${success}">Success</div>
+            <div th:if="${warnings}" class="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                <p th:each="w : ${warnings}" th:text="${w}">warning</p>
+            </div>
+
+            <p class="text-sm text-gray-600 mb-4 max-w-3xl">The settings of the Philter that Philter Workspace uses, for
+                every Philter user. They are changed as you, so Philter needs you to be a Philter administrator, and
+                its audit log names you.</p>
+
+            <form th:if="${form}" th:action="@{/admin/philter/settings}" method="post" class="space-y-6 max-w-3xl">
+                <input type="hidden" name="originalMfaAvailable" th:value="${original.mfaAvailable()}">
+                <input type="hidden" name="originalMfaRequired" th:value="${original.mfaRequired()}">
+                <input type="hidden" name="originalSigningEnabled" th:value="${original.signingEnabled()}">
+                <input type="hidden" name="originalDiffuseCountsEnabled" th:value="${original.diffuseCountsEnabled()}">
+                <input type="hidden" name="originalWebhookAllowlist" th:value="${original.webhookAllowlist()}">
+                <input type="hidden" name="originalPhieldEnabled" th:value="${original.phieldEnabled()}">
+                <input type="hidden" name="originalPhieldUrl" th:value="${original.phieldUrl()}">
+                <input type="hidden" name="originalPhieldSourceId" th:value="${original.phieldSourceId()}">
+                <input type="hidden" name="originalPhieldOrganization" th:value="${original.phieldOrganization()}">
+
+                <fieldset class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm space-y-2" th:disabled="${!canWrite}">
+                    <legend class="text-lg font-semibold text-gray-900 px-1">Multi-factor authentication</legend>
+                    <label class="flex items-start gap-2 text-sm"><input type="checkbox" name="mfaAvailable" value="true" class="mt-0.5" th:checked="${form.mfaAvailable()}">
+                        <span>People may set up MFA</span></label>
+                    <label class="flex items-start gap-2 text-sm"><input type="checkbox" name="mfaRequired" value="true" class="mt-0.5" th:checked="${form.mfaRequired()}">
+                        <span>Everyone must set up MFA at sign-in (needs MFA to be available)</span></label>
+                </fieldset>
+
+                <fieldset class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm space-y-3" th:disabled="${!canWrite}">
+                    <legend class="text-lg font-semibold text-gray-900 px-1">Output signing</legend>
+                    <label class="flex items-start gap-2 text-sm"><input type="checkbox" name="signingEnabled" value="true" class="mt-0.5" th:checked="${form.signingEnabled()}">
+                        <span>Sign every text redaction and explain response (the <code>X-Philter-Signature</code> header)</span></label>
+                    <dl th:if="${signingKey}" class="grid grid-cols-[auto,1fr] gap-x-6 gap-y-1 text-sm">
+                        <dt class="text-gray-500">Signing key</dt><dd class="font-mono break-all" th:text="${signingKey.keyId}">key</dd>
+                        <dt class="text-gray-500">Fingerprint</dt><dd class="font-mono break-all" th:text="${signingKey.fingerprint}">fp</dd>
+                    </dl>
+                    <p th:if="${signingKey == null}" class="text-sm text-gray-500">Philter's signing key could not be read.</p>
+                    <p th:if="${settings != null and settings.signingKeyExternallyManaged}" class="text-xs text-gray-500">
+                        The key comes from <code>PHILTER_SIGNING_KEY_PATH</code>. Philter also signs every ledger entry
+                        with it.</p>
+                    <p th:unless="${settings != null and settings.signingKeyExternallyManaged}" class="text-xs text-gray-500">
+                        Philter also signs every ledger entry with this key.</p>
+                </fieldset>
+
+                <fieldset class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm space-y-2" th:disabled="${!canWrite}">
+                    <legend class="text-lg font-semibold text-gray-900 px-1">Webhook destinations</legend>
+                    <label for="webhookAllowlist" class="block text-sm text-gray-700">Hosts people's webhooks may call</label>
+                    <textarea id="webhookAllowlist" name="webhookAllowlist" rows="3" spellcheck="false" aria-describedby="allowlist-help"
+                              th:text="${form.webhookAllowlist()}"
+                              class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                    <p id="allowlist-help" class="text-xs text-gray-500">Hostnames, IP addresses, or CIDR ranges, separated by
+                        commas or lines. Empty allows any host except private, loopback, and other special-purpose
+                        addresses.</p>
+                </fieldset>
+
+                <fieldset class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm space-y-3" th:disabled="${!canWrite}">
+                    <legend class="text-lg font-semibold text-gray-900 px-1">PII counts</legend>
+                    <label class="flex items-start gap-2 text-sm"><input type="checkbox" name="diffuseCountsEnabled" value="true" class="mt-0.5" th:checked="${form.diffuseCountsEnabled()}">
+                        <span>Record PII counts for differential-privacy reporting (Philter Diffuse)</span></label>
+                    <label class="flex items-start gap-2 text-sm"><input type="checkbox" name="phieldEnabled" value="true" class="mt-0.5" th:checked="${form.phieldEnabled()}">
+                        <span>Publish PII counts to Phield for drift monitoring</span></label>
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <div class="sm:col-span-2">
+                            <label for="phieldUrl" class="block text-xs font-medium text-gray-600 mb-1">Phield URL</label>
+                            <input id="phieldUrl" name="phieldUrl" type="url" th:value="${form.phieldUrl()}" placeholder="https://phield.example.com"
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="phieldOrganization" class="block text-xs font-medium text-gray-600 mb-1">Organization</label>
+                            <input id="phieldOrganization" name="phieldOrganization" type="text" th:value="${form.phieldOrganization()}"
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="phieldSourceId" class="block text-xs font-medium text-gray-600 mb-1">Source</label>
+                            <input id="phieldSourceId" name="phieldSourceId" type="text" th:value="${form.phieldSourceId()}"
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div class="sm:col-span-2">
+                            <label for="phieldApiKey" class="block text-xs font-medium text-gray-600 mb-1">Phield API key</label>
+                            <input id="phieldApiKey" name="phieldApiKey" type="password" autocomplete="new-password" aria-describedby="phield-key-help"
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <p id="phield-key-help" class="mt-1 text-xs text-gray-500"
+                               th:text="${settings != null and settings.phieldApiKeySet} ? 'Set. Philter never shows it; leave this blank to keep it.' : 'Not set.'">Not set.</p>
+                            <label th:if="${settings != null and settings.phieldApiKeySet}" class="mt-1 flex items-center gap-2 text-sm">
+                                <input type="checkbox" name="removePhieldApiKey" value="true"> Remove the Phield API key</label>
+                        </div>
+                    </div>
+                </fieldset>
+
+                <section th:if="${settings}" class="bg-white p-5 rounded-xl border border-gray-100 shadow-sm">
+                    <h3 class="text-lg font-semibold text-gray-900">Set by Philter's environment</h3>
+                    <dl class="mt-2 grid grid-cols-[auto,1fr] gap-x-6 gap-y-1 text-sm">
+                        <dt class="text-gray-500"><code>ADMIN_CROSS_USER_ACCESS_ENABLED</code></dt>
+                        <dd th:text="${settings.crossUserAccessEnabled} ? 'On' : 'Off'">Off</dd>
+                        <dt class="text-gray-500"><code>LEDGER_DELETION_ENABLED</code></dt>
+                        <dd th:text="${settings.ledgerDeletionEnabled} ? 'On' : 'Off'">Off</dd>
+                    </dl>
+                </section>
+
+                <button th:if="${canWrite}" type="submit"
+                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Save settings</button>
+            </form>
+        </main>
+        <div th:replace="~{fragments/footer :: footer}"></div>
+        </div>
+    </div>
+    <script th:replace="~{fragments/scripts :: philter-ui}"></script>
+</body>
+</html>

@@ -41,6 +41,7 @@ nav:
       - Audit log: admin/audit-log.md
       - Legal holds: admin/legal-holds.md
       - Ledgers: admin/ledgers.md
+      - Philter settings: admin/philter-settings.md
       - Reports: admin/reports.md
       - Full text search: admin/full-text-search.md
       - Notifications: admin/notifications.md

@@ -495,6 +495,53 @@ class PhilterSignInIT {
     }
 
     @Test
+    void philtersSettingsAndAuditLogAreManagedAsTheAdministrator() throws Exception {
+        final MockHttpSession session = new MockHttpSession();
+        final String address = newAddress();
+        assertEquals("/", signIn(session, address, "admin", ADMIN_PASSWORD).getResponse().getRedirectedUrl());
+        final ai.philterd.philter.model.AdminSettings before = bootstrap().getAdminSettings();
+
+        final String page = mockMvc.perform(get("/admin/philter/settings").session(session).with(from(address)))
+                .andReturn().getResponse().getContentAsString();
+        final String fingerprint = bootstrap().getSigningKeyDetails().getFingerprint();
+        assertTrue(page.contains(">" + fingerprint + "<"), "the signing key's fingerprint: " + page);
+        try {
+            mockMvc.perform(post("/admin/philter/settings").session(session).with(csrf()).with(from(address))
+                            .param("originalMfaAvailable", hidden(page, "originalMfaAvailable"))
+                            .param("mfaAvailable", hidden(page, "originalMfaAvailable"))
+                            .param("originalMfaRequired", hidden(page, "originalMfaRequired"))
+                            .param("mfaRequired", hidden(page, "originalMfaRequired"))
+                            .param("originalSigningEnabled", hidden(page, "originalSigningEnabled"))
+                            .param("signingEnabled", hidden(page, "originalSigningEnabled"))
+                            .param("originalDiffuseCountsEnabled", hidden(page, "originalDiffuseCountsEnabled"))
+                            .param("diffuseCountsEnabled", hidden(page, "originalDiffuseCountsEnabled"))
+                            .param("originalWebhookAllowlist", hidden(page, "originalWebhookAllowlist"))
+                            .param("webhookAllowlist", "hooks.example.com\n10.20.0.0/16"))
+                    .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash()
+                            .attribute("success", "Philter's settings saved."));
+            assertEquals("hooks.example.com,10.20.0.0/16", bootstrap().getAdminSettings().getWebhookAllowlist());
+
+            // Philter's audit log names admin for the change, and the CSV export holds it.
+            final String audit = mockMvc.perform(get("/admin/audit/philter").param("event", "settings_updated")
+                    .param("user", "admin").session(session).with(from(address))).andReturn().getResponse()
+                    .getContentAsString();
+            assertTrue(audit.contains(">settings_updated<") && audit.contains(">admin<"), audit);
+            final String today = java.time.LocalDate.now(java.time.ZoneOffset.UTC).toString();
+            final MvcResult csv = mockMvc.perform(get("/admin/audit/philter/export").param("from", today)
+                    .param("to", today).session(session).with(from(address))).andExpect(status().isOk()).andReturn();
+            final String body = csv.getResponse().getContentAsString();
+            assertTrue(body.contains("settings_updated"), body);
+            assertEquals(1, body.lines().filter(l -> l.equals(body.lines().findFirst().orElseThrow())).count(),
+                    "one header");
+        } finally {
+            final ai.philterd.philter.model.UpdateAdminSettingsRequest restore =
+                    new ai.philterd.philter.model.UpdateAdminSettingsRequest();
+            restore.setWebhookAllowlist(before.getWebhookAllowlist() == null ? "" : before.getWebhookAllowlist());
+            bootstrap().updateAdminSettings(restore);
+        }
+    }
+
+    @Test
     void revocationInPhilterEndsTheWorkspaceSession() throws Exception {
         final String password = password();
         final String user = createSignedUpUser("revoke", password);

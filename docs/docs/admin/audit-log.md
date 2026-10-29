@@ -48,6 +48,8 @@ collection in MongoDB. There are two ways to view and export it:
 | `PASSWORD_CHANGE`                   | User        | Self-service password change, in Philter            |
 | `LEGAL_HOLD_SET` / `LEGAL_HOLD_RELEASE` | LegalHold | A Philter legal hold placed or released under Admin → Legal Holds: whose evidence (`owner`, or `self`) and, when placed, its `scopeType`. The reference is not recorded. See [Legal holds](legal-holds.md). |
 | `LEDGER_EXPORT` / `LEDGER_DELETE`  | Ledger      | A Philter ledger chain exported or deleted under Admin → Ledgers: the `documentId` and whose chain (`owner`, or `self`). The export itself is never recorded. See [Ledgers](ledgers.md). |
+| `PHILTER_SETTINGS_UPDATE`          | PhilterSettings | Philter's settings changed under Admin → Philter → Settings: the names of the settings that `changed`, never their values. See [Philter settings](philter-settings.md). |
+| `PHILTER_AUDIT_EXPORT`             | PhilterAudit | Philter's audit log exported as CSV: the `from` and `to` days. |
 | `MFA_ENROLL` / `MFA_REMOVE`, `API_KEY_SCOPES_CHANGE` / `API_KEY_REVOKE`, `WEBHOOK_SET` / `WEBHOOK_REMOVE` | User | Changes to the person's own Philter account on Settings. A key is named by its Philter ID; a webhook's URL and secret are not recorded (`WEBHOOK_SET` records whether the secret changed). |
 | `NOTIFICATION_SETTINGS_CHANGE`      | Settings    | SMTP settings save (excluding the password value)   |
 | `PHILTER_TEST`                      | Philter     | Admin → Philter's Test: Philter's URL, whether it passed, and the HTTP status and reason. Never the API key. |
@@ -194,3 +196,18 @@ the action it describes still succeeds — the audit service swallows the
 exception and logs a warning. This trades audit completeness for application
 availability; review logs from the Philter Workspace process for any
 "Failed to write audit log entry" warnings.
+
+## Philter's audit log
+
+The **Philter** tab of the Audit Log page (`/admin/audit/philter`) shows Philter's own audit log:
+every request, sign-in, and change Philter recorded, for every Philter user, newest first. The
+**Philter Workspace** tab is the log above. Philter needs you to be a Philter administrator, so
+Philter Workspace auditors, who are Philter users, cannot see it. Philter records each reading and
+export in its log, as you.
+
+- **Filter** by event type (one Philter records, such as `sign_in_failed`, `settings_updated`, or
+  `legal_hold_set`), by whole days in UTC, and by the user who acted. Filtering by a user other
+  than you needs `ADMIN_CROSS_USER_ACCESS_ENABLED=true` in Philter.
+- **Export to CSV** downloads whole days in UTC, the last at most 30 days after the first. Philter
+  Workspace reads Philter's export a page at a time, so each event appears once, and a download
+  holds at most 100,000 events; choose a shorter range for more. Times in the file are UTC.
