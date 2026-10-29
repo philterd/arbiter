@@ -18,7 +18,6 @@ package ai.philterd.workspace.webapp.controllers;
 import ai.philterd.workspace.repository.BatchRepository;
 import ai.philterd.workspace.service.AuditLogService;
 import ai.philterd.workspace.service.AuthUtils;
-import ai.philterd.workspace.service.GeneralSettingsService;
 import ai.philterd.workspace.service.PhilterSettings;
 import ai.philterd.workspace.philter.PhilterClients;
 import ai.philterd.philter.model.ListOptions;
@@ -47,7 +46,6 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
-import java.net.URI;
 import java.util.regex.Pattern;
 import java.util.ArrayList;
 import java.util.List;
@@ -61,42 +59,26 @@ public class PolicyController {
     private static final Pattern POLICY_NAME_PATTERN = Pattern.compile("[a-zA-Z0-9_\\-]{1,64}");
 
     private static final int POLICY_PAGE_SIZE = 100;
+    public static final String FINALIZATION_PATH = "/policies/finalization";
 
     private final BatchRepository batchRepository;
     private final AuditLogService auditLogService;
-    private final GeneralSettingsService generalSettingsService;
     private final ai.philterd.workspace.repository.FinalizationPolicyRepository finalizationPolicyRepository;
     private final PhilterSettings philter;
 
     public PolicyController(final BatchRepository batchRepository,
                             final AuditLogService auditLogService,
-                            final GeneralSettingsService generalSettingsService,
                             final ai.philterd.workspace.repository.FinalizationPolicyRepository finalizationPolicyRepository,
                             final PhilterSettings philter) {
         this.batchRepository = batchRepository;
         this.auditLogService = auditLogService;
-        this.generalSettingsService = generalSettingsService;
         this.finalizationPolicyRepository = finalizationPolicyRepository;
         this.philter = philter;
     }
 
-    @GetMapping("/policies")
-    public String list(final Model model) {
-        final List<Map<String, Object>> rows = new ArrayList<>();
-        try {
-            for (String name : fetchPolicyNames()) {
-                final Map<String, Object> row = new java.util.LinkedHashMap<>();
-                row.put("name", name);
-                rows.add(row);
-            }
-        } catch (Exception e) {
-            final String detail = describe(e);
-            log.warn("Failed to fetch policies from Philter: {}", detail);
-            model.addAttribute("fetchError", "Could not reach Philter: " + detail);
-        }
-        model.addAttribute("policies", rows);
-        model.addAttribute("policyEditorUrl", policyEditorUrl());
-
+    /** The Batch Finalization Policies tab of the Policies page. */
+    @GetMapping(FINALIZATION_PATH)
+    public String finalization(final Model model) {
         // Finalization-policy tab data: list every policy plus per-policy "in use by N
         // batches" so the template can disable the Delete button when the policy is bound.
         final org.springframework.data.domain.Page<ai.philterd.workspace.model.FinalizationPolicy> finalizationPoliciesPage =
@@ -118,6 +100,7 @@ public class PolicyController {
         model.addAttribute("finalizationPolicies", finalizationRows);
         model.addAttribute("finalizationOptions",
                 ai.philterd.workspace.model.FinalizationPolicy.labels());
+        model.addAttribute("activeTab", "finalization");
         return "policies";
     }
 
@@ -129,23 +112,23 @@ public class PolicyController {
         final String trimmed = name == null ? "" : name.trim();
         if (trimmed.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Name is required.");
-            return "redirect:/policies?tab=finalization";
+            return "redirect:" + FINALIZATION_PATH;
         }
         if (!ai.philterd.workspace.model.FinalizationPolicy.isValidOption(option)) {
             redirectAttributes.addFlashAttribute("error", "Pick a valid finalization option.");
-            return "redirect:/policies?tab=finalization";
+            return "redirect:" + FINALIZATION_PATH;
         }
         final long days = deleteAfterDays == null ? 0 : deleteAfterDays;
         if (ai.philterd.workspace.model.FinalizationPolicy.OPTION_DELETE_AFTER_X_DAYS.equals(option)
                 && days <= 0) {
             redirectAttributes.addFlashAttribute("error",
                     "\"Delete after X days\" requires a positive number of days.");
-            return "redirect:/policies?tab=finalization";
+            return "redirect:" + FINALIZATION_PATH;
         }
         if (finalizationPolicyRepository.findByName(trimmed).isPresent()) {
             redirectAttributes.addFlashAttribute("error",
                     "A finalization policy named \"" + trimmed + "\" already exists.");
-            return "redirect:/policies?tab=finalization";
+            return "redirect:" + FINALIZATION_PATH;
         }
         final ai.philterd.workspace.model.FinalizationPolicy policy =
                 new ai.philterd.workspace.model.FinalizationPolicy();
@@ -160,13 +143,13 @@ public class PolicyController {
         } catch (org.springframework.dao.DuplicateKeyException e) {
             redirectAttributes.addFlashAttribute("error",
                     "A finalization policy named \"" + trimmed + "\" already exists.");
-            return "redirect:/policies?tab=finalization";
+            return "redirect:" + FINALIZATION_PATH;
         }
         auditLogService.log("FINALIZATION_POLICY_CREATE", "FinalizationPolicy", policy.getId(),
                 Map.of("name", trimmed, "option", option, "deleteAfterDays", days));
         redirectAttributes.addFlashAttribute("success",
                 "Finalization policy \"" + trimmed + "\" created.");
-        return "redirect:/policies?tab=finalization";
+        return "redirect:" + FINALIZATION_PATH;
     }
 
     @PostMapping("/policies/finalization/{id}/edit")
@@ -179,30 +162,30 @@ public class PolicyController {
                 finalizationPolicyRepository.findById(id).orElse(null);
         if (policy == null) {
             redirectAttributes.addFlashAttribute("error", "Finalization policy not found.");
-            return "redirect:/policies?tab=finalization";
+            return "redirect:" + FINALIZATION_PATH;
         }
         final String trimmed = name == null ? "" : name.trim();
         if (trimmed.isEmpty()) {
             redirectAttributes.addFlashAttribute("error", "Name is required.");
-            return "redirect:/policies?tab=finalization";
+            return "redirect:" + FINALIZATION_PATH;
         }
         if (!ai.philterd.workspace.model.FinalizationPolicy.isValidOption(option)) {
             redirectAttributes.addFlashAttribute("error", "Pick a valid finalization option.");
-            return "redirect:/policies?tab=finalization";
+            return "redirect:" + FINALIZATION_PATH;
         }
         final long days = deleteAfterDays == null ? 0 : deleteAfterDays;
         if (ai.philterd.workspace.model.FinalizationPolicy.OPTION_DELETE_AFTER_X_DAYS.equals(option)
                 && days <= 0) {
             redirectAttributes.addFlashAttribute("error",
                     "\"Delete after X days\" requires a positive number of days.");
-            return "redirect:/policies?tab=finalization";
+            return "redirect:" + FINALIZATION_PATH;
         }
         final java.util.Optional<ai.philterd.workspace.model.FinalizationPolicy> existing =
                 finalizationPolicyRepository.findByName(trimmed);
         if (existing.isPresent() && !existing.get().getId().equals(id)) {
             redirectAttributes.addFlashAttribute("error",
                     "A finalization policy named \"" + trimmed + "\" already exists.");
-            return "redirect:/policies?tab=finalization";
+            return "redirect:" + FINALIZATION_PATH;
         }
         policy.setName(trimmed);
         policy.setOption(option);
@@ -213,7 +196,7 @@ public class PolicyController {
                 Map.of("name", trimmed, "option", option, "deleteAfterDays", days));
         redirectAttributes.addFlashAttribute("success",
                 "Finalization policy \"" + trimmed + "\" updated.");
-        return "redirect:/policies?tab=finalization";
+        return "redirect:" + FINALIZATION_PATH;
     }
 
     @PostMapping("/policies/finalization/{id}/delete")
@@ -223,37 +206,23 @@ public class PolicyController {
                 finalizationPolicyRepository.findById(id).orElse(null);
         if (policy == null) {
             redirectAttributes.addFlashAttribute("error", "Finalization policy not found.");
-            return "redirect:/policies?tab=finalization";
+            return "redirect:" + FINALIZATION_PATH;
         }
         if (batchRepository.existsByFinalizationPolicyId(id)) {
             redirectAttributes.addFlashAttribute("error",
                     "Finalization policy \"" + policy.getName()
                             + "\" is in use by one or more batches and cannot be deleted.");
-            return "redirect:/policies?tab=finalization";
+            return "redirect:" + FINALIZATION_PATH;
         }
         finalizationPolicyRepository.deleteById(id);
         auditLogService.log("FINALIZATION_POLICY_DELETE", "FinalizationPolicy", id,
                 Map.of("name", policy.getName() == null ? "" : policy.getName()));
         redirectAttributes.addFlashAttribute("success",
                 "Finalization policy \"" + policy.getName() + "\" deleted.");
-        return "redirect:/policies?tab=finalization";
+        return "redirect:" + FINALIZATION_PATH;
     }
 
-    private String policyEditorUrl() {
-        final String workspaceUrl = generalSettingsService.load().getWorkspaceUrl();
-        if (workspaceUrl == null || workspaceUrl.isBlank()) {
-            return "http://localhost:8081";
-        }
-        try {
-            final URI uri = URI.create(workspaceUrl.trim());
-            final String scheme = uri.getScheme() == null ? "http" : uri.getScheme();
-            final String host = uri.getHost() == null ? "localhost" : uri.getHost();
-            return scheme + "://" + host + ":8081";
-        } catch (IllegalArgumentException e) {
-            log.debug("Could not parse Philter Workspace URL '{}': {}", workspaceUrl, e.getMessage());
-            return "http://localhost:8081";
-        }
-    }
+
 
     @GetMapping("/api/v1/policies")
     @ResponseBody

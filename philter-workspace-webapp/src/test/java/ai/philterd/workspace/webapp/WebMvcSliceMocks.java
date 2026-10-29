@@ -27,7 +27,6 @@ import ai.philterd.workspace.repository.RelationalDbDataSourceRepository;
 import ai.philterd.workspace.repository.S3DataSourceRepository;
 import ai.philterd.workspace.repository.S3DestinationRepository;
 import ai.philterd.workspace.repository.RedactionCertificateRepository;
-import ai.philterd.workspace.repository.PolicyRepository;
 import ai.philterd.workspace.repository.SpanRepository;
 import ai.philterd.workspace.repository.UserRepository;
 import ai.philterd.workspace.repository.UserSettingsRepository;
@@ -104,7 +103,6 @@ abstract class WebMvcSliceMocks {
     @MockBean protected S3DestinationRepository s3DestinationRepository;
     @MockBean protected DestinationTester destinationTester;
     @MockBean protected ai.philterd.workspace.service.PhilterSettings philterSettings;
-    @MockBean protected PolicyRepository policyRepository;
     @MockBean protected DocumentCommentRepository documentCommentRepository;
     @MockBean protected WeightSetRepository weightSetRepository;
     @MockBean protected LlmJudgeDefaultsRepository llmJudgeDefaultsRepository;

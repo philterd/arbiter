@@ -36,7 +36,6 @@ import ai.philterd.workspace.repository.RelationalDbDataSourceRepository;
 import ai.philterd.workspace.repository.S3DataSourceRepository;
 import ai.philterd.workspace.repository.S3DestinationRepository;
 import ai.philterd.workspace.repository.RedactionCertificateRepository;
-import ai.philterd.workspace.repository.PolicyRepository;
 import ai.philterd.workspace.repository.UserSettingsRepository;
 import ai.philterd.workspace.repository.WeightSetRepository;
 import ai.philterd.workspace.repository.SpanRepository;
@@ -156,8 +155,6 @@ public class RedactionControllerTest {
     @MockBean
     private ai.philterd.workspace.service.PhilterSettings philterSettings;
 
-    @MockBean
-    private PolicyRepository policyRepository;
 
     @MockBean
     private DocumentCommentRepository documentCommentRepository;

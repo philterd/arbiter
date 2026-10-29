@@ -20,9 +20,14 @@ import java.util.Map;
  * Philter lets only its administrators choose, so for anyone else the request's {@code owner} and
  * {@code all} parameters are ignored and {@link #available()} is false, which hides the control.
  */
-public record OwnerFilter(boolean available, String username, boolean everyone) {
+public record OwnerFilter(boolean available, String username, boolean everyone, boolean everyoneOffered) {
 
-    private static final OwnerFilter NONE = new OwnerFilter(false, null, false);
+    private static final OwnerFilter NONE = new OwnerFilter(false, null, false, false);
+
+    /** A filter that offers "Every user's". */
+    public OwnerFilter(final boolean available, final String username, final boolean everyone) {
+        this(available, username, everyone, available);
+    }
 
     /** No owner control: the list always shows the person's own items. */
     public static OwnerFilter none() {
@@ -41,6 +46,12 @@ public record OwnerFilter(boolean available, String username, boolean everyone) 
             return new OwnerFilter(true, null, true);
         }
         return new OwnerFilter(true, ListView.text(owner), false);
+    }
+
+    /** As {@link #from}, for a list Philter gives one owner at a time, so without "Every user's". */
+    public static OwnerFilter fromOneUser(final Authentication authentication, final String owner) {
+        final OwnerFilter filter = from(authentication, owner, null);
+        return new OwnerFilter(filter.available(), filter.username(), false, false);
     }
 
     /** True when the list shows the person's own items. */

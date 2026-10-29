@@ -11,7 +11,6 @@ package ai.philterd.workspace.webapp;
 
 import ai.philterd.workspace.repository.BatchRepository;
 import ai.philterd.workspace.service.AuditLogService;
-import ai.philterd.workspace.service.GeneralSettingsService;
 import ai.philterd.workspace.service.PhilterSettings;
 import ai.philterd.workspace.webapp.controllers.PolicyController;
 import ai.philterd.philter.PhilterClient;
@@ -49,7 +48,6 @@ class PolicyControllerTest {
         final PhilterSettings philter = mock(PhilterSettings.class);
         when(philter.client()).thenReturn(client);
         controller = new PolicyController(mock(BatchRepository.class), mock(AuditLogService.class),
-                mock(GeneralSettingsService.class),
                 mock(ai.philterd.workspace.repository.FinalizationPolicyRepository.class), philter);
     }
 

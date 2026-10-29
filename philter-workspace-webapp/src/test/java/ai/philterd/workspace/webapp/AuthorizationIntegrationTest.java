@@ -27,7 +27,6 @@ import ai.philterd.workspace.repository.RelationalDbDataSourceRepository;
 import ai.philterd.workspace.repository.S3DataSourceRepository;
 import ai.philterd.workspace.repository.S3DestinationRepository;
 import ai.philterd.workspace.repository.RedactionCertificateRepository;
-import ai.philterd.workspace.repository.PolicyRepository;
 import ai.philterd.workspace.repository.SpanRepository;
 import ai.philterd.workspace.repository.UserRepository;
 import ai.philterd.workspace.repository.UserSettingsRepository;

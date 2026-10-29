@@ -38,7 +38,7 @@ public record FormErrors(String message, Map<String, String> fields) implements 
     private static final Logger log = LoggerFactory.getLogger(FormErrors.class);
 
     /** Reasons Philter gives when the item changed after the form read it (a stale entity tag or revision). */
-    static final Set<String> CHANGED = Set.of(ErrorReasons.CHANGED_CONCURRENTLY, ErrorReasons.POLICY_CHANGED,
+    public static final Set<String> CHANGED_REASONS = Set.of(ErrorReasons.CHANGED_CONCURRENTLY, ErrorReasons.POLICY_CHANGED,
             ErrorReasons.REDACT_LIST_CHANGED);
 
     static final String CHANGED_MESSAGE = "This was changed by someone else after you opened it. Reload it, "
@@ -84,7 +84,7 @@ public record FormErrors(String message, Map<String, String> fields) implements 
         if (reason != null && reasons.containsKey(reason)) {
             return new FormErrors(reasons.get(reason), refusedFields);
         }
-        if (reason != null && CHANGED.contains(reason)) {
+        if (reason != null && CHANGED_REASONS.contains(reason)) {
             return new FormErrors(CHANGED_MESSAGE, refusedFields);
         }
         final String message = switch (error.getStatusCode()) {

@@ -443,6 +443,91 @@ class PhilterSignInIT {
         assertFalse(userDashboard.contains("bootstrap API key"), "only administrators are warned");
     }
 
+    /** The value of a hidden field in a page, as the browser would post it. */
+    private static String hidden(final String html, final String name) {
+        final java.util.regex.Matcher m = java.util.regex.Pattern.compile(
+                "name=\"" + name + "\" value=\"([^\"]*)\"").matcher(html);
+        assertTrue(m.find(), name + " in " + html);
+        return m.group(1).replace("&quot;", "\"").replace("&amp;", "&");
+    }
+
+    @Test
+    void policiesAreManagedThroughPhilterAsTheSignedInPerson() throws Exception {
+        final MockHttpSession session = new MockHttpSession();
+        final String address = newAddress();
+        assertEquals("/", signIn(session, address, "admin", ADMIN_PASSWORD).getResponse().getRedirectedUrl());
+        final String name = "it-" + HexFormat.of().formatHex(bytes(3));
+        final com.fasterxml.jackson.databind.ObjectMapper json = new com.fasterxml.jackson.databind.ObjectMapper();
+        final String template = bootstrap().getPolicyTemplate("default");
+        final com.fasterxml.jackson.databind.node.ObjectNode smaller =
+                (com.fasterxml.jackson.databind.node.ObjectNode) json.readTree(template);
+        final com.fasterxml.jackson.databind.node.ObjectNode identifiers =
+                (com.fasterxml.jackson.databind.node.ObjectNode) smaller.get("identifiers");
+        final String first = identifiers.fieldNames().next();
+        identifiers.retain(first);
+
+        // A new policy starts from Philter's template, and Philter explains an invalid one.
+        assertTrue(mockMvc.perform(get("/policies/new").session(session).with(from(address)))
+                .andReturn().getResponse().getContentAsString().contains("identifiers"));
+        final String invalid = mockMvc.perform(post("/policies/new").session(session).with(csrf()).with(from(address))
+                        .param("name", name).param("json", "{\"identifiers\": {}}"))
+                .andReturn().getResponse().getContentAsString();
+        assertTrue(invalid.contains("Philter did not accept the policy: "), invalid);
+
+        mockMvc.perform(post("/policies/new").session(session).with(csrf()).with(from(address))
+                        .param("name", name).param("json", template).param("description", "first"))
+                .andExpect(redirectedUrl("/policies"));
+        final String listed = mockMvc.perform(get("/policies").param("q", name).session(session).with(from(address)))
+                .andReturn().getResponse().getContentAsString();
+        assertTrue(listed.contains(">" + name + "<") && listed.contains(">first<"), listed);
+        assertEquals("first", PhilterClients.build(philterUrl(), BOOTSTRAP_KEY, (javax.net.ssl.SSLContext) null)
+                .getPolicyDetails(name, "admin").getDescription(), "created as the signed-in person, admin");
+
+        // Edit with the tag read when the editor opened; a second save with that tag is refused.
+        final String editor = mockMvc.perform(get("/policies/edit").param("name", name).session(session)
+                .with(from(address))).andReturn().getResponse().getContentAsString();
+        final String eTag = hidden(editor, "eTag");
+        mockMvc.perform(post("/policies/edit").session(session).with(csrf()).with(from(address))
+                        .param("name", name).param("json", smaller.toString()).param("eTag", eTag)
+                        .param("description", "second").param("originalDescription", "first"))
+                .andExpect(redirectedUrl("/policies"));
+        final String stale = mockMvc.perform(post("/policies/edit").session(session).with(csrf()).with(from(address))
+                        .param("name", name).param("json", template).param("eTag", eTag))
+                .andReturn().getResponse().getContentAsString();
+        assertTrue(stale.contains("changed by someone else"), stale);
+
+        // History shows both revisions and what changed; rolling back to the first makes a new revision.
+        final java.util.List<Integer> revisions = bootstrap().listPolicyVersions(name, "admin",
+                new ai.philterd.philter.model.ListOptions().limit(10)).getItems().stream()
+                .map(ai.philterd.philter.model.PolicyVersionSummary::getRevision).toList();
+        assertEquals(2, revisions.size(), "the create and the edit: " + revisions);
+        final int older = revisions.get(1);
+        final int newer = revisions.get(0);
+        final MvcResult opened = mockMvc.perform(get("/policies/history").param("name", name)
+                .param("from", String.valueOf(older)).param("to", String.valueOf(newer))
+                .session(session).with(from(address))).andReturn();
+        assertEquals(null, opened.getResponse().getRedirectedUrl(), String.valueOf(opened.getFlashMap().get("error")));
+        final String history = opened.getResponse().getContentAsString();
+        assertTrue(history.contains("Roll " + name + " back to revision " + older + "?"), history);
+        assertTrue(history.contains("What changed from revision " + older + " to " + newer), history);
+        mockMvc.perform(post("/policies/rollback").session(session).with(csrf()).with(from(address))
+                        .param("name", name).param("revision", String.valueOf(older)).param("eTag", hidden(history, "eTag")))
+                .andExpect(redirectedUrl("/policies/history?name=" + name));
+        assertTrue(json.readTree(bootstrap().getPolicy(name, "admin")).get("identifiers").size() > 1,
+                "back to the template's identifiers");
+
+        // Deleting keeps the history, and the policy is restored from it.
+        mockMvc.perform(post("/policies/delete").session(session).with(csrf()).with(from(address))
+                .param("name", name)).andExpect(redirectedUrl("/policies"));
+        final String deleted = mockMvc.perform(get("/policies/deleted").param("q", name).session(session)
+                .with(from(address))).andReturn().getResponse().getContentAsString();
+        assertTrue(deleted.contains(">" + name + "<"), deleted);
+        mockMvc.perform(post("/policies/restore").session(session).with(csrf()).with(from(address))
+                .param("name", name).param("revision", String.valueOf(newer))).andExpect(redirectedUrl("/policies"));
+        assertEquals(1, json.readTree(bootstrap().getPolicy(name, "admin")).get("identifiers").size(),
+                "restored from the edited revision");
+    }
+
     @Test
     void anAdministratorsApiKeyIsFlaggedUnderAdminPhilter() throws Exception {
         final MockHttpSession session = new MockHttpSession();

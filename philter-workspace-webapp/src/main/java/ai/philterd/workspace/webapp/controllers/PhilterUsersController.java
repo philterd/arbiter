@@ -15,6 +15,7 @@ import ai.philterd.workspace.repository.GroupRepository;
 import ai.philterd.workspace.repository.UserRepository;
 import ai.philterd.workspace.service.AuditLogService;
 import ai.philterd.workspace.webapp.security.PhilterSessionAuthentication;
+import ai.philterd.workspace.webapp.security.PhilterSessions;
 import ai.philterd.workspace.webapp.security.PhilterUserProvisioner;
 import ai.philterd.workspace.webapp.security.PhilterUsersService;
 import ai.philterd.workspace.webapp.ui.Confirmation;
@@ -25,11 +26,9 @@ import ai.philterd.philter.model.User;
 import ai.philterd.philter.model.exceptions.PhilterError;
 import ai.philterd.philter.model.exceptions.UnauthorizedException;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.session.SessionInformation;
 import org.springframework.security.core.session.SessionRegistry;
 import org.springframework.stereotype.Controller;
@@ -665,12 +664,7 @@ public class PhilterUsersController {
 
     /** Philter rejected the administrator's own key: end their session, as the session check would. */
     private static String endSession(final HttpServletRequest request) {
-        final HttpSession session = request.getSession(false);
-        if (session != null) {
-            session.invalidate();
-        }
-        SecurityContextHolder.clearContext();
-        return "redirect:/login?expired";
+        return PhilterSessions.end(request);
     }
 
     private void expireSessions(final String username) {

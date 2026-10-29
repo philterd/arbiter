@@ -9,18 +9,18 @@
  */
 package ai.philterd.workspace.store.sqlite;
 
+import ai.philterd.workspace.model.OpenSearchDataSource;
 import ai.philterd.workspace.model.Batch;
 import ai.philterd.workspace.model.Document;
 import ai.philterd.workspace.model.Group;
 import ai.philterd.workspace.model.InboxMessage;
-import ai.philterd.workspace.model.Policy;
 import ai.philterd.workspace.model.Span;
 import ai.philterd.workspace.model.User;
+import ai.philterd.workspace.repository.OpenSearchDataSourceRepository;
 import ai.philterd.workspace.repository.BatchRepository;
 import ai.philterd.workspace.repository.DocumentRepository;
 import ai.philterd.workspace.repository.GroupRepository;
 import ai.philterd.workspace.repository.InboxMessageRepository;
-import ai.philterd.workspace.repository.PolicyRepository;
 import ai.philterd.workspace.repository.SpanRepository;
 import ai.philterd.workspace.repository.UserRepository;
 import org.junit.jupiter.api.AfterEach;
@@ -64,7 +64,7 @@ class SqliteRepositoriesTest {
     @Test
     void everyRepositoryAndDerivedQueryIsSupported() throws Exception {
         final List<Class<?>> repos = SqliteTestStore.allRepositoryInterfaces();
-        assertEquals(28, repos.size());
+        assertEquals(27, repos.size());
         for (Class<?> repo : repos) {
             assertNotNull(db.repository(repo), repo.getSimpleName());
         }
@@ -72,17 +72,17 @@ class SqliteRepositoriesTest {
 
     @Test
     void saveAssignsIdAndReplacesWholeDocument() {
-        final PolicyRepository policies = db.repository(PolicyRepository.class);
-        final Policy p = new Policy();
-        p.setName("claims");
-        p.setContent("{}");
-        policies.save(p);
-        assertTrue(p.getId().matches("[0-9a-f]{24}"));
+        final OpenSearchDataSourceRepository sources = db.repository(OpenSearchDataSourceRepository.class);
+        final OpenSearchDataSource source = new OpenSearchDataSource();
+        source.setName("claims");
+        source.setQuery("{}");
+        sources.save(source);
+        assertTrue(source.getId().matches("[0-9a-f]{24}"));
 
-        p.setContent("{\"a\":1}");
-        policies.save(p);
-        assertEquals(1, policies.count());
-        assertEquals("{\"a\":1}", policies.findById(p.getId()).orElseThrow().getContent());
+        source.setQuery("{\"a\":1}");
+        sources.save(source);
+        assertEquals(1, sources.count());
+        assertEquals("{\"a\":1}", sources.findById(source.getId()).orElseThrow().getQuery());
     }
 
     @Test
@@ -183,12 +183,12 @@ class SqliteRepositoriesTest {
 
     @Test
     void ignoreCaseFoldsNonAsciiLetters() {
-        final PolicyRepository policies = db.repository(PolicyRepository.class);
-        final Policy p = new Policy();
-        p.setName("Müller");
-        policies.save(p);
-        assertTrue(policies.findFirstByNameIgnoreCase("MÜLLER").isPresent());
-        assertFalse(policies.findByName("MÜLLER").isPresent());
+        final OpenSearchDataSourceRepository sources = db.repository(OpenSearchDataSourceRepository.class);
+        final OpenSearchDataSource source = new OpenSearchDataSource();
+        source.setName("Müller");
+        sources.save(source);
+        assertTrue(sources.findFirstByNameIgnoreCase("MÜLLER").isPresent());
+        assertFalse(sources.findByName("MÜLLER").isPresent());
     }
 
     @Test

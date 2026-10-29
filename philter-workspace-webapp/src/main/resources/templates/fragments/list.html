@@ -109,7 +109,7 @@
                    autocapitalize="none" spellcheck="false" th:value="${list.owner().username()}"
                    class="rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
         </div>
-        <label class="inline-flex items-center text-sm py-1.5">
+        <label th:if="${list.owner().everyoneOffered()}" class="inline-flex items-center text-sm py-1.5">
             <input type="checkbox" name="all" value="true" class="mr-1.5" th:checked="${list.owner().everyone()}">
             Every user's
         </label>

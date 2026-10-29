@@ -66,7 +66,7 @@ them through the redactor so the queue isn't empty.
 | Approval Rules     | `/admin/rules`            | Admin role only                 |
 | Data Sources       | `/admin/data-sources`     | Admin role only                 |
 | Reports            | `/reporting`              | Admin role only                 |
-| Policies           | `/policies`               | Admin role only                 |
+| Policies           | `/policies`               | Admin role; auditors read-only  |
 | Admin settings     | `/admin/users` …          | Admin role only                 |
 
 Group membership scopes what reviewers see. By default reviewers only see
@@ -101,6 +101,13 @@ following. The old names are not read.
 - **Full text search.** The default index name is `philter-workspace-documents`. A deployment that
   used the old default, `arbiter-documents`, sets that name under **Admin → General → Full text
   search** to keep its index.
+- **Policies kept in Arbiter.** Arbiter's own copies of redaction policies are no longer read;
+  the Policies page manages Philter's policies instead (see
+  [Create PII redaction policies](workflow.md#2-create-pii-redaction-policies)). Those copies
+  never affected redaction. To keep one, read it from the
+  old database and create it on the Policies page: on SQLite, `SELECT doc FROM policies`, where
+  each row is JSON with the policy's `name` and its JSON as `content`; on MongoDB, the `policies`
+  collection.
 - **Unchanged.** Stored PII stays readable with the same crypto secret, and the audit log's hash
   chain continues.
 - **Documentation** is at <https://philterd.github.io/philter-workspace/>.

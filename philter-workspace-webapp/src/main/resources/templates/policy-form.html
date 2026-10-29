@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd, LLC.
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  -->
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="|Philter Workspace - Policy|">Philter Workspace - Policies</title>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="flex min-h-screen">
+        <aside th:replace="~{fragments/policy-sidebar :: sidebar}"></aside>
+        <div class="flex-1 flex flex-col min-w-0">
+        <div th:replace="~{fragments/topbar :: topbar}"></div>
+        <main class="flex-1 p-8 max-w-5xl">
+            <a th:href="@{/policies}" class="text-sm text-blue-600 hover:text-blue-800">Back to policies</a>
+            <h2 class="mt-2 text-3xl font-bold text-gray-900" th:text="${form.isExisting()} ? |Edit ${form.getName()}| : 'New policy'">New policy</h2>
+            <p th:if="${form.getOwner() != null}" class="mt-1 text-sm text-gray-600">Owner: <span class="font-medium" th:text="${form.getOwner()}">jdoe</span></p>
+
+            <div th:if="${warning}" class="mt-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800" th:text="${warning}">warning</div>
+            <div class="mt-4" th:replace="~{fragments/forms :: errors(${errors})}"></div>
+
+            <form th:action="${form.isExisting()} ? @{/policies/edit} : @{/policies/new}" method="post" class="mt-4 space-y-4">
+                <input th:if="${form.getOwner() != null}" type="hidden" name="owner" th:value="${form.getOwner()}">
+                <th:block th:if="${form.isExisting()}">
+                    <input type="hidden" name="name" th:value="${form.getName()}">
+                    <input type="hidden" name="eTag" th:value="${form.getETag()}">
+                    <input type="hidden" name="originalDescription" th:value="${form.getOriginalDescription()}">
+                    <input type="hidden" name="originalNotes" th:value="${form.getOriginalNotes()}">
+                </th:block>
+                <div th:unless="${form.isExisting()}">
+                    <label for="name" class="block text-xs font-medium text-gray-600 mb-1">Name</label>
+                    <input id="name" name="name" type="text" required maxlength="200" autocomplete="off"
+                           autocapitalize="none" spellcheck="false" th:value="${form.getName()}"
+                           th:attr="aria-describedby=${errors != null and errors.has('name')} ? 'name-error' : null"
+                           class="block w-full max-w-md rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <p th:replace="~{fragments/forms :: field-error(${errors}, 'name')}"></p>
+                </div>
+                <div>
+                    <label for="description" class="block text-xs font-medium text-gray-600 mb-1">
+                        Description <span class="text-gray-400 font-normal">(optional)</span></label>
+                    <input id="description" name="description" type="text" maxlength="200" th:value="${form.getDescription()}"
+                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                <div>
+                    <label for="notes" class="block text-xs font-medium text-gray-600 mb-1">
+                        Notes <span class="text-gray-400 font-normal">(optional)</span></label>
+                    <textarea id="notes" name="notes" rows="3" maxlength="1000" th:text="${form.getNotes()}"
+                              class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+                <div>
+                    <div class="flex items-baseline justify-between mb-1">
+                        <label for="json" class="block text-xs font-medium text-gray-600">Policy (JSON)</label>
+                        <a th:href="${policyEditorUrl}" target="_blank" rel="noopener noreferrer"
+                           class="text-xs text-blue-600 hover:text-blue-800">Build a policy in the Policy Editor, then paste its JSON here</a>
+                    </div>
+                    <div th:replace="~{fragments/forms :: json-editor('json', 'json', ${form.getJson()}, ${jsonError})}"></div>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button type="submit"
+                            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Save</button>
+                    <a th:href="@{/policies}" class="text-sm text-blue-600 hover:text-blue-800">Cancel</a>
+                </div>
+            </form>
+        </main>
+        <div th:replace="~{fragments/footer :: footer}"></div>
+        </div>
+    </div>
+    <script th:replace="~{fragments/scripts :: philter-ui}"></script>
+</body>
+</html>

@@ -586,8 +586,8 @@ is required (CSRF defence).
 
 ## Policies
 
-These endpoints list Philter's policies for the **Policies** page and the
-batch dialogs. The framework gates them to `ROLE_ADMIN` or
+These endpoints list the policies batches can use, those of the Philter user that owns
+`PHILTER_WORKSPACE_PHILTER_API_KEY`, for the batch dialogs. The framework gates them to `ROLE_ADMIN` or
 `ROLE_AUDITOR` for reads — non-admin callers get `403`.
 
 ### `GET /api/v1/policies`

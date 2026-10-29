@@ -165,7 +165,9 @@ set), a "past the end" state, and the pager (`fragments/list :: pager`).
 search box, your filter controls (or `~{}` for none), and, for
 administrators, the owner filter: a username, or "Every user's". Others
 never see it, and `OwnerFilter.from` ignores their `owner` and `all`
-parameters, so the server enforces it too.
+parameters, so the server enforces it too. For a list Philter gives one
+owner at a time (deleted policies, for example), `OwnerFilter.fromOneUser`
+leaves out "Every user's".
 
 ```html
 <form th:replace="~{fragments/list :: filter-bar(${list}, ~{::user-filters})}">

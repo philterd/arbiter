@@ -23,7 +23,6 @@ import ai.philterd.workspace.model.Document;
 import ai.philterd.workspace.model.Group;
 import ai.philterd.workspace.model.IngestStatus;
 import ai.philterd.workspace.model.Location;
-import ai.philterd.workspace.model.Policy;
 import ai.philterd.workspace.model.RiskScore;
 import ai.philterd.workspace.model.Span;
 import ai.philterd.workspace.model.User;
@@ -31,7 +30,6 @@ import ai.philterd.workspace.repository.BatchRepository;
 import ai.philterd.workspace.repository.ComplianceProfileRepository;
 import ai.philterd.workspace.repository.DocumentRepository;
 import ai.philterd.workspace.repository.GroupRepository;
-import ai.philterd.workspace.repository.PolicyRepository;
 import ai.philterd.workspace.repository.SpanRepository;
 import ai.philterd.workspace.repository.UserRepository;
 import ai.philterd.workspace.service.RedactionService;
@@ -76,7 +74,6 @@ public class DemoDataLoader implements ApplicationRunner {
     private final SpanRepository spanRepository;
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
-    private final PolicyRepository policyRepository;
     private final ComplianceProfileRepository complianceProfileRepository;
     private final ai.philterd.workspace.repository.FinalizationPolicyRepository finalizationPolicyRepository;
     private final IngestQueueService ingestQueueService;
@@ -87,7 +84,6 @@ public class DemoDataLoader implements ApplicationRunner {
                           final SpanRepository spanRepository,
                           final GroupRepository groupRepository,
                           final UserRepository userRepository,
-                          final PolicyRepository policyRepository,
                           final ComplianceProfileRepository complianceProfileRepository,
                           final ai.philterd.workspace.repository.FinalizationPolicyRepository finalizationPolicyRepository,
                           final IngestQueueService ingestQueueService,
@@ -97,7 +93,6 @@ public class DemoDataLoader implements ApplicationRunner {
         this.spanRepository = spanRepository;
         this.groupRepository = groupRepository;
         this.userRepository = userRepository;
-        this.policyRepository = policyRepository;
         this.complianceProfileRepository = complianceProfileRepository;
         this.finalizationPolicyRepository = finalizationPolicyRepository;
         this.ingestQueueService = ingestQueueService;
@@ -106,7 +101,6 @@ public class DemoDataLoader implements ApplicationRunner {
 
     @Override
     public void run(final ApplicationArguments args) {
-        ensureDefaultPolicy();
 
         if (batchRepository.count() > 0 || documentRepository.count() > 0 || spanRepository.count() > 0) {
             log.info("Demo data not loaded: existing data found in batches/documents/spans collections.");
@@ -160,33 +154,8 @@ public class DemoDataLoader implements ApplicationRunner {
                 loaded, spanRepository.count());
     }
 
-    private void ensureDefaultPolicy() {
-        if (policyRepository.count() > 0) {
-            return;
-        }
-        final Policy policy = new Policy();
-        policy.setId(UUID.randomUUID().toString());
-        policy.setName("Default");
-        policy.setContent(DEFAULT_POLICY_JSON);
-        policy.setCreatedAt(LocalDateTime.now());
-        policyRepository.save(policy);
-        log.info("Seeded default Phileas policy.");
-    }
 
-    private static final String DEFAULT_POLICY_JSON = """
-            {
-              "name": "Default",
-              "identifiers": {
-                "age": { "ageFilterStrategies": [{"strategy": "REDACT"}] },
-                "creditCard": { "creditCardFilterStrategies": [{"strategy": "REDACT"}] },
-                "date": { "dateFilterStrategies": [{"strategy": "REDACT"}] },
-                "emailAddress": { "emailAddressFilterStrategies": [{"strategy": "REDACT"}] },
-                "ipAddress": { "ipAddressFilterStrategies": [{"strategy": "REDACT"}] },
-                "phoneNumber": { "phoneNumberFilterStrategies": [{"strategy": "REDACT"}] },
-                "ssn": { "ssnFilterStrategies": [{"strategy": "REDACT"}] }
-              }
-            }
-            """;
+
 
     private ai.philterd.workspace.model.FinalizationPolicy ensureDeleteImmediatelyPolicy() {
         return finalizationPolicyRepository.findByName("Delete Immediately").orElseGet(() -> {

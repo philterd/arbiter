@@ -45,4 +45,25 @@ public final class JsonInput {
         }
         return node != null && node.isObject() ? null : "Enter a JSON object, starting with {.";
     }
+
+    /** {@code text} indented for editing, or unchanged when it is not JSON. */
+    public static String pretty(final String text) {
+        if (text == null) {
+            return "";
+        }
+        try {
+            return MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(MAPPER.readTree(text));
+        } catch (JsonProcessingException e) {
+            return text;
+        }
+    }
+
+    /** Whether two texts are the same JSON, whatever their spacing. False when either is not JSON. */
+    public static boolean same(final String a, final String b) {
+        try {
+            return a != null && b != null && MAPPER.readTree(a).equals(MAPPER.readTree(b));
+        } catch (JsonProcessingException e) {
+            return false;
+        }
+    }
 }

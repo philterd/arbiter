@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd, LLC.
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  -->
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title th:text="|Philter Workspace - Policy history|">Philter Workspace - Policies</title>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="flex min-h-screen">
+        <aside th:replace="~{fragments/policy-sidebar :: sidebar}"></aside>
+        <div class="flex-1 flex flex-col min-w-0">
+        <div th:replace="~{fragments/topbar :: topbar}"></div>
+        <main class="flex-1 p-8 max-w-5xl">
+            <a th:href="@{/policies}" class="text-sm text-blue-600 hover:text-blue-800">Back to policies</a>
+            <h2 class="mt-2 text-3xl font-bold text-gray-900" th:text="|History of ${name}${deleted ? ' (deleted)' : ''}|">History</h2>
+            <p th:if="${owner != null}" class="mt-1 text-sm text-gray-600">Owner: <span class="font-medium" th:text="${owner}">jdoe</span></p>
+
+            <div th:if="${error}" class="mt-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700" th:text="${error}">Error</div>
+            <div th:if="${success}" class="mt-4 p-3 rounded-lg bg-green-50 border border-green-200 text-sm text-green-700" th:text="${success}">Success</div>
+            <p th:if="${#lists.isEmpty(versions)}" class="mt-4 text-sm text-gray-500">Philter keeps no versions of this policy.</p>
+            <div th:unless="${#lists.isEmpty(versions)}" class="mt-4 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Revision</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Saved</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">By</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <tr th:each="v : ${versions}">
+                            <td class="px-6 py-3 text-sm text-gray-900">
+                                <span th:text="${v.revision}">3</span>
+                                <span th:if="${v.revision == latest and !deleted}" class="ml-1 text-xs text-gray-500">(current)</span>
+                            </td>
+                            <td class="px-6 py-3 text-sm text-gray-700 whitespace-nowrap" th:text="${v.capturedTimestamp}">when</td>
+                            <td class="px-6 py-3 text-sm text-gray-700" th:text="${v.author}">who</td>
+                            <td class="px-6 py-3 text-sm whitespace-nowrap space-x-3">
+                                <a th:href="@{${revisionUrls[v.revision]}}"
+                                   class="font-medium text-blue-600 hover:text-blue-800">View</a>
+                                <th:block th:if="${canWrite and actions[v.revision] != null}">
+                                    <th:block th:replace="~{fragments/confirm :: confirm(|revision-${v.revision}|, ${actions[v.revision]}, ${deleted} ? 'Restore' : 'Roll back', 'font-medium text-red-600 hover:text-red-800')}"></th:block>
+                                </th:block>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div th:if="${#lists.size(versions) >= 2}" class="mt-6 bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                <h3 class="text-lg font-semibold text-gray-900 mb-3">Compare revisions</h3>
+                <form th:action="@{/policies/history}" method="get" class="flex flex-wrap items-end gap-3">
+                    <input type="hidden" name="name" th:value="${name}">
+                    <input th:if="${owner != null}" type="hidden" name="owner" th:value="${owner}">
+                    <input th:if="${deleted}" type="hidden" name="deleted" value="true">
+                    <div>
+                        <label for="from" class="block text-xs font-medium text-gray-600 mb-1">From revision</label>
+                        <select id="from" name="from" class="rounded-lg border border-gray-300 px-2 py-1.5 text-sm">
+                            <option th:each="v : ${versions}" th:value="${v.revision}" th:text="${v.revision}" th:selected="${v.revision == from}">1</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="to" class="block text-xs font-medium text-gray-600 mb-1">To revision</label>
+                        <select id="to" name="to" class="rounded-lg border border-gray-300 px-2 py-1.5 text-sm">
+                            <option th:each="v : ${versions}" th:value="${v.revision}" th:text="${v.revision}" th:selected="${v.revision == to}">2</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">Compare</button>
+                </form>
+                <th:block th:if="${diff != null}">
+                    <p th:if="${#lists.isEmpty(changes)}" class="mt-4 text-sm text-gray-600"
+                       th:text="|Revisions ${diff.from} and ${diff.to} have the same content.|">same</p>
+                    <table th:unless="${#lists.isEmpty(changes)}" class="mt-4 min-w-full divide-y divide-gray-200 text-sm">
+                        <caption class="text-left text-sm text-gray-600 mb-2" th:text="|What changed from revision ${diff.from} to ${diff.to}|">changes</caption>
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Change</th>
+                                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Path</th>
+                                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">Before</th>
+                                <th scope="col" class="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">After</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            <tr th:each="c : ${changes}" class="align-top">
+                                <td class="px-4 py-2" th:text="${c.op}">replace</td>
+                                <td class="px-4 py-2 font-mono text-xs break-all" th:text="${c.path}">/identifiers</td>
+                                <td class="px-4 py-2 font-mono text-xs break-all" th:text="${c.before}">a</td>
+                                <td class="px-4 py-2 font-mono text-xs break-all" th:text="${c.after}">b</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </th:block>
+            </div>
+        </main>
+        <div th:replace="~{fragments/footer :: footer}"></div>
+        </div>
+    </div>
+    <script th:replace="~{fragments/scripts :: philter-ui}"></script>
+</body>
+</html>

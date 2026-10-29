@@ -152,14 +152,47 @@ declares which PII types to look for and what to do with each
 (`REDACT`, `MASK`, `REPLACE`, etc.). For the policy schema and examples, see
 the [Philter documentation](https://philterd.github.io/philter/).
 
-Policies live in Philter, and belong to the user who owns
-`PHILTER_WORKSPACE_PHILTER_API_KEY`. Create and change them in Philter, for example with
-the Policy Editor. Philter Workspace lists them read-only through the Philter API, with
-that key:
+Policies live in Philter, and each belongs to one Philter user. The **Policies** page
+(administrators, and auditors read-only) manages them through Philter's Policies API as
+you, with your session, so Philter's per-user ownership applies and its audit log names
+you.
 
-1. Click **Policies** in the left-side menu.
-2. The table lists the policies in Philter.
-3. **View** opens a policy's JSON in a popup.
+- **Policies** lists your policies, with their description and when each was created and
+  updated. Search by name, and sort by name, created, or updated.
+- **New policy** starts from Philter's policy template. Enter a name, an optional
+  description (up to 200 characters) and notes (up to 1,000), and the policy's JSON. The
+  JSON is checked before it is sent, and when Philter refuses a policy, its reason is
+  shown. **Build a policy in the Policy Editor** opens the Policy Editor that the compose
+  files run beside Philter Workspace.
+- **Edit** changes a policy's JSON, description, and notes. The save is made only if the
+  policy is unchanged since you opened it; if someone else changed it, the save is
+  refused and your edit is kept, so reload it and make your change again. Philter adds a
+  revision only when the JSON changes.
+- **Duplicate** copies a policy to a new name. **Delete** asks you to confirm. Philter's
+  default policy cannot be deleted.
+- **History** lists a policy's revisions, with who saved each. **View** shows one,
+  **Compare** shows what changed between two (each change's path, and the value before
+  and after), and **Roll back** makes an older revision's content a new revision. A roll
+  back is refused if the policy changed since you opened its history.
+- **Managed** lists Philter's ready-made policies. They cannot be changed or deleted;
+  **Create a policy from it** copies one to a policy of yours.
+- **Deleted** lists deleted policies, whose history Philter keeps. **Restore** saves one
+  again under its name, from its latest revision or from any revision in its history.
+- **Owner** (administrators only) shows another user's policies, by username, or
+  **Every user's** (on **Deleted**, one user at a time). Every action on the page then acts
+  on that user's policies. Philter
+  allows this only with `ADMIN_CROSS_USER_ACCESS_ENABLED=true`; otherwise the page says
+  so.
+
+### Policies for batches
+
+Batches are redacted with `PHILTER_WORKSPACE_PHILTER_API_KEY`, so a batch can use only
+the policies of the Philter user that owns that key (`philter-workspace` in the steps
+above) and Philter's default policy. **Used by batches** on the Policies page lists
+them, and the batch dialogs offer them. To create or change them, an administrator
+enters that username in the **Owner** filter (which needs
+`ADMIN_CROSS_USER_ACCESS_ENABLED=true` in Philter), or uses Philter's API with a key
+of that user. A policy you create as yourself is not available to batches.
 
 A batch with no policy selected uses Philter's default policy.
 
