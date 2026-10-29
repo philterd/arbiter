@@ -593,6 +593,70 @@ class PhilterSignInIT {
     }
 
     @Test
+    void contextsAreManagedThroughPhilterAsTheSignedInPerson() throws Exception {
+        final MockHttpSession session = new MockHttpSession();
+        final String address = newAddress();
+        assertEquals("/", signIn(session, address, "admin", ADMIN_PASSWORD).getResponse().getRedirectedUrl());
+        final String name = "it-context-" + HexFormat.of().formatHex(bytes(3));
+
+        mockMvc.perform(post("/policies/contexts/new").session(session).with(csrf()).with(from(address))
+                        .param("name", name).param("disambiguation", "true").param("scope", "document"))
+                .andExpect(redirectedUrl("/policies/contexts"));
+        final ai.philterd.philter.model.ContextDetails created = bootstrap().getContextDetails(name, "admin");
+        assertTrue(created.isEntityTypeDisambiguation() && !created.isLedger(), "created as admin, with its settings");
+        assertEquals("document", created.getDisambiguationScope());
+
+        final String listed = mockMvc.perform(get("/policies/contexts").param("q", name).session(session)
+                .with(from(address))).andReturn().getResponse().getContentAsString();
+        assertTrue(listed.contains(">" + name + "<") && listed.contains(">0<"), listed);
+        final String again = mockMvc.perform(post("/policies/contexts/new").session(session).with(csrf())
+                        .with(from(address)).param("name", name))
+                .andReturn().getResponse().getContentAsString();
+        assertTrue(again.contains("A context with that name already exists."), again);
+
+        // Only the scope changed, so only it is sent; Philter keeps disambiguation on.
+        final String form = mockMvc.perform(get("/policies/contexts/edit").param("name", name).session(session)
+                .with(from(address))).andReturn().getResponse().getContentAsString();
+        mockMvc.perform(post("/policies/contexts/edit").session(session).with(csrf()).with(from(address))
+                        .param("name", name).param("disambiguation", "true").param("scope", "context")
+                        .param("originalDisambiguation", hidden(form, "originalDisambiguation"))
+                        .param("originalScope", hidden(form, "originalScope"))
+                        .param("originalLedger", hidden(form, "originalLedger")))
+                .andExpect(redirectedUrl("/policies/contexts"));
+        final ai.philterd.philter.model.ContextDetails edited = bootstrap().getContextDetails(name, "admin");
+        assertEquals("context", edited.getDisambiguationScope());
+        assertTrue(edited.isEntityTypeDisambiguation());
+
+        // A replacement kept in the context is an entry; the list and the view count it by filter type.
+        final String policy = name + "-policy";
+        bootstrap().savePolicy(policy, "{\"identifiers\":{\"emailAddress\":{\"emailAddressFilterStrategies\":"
+                + "[{\"strategy\":\"RANDOM_REPLACE\",\"replacementScope\":\"CONTEXT\"}]}}}", "admin");
+        bootstrap().filter(name, policy, "Write to jdoe@example.com or ann@example.org about the claim.");
+        assertEquals(2, bootstrap().getContextDetails(name, "admin").getSize(), "two entries");
+        assertTrue(mockMvc.perform(get("/policies/contexts").param("q", name).session(session).with(from(address)))
+                .andReturn().getResponse().getContentAsString().contains(">2<"), "counted in the list");
+        final String view = mockMvc.perform(get("/policies/contexts/view").param("name", name).session(session)
+                .with(from(address))).andReturn().getResponse().getContentAsString();
+        assertTrue(view.contains("2 entries") && view.contains("Disambiguation within the context"), view);
+        assertTrue(view.contains("Its 2 entries are deleted"), "the clear confirmation counts them");
+
+        final String other = createUser("contexts", password());
+        assertTrue(mockMvc.perform(get("/policies/contexts").param("owner", other).session(session)
+                        .with(from(address))).andReturn().getResponse().getContentAsString()
+                .contains("ADMIN_CROSS_USER_ACCESS_ENABLED=true"));
+
+        mockMvc.perform(post("/policies/contexts/clear").session(session).with(csrf()).with(from(address))
+                        .param("name", name)).andExpect(redirectedUrl("/policies/contexts"))
+                .andExpect(org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash()
+                        .attribute("success", "Context \"" + name + "\" cleared."));
+        assertEquals(0, bootstrap().getContextDetails(name, "admin").getSize(), "cleared, and the context is kept");
+        mockMvc.perform(post("/policies/contexts/delete").session(session).with(csrf()).with(from(address))
+                .param("name", name)).andExpect(redirectedUrl("/policies/contexts"));
+        assertTrue(bootstrap().listContexts("admin", null).getContexts().stream()
+                .noneMatch(c -> name.equals(c.getName())), "deleted");
+    }
+
+    @Test
     void anAdministratorsApiKeyIsFlaggedUnderAdminPhilter() throws Exception {
         final MockHttpSession session = new MockHttpSession();
         final String address = newAddress();

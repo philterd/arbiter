@@ -230,6 +230,37 @@ you opened the page; if someone else changed it, nothing is saved, the list show
 Philter's current terms, and your edits are shown below it to apply again. **Owner**
 (administrators only) shows one other user's lists.
 
+### Contexts
+
+A **context** holds the replacements consistent pseudonymization reuses across the
+documents redacted in it, and what entity type disambiguation learns. See Philter's
+[Redaction Contexts](https://philterd.github.io/philter/latest/redaction/contexts.html).
+
+The **Contexts** tab of the Policies page manages your contexts through Philter's API as
+you:
+
+- The list shows each context's number of entries, its settings, and when it was created.
+  Search by name, and sort by name or created.
+- **View** shows a context's entries counted by filter type.
+- **New context** takes a name and the settings: **Entity type disambiguation**, what it
+  **learns from** (each document, or the whole context, kept between documents), and the
+  **Redaction ledger**. A context cannot be renamed, and a Philter user can have at most 10
+  contexts, counting `default`.
+- **Edit** changes the settings; only those you change are sent.
+- **Clear** deletes a context's entries and what disambiguation learned for it, keeping the
+  context and its settings, so later redactions in it no longer reuse earlier
+  replacements. **Delete** removes the context with its entries. Both ask you to confirm
+  and cannot be undone. Philter refuses to delete a context while redaction jobs that use
+  it are pending or running, and once it is deleted, refuses redactions that name it.
+- **Owner** (administrators only) shows another user's contexts, by username, or **Every
+  user's** (without entry counts or settings; **View** shows them), as on the Policies list.
+- Auditors can view contexts but not change them.
+
+A batch's context is one of the contexts of the user that owns
+`PHILTER_WORKSPACE_PHILTER_API_KEY`, as with [policies](#policies-for-batches). Philter
+refuses to redact in a context that user does not have, so create it first, with the
+**Owner** filter (which needs `ADMIN_CROSS_USER_ACCESS_ENABLED=true` in Philter).
+
 Batches use the custom lists and the always and never redact lists of the user that owns
 `PHILTER_WORKSPACE_PHILTER_API_KEY`, as with [policies](#policies-for-batches). An
 administrator reaches them by entering that username in the **Owner** filter, which needs

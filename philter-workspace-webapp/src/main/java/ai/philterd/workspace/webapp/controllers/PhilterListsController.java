@@ -26,6 +26,7 @@ import ai.philterd.workspace.webapp.ui.Confirmation;
 import ai.philterd.workspace.webapp.ui.FormErrors;
 import ai.philterd.workspace.webapp.ui.ListView;
 import ai.philterd.workspace.webapp.ui.OwnerFilter;
+import ai.philterd.workspace.webapp.ui.PhilterNames;
 import jakarta.servlet.http.HttpServletRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,8 +69,6 @@ public class PhilterListsController {
     static final int MAXIMUM_DESCRIPTION_LENGTH = 200;
     static final int MAXIMUM_TERMS = 1000;
     static final int MAXIMUM_TERM_LENGTH = 100;
-    /** The characters Philter refuses in a list name, which it uses in request paths. */
-    private static final List<String> FORBIDDEN_NAME_CHARACTERS = List.of("/", "\\", ";", "%");
 
     public static final String CROSS_USER = "Philter found no such user you can reach. Reaching another user's lists "
             + "needs ADMIN_CROSS_USER_ACCESS_ENABLED=true in Philter.";
@@ -158,7 +157,7 @@ public class PhilterListsController {
         final String owner = ownerFor(authentication, requestedOwner);
         final String trimmed = name == null ? "" : name.trim();
         final ListForm form = new ListForm(trimmed, owner, description, items, "", false);
-        final String nameProblem = nameProblem(trimmed);
+        final String nameProblem = PhilterNames.problem(trimmed, "list");
         if (nameProblem != null) {
             return form(model, form, new FormErrors(nameProblem, Map.of("name", nameProblem)), true);
         }
@@ -414,18 +413,6 @@ public class PhilterListsController {
             }
         }
         return out;
-    }
-
-    /** What is wrong with a list name for Philter, or null. */
-    static String nameProblem(final String name) {
-        if (name.isEmpty()) {
-            return "Enter a name.";
-        }
-        if (".".equals(name) || "..".equals(name) || FORBIDDEN_NAME_CHARACTERS.stream().anyMatch(name::contains)
-                || name.chars().anyMatch(Character::isISOControl)) {
-            return "A list name cannot contain /, \\, ;, or %, and cannot be . or ..";
-        }
-        return null;
     }
 
     /** What is wrong with a custom list's description and items under Philter's limits, or null. */

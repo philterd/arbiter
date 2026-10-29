@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd, LLC.
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  -->
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Philter Workspace - Context</title>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="flex min-h-screen">
+        <aside th:replace="~{fragments/policy-sidebar :: sidebar}"></aside>
+        <div class="flex-1 flex flex-col min-w-0">
+        <div th:replace="~{fragments/topbar :: topbar}"></div>
+        <main class="flex-1 p-8 max-w-3xl">
+            <a th:href="@{${backUrl}}" class="text-sm text-blue-600 hover:text-blue-800">Back to contexts</a>
+            <h2 class="mt-2 text-3xl font-bold text-gray-900"
+                th:text="${form.existing()} ? |Edit ${form.name()}| : 'New context'">New context</h2>
+            <p th:if="${form.owner() != null}" class="mt-1 text-sm text-gray-600">Owner: <span class="font-medium" th:text="${form.owner()}">jdoe</span></p>
+
+            <div class="mt-4" th:replace="~{fragments/forms :: errors(${errors})}"></div>
+
+            <form th:action="${form.existing()} ? @{/policies/contexts/edit} : @{/policies/contexts/new}" method="post" class="mt-4 space-y-5">
+                <input th:if="${form.owner() != null}" type="hidden" name="owner" th:value="${form.owner()}">
+                <th:block th:if="${form.existing()}">
+                    <input type="hidden" name="name" th:value="${form.name()}">
+                    <input type="hidden" name="originalDisambiguation" th:value="${originalDisambiguation}">
+                    <input type="hidden" name="originalScope" th:value="${originalScope}">
+                    <input type="hidden" name="originalLedger" th:value="${originalLedger}">
+                </th:block>
+                <div th:unless="${form.existing()}">
+                    <label for="name" class="block text-xs font-medium text-gray-600 mb-1">Name</label>
+                    <input id="name" name="name" type="text" required maxlength="200" autocomplete="off"
+                           autocapitalize="none" spellcheck="false" th:value="${form.name()}"
+                           th:attr="aria-describedby=${errors != null and errors.has('name')} ? 'name-error' : 'name-help'"
+                           class="block w-full max-w-md rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <p id="name-help" class="mt-1 text-xs text-gray-500">A context cannot be renamed. A name cannot
+                        contain /, \, ;, or %. Philter's audit log records context names.</p>
+                    <p th:replace="~{fragments/forms :: field-error(${errors}, 'name')}"></p>
+                </div>
+                <div>
+                    <label class="inline-flex items-start gap-2 text-sm text-gray-800">
+                        <input type="checkbox" name="disambiguation" value="true" class="mt-0.5"
+                               th:checked="${form.disambiguation()}" aria-describedby="disambiguation-help">
+                        Entity type disambiguation
+                    </label>
+                    <p id="disambiguation-help" class="mt-1 ml-6 text-xs text-gray-500">When the same text is found as
+                        more than one type, Philter keeps the type the surrounding words fit best.</p>
+                </div>
+                <div class="ml-6">
+                    <label for="scope" class="block text-xs font-medium text-gray-600 mb-1">Disambiguation learns from</label>
+                    <select id="scope" name="scope"
+                            class="rounded-lg border border-gray-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option th:each="s : ${scopes}" th:value="${s.key}" th:text="${s.value}"
+                                th:selected="${s.key == form.scope()}">Each document</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="inline-flex items-start gap-2 text-sm text-gray-800">
+                        <input type="checkbox" name="ledger" value="true" class="mt-0.5" th:checked="${form.ledger()}"
+                               aria-describedby="ledger-help">
+                        Redaction ledger
+                    </label>
+                    <p id="ledger-help" class="mt-1 ml-6 text-xs text-gray-500">Philter records the redactions made in
+                        this context in its tamper-evident redaction ledger.</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <button type="submit"
+                            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Save</button>
+                    <a th:href="@{${backUrl}}" class="text-sm text-blue-600 hover:text-blue-800">Cancel</a>
+                </div>
+            </form>
+        </main>
+        <div th:replace="~{fragments/footer :: footer}"></div>
+        </div>
+    </div>
+    <script th:replace="~{fragments/scripts :: philter-ui}"></script>
+</body>
+</html>
