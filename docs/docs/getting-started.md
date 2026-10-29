@@ -61,6 +61,7 @@ them through the redactor so the queue isn't empty.
 | Add Documents      | `/upload`                 | All authenticated users         |
 | Background Jobs    | `/jobs`                   | All authenticated users         |
 | Personal settings  | `/settings`               | All authenticated users         |
+| Try a policy       | `/try`                    | All authenticated users         |
 | Documentation      | `/docs/`                  | Public (no login required)      |
 | Ingest Queue       | `/admin/ingest-queue`     | Admin role only                 |
 | Approval Rules     | `/admin/rules`            | Admin role only                 |

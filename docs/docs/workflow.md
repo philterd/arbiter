@@ -261,6 +261,14 @@ A batch's context is one of the contexts of the user that owns
 refuses to redact in a context that user does not have, so create it first, with the
 **Owner** filter (which needs `ADMIN_CROSS_USER_ACCESS_ENABLED=true` in Philter).
 
+### Models
+
+The **Models** tab of the Policies page lists the PhEye models in Philter's models directory
+(`PHEYE_MODELS_DIRECTORY`), the same for every Philter user, with each one's size, the most words
+of a text it reads (it does not examine later words), the most words one entity it finds can span,
+and its encoder. A policy uses a model by giving its name as a ph-eye filter's
+`phEyeConfiguration.modelPath`. To see what a policy finds, use [Try a policy](user-guide/try-a-policy.md).
+
 Batches use the custom lists and the always and never redact lists of the user that owns
 `PHILTER_WORKSPACE_PHILTER_API_KEY`, as with [policies](#policies-for-batches). An
 administrator reaches them by entering that username in the **Owner** filter, which needs

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd, LLC.
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  -->
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Philter Workspace - Models</title>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="flex min-h-screen">
+        <aside th:replace="~{fragments/policy-sidebar :: sidebar}"></aside>
+
+        <div class="flex-1 flex flex-col min-w-0">
+        <div th:replace="~{fragments/topbar :: topbar}"></div>
+        <main class="flex-1 p-8">
+            <div class="flex items-center justify-between mb-6">
+                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Policies</h2><a href="/docs/workflow/#models" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
+            </div>
+
+            <div th:if="${error}" role="alert" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
+                 th:text="${error}">Error</div>
+
+            <div th:replace="~{fragments/policy-tabs :: tabs(${activeTab})}"></div>
+
+            <p class="text-sm text-gray-600 mb-4 max-w-3xl">The PhEye models in Philter's models directory
+                (<code>PHEYE_MODELS_DIRECTORY</code>), the same for every Philter user. A policy uses one by giving its
+                name as a ph-eye filter's <code>phEyeConfiguration.modelPath</code>. A model reads at most its maximum
+                number of words of a text, and does not examine later words; an entity it finds spans at most its
+                maximum entity width, in words. A blank means the model's configuration does not say.</p>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-x-auto">
+                <table th:unless="${models.isEmpty()}" class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Size</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Maximum words</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Maximum entity width</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Encoder</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        <tr th:each="m : ${models}">
+                            <td class="px-6 py-4 text-sm font-medium text-gray-900" th:text="${m.name}">model</td>
+                            <td class="px-6 py-4 text-sm text-gray-700 whitespace-nowrap"
+                                th:text="${m.sizeBytes >= 1048576} ? ${#numbers.formatDecimal(m.sizeBytes / 1048576.0, 1, 1)} + ' MB' : ${#numbers.formatInteger(m.sizeBytes / 1024, 1)} + ' KB'">1.2 MB</td>
+                            <td class="px-6 py-4 text-sm text-gray-700" th:text="${m.maxLength}">512</td>
+                            <td class="px-6 py-4 text-sm text-gray-700" th:text="${m.maxWidth}">12</td>
+                            <td class="px-6 py-4 text-sm text-gray-700" th:text="${m.encoder}">encoder</td>
+                        </tr>
+                    </tbody>
+                </table>
+                <p th:if="${models.isEmpty() and error == null}" class="px-6 py-8 text-center text-sm text-gray-500">Philter has no models loaded.</p>
+            </div>
+        </main>
+        <div th:replace="~{fragments/footer :: footer}"></div>
+        </div>
+    </div>
+    <script th:replace="~{fragments/scripts :: philter-ui}"></script>
+</body>
+</html>

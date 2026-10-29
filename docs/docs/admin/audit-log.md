@@ -83,6 +83,7 @@ and export them:
 | `SECURITY_SETTINGS_CHANGE`          | Settings    | The data-source host allow-list turned on or off     |
 | `NOTIFICATION_SETTINGS_TEST`        | Settings    | A test email sent from the notification settings     |
 | `USER_SETTINGS_CHANGE`              | User        | A person's review preferences saved under Settings   |
+| `POLICY_TRY`                        | Policy      | A policy tried under Try a Policy: the policy, `kind` (`text` or `pdf`), and the size in characters or bytes. Never what was sent or returned. Philter does not audit this kind of redaction. |
 | `ADMIN_TOOLS_CLEANUP_DATA_IMPORTS`  | Tools       | Finished data-import jobs and their logs deleted under Admin → Tools |
 
 Each entry stores:

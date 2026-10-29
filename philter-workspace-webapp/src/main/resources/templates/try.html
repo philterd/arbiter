@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright 2026 Philterd, LLC.
+  ~
+  ~ Licensed under the Apache License, Version 2.0 (the "License");
+  ~ you may not use this file except in compliance with the License.
+  ~ You may obtain a copy of the License at
+  ~
+  ~     http://www.apache.org/licenses/LICENSE-2.0
+  -->
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8">
+    <title>Philter Workspace - Try a Policy</title>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+</head>
+<body class="bg-gray-50">
+    <div class="flex min-h-screen">
+        <aside th:replace="~{fragments/try-sidebar :: sidebar}"></aside>
+        <div class="flex-1 flex flex-col min-w-0">
+        <div th:replace="~{fragments/topbar :: topbar}"></div>
+        <main class="flex-1 p-8">
+            <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900 mb-2">Try a Policy</h2><a href="/docs/user-guide/try-a-policy/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
+            <p class="text-sm text-gray-600 mb-6 max-w-3xl">Redact text or a PDF with one of your Philter policies to see
+                what it finds, before using it on a batch. Nothing you try here is kept: Philter Workspace stores
+                neither what you send nor the result, and adds nothing to a batch. Philter is sent no context, so it
+                keeps no replacement for later requests and writes no ledger entry.</p>
+
+            <datalist id="policy-names">
+                <option th:each="p : ${policies}" th:value="${p}">default</option>
+            </datalist>
+
+            <div class="grid gap-6 xl:grid-cols-2 items-start">
+                <section class="bg-white p-6 rounded-xl shadow-sm border border-gray-100" aria-labelledby="text-title">
+                    <h3 id="text-title" class="text-lg font-semibold text-gray-900">Text</h3>
+                    <div th:if="${textError}" role="alert" class="mt-3 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
+                         th:text="${textError}">Error</div>
+                    <form th:action="@{/try/text}" method="post" class="mt-3 space-y-3">
+                        <div>
+                            <label for="text-policy" class="block text-xs font-medium text-gray-600 mb-1">Policy</label>
+                            <input id="text-policy" name="policy" type="text" list="policy-names" required maxlength="200"
+                                   autocomplete="off" spellcheck="false" th:value="${policy}"
+                                   class="block w-full max-w-sm rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="text" class="block text-xs font-medium text-gray-600 mb-1">Text</label>
+                            <textarea id="text" name="text" rows="10" required th:text="${text}"
+                                      class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                        </div>
+                        <p class="text-xs text-gray-500">Up to 2 MB of text.</p>
+                        <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Redact</button>
+                    </form>
+                    <div th:if="${redacted != null}" class="mt-4">
+                        <label for="redacted" class="block text-xs font-medium text-gray-600 mb-1">Redacted text</label>
+                        <textarea id="redacted" rows="10" readonly th:text="${redacted}"
+                                  class="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm"></textarea>
+                    </div>
+                </section>
+
+                <section class="bg-white p-6 rounded-xl shadow-sm border border-gray-100" aria-labelledby="pdf-title">
+                    <h3 id="pdf-title" class="text-lg font-semibold text-gray-900">PDF</h3>
+                    <div th:if="${pdfError}" role="alert" class="mt-3 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
+                         th:text="${pdfError}">Error</div>
+                    <form th:action="@{/try/pdf}" method="post" enctype="multipart/form-data" class="mt-3 space-y-3">
+                        <div>
+                            <label for="pdf-policy" class="block text-xs font-medium text-gray-600 mb-1">Policy</label>
+                            <input id="pdf-policy" name="policy" type="text" list="policy-names" required maxlength="200"
+                                   autocomplete="off" spellcheck="false" th:value="${policy}"
+                                   class="block w-full max-w-sm rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        </div>
+                        <div>
+                            <label for="file" class="block text-xs font-medium text-gray-600 mb-1">PDF</label>
+                            <input id="file" name="file" type="file" accept="application/pdf,.pdf" required
+                                   class="block w-full text-sm">
+                        </div>
+                        <p class="text-xs text-gray-500">Philter returns the redacted PDF, which downloads. Philter refuses a
+                            PDF larger than its limit.</p>
+                        <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Redact and download</button>
+                    </form>
+                </section>
+            </div>
+        </main>
+        <div th:replace="~{fragments/footer :: footer}"></div>
+        </div>
+    </div>
+</body>
+</html>

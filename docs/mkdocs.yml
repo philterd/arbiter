@@ -31,6 +31,7 @@ nav:
       - Background jobs: user-guide/background-jobs.md
       - Reviewing: user-guide/reviewing.md
       - Personal settings: user-guide/settings.md
+      - Try a policy: user-guide/try-a-policy.md
   - Admin guide:
       - Users and groups: admin/users-and-groups.md
       - Batches: admin/batches.md

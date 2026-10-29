@@ -54,12 +54,14 @@ public class AuditorWriteRejectFilter extends OncePerRequestFilter {
      *   <li>{@code /logout} — Spring Security's logout POST.</li>
      *   <li>{@code /settings/**}: password change, review preferences, and their own Philter MFA, API keys, and
      *   webhook.</li>
+     *   <li>{@code /try/**}: trying one of their own policies, which changes nothing; the result is not kept.</li>
      * </ul>
      */
     private static final String[] SELF_MANAGEMENT_PREFIXES = {
             "/login",
             "/logout",
-            "/settings"
+            "/settings",
+            "/try"
     };
 
     @Override

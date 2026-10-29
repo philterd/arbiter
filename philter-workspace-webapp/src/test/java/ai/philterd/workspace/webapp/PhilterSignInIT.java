@@ -102,6 +102,8 @@ class PhilterSignInIT {
     @Autowired private SymmetricCipher cipher;
     @Autowired private ai.philterd.workspace.repository.UserRepository userRepository;
     @Autowired private ai.philterd.workspace.service.RedactionService redactionService;
+    @Autowired private ai.philterd.workspace.repository.BatchRepository batchRepository;
+    @Autowired private ai.philterd.workspace.repository.DocumentRepository documentRepository;
 
     @DynamicPropertySource
     static void properties(final DynamicPropertyRegistry registry) throws Exception {
@@ -539,6 +541,54 @@ class PhilterSignInIT {
             restore.setWebhookAllowlist(before.getWebhookAllowlist() == null ? "" : before.getWebhookAllowlist());
             bootstrap().updateAdminSettings(restore);
         }
+    }
+
+    @Test
+    void aPolicyIsTriedOnTextAndAPdfWithoutABatch() throws Exception {
+        final MockHttpSession session = new MockHttpSession();
+        final String address = newAddress();
+        assertEquals("/", signIn(session, address, "admin", ADMIN_PASSWORD).getResponse().getRedirectedUrl());
+        final long batches = batchRepository.count();
+        final long documents = documentRepository.count();
+
+        final String text = mockMvc.perform(post("/try/text").session(session).with(csrf()).with(from(address))
+                        .param("policy", "default").param("text", "Write to jdoe@example.com about the claim."))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        final String redacted = text.substring(text.indexOf("id=\"redacted\""));
+        assertFalse(redacted.contains("jdoe@example.com"), redacted);
+        assertTrue(redacted.contains("about the claim."), redacted);
+
+        final java.io.ByteArrayOutputStream pdf = new java.io.ByteArrayOutputStream();
+        try (org.apache.pdfbox.pdmodel.PDDocument document = new org.apache.pdfbox.pdmodel.PDDocument()) {
+            final org.apache.pdfbox.pdmodel.PDPage page = new org.apache.pdfbox.pdmodel.PDPage();
+            document.addPage(page);
+            try (org.apache.pdfbox.pdmodel.PDPageContentStream content =
+                         new org.apache.pdfbox.pdmodel.PDPageContentStream(document, page)) {
+                content.beginText();
+                content.setFont(new org.apache.pdfbox.pdmodel.font.PDType1Font(
+                        org.apache.pdfbox.pdmodel.font.Standard14Fonts.FontName.HELVETICA), 12);
+                content.newLineAtOffset(72, 700);
+                content.showText("Write to jdoe@example.com about the claim.");
+                content.endText();
+            }
+            document.save(pdf);
+        }
+        final MvcResult result = mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .multipart("/try/pdf").file(new org.springframework.mock.web.MockMultipartFile("file", "claim.pdf",
+                                "application/pdf", pdf.toByteArray()))
+                        .param("policy", "default").session(session).with(csrf()).with(from(address)))
+                .andExpect(status().isOk()).andReturn();
+        final byte[] out = result.getResponse().getContentAsByteArray();
+        assertEquals("attachment; filename=\"claim-redacted.pdf\"", result.getResponse().getHeader("Content-Disposition"));
+        try (org.apache.pdfbox.pdmodel.PDDocument redactedPdf = org.apache.pdfbox.Loader.loadPDF(out)) {
+            final String extracted = new org.apache.pdfbox.text.PDFTextStripper().getText(redactedPdf);
+            assertFalse(extracted.contains("jdoe@example.com"), "the address is not in the redacted PDF: " + extracted);
+        }
+
+        assertEquals(batches, batchRepository.count(), "no batch");
+        assertEquals(documents, documentRepository.count(), "no document");
+        assertTrue(mockMvc.perform(get("/policies/models").session(session).with(from(address))).andReturn()
+                .getResponse().getContentAsString().contains("Models"));
     }
 
     @Test

@@ -125,6 +125,18 @@ class AuditorWriteRejectFilterTest {
     // ----- Self-management allow-list -----
 
     @Test
+    void auditorMayTryAPolicy() throws Exception {
+        SecurityContextHolder.getContext().setAuthentication(authWith("ROLE_AUDITOR"));
+        final FilterChain chain = mock(FilterChain.class);
+        final MockHttpServletResponse response = new MockHttpServletResponse();
+
+        filter.doFilter(req("POST", "/try/text"), response, chain);
+
+        assertEquals(HttpServletResponse.SC_OK, response.getStatus());
+        verify(chain, times(1)).doFilter(any(), any());
+    }
+
+    @Test
     void auditorPostToSettingsPasswordIsAllowed() throws Exception {
         // Auditors must still be able to change their own password and 2FA settings.
         SecurityContextHolder.getContext().setAuthentication(authWith("ROLE_AUDITOR"));
