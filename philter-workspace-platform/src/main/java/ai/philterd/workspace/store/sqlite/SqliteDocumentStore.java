@@ -160,8 +160,8 @@ public class SqliteDocumentStore {
 
     /**
      * Set and remove fields on the one document matching {@code where} in a single statement,
-     * returning it as updated, or {@code null} when nothing matched. Like MongoDB's
-     * {@code findAndModify}, the version is left unchanged.
+     * returning it as updated, or {@code null} when nothing matched. The version is left
+     * unchanged, as the MongoDB store's atomic updates also leave it.
      */
     public <T> T updateOne(final Class<T> type, final Where where, final Map<String, ?> set,
                            final Collection<String> unset) {

@@ -29,7 +29,7 @@ public class ComplianceProfile {
     @Id
     private String id;
 
-    @Indexed(unique = true)
+    @Indexed(unique = true, sparse = true)
     private String name;
 
     private List<ExemptionCode> exemptionCodes = new ArrayList<>();

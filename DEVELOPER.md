@@ -37,6 +37,18 @@ redaction through that Philter. It takes about a minute and a
 half, most of it waiting for Philter's one-minute idle timeout. The Philter image
 is amd64-only, so on an ARM machine it runs under emulation and is slower.
 
+The store behaviour both databases must share is one suite, `StoreContract`
+(`philter-workspace-platform`, under `store/`): derived queries, paging and
+sorting, unique and partial indexes, `@Version` conflicts, concurrent claims,
+document locks, the audit queries, and encryption at rest.
+`SqliteStoreContractTest` runs it on a SQLite file in `mvn test`, and
+`MongoStoreContractIT` runs it on a real MongoDB server (`mongo:8.2.12`, started
+with Testcontainers) in `mvn verify`. `MongoStoreStartupIT` starts the whole
+application with `philter-workspace.store=mongodb` against the same image. A
+new store behaviour gets a test in `StoreContract`, not in one store's tests.
+Without Docker the MongoDB tests are skipped with a message, except when `CI`
+is `true`, where they fail.
+
 `build-image.sh` loads `philterd/philter-workspace:<version>-amd64` and
 `-arm64` locally; `push-image.sh` pushes those two and joins them into the
 plain `<version>` tag in the registry. Both take a version argument; with
@@ -82,9 +94,17 @@ A few patterns that bite:
   `@Query` string is refused by the SQLite store. Anything a derived query
   can't express (ranges on one field, atomic status flips, partial updates)
   goes in a store interface under `store/` with a MongoDB implementation in
-  `store/mongo` and a SQLite one in `store/sqlite`. `SqliteRepositoriesTest`
-  creates every repository on a real SQLite file, so an unsupported derived
-  query fails the build.
+  `store/mongo` and a SQLite one in `store/sqlite`. `StoreContract` creates
+  every repository on both stores, so an unsupported derived query fails the
+  build.
+- **Atomic store updates leave `@Version` alone.** Lock changes, claims, and
+  requeues do not change a document's version; only saving the entity does.
+  Spring Data adds a version increment to any MongoDB update that does not
+  touch the version field, so the MongoDB stores pass their updates through
+  `MongoDocumentLockService.keepVersion`.
+- **Unique fields are unique among records that have a value.** MongoDB's
+  unique `@Indexed` fields are `sparse = true`, matching SQLite, where a
+  unique index never counts a missing value. An empty string is a value.
 - **Changing an index definition needs a new index name.** Both stores read
   `@Indexed` and `@CompoundIndex`, and the SQLite store creates indexes with
   `CREATE INDEX IF NOT EXISTS`, so an existing index keeps its old

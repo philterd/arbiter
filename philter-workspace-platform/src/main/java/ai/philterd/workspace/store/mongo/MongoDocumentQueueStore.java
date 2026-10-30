@@ -44,7 +44,7 @@ public class MongoDocumentQueueStore implements DocumentQueueStore {
         final Update u = new Update()
                 .set("status", STATUS_PROCESSING)
                 .set("statusChangedAt", LocalDateTime.now());
-        return mongoOperations.findAndModify(q, u,
+        return mongoOperations.findAndModify(q, MongoDocumentLockService.keepVersion(u),
                 FindAndModifyOptions.options().returnNew(true), Document.class);
     }
 
@@ -55,7 +55,7 @@ public class MongoDocumentQueueStore implements DocumentQueueStore {
         final Update u = new Update()
                 .set("status", STATUS_PENDING)
                 .set("statusChangedAt", LocalDateTime.now());
-        return mongoOperations.updateMulti(q, u, Document.class).getModifiedCount();
+        return mongoOperations.updateMulti(q, MongoDocumentLockService.keepVersion(u), Document.class).getModifiedCount();
     }
 
     @Override

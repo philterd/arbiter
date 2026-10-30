@@ -21,7 +21,7 @@ public class ElasticsearchDataSource {
     @Id
     private String id;
 
-    @Indexed(unique = true)
+    @Indexed(unique = true, sparse = true)
     private String name;
 
     private String endpoint;

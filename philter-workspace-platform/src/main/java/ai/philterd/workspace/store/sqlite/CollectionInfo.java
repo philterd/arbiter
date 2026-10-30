@@ -71,6 +71,8 @@ final class CollectionInfo {
             }
             final Indexed indexed = f.getAnnotation(Indexed.class);
             if (indexed != null) {
+                // A SQLite unique index never counts a missing value, so it behaves as the sparse
+                // unique indexes MongoDB is given: any number of records may leave the field empty.
                 defs.add(new IndexDef("ix_" + table + "_" + f.getName(), List.of(f.getName()), indexed.unique(), null));
             }
         }

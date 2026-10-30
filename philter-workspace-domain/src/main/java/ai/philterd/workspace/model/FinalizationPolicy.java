@@ -53,7 +53,7 @@ public class FinalizationPolicy {
     @Id
     private String id;
 
-    @Indexed(unique = true)
+    @Indexed(unique = true, sparse = true)
     private String name;
 
     /** One of the OPTION_* constants. */

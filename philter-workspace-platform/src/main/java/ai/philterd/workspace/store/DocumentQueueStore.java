@@ -16,7 +16,8 @@ import java.util.Collection;
 import java.util.List;
 
 /**
- * Atomic operations on the document ingest queue.
+ * Atomic operations on the document ingest queue. They leave a document's {@code @Version}
+ * unchanged; only saving the document changes it.
  */
 public interface DocumentQueueStore {
 

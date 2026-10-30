@@ -63,7 +63,7 @@ public class MongoDocumentLockService implements DocumentLockService {
                 .set("lockExpiresAt", newExpiry)
                 .set("lockedAt", now);
 
-        return mongoOperations.findAndModify(query, update,
+        return mongoOperations.findAndModify(query, keepVersion(update),
                 FindAndModifyOptions.options().returnNew(true), Document.class);
     }
 
@@ -78,7 +78,7 @@ public class MongoDocumentLockService implements DocumentLockService {
                 Criteria.where("lockedBy").is(email)));
 
         final Update update = new Update().set("lockExpiresAt", newExpiry);
-        return mongoOperations.findAndModify(query, update,
+        return mongoOperations.findAndModify(query, keepVersion(update),
                 FindAndModifyOptions.options().returnNew(true), Document.class);
     }
 
@@ -93,7 +93,7 @@ public class MongoDocumentLockService implements DocumentLockService {
                 .unset("lockedBy")
                 .unset("lockedAt")
                 .unset("lockExpiresAt");
-        mongoOperations.findAndModify(query, update,
+        mongoOperations.findAndModify(query, keepVersion(update),
                 FindAndModifyOptions.options().returnNew(true), Document.class);
     }
 
@@ -105,7 +105,15 @@ public class MongoDocumentLockService implements DocumentLockService {
                 .unset("lockedBy")
                 .unset("lockedAt")
                 .unset("lockExpiresAt");
-        return mongoOperations.findAndModify(query, update,
+        return mongoOperations.findAndModify(query, keepVersion(update),
                 FindAndModifyOptions.options().returnNew(true), Document.class);
+    }
+
+    /**
+     * Spring Data adds {@code $inc} of the {@code @Version} field to any update that does not
+     * already touch it. A lock change is not a change to the document, so touch it by zero.
+     */
+    static Update keepVersion(final Update update) {
+        return update.inc("version", 0);
     }
 }

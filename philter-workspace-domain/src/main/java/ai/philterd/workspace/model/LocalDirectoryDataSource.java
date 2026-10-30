@@ -21,7 +21,7 @@ public class LocalDirectoryDataSource {
     @Id
     private String id;
 
-    @Indexed(unique = true)
+    @Indexed(unique = true, sparse = true)
     private String name;
 
     /** Absolute filesystem path on the server, e.g. {@code /var/lib/philter-workspace/incoming}. */

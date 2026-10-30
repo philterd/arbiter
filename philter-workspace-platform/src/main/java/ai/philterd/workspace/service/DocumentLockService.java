@@ -14,7 +14,9 @@ import ai.philterd.workspace.model.Document;
 import java.time.Duration;
 
 /**
- * Exclusive review locks on documents, acquired and released atomically in the store.
+ * Exclusive review locks on documents, acquired and released atomically in the store. Lock
+ * changes leave the document's {@code @Version} unchanged, so a pulse from the review page
+ * never makes the reviewer's own save look stale.
  */
 public interface DocumentLockService {
 

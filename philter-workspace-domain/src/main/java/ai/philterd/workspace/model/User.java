@@ -39,7 +39,7 @@ public class User {
      * this holds the username; the name is kept so existing rows, keyed by email before Philter
      * sign-in, still match a Philter user created with the email as its username.
      */
-    @Indexed(unique = true)
+    @Indexed(unique = true, sparse = true)
     private String email;
 
     private Set<String> roles = new HashSet<>();

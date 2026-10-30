@@ -25,7 +25,7 @@ public class S3Destination {
     @Id
     private String id;
 
-    @Indexed(unique = true)
+    @Indexed(unique = true, sparse = true)
     private String name;
 
     private String bucketName;
