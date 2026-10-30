@@ -56,6 +56,9 @@ public class RedactionPersistenceService {
         final double threshold = batch.getConfidenceThreshold();
 
         document.setOriginalText(originalText);
+        document.recordPhilterDocumentId(response.getPhilterDocumentId());
+        // A retried document no longer carries the failure from its earlier attempt.
+        document.setFailureMessage(null);
         // Stable random roll used by the dual-approval sampling rule. Generated once at persist
         // time so re-reads of the same document never flip the sampling decision.
         if (document.getDualApprovalSamplingRoll() == null) {
@@ -108,6 +111,11 @@ public class RedactionPersistenceService {
                 && spans.stream().anyMatch(s -> "PENDING".equals(s.getStatus()));
         document.changeStatus(IngestStatus.pick(batch, needsReview));
         documentRepository.save(document);
+        // A retried document may hold spans from an attempt that failed after saving them (for
+        // example while indexing), so they are replaced rather than added to.
+        if (document.getId() != null) {
+            spanRepository.deleteByDocumentId(document.getId());
+        }
         if (!spans.isEmpty()) {
             spanRepository.saveAll(spans);
         }

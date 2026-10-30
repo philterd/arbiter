@@ -26,6 +26,7 @@ public class SqliteDocumentQueueStore implements DocumentQueueStore {
 
     private static final String STATUS_PENDING = "PENDING";
     private static final String STATUS_PROCESSING = "PROCESSING";
+    private static final String STATUS_FAILED = "FAILED";
 
     private final SqliteDocumentStore store;
 
@@ -38,6 +39,13 @@ public class SqliteDocumentQueueStore implements DocumentQueueStore {
         return store.updateOne(Document.class,
                 Where.and(Where.eq("id", documentId), Where.eq("status", STATUS_PENDING)),
                 Map.of("status", STATUS_PROCESSING, "statusChangedAt", LocalDateTime.now()), List.of());
+    }
+
+    @Override
+    public Document requeueFailed(final String documentId) {
+        return store.updateOne(Document.class,
+                Where.and(Where.eq("id", documentId), Where.eq("status", STATUS_FAILED)),
+                Map.of("status", STATUS_PENDING, "statusChangedAt", LocalDateTime.now()), List.of());
     }
 
     @Override

@@ -21,6 +21,8 @@ public class RedactionResponse {
     private String originalText;
     private String redactedText;
     private List<Redaction> redactions;
+    /** The document ID Philter recorded the redaction under, when Philter did it. */
+    private String philterDocumentId;
 
     public RedactionResponse() {
     }
@@ -53,5 +55,13 @@ public class RedactionResponse {
 
     public void setRedactions(final List<Redaction> redactions) {
         this.redactions = redactions;
+    }
+
+    public String getPhilterDocumentId() {
+        return philterDocumentId;
+    }
+
+    public void setPhilterDocumentId(final String philterDocumentId) {
+        this.philterDocumentId = philterDocumentId;
     }
 }

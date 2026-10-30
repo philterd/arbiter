@@ -294,6 +294,14 @@
 
             <div class="flex items-center justify-between mb-2">
                 <h3 class="text-lg font-semibold text-gray-900">Recent failures</h3>
+                <div class="flex items-center gap-2">
+                <form th:if="${failedTotal > 0}" sec:authorize="hasRole('ADMIN')"
+                      th:action="@{/admin/ingest-queue/failures/retry}" method="post" class="inline">
+                    <button type="submit"
+                            class="px-3 py-1.5 border border-blue-600 text-blue-600 hover:bg-blue-50 text-sm font-medium rounded-lg">
+                        Retry all
+                    </button>
+                </form>
                 <form th:if="${failedTotal > 0}"
                       th:action="@{/admin/ingest-queue/failures/clear}" method="post"
                       onsubmit="return confirm('Clear all failed documents? This permanently deletes them and cannot be undone.');"
@@ -303,6 +311,7 @@
                         Clear all
                     </button>
                 </form>
+                </div>
             </div>
             <p class="text-xs text-gray-500 mb-2">
                 Showing the most recent failed redactions, newest first. There is no time
@@ -337,6 +346,11 @@
                             <td class="px-6 py-3 text-sm whitespace-nowrap">
                                 <a th:href="@{/admin/ingest-queue/{id}/log(id=${row.id})}"
                                    class="text-blue-600 hover:text-blue-800 font-medium mr-3">View log</a>
+                                <form sec:authorize="hasRole('ADMIN')"
+                                      th:action="@{/admin/ingest-queue/{id}/retry(id=${row.id})}"
+                                      method="post" class="inline mr-3">
+                                    <button type="submit" class="text-blue-600 hover:text-blue-800 font-medium">Retry</button>
+                                </form>
                                 <form th:action="@{/admin/ingest-queue/{id}/clear-failure(id=${row.id})}"
                                       method="post" class="inline"
                                       onsubmit="return confirm('Remove this failed document from the list? This permanently deletes it.');">

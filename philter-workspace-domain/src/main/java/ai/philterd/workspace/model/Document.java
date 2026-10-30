@@ -71,6 +71,13 @@ public class Document {
     private String status;
     private double riskScore;
     private String philterContextId;
+    /**
+     * The document ID Philter recorded this document's redaction under (its {@code X-Document-Id}),
+     * which is also the ID of its chain in Philter's ledger when the context keeps one.
+     */
+    private String philterDocumentId;
+    /** Philter document IDs from earlier redactions of this document, oldest first. */
+    private java.util.List<String> previousPhilterDocumentIds = new java.util.ArrayList<>();
     private LocalDateTime createdAt;
     private LocalDateTime statusChangedAt;
     private String failureMessage;
@@ -282,6 +289,36 @@ public class Document {
 
     public void setPhilterContextId(final String philterContextId) {
         this.philterContextId = philterContextId;
+    }
+
+    public String getPhilterDocumentId() {
+        return philterDocumentId;
+    }
+
+    public void setPhilterDocumentId(final String philterDocumentId) {
+        this.philterDocumentId = philterDocumentId;
+    }
+
+    public java.util.List<String> getPreviousPhilterDocumentIds() {
+        return previousPhilterDocumentIds;
+    }
+
+    public void setPreviousPhilterDocumentIds(final java.util.List<String> previousPhilterDocumentIds) {
+        this.previousPhilterDocumentIds = previousPhilterDocumentIds;
+    }
+
+    /** Record the ID of a new redaction by Philter, keeping the previous one. */
+    public void recordPhilterDocumentId(final String documentId) {
+        if (documentId == null || documentId.isBlank() || documentId.equals(philterDocumentId)) {
+            return;
+        }
+        if (philterDocumentId != null) {
+            if (previousPhilterDocumentIds == null) {
+                previousPhilterDocumentIds = new java.util.ArrayList<>();
+            }
+            previousPhilterDocumentIds.add(philterDocumentId);
+        }
+        philterDocumentId = documentId;
     }
 
     public String getFailureMessage() {

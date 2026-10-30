@@ -50,11 +50,13 @@ import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.flash;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -1052,5 +1054,70 @@ class PhilterSignInIT {
                     d.getFilename() + ": Philter found the email address in the uploaded bytes");
             assertTrue(pendingUploadRepository.findById(d.getId()).isEmpty(), "the upload is removed once redacted");
         }
+    }
+
+    @Test
+    void aFailedDocumentIsRetriedAndKeepsPhiltersDocumentId() throws Exception {
+        // A batch whose policy Philter does not have, so redaction fails.
+        final ai.philterd.workspace.model.Batch batch = new ai.philterd.workspace.model.Batch();
+        batch.setId(java.util.UUID.randomUUID().toString());
+        batch.setName("Retry " + batch.getId());
+        batch.setPolicyName("no-such-policy-" + batch.getId());
+        batchRepository.save(batch);
+        final ai.philterd.workspace.model.Document doc = ingestQueueService.enqueueFile(batch, "retry.txt",
+                "Write to jdoe@example.com about the claim.".getBytes(java.nio.charset.StandardCharsets.UTF_8),
+                "text/plain", 2);
+        assertEquals("FAILED", drainUntilDone(doc.getId()).getStatus());
+        assertNull(documentRepository.findById(doc.getId()).orElseThrow().getPhilterDocumentId());
+
+        // Fix the batch, in a context that keeps Philter's ledger, then retry as an administrator.
+        final String context = "retry-" + batch.getId();
+        bootstrap().createContext(context, null, true);
+        final ai.philterd.workspace.model.Batch fixed = batchRepository.findById(batch.getId()).orElseThrow();
+        fixed.setPolicyName(null);
+        fixed.setContext(context);
+        batchRepository.save(fixed);
+        final MockHttpSession session = new MockHttpSession();
+        final String address = newAddress();
+        signIn(session, address, "admin", ADMIN_PASSWORD);
+        mockMvc.perform(post("/admin/ingest-queue/" + doc.getId() + "/retry").session(session).with(csrf())
+                        .with(from(address)))
+                .andExpect(status().is3xxRedirection())
+                .andExpect(flash().attribute("success", "Queued \"retry.txt\" to be redacted again."));
+
+        final ai.philterd.workspace.model.Document done = drainUntilDone(doc.getId());
+        assertFalse(java.util.List.of("FAILED", "PENDING", "PROCESSING").contains(done.getStatus()), done.getStatus());
+        assertNull(done.getFailureMessage(), "the earlier failure is cleared");
+        assertTrue(spanRepository.findByDocumentId(doc.getId()).stream()
+                .anyMatch(span -> "jdoe@example.com".equals(span.getText())));
+        assertTrue(pendingUploadRepository.findById(doc.getId()).isEmpty());
+        assertNotNull(done.getPhilterDocumentId(), "Philter's document ID is stored");
+        // Philter records a redaction under a UUID.
+        assertTrue(done.getPhilterDocumentId().matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"),
+                done.getPhilterDocumentId());
+
+        // The review page shows administrators the ID, linked to its ledger chain.
+        final String page = mockMvc.perform(get("/review/" + doc.getId()).session(session).with(from(address)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertTrue(page.contains(done.getPhilterDocumentId()), "the ID is shown");
+        assertTrue(page.contains("/admin/ledgers/view?document=" + done.getPhilterDocumentId()), "linked to its chain");
+        // Philter Workspace's key is the signed-in administrator's here, so the link opens the chain.
+        final String chain = mockMvc.perform(get("/admin/ledgers/view").param("document", done.getPhilterDocumentId())
+                        .session(session).with(from(address)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertTrue(chain.contains(done.getPhilterDocumentId()), "the chain for this document");
+    }
+
+    /** Drains the queue until the document leaves PENDING and PROCESSING, and returns it. */
+    private ai.philterd.workspace.model.Document drainUntilDone(final String id) throws InterruptedException {
+        final long deadline = System.currentTimeMillis() + 120_000;
+        ai.philterd.workspace.model.Document d = documentRepository.findById(id).orElseThrow();
+        while (System.currentTimeMillis() < deadline
+                && ("PENDING".equals(d.getStatus()) || "PROCESSING".equals(d.getStatus()))) {
+            ingestQueueService.drain();
+            Thread.sleep(250);
+            d = documentRepository.findById(id).orElseThrow();
+        }
+        return d;
     }
 }

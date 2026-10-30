@@ -27,6 +27,12 @@ public interface DocumentQueueStore {
      */
     Document claimPending(String documentId);
 
+    /**
+     * Atomically put a FAILED document back to PENDING so the queue redacts it again. Returns the
+     * updated document, or {@code null} when it is not FAILED (already retried, or removed).
+     */
+    Document requeueFailed(String documentId);
+
     /** Put PROCESSING documents whose {@code statusChangedAt} is before {@code cutoff} back to PENDING. */
     long requeueProcessingBefore(LocalDateTime cutoff);
 

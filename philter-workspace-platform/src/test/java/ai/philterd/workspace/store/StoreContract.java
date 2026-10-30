@@ -397,6 +397,36 @@ public abstract class StoreContract {
     }
 
     @Test
+    void onlyAFailedDocumentIsRequeuedAndOnlyOnce() throws Exception {
+        final Document failed = document("b", "FAILED", "a", LocalDateTime.now());
+        failed.setStatusChangedAt(LocalDateTime.now().minusDays(1));
+        save(failed);
+        final Document pending = save(document("b", "PENDING", "b", LocalDateTime.now()));
+
+        assertNull(queue().requeueFailed(pending.getId()));
+        final ExecutorService pool = Executors.newFixedThreadPool(8);
+        try {
+            final List<Callable<Document>> retries = new ArrayList<>();
+            for (int i = 0; i < 16; i++) {
+                retries.add(() -> queue().requeueFailed(failed.getId()));
+            }
+            int won = 0;
+            for (Future<Document> f : pool.invokeAll(retries)) {
+                if (f.get() != null) {
+                    won++;
+                    assertEquals("PENDING", f.get().getStatus());
+                    assertTrue(f.get().getStatusChangedAt().isAfter(LocalDateTime.now().minusMinutes(1)));
+                    assertEquals(0L, f.get().getVersion(), "a requeue leaves the version alone");
+                }
+            }
+            assertEquals(1, won);
+        } finally {
+            pool.shutdownNow();
+        }
+        assertNull(queue().requeueFailed("no-such-document"));
+    }
+
+    @Test
     void queueRemovesOnlyDocumentsInTheGivenStatus() {
         final Document failed = save(document("b", "FAILED", "a", LocalDateTime.now()));
         final Document pending = save(document("b", "PENDING", "b", LocalDateTime.now()));

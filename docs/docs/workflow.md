@@ -383,7 +383,9 @@ on the next page load.
 If Philter fails for any reason the document moves to `FAILED` and the
 exception is captured both in the Philter Workspace logs and in a `failureMessage`
 field on the document — admins can view the failure detail from the
-**View log** link in the Recent failures table on Ingest Queue.
+**View log** link in the Recent failures table on Ingest Queue, and **Retry**
+it once the cause is fixed. A retried document that is redacted no longer
+carries the failure message.
 
 For more detail see [Adding documents](user-guide/uploading.md).
 

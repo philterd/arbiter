@@ -78,7 +78,20 @@ If the document's risk score is at or below the batch's Document Threshold, the
 queue marks it **Low risk**. That does not change its status or approve it.
 
 Admins can monitor the queue at **Admin → Ingest Queue** and remove
-still-pending documents from there.
+still-pending documents from there. A document whose redaction failed is listed
+under **Recent failures**; **Retry** puts it back in the queue to be redacted
+again from its kept upload or text, and **Retry all** does the same for every
+failed document. A document with nothing left to redact cannot be retried and
+has to be uploaded again.
+
+When Philter redacts a document, the document ID Philter recorded it under is
+shown to administrators and auditors on the **Document Information** popup of
+the Review page, with a link to its chain under **Admin → Ledgers**. The chain
+exists when the batch's context keeps Philter's ledger. It belongs to the
+Philter user of Philter Workspace's API key, so the link opens it only for that
+user; others find it under Admin → Ledgers with the owner filter, which Philter
+allows only with `ADMIN_CROSS_USER_ACCESS_ENABLED=true`. A document
+redacted again shows the new ID and lists the earlier ones.
 
 ## Adding from a data source
 

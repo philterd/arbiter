@@ -2205,6 +2205,22 @@
                                    : @timestampFormatter.format(document.createdAt, 'yyyy-MM-dd HH:mm:ss')}">—</p>
                 </div>
             </div>
+            <div th:if="${document.philterDocumentId != null}" sec:authorize="hasAnyRole('ADMIN','AUDITOR')">
+                <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Philter document ID</p>
+                <p class="text-sm text-gray-900 font-mono break-all" th:text="${document.philterDocumentId}">id</p>
+                <p class="text-xs text-gray-500 mt-1">
+                    <a th:href="@{/admin/ledgers/view(document=${document.philterDocumentId})}"
+                       class="text-blue-600 hover:text-blue-800 font-medium">Open its ledger chain</a>.
+                    The chain exists when the batch's context keeps Philter's ledger, and belongs to the Philter
+                    user of Philter Workspace's API key; another user's chain is reached from Admin &rarr; Ledgers, when
+                    Philter allows cross-user access (<code>ADMIN_CROSS_USER_ACCESS_ENABLED=true</code>).
+                </p>
+                <div th:if="${!#lists.isEmpty(document.previousPhilterDocumentIds)}" class="mt-1">
+                    <p class="text-xs text-gray-500">Earlier redactions of this document:</p>
+                    <p th:each="previous : ${document.previousPhilterDocumentIds}"
+                       class="text-xs text-gray-700 font-mono break-all" th:text="${previous}">id</p>
+                </div>
+            </div>
             <div th:if="${document.contentSha512 != null and !#strings.isEmpty(document.contentSha512)}">
                 <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Content SHA-512</p>
                 <p class="text-xs text-gray-700 font-mono break-all" th:text="${document.contentSha512}">hash</p>

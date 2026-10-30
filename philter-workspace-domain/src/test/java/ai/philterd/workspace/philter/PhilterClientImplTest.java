@@ -48,6 +48,7 @@ class PhilterClientImplTest {
     private final AtomicReference<String> query = new AtomicReference<>();
     private final AtomicReference<String> authorization = new AtomicReference<>();
     private int status = 200;
+    private String documentIdHeader = "6543210fedcba9876543210f";
 
     @BeforeEach
     void start() throws IOException {
@@ -58,6 +59,9 @@ class PhilterClientImplTest {
             final byte[] body = (status == 200 ? EXPLAIN_BODY : "{\"message\":\"no\",\"reason\":\"policy_not_found\"}")
                     .getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
+            if (documentIdHeader != null) {
+                exchange.getResponseHeaders().add("X-Document-Id", documentIdHeader);
+            }
             exchange.sendResponseHeaders(status, body.length);
             exchange.getResponseBody().write(body);
             exchange.close();
@@ -111,6 +115,15 @@ class PhilterClientImplTest {
         assertEquals(4, r.getStart());
         assertEquals(7, r.getEnd());
         assertEquals("123-45-6789", r.getText());
+    }
+
+    @Test
+    void redactCarriesTheDocumentIdPhilterRecordedItUnder() throws IOException {
+        // Philter sends the ID in the X-Document-Id header; the body's documentId is not it.
+        assertEquals("6543210fedcba9876543210f", client("secret", "claims").redact(TEXT, "ctx").getPhilterDocumentId());
+
+        documentIdHeader = null;
+        assertEquals(null, client("secret", "claims").redact(TEXT, "ctx").getPhilterDocumentId());
     }
 
     @Test

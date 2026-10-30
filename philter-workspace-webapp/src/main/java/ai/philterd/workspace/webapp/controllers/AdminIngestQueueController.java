@@ -218,6 +218,90 @@ public class AdminIngestQueueController {
     }
 
     /**
+     * Admin-only: put a failed document back in the queue, to be redacted again from its kept upload
+     * or text. The atomic status flip refuses a document that is no longer FAILED.
+     */
+    @PostMapping("/{id}/retry")
+    public String retry(@PathVariable("id") final String id,
+                        final Authentication authentication,
+                        final RedirectAttributes redirectAttributes) {
+        final Document failed = documentRepository.findById(id).orElse(null);
+        if (failed == null || !"FAILED".equals(failed.getStatus())) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Document not found in the failures list (it may have been retried or removed).");
+            return "redirect:/admin/ingest-queue";
+        }
+        final String name = failed.getFilename() == null ? "document" : failed.getFilename();
+        if (!retryable(failed)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "\"" + name + "\" cannot be retried: nothing of it is left to redact. Upload it again.");
+            return "redirect:/admin/ingest-queue";
+        }
+        if (queueStore.requeueFailed(id) == null) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Document not found in the failures list (it may have been retried or removed).");
+            return "redirect:/admin/ingest-queue";
+        }
+        // Filename hashed (R2-F7).
+        auditLogService.log("INGEST_QUEUE_RETRY", "Document", id,
+                Map.of(
+                        "batchId", failed.getBatchId() == null ? "" : failed.getBatchId(),
+                        "filenameHash", auditLogService.hashForAudit(failed.getFilename()),
+                        "filenameLength", failed.getFilename() == null ? 0 : failed.getFilename().length(),
+                        "retriedBy", authentication == null ? "unknown" : authentication.getName()));
+        redirectAttributes.addFlashAttribute("success", "Queued \"" + name + "\" to be redacted again.");
+        return "redirect:/admin/ingest-queue";
+    }
+
+    /**
+     * Admin-only: put every failed document that can be redacted again back in the queue. Those with
+     * nothing left to redact stay in the failures list.
+     */
+    @PostMapping("/failures/retry")
+    public String retryAllFailures(final Authentication authentication,
+                                   final RedirectAttributes redirectAttributes) {
+        // Collected first, so requeueing does not move documents between pages.
+        final List<Document> failed = new java.util.ArrayList<>();
+        for (int page = 0; ; page++) {
+            final org.springframework.data.domain.Page<Document> slice = documentRepository.findByStatus("FAILED",
+                    PageRequest.of(page, PAGE_SIZE, Sort.by(Sort.Direction.ASC, "statusChangedAt")));
+            failed.addAll(slice.getContent());
+            if (!slice.hasNext()) {
+                break;
+            }
+        }
+        long retried = 0;
+        long skipped = 0;
+        for (Document d : failed) {
+            if (!retryable(d)) {
+                skipped++;
+            } else if (queueStore.requeueFailed(d.getId()) != null) {
+                retried++;
+            }
+        }
+        auditLogService.log("INGEST_QUEUE_RETRY_ALL", "Settings", "ingest-queue",
+                Map.of(
+                        "count", retried,
+                        "skipped", skipped,
+                        "retriedBy", authentication == null ? "unknown" : authentication.getName()));
+        if (retried == 0 && skipped == 0) {
+            redirectAttributes.addFlashAttribute("error", "No failed documents to retry.");
+        } else {
+            redirectAttributes.addFlashAttribute(retried > 0 ? "success" : "error",
+                    "Queued " + retried + " failed document" + (retried == 1 ? "" : "s") + " to be redacted again."
+                            + (skipped > 0 ? " " + skipped + " could not be retried, since nothing of "
+                            + (skipped == 1 ? "it" : "them") + " is left to redact." : ""));
+        }
+        return "redirect:/admin/ingest-queue";
+    }
+
+    /** A failed document can be redacted again when its upload is kept, or its text is stored. */
+    private boolean retryable(final Document document) {
+        return pendingUploadRepository.existsById(document.getId())
+                || (document.getOriginalText() != null && !document.getOriginalText().isEmpty());
+    }
+
+    /**
      * Admin-only: hard-delete every document currently in {@code FAILED}. The UI prompts before
      * submitting this form. Sidecars for any of those documents are also dropped best-effort.
      */

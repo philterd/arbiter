@@ -176,4 +176,21 @@ class DocumentModelTest {
         d.setPriority(1);
         assertEquals(1, d.getPriority());
     }
+
+    @Test
+    void eachRedactionByPhilterRecordsItsDocumentIdAndKeepsTheEarlierOnes() {
+        final Document d = new Document();
+        d.recordPhilterDocumentId(null);
+        org.junit.jupiter.api.Assertions.assertNull(d.getPhilterDocumentId());
+
+        d.recordPhilterDocumentId("first");
+        d.recordPhilterDocumentId("first");
+        org.junit.jupiter.api.Assertions.assertEquals("first", d.getPhilterDocumentId());
+        org.junit.jupiter.api.Assertions.assertEquals(java.util.List.of(), d.getPreviousPhilterDocumentIds());
+
+        d.recordPhilterDocumentId("second");
+        d.recordPhilterDocumentId(" ");
+        org.junit.jupiter.api.Assertions.assertEquals("second", d.getPhilterDocumentId());
+        org.junit.jupiter.api.Assertions.assertEquals(java.util.List.of("first"), d.getPreviousPhilterDocumentIds());
+    }
 }

@@ -78,6 +78,7 @@ and export them:
 | `COMPLIANCE_PROFILE_CREATE` / `_EDIT` / `_ARCHIVE` / `_DELETE` | ComplianceProfile | Compliance profile management |
 | `WEIGHT_SET_CREATE` / `_UPDATE` / `_DELETE` | WeightSet | Weight set management                         |
 | `INGEST_QUEUE_REMOVE`, `INGEST_QUEUE_FAILURE_CLEAR`, `INGEST_QUEUE_FAILURES_CLEAR_ALL` | Document / Settings | An admin removed a queued document or cleared ingest failures; filenames are recorded as hashes |
+| `INGEST_QUEUE_RETRY`, `INGEST_QUEUE_RETRY_ALL` | Document / Settings | An admin put a failed document, or every failed document that can be redacted again, back in the queue; with the filename as a hash, or the number queued and the number that could not be |
 | `OLLAMA_INSTANCE_CREATE` / `_DELETE` / `_TEST` | OllamaInstance | An Ollama instance added, removed, or tested    |
 | `LLM_JUDGE_DEFAULTS_CHANGE`         | Settings    | The default Ollama instances for LLM-as-a-Judge changed |
 | `GENERAL_SETTINGS_CHANGE`           | Settings    | An Admin → General setting saved: the Philter Workspace URL, upload size limit, data-import concurrency, time zone, or full-text search, with the previous value |

@@ -30,6 +30,7 @@ public class MongoDocumentQueueStore implements DocumentQueueStore {
 
     private static final String STATUS_PENDING = "PENDING";
     private static final String STATUS_PROCESSING = "PROCESSING";
+    private static final String STATUS_FAILED = "FAILED";
 
     private final MongoOperations mongoOperations;
 
@@ -43,6 +44,17 @@ public class MongoDocumentQueueStore implements DocumentQueueStore {
                 .and("status").is(STATUS_PENDING));
         final Update u = new Update()
                 .set("status", STATUS_PROCESSING)
+                .set("statusChangedAt", LocalDateTime.now());
+        return mongoOperations.findAndModify(q, MongoDocumentLockService.keepVersion(u),
+                FindAndModifyOptions.options().returnNew(true), Document.class);
+    }
+
+    @Override
+    public Document requeueFailed(final String documentId) {
+        final Query q = Query.query(Criteria.where("_id").is(documentId)
+                .and("status").is(STATUS_FAILED));
+        final Update u = new Update()
+                .set("status", STATUS_PENDING)
                 .set("statusChangedAt", LocalDateTime.now());
         return mongoOperations.findAndModify(q, MongoDocumentLockService.keepVersion(u),
                 FindAndModifyOptions.options().returnNew(true), Document.class);

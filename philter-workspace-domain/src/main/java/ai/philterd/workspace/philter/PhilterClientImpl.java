@@ -79,7 +79,8 @@ public class PhilterClientImpl implements PhilterClient {
 
     @Override
     public RedactionResponse redact(final String text, final String context) throws IOException {
-        final List<Span> spans = new ArrayList<>(appliedSpans(callExplain(text, context)));
+        final ExplainResponse explained = callExplain(text, context);
+        final List<Span> spans = new ArrayList<>(appliedSpans(explained));
         spans.sort(Comparator.comparingInt(Span::getCharacterStart));
 
         final List<Redaction> redactions = new ArrayList<>();
@@ -105,7 +106,9 @@ public class PhilterClientImpl implements PhilterClient {
 
             offset += replacement.length() - (end - start);
         }
-        return new RedactionResponse(text, sb.toString(), redactions);
+        final RedactionResponse response = new RedactionResponse(text, sb.toString(), redactions);
+        response.setPhilterDocumentId(explained == null ? null : explained.getDocumentId());
+        return response;
     }
 
     private ExplainResponse callExplain(final String text, final String context) throws IOException {
