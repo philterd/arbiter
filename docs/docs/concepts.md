@@ -54,7 +54,7 @@ A **batch** is a container for documents. It has:
 | Group                 | Which user group can see and act on it                                                 |
 | PII Threshold         | Per-span confidence floor for *auto-accepting* PII detections (default `0.8`)          |
 | Document Threshold    | Risk score at or below which a document is marked *Low risk* in the queue (default `0.25`). It approves nothing. |
-| Audit Sampling Rate   | Fraction of would-be auto-approved documents pulled into review for audit (default `0.10`) |
+| Audit Sampling Rate   | Fraction of would-be auto-approved documents pulled into review for audit (default `0.10`, configurable; at `1.0` every document goes to a person) |
 | PII type weights      | Per-type sensitivity for the risk score (see [PII types](reference/pii-types.md))      |
 | Policy                | Name of the Philter policy used during redaction (else Philter's default policy)       |
 | Domain                | Optional grouping tag used for reporting                                               |

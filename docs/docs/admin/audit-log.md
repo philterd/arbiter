@@ -23,9 +23,10 @@ and export them:
 | Action                              | Resource    | Notes                                              |
 | ----------------------------------- | ----------- | -------------------------------------------------- |
 | `LOGIN` (failure only)            | User        | A sign-in Philter never recorded, with a `reason`: `UnsupportedPhilter` (Philter is not 4.x), `Unavailable` (Philter could not be reached or answered with an error), `SignInDisabled` (Philter's password sign-in is off), or `NoSessionKey` (Philter accepted the sign-in but issued no session key). Other sign-ins are in Philter's log. See [Sign-in through Philter](../security.md#sign-in-through-philter). |
-| `BATCH_CREATE`                      | Batch       | Includes name, group, thresholds                    |
+| `BATCH_CREATE`                      | Batch       | Includes name, group, thresholds, and audit sampling rate |
+| `BATCH_AUDIT_SAMPLING_RATE_REFUSED` | Batch       | A batch created or saved with an audit sampling rate below the deployment's minimum, refused; with the batch name, the requested rate, and the minimum. Has no resource id when the batch was being created. |
 | `BATCH_GROUP_CHANGE`                | Batch       | Old → new group                                     |
-| `BATCH_THRESHOLDS_CHANGE`           | Batch       | Both PII and Document threshold deltas              |
+| `BATCH_THRESHOLDS_CHANGE`           | Batch       | PII threshold, Document Threshold, and audit sampling rate deltas |
 | `BATCH_WEIGHTS_CHANGE`              | Batch       | Override map                                        |
 | `BATCH_WEIGHTS_RESET`               | Batch       | All overrides cleared                               |
 | `BATCH_CLOSE`                       | Batch       | Records who closed it and when                      |

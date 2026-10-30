@@ -628,7 +628,8 @@
                     </div>
                     <div>
                         <label for="newBatchPiiThreshold" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">PII Threshold</label>
-                        <input id="newBatchPiiThreshold" type="number" name="confidenceThreshold" step="0.01" min="0" max="1" value="0.8"
+                        <input id="newBatchPiiThreshold" type="number" name="confidenceThreshold" step="0.01" min="0" max="1"
+                               th:value="${batchDefaults.piiThreshold()}"
                                title="PII threshold (0.0–1.0)"
                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
@@ -640,9 +641,20 @@
                     </div>
                     <div>
                         <label for="newBatchDocumentThreshold" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Document Threshold</label>
-                        <input id="newBatchDocumentThreshold" type="number" name="documentThreshold" step="0.01" min="0" max="1" value="0.25"
+                        <input id="newBatchDocumentThreshold" type="number" name="documentThreshold" step="0.01" min="0" max="1"
+                               th:value="${batchDefaults.documentThreshold()}"
                                title="Document threshold (0.0–1.0): documents at or below it are marked Low risk"
                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label for="newBatchAuditSamplingRate" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Audit Sampling Rate</label>
+                        <input id="newBatchAuditSamplingRate" type="number" name="auditSamplingRate" step="0.01" max="1"
+                               th:min="${batchDefaults.minimumAuditSamplingRate()}"
+                               th:value="${batchDefaults.auditSamplingRate()}"
+                               title="Fraction of documents with nothing left to decide that still go to a person (0.0–1.0)"
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <p th:if="${batchDefaults.minimumAuditSamplingRate() > 0}" class="text-xs text-gray-500 mt-1"
+                           th:text="|At least ${batchDefaults.minimumAuditSamplingRate()} in this deployment.|">At least 1.0.</p>
                     </div>
                 </div>
                 <div>
@@ -686,9 +698,12 @@
                 </div>
                 <div>
                     <label for="thresholdsAudit" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Audit Sampling Rate</label>
-                    <input id="thresholdsAudit" type="number" name="auditSamplingRate" step="0.01" min="0" max="1" required
+                    <input id="thresholdsAudit" type="number" name="auditSamplingRate" step="0.01" max="1" required
+                           th:min="${batchDefaults.minimumAuditSamplingRate()}"
                            class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                    <p class="text-xs text-gray-500 mt-1">Fraction of would-be Auto-Approved documents randomly sent to human review.</p>
+                    <p class="text-xs text-gray-500 mt-1">Fraction of would-be Auto-Approved documents randomly sent to human review.
+                        <span th:if="${batchDefaults.minimumAuditSamplingRate() > 0}"
+                              th:text="|At least ${batchDefaults.minimumAuditSamplingRate()} in this deployment.|"></span></p>
                 </div>
                 <div>
                     <label for="thresholdsDomain" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Domain</label>

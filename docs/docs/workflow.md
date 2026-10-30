@@ -301,12 +301,18 @@ Only administrators can create, modify, or close a batch. To create one:
     - **Name** and **Group** are required.
     - **Policy** lists the policies in Philter. **Default policy** uses
       Philter's default policy.
-    - **PII Threshold** (default `0.80`) — spans whose confidence is at or
+    - **PII Threshold** (default `0.80`): spans whose confidence is at or
       above this value are auto-accepted. Lower values give the redactor
       more autonomy; higher values send more spans to the reviewer.
     - **Document Threshold** (default `0.25`): documents whose risk score
       is at or below this value are marked **Low risk** in the queue. It
       does not approve them or change their status.
+    - **Audit Sampling Rate** (default `0.10`): the fraction of documents
+      with nothing left to decide that still go to a person. At `1.0`, a
+      person approves every document.
+
+    The defaults, and a minimum audit sampling rate, can be set for the
+    deployment; see [Batch defaults](reference/configuration.md#batch-defaults).
 3. Click **Create** in the dialog footer.
 
 After creation, anyone with access to the batch can adjust the group,

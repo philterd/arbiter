@@ -70,6 +70,7 @@ public class BatchController {
     private final ai.philterd.workspace.repository.LocalDirectoryDestinationRepository localDirectoryDestinationRepository;
     private final ai.philterd.workspace.repository.S3DestinationRepository s3DestinationRepository;
     private final ai.philterd.workspace.service.BatchExportService batchExportService;
+    private final ai.philterd.workspace.service.BatchDefaults batchDefaults;
 
     public BatchController(final BatchRepository batchRepository,
                            final DocumentRepository documentRepository,
@@ -82,7 +83,8 @@ public class BatchController {
                            final ComplianceProfileRepository complianceProfileRepository,
                            final ai.philterd.workspace.repository.LocalDirectoryDestinationRepository localDirectoryDestinationRepository,
                            final ai.philterd.workspace.repository.S3DestinationRepository s3DestinationRepository,
-                           final ai.philterd.workspace.service.BatchExportService batchExportService) {
+                           final ai.philterd.workspace.service.BatchExportService batchExportService,
+                           final ai.philterd.workspace.service.BatchDefaults batchDefaults) {
         this.batchRepository = batchRepository;
         this.documentRepository = documentRepository;
         this.groupRepository = groupRepository;
@@ -95,6 +97,7 @@ public class BatchController {
         this.localDirectoryDestinationRepository = localDirectoryDestinationRepository;
         this.s3DestinationRepository = s3DestinationRepository;
         this.batchExportService = batchExportService;
+        this.batchDefaults = batchDefaults;
     }
 
     private static final Set<String> SORTABLE_FIELDS = Set.of("name", "createdAt", "documentCount");
@@ -219,6 +222,7 @@ public class BatchController {
         model.addAttribute("finalizationPolicies", finalizationPolicies);
         model.addAttribute("complianceProfiles", complianceProfiles);
         model.addAttribute("exportDestinations", exportDestinations);
+        model.addAttribute("batchDefaults", batchDefaults);
         model.addAttribute("isAdmin", admin);
         model.addAttribute("currentSort", activeSort);
         model.addAttribute("currentDir", ascending ? "asc" : "desc");
@@ -246,6 +250,7 @@ public class BatchController {
                          @RequestParam(value = "description", required = false) String description,
                          @RequestParam(value = "confidenceThreshold", required = false) Double confidenceThreshold,
                          @RequestParam(value = "documentThreshold", required = false) Double documentThreshold,
+                         @RequestParam(value = "auditSamplingRate", required = false) Double auditSamplingRate,
                          @RequestParam("groupId") String groupId,
                          @RequestParam(value = "policyName", required = false) String policyName,
                          @RequestParam(value = "domain", required = false) String domain,
@@ -275,6 +280,11 @@ public class BatchController {
             redirectAttributes.addFlashAttribute("error", "Document threshold must be between 0 and 1.");
             return "redirect:/batches";
         }
+        final Double normalizedRate = normalizeThreshold(auditSamplingRate);
+        if (auditSamplingRate != null && normalizedRate == null) {
+            redirectAttributes.addFlashAttribute("error", "Audit sampling rate must be between 0 and 1.");
+            return "redirect:/batches";
+        }
         if (groupId == null || groupId.isBlank() || !groupRepository.existsById(groupId)) {
             redirectAttributes.addFlashAttribute("error", "A valid group must be selected.");
             return "redirect:/batches";
@@ -287,6 +297,10 @@ public class BatchController {
                     "You can only create batches in groups you lead. Ask an administrator "
                             + "to make you a team lead of this group, or pick a different group.");
             return "redirect:/batches";
+        }
+        // After the access checks, so only a refusal of someone allowed to create here is audited.
+        if (normalizedRate != null && batchDefaults.belowMinimum(normalizedRate)) {
+            return refuseBelowMinimum(null, trimmed, normalizedRate, redirectAttributes);
         }
         final String trimmedDomain = domain == null ? "" : domain.trim();
         if (trimmedDomain.isEmpty()) {
@@ -321,7 +335,7 @@ public class BatchController {
             redirectAttributes.addFlashAttribute("error", "Selected compliance profile no longer exists.");
             return "redirect:/batches";
         }
-        final Batch batch = new Batch();
+        final Batch batch = batchDefaults.apply(new Batch());
         batch.setId(UUID.randomUUID().toString());
         batch.setName(trimmed);
         batch.setCreatedAt(LocalDateTime.now());
@@ -356,6 +370,9 @@ public class BatchController {
         if (normalizedDoc != null) {
             batch.setDocumentThreshold(normalizedDoc);
         }
+        if (normalizedRate != null) {
+            batch.setAuditSamplingRate(normalizedRate);
+        }
         try {
             batchRepository.save(batch);
         } catch (org.springframework.dao.DuplicateKeyException e) {
@@ -372,6 +389,7 @@ public class BatchController {
         auditDetails.put("contextLength", batch.getContext().length());
         auditDetails.put("confidenceThreshold", batch.getConfidenceThreshold());
         auditDetails.put("documentThreshold", batch.getDocumentThreshold());
+        auditDetails.put("auditSamplingRate", batch.getAuditSamplingRate());
         auditDetails.put("complianceProfileId", trimmedComplianceId);
         auditDetails.put("exemptionCodeRequired", batch.isExemptionCodeRequired());
         auditDetails.put("blindDoubleReviewEnabled", batch.isBlindDoubleReviewEnabled());
@@ -610,6 +628,9 @@ public class BatchController {
             redirectAttributes.addFlashAttribute("error", "Audit sampling rate must be between 0 and 1.");
             return "redirect:/batches";
         }
+        if (batchDefaults.belowMinimum(normalizedRate)) {
+            return refuseBelowMinimum(batch.getId(), batch.getName(), normalizedRate, redirectAttributes);
+        }
         // Domain is optional on this endpoint — only validated/applied when sent.
         if (domain != null) {
             final String trimmedDomain = domain.trim();
@@ -651,6 +672,23 @@ public class BatchController {
         redirectAttributes.addFlashAttribute(
                 "success",
                 "Settings for \"" + batch.getName() + "\" updated.");
+        return "redirect:/batches";
+    }
+
+    /**
+     * Refuses an audit sampling rate below the deployment's minimum
+     * ({@code philter-workspace.batch.minimum-audit-sampling-rate}) and records the attempt.
+     */
+    private String refuseBelowMinimum(final String batchId, final String batchName, final double requested,
+                                      final RedirectAttributes redirectAttributes) {
+        final double minimum = batchDefaults.minimumAuditSamplingRate();
+        final Map<String, Object> details = new LinkedHashMap<>();
+        details.put("name", batchName == null ? "" : batchName);
+        details.put("requestedAuditSamplingRate", requested);
+        details.put("minimumAuditSamplingRate", minimum);
+        auditLogService.log("BATCH_AUDIT_SAMPLING_RATE_REFUSED", "Batch", batchId, details);
+        redirectAttributes.addFlashAttribute("error", "The audit sampling rate cannot be below " + minimum
+                + " in this deployment.");
         return "redirect:/batches";
     }
 

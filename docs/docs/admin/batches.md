@@ -24,7 +24,12 @@ creation dialog. Fill in:
 | Domain               | —       | Optional grouping tag used in the Reports page aggregates                                  |
 | PII Threshold        | `0.80`  | Per-span confidence floor for auto-accepting detections                                    |
 | Document Threshold   | `0.25`  | Risk score at or below which a document is marked Low risk in the queue. It approves nothing. |
-| Audit Sampling Rate  | `0.10`  | Fraction of would-be auto-approved documents pulled into review                            |
+| Audit Sampling Rate  | `0.10`  | Fraction of would-be auto-approved documents pulled into review. At `1.0`, every document goes to a person. |
+
+The three defaults are the deployment's: the form is filled with the values in
+[Batch defaults](../reference/configuration.md#batch-defaults), which are
+`0.80`, `0.25`, and `0.10` unless configured. Changing them affects new batches
+only.
 
 Click **Create** in the dialog footer to save, or **Cancel** (or press
 **Escape**) to dismiss without saving. The dialog is admin-only — non-admins
@@ -41,7 +46,9 @@ Each batch row has:
   group; non-admins are limited to groups they belong to).
 - A **Settings** button that opens a modal to edit the PII Threshold,
   Document Threshold, **and Audit Sampling Rate**. All three are validated to
-  `[0.0, 1.0]`.
+  `[0.0, 1.0]`. When the deployment sets a minimum audit sampling rate, a
+  lower rate is refused here and in the create dialog, and the attempt is
+  recorded in the audit log as `BATCH_AUDIT_SAMPLING_RATE_REFUSED`.
 - A **Weights** link that opens the per-batch PII weight editor (see below).
 - A **Close** button (admin only) that marks the batch closed.
 - A **Closed** badge next to the name when the batch is in the closed state.

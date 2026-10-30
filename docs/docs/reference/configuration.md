@@ -164,6 +164,39 @@ directory.
 
 Set `philter-workspace.demo-data.enabled=false` for production deployments.
 
+## Batch defaults
+
+```
+philter-workspace.batch.defaults.pii-threshold=0.80
+philter-workspace.batch.defaults.document-threshold=0.25
+philter-workspace.batch.defaults.audit-sampling-rate=0.10
+philter-workspace.batch.minimum-audit-sampling-rate=
+```
+
+The values a new batch starts with, and the values that fill the
+[create dialog](../admin/batches.md#create-a-batch-admin-only). Each can also be
+set as an environment variable, for example
+`PHILTER_WORKSPACE_BATCH_DEFAULTS_AUDIT_SAMPLING_RATE`. Unset, they are `0.80`,
+`0.25`, and `0.10`. Each must be from 0 to 1, or Philter Workspace refuses to
+start. A new default applies to batches created afterwards; existing batches
+keep their values. The demo data batch also uses them.
+
+The audit sampling rate decides what happens to a document with nothing left to
+decide, because every detection was at or above the PII threshold. At `0.10`,
+about one in ten of those documents goes to a person as `AUDIT_REQUIRED` and the
+rest are `AUTO_APPROVED` without anyone opening them. At `1.0`, every one goes to
+a person, so a person approves every document.
+
+`philter-workspace.batch.minimum-audit-sampling-rate`
+(`PHILTER_WORKSPACE_BATCH_MINIMUM_AUDIT_SAMPLING_RATE`) is the lowest rate a batch
+can be given. With it set, a lower rate is refused when a batch is created or its
+settings are saved, and the attempt is recorded in the audit log as
+`BATCH_AUDIT_SAMPLING_RATE_REFUSED`. A deployment that requires a person to
+approve every document sets it to `1.0`; with no default rate configured, new
+batches then start at `1.0` too. A default below the minimum stops startup.
+Batches saved before the minimum was set keep their rate; their settings can
+be saved again only with a rate at or above the minimum.
+
 ## Monitoring and metrics
 
 ```

@@ -77,6 +77,7 @@ public class DemoDataLoader implements ApplicationRunner {
     private final ComplianceProfileRepository complianceProfileRepository;
     private final ai.philterd.workspace.repository.FinalizationPolicyRepository finalizationPolicyRepository;
     private final IngestQueueService ingestQueueService;
+    private final BatchDefaults batchDefaults;
     private final String sampleFilesDirectory;
 
     public DemoDataLoader(final BatchRepository batchRepository,
@@ -87,6 +88,7 @@ public class DemoDataLoader implements ApplicationRunner {
                           final ComplianceProfileRepository complianceProfileRepository,
                           final ai.philterd.workspace.repository.FinalizationPolicyRepository finalizationPolicyRepository,
                           final IngestQueueService ingestQueueService,
+                          final BatchDefaults batchDefaults,
                           @Value("${philter-workspace.demo-data.directory:sample-files}") final String sampleFilesDirectory) {
         this.batchRepository = batchRepository;
         this.documentRepository = documentRepository;
@@ -96,6 +98,7 @@ public class DemoDataLoader implements ApplicationRunner {
         this.complianceProfileRepository = complianceProfileRepository;
         this.finalizationPolicyRepository = finalizationPolicyRepository;
         this.ingestQueueService = ingestQueueService;
+        this.batchDefaults = batchDefaults;
         this.sampleFilesDirectory = sampleFilesDirectory;
     }
 
@@ -130,7 +133,7 @@ public class DemoDataLoader implements ApplicationRunner {
 
         final Group demoGroup = ensureDemoGroup();
 
-        final Batch batch = new Batch();
+        final Batch batch = batchDefaults.apply(new Batch());
         batch.setId(UUID.randomUUID().toString());
         batch.setName("Sample files");
         batch.setCreatedAt(LocalDateTime.now());

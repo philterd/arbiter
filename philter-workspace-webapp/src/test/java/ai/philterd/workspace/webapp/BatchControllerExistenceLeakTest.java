@@ -75,7 +75,7 @@ class BatchControllerExistenceLeakTest {
                 mock(ComplianceProfileRepository.class),
                 mock(ai.philterd.workspace.repository.LocalDirectoryDestinationRepository.class),
                 mock(ai.philterd.workspace.repository.S3DestinationRepository.class),
-                mock(BatchExportService.class));
+                mock(BatchExportService.class), ai.philterd.workspace.service.BatchDefaults.standard());
     }
 
     /** A regular reviewer with no lead authority anywhere. */
