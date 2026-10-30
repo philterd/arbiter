@@ -11,7 +11,9 @@ the `--spring.config.additional-location=...` command-line argument.
 
 ### `server.port`
 
-The port Philter Workspace listens on. Defaults to `8080`.
+The port Philter Workspace listens on. Defaults to `8080`. Set it with
+`SERVER_PORT`, which the [container healthcheck](#container-healthcheck) also
+reads.
 
 ### `server.forward-headers-strategy=native`
 
@@ -204,7 +206,7 @@ management.endpoints.web.exposure.include=health,prometheus
 management.endpoints.web.discovery.enabled=false
 management.endpoint.health.show-details=never
 management.endpoint.health.show-components=never
-management.health.redis.enabled=${MANAGEMENT_HEALTH_REDIS_ENABLED:false}
+management.health.redis.enabled=${MANAGEMENT_HEALTH_REDIS_ENABLED:true}
 ```
 
 Philter Workspace serves `/api/health`, `/actuator/health`, and `/actuator/prometheus`,
@@ -232,6 +234,41 @@ Valkey counts because Philter Workspace stores sessions in it and cannot serve a
 without it, so an unreachable Valkey is a genuine outage rather than a
 degradation. `MANAGEMENT_HEALTH_REDIS_ENABLED=false` drops it from health if
 your deployment has some other reason to leave it out.
+
+### Container healthcheck
+
+The Philter Workspace image declares a Docker `HEALTHCHECK` that requests
+`/api/health` inside the container (on `SERVER_PORT`, `8080` by default), so
+`docker run` and `docker compose ps` report the container `healthy` once
+Philter Workspace is ready, not as soon as the JVM starts. It probes every 15
+seconds, allows 5 seconds for an answer, and reports `unhealthy` after 3
+failures in a row. Failures during the first 120 seconds, while Philter
+Workspace starts, are not counted.
+
+Because `/api/health` answers `503` while a dependency is down, the container
+turns `unhealthy` while MongoDB, Valkey, or (with full text search on)
+OpenSearch is unreachable, and `healthy` again once it is back. With MongoDB
+down, the request outlasts the 5-second probe, which also counts as a failure.
+
+`docker-compose.yaml` and `docker-compose.prod.yaml` set the same healthcheck
+on the `philter-workspace` service, so it can be tuned there. A slow host may
+need a longer `start_period`. A service that should wait for Philter Workspace
+can depend on it being healthy:
+
+```yaml
+depends_on:
+  philter-workspace:
+    condition: service_healthy
+```
+
+The probe speaks plain HTTP and finds the port only in `SERVER_PORT`. If you
+set the port another way (a properties file or a command-line argument), or
+have Philter Workspace serve HTTPS itself rather than behind a TLS-terminating
+proxy, override the healthcheck to match, or the container never reports
+`healthy`.
+
+Kubernetes ignores the image's `HEALTHCHECK`; give a pod readiness and
+liveness probes on `/api/health` instead.
 
 ## Philter integration
 

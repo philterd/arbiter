@@ -29,6 +29,14 @@ services:
       dockerfile: Dockerfile
     container_name: philter-workspace-app
     restart: unless-stopped
+    healthcheck:
+      # Ready once GET /api/health answers 200 (it answers 503 while a dependency is down). The
+      # start period covers a cold start, including creating the database schema.
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null http://localhost:$${SERVER_PORT:-8080}/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 120s
     # Session cookies are Secure-only, so serve Philter Workspace to users through a reverse proxy
     # or load balancer that terminates HTTPS.
     ports:
