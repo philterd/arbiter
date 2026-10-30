@@ -36,6 +36,18 @@ class GeneralSettingsServiceTest {
     }
 
     @Test
+    void fullTextSearchIsOffOnANewInstallation() {
+        // It indexes original, unredacted text, so an administrator turns it on deliberately.
+        org.junit.jupiter.api.Assertions.assertFalse(service.load().isFullTextSearchEnabled());
+        org.junit.jupiter.api.Assertions.assertFalse(new GeneralSettings().isFullTextSearchEnabled());
+
+        final GeneralSettings saved = new GeneralSettings();
+        saved.setFullTextSearchEnabled(true);
+        when(repository.findById(any())).thenReturn(Optional.of(saved));
+        assertTrue(service.load().isFullTextSearchEnabled(), "a saved setting is kept");
+    }
+
+    @Test
     void loadReturnsDefaultsWhenNothingSaved() {
         final GeneralSettings settings = service.load();
         assertNotNull(settings);

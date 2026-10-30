@@ -347,7 +347,8 @@ The following fields are **not** part of the at-rest encryption boundary:
   the at-rest encryption boundary documented here. If your deployment
   indexes documents into OpenSearch, configure encryption-at-rest on the
   OpenSearch cluster as well; the application does not double-encrypt
-  payloads sent over the indexing path.
+  payloads sent over the indexing path. Full text search is off by default
+  for this reason. See [Full text search](admin/full-text-search.md).
 
 ### Key management
 

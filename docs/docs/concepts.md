@@ -232,8 +232,9 @@ against that index. Results outside the caller's group visibility return as
 `restricted: true` with content fields nulled — so the caller knows a result
 exists without seeing what it is.
 
-The feature is **enabled by default** but its connection details (endpoint,
-optional basic-auth credentials, index name) are configured at runtime under
+The feature is **off by default**, since the index is a copy of the original,
+unredacted text. An administrator turns it on and sets its connection details
+(endpoint, optional basic-auth credentials, index name) at runtime under
 **Admin → Settings → Full text search**. The full configuration, mapping
 bootstrap, and what changes when the feature is turned off are documented
 on the [Full text search](admin/full-text-search.md) admin page.

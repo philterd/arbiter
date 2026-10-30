@@ -46,12 +46,14 @@ class AdminIngestQueueRetryTest {
     private final PendingUploadRepository uploads = mock(PendingUploadRepository.class);
     private final DocumentQueueStore queue = mock(DocumentQueueStore.class);
     private final AuditLogService audit = mock(AuditLogService.class);
+    private final ai.philterd.workspace.service.OpenSearchIndexService index =
+            mock(ai.philterd.workspace.service.OpenSearchIndexService.class);
     private AdminIngestQueueController controller;
 
     @BeforeEach
     void setUp() {
         when(audit.hashForAudit(anyString())).thenReturn("hash");
-        controller = new AdminIngestQueueController(documents, mock(BatchRepository.class), uploads, queue, audit);
+        controller = new AdminIngestQueueController(documents, mock(BatchRepository.class), uploads, queue, audit, index);
     }
 
     @Test
@@ -152,5 +154,27 @@ class AdminIngestQueueRetryTest {
         d.setOriginalText(text);
         when(documents.findById(id)).thenReturn(Optional.of(d));
         return d;
+    }
+
+    @Test
+    void removingAQueuedOrFailedDocumentRemovesItFromTheSearchIndex() {
+        final Document pending = new Document();
+        pending.setId("p1");
+        pending.setFilename("queued.txt");
+        when(queue.removeIfStatus("p1", "PENDING")).thenReturn(pending);
+        controller.remove("p1", ADMIN, new RedirectAttributesModelMap());
+        verify(index).removeDocument("p1");
+
+        final Document failed = new Document();
+        failed.setId("f1");
+        failed.setFilename("failed.txt");
+        when(queue.removeIfStatus("f1", "FAILED")).thenReturn(failed);
+        controller.clearFailure("f1", ADMIN, new RedirectAttributesModelMap());
+        verify(index).removeDocument("f1");
+
+        when(queue.removeAllWithStatus("FAILED")).thenReturn(List.of("f2", "f3"));
+        controller.clearAllFailures(ADMIN, new RedirectAttributesModelMap());
+        verify(index).removeDocument("f2");
+        verify(index).removeDocument("f3");
     }
 }

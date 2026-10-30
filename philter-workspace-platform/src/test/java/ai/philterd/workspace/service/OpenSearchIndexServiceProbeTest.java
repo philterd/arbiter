@@ -92,4 +92,63 @@ class OpenSearchIndexServiceProbeTest {
         assertEquals(OpenSearchIndexService.ClusterState.DISABLED, serviceFor(true, "  ").probeCluster());
     }
 
+    // ---- removal (#23)
+
+    /** Records the method and path of each request and answers {@code statusCode}. */
+    private static HttpServer recording(final int statusCode, final java.util.List<String> requests) throws IOException {
+        final HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        server.createContext("/", exchange -> {
+            requests.add(exchange.getRequestMethod() + " " + exchange.getRequestURI().getPath());
+            exchange.sendResponseHeaders(statusCode, -1);
+            exchange.close();
+        });
+        server.start();
+        return server;
+    }
+
+    @Test
+    void aRemovedDocumentIsDeletedFromTheIndex() throws IOException {
+        final java.util.List<String> requests = new java.util.ArrayList<>();
+        final HttpServer server = recording(200, requests);
+        try {
+            org.junit.jupiter.api.Assertions.assertTrue(serviceFor(true, urlOf(server)).removeDocument("d1"));
+            assertEquals(java.util.List.of("DELETE /philter-workspace-documents/_doc/d1"), requests);
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void aDocumentTheIndexNeverHadCountsAsRemoved() throws IOException {
+        final HttpServer server = recording(404, new java.util.ArrayList<>());
+        try {
+            org.junit.jupiter.api.Assertions.assertTrue(serviceFor(true, urlOf(server)).removeDocument("d1"));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void aRemovalTheClusterRefusesIsReported() throws IOException {
+        final HttpServer server = recording(500, new java.util.ArrayList<>());
+        try {
+            org.junit.jupiter.api.Assertions.assertFalse(serviceFor(true, urlOf(server)).removeDocument("d1"));
+        } finally {
+            server.stop(0);
+        }
+        // Nothing answering at all.
+        org.junit.jupiter.api.Assertions.assertFalse(serviceFor(true, "http://127.0.0.1:1").removeDocument("d1"));
+    }
+
+    @Test
+    void withSearchOffNothingIsSent() throws IOException {
+        final java.util.List<String> requests = new java.util.ArrayList<>();
+        final HttpServer server = recording(200, requests);
+        try {
+            org.junit.jupiter.api.Assertions.assertTrue(serviceFor(false, urlOf(server)).removeDocument("d1"));
+            assertEquals(java.util.List.of(), requests);
+        } finally {
+            server.stop(0);
+        }
+    }
 }

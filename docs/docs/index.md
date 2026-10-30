@@ -28,9 +28,10 @@ considered redacted.
   different reviewers before they move to `APPROVED`.
 - **Lets reviewers** accept, refuse, change the type of, or bulk-redact every
   occurrence of a span — all from a single side-by-side review pane.
-- **Indexes the full text** of every ingested document into OpenSearch so
-  reviewers (and the API) can run free-text searches; results in batches the
-  caller can't see are masked rather than dropped.
+- **Can index the full text** of every ingested document into OpenSearch, when
+  an administrator turns it on (it is off by default), so reviewers (and the
+  API) can run free-text searches; results in batches the caller can't see are
+  masked rather than dropped.
 - **Notifies users** through a per-user **Inbox** for system messages, with an
   unread-count badge on the sidebar.
 - **Audits everything**: every action (login, batch change, span update,

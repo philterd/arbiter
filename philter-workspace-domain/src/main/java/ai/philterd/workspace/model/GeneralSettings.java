@@ -24,13 +24,13 @@ public class GeneralSettings {
     private String timezone;
     private String opensearchEndpoint;
     /**
-     * Master switch for the full-text search index. When {@code true} (the default for
-     * legacy rows — see field initializer below), Philter Workspace writes each document's text
-     * to OpenSearch on ingest and serves the search page from that index. When
-     * {@code false}, ingest skips the indexing call and the search page surfaces an
-     * informational message.
+     * Master switch for the full-text search index. When {@code true}, Philter Workspace writes each
+     * document's original, unredacted text to OpenSearch on ingest and serves the search page from that
+     * index. Off by default: the index is an extra copy of the data Philter Workspace exists to protect, so
+     * an administrator turns it on deliberately. A settings row saved before this field existed also reads
+     * as off.
      */
-    private boolean fullTextSearchEnabled = true;
+    private boolean fullTextSearchEnabled = false;
     /** Optional HTTP basic-auth username for the full-text search OpenSearch cluster. */
     private String opensearchUsername;
     /**

@@ -101,6 +101,39 @@ public class OpenSearchIndexService {
         }
     }
 
+    /**
+     * Best-effort removal of a document from the index, for a document deleted or whose original text was
+     * cleared, so the index does not keep an unredacted copy. A document that was never indexed is not an
+     * error. Skipped when full-text search is turned off; turning it off does not empty an existing index.
+     *
+     * @return whether the index no longer holds the document (true also when search is off)
+     */
+    public boolean removeDocument(final String documentId) {
+        if (documentId == null) return true;
+        if (!isFullTextSearchEnabled()) return true;
+        final String endpoint = endpoint();
+        if (endpoint == null) return true;
+        final String url = endpoint + "/" + indexName() + "/_doc/"
+                + java.net.URLEncoder.encode(documentId, java.nio.charset.StandardCharsets.UTF_8);
+        try {
+            final HttpRequest req = applyAuth(HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .timeout(REQUEST_TIMEOUT)
+                    .DELETE())
+                    .build();
+            final HttpResponse<Void> resp = httpClient.send(req, HttpResponse.BodyHandlers.discarding());
+            if (resp.statusCode() / 100 == 2 || resp.statusCode() == 404) {
+                return true;
+            }
+            log.warn("OpenSearch removal returned HTTP {} for document {} ({}); its indexed copy remains",
+                    resp.statusCode(), documentId, url);
+        } catch (Exception e) {
+            log.warn("OpenSearch removal failed for document {} at {}: {}; its indexed copy remains",
+                    documentId, url, e.getClass().getSimpleName());
+        }
+        return false;
+    }
+
     public record SearchHit(String id, String batchId, String filename, String status, List<String> highlights) {}
     public record SearchResults(long total, int from, int size, List<SearchHit> hits) {}
 

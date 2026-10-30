@@ -15,6 +15,7 @@ import ai.philterd.workspace.repository.BatchRepository;
 import ai.philterd.workspace.repository.DocumentRepository;
 import ai.philterd.workspace.repository.PendingUploadRepository;
 import ai.philterd.workspace.service.AuditLogService;
+import ai.philterd.workspace.service.OpenSearchIndexService;
 import ai.philterd.workspace.store.DocumentQueueStore;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -47,17 +48,20 @@ public class AdminIngestQueueController {
     private final PendingUploadRepository pendingUploadRepository;
     private final DocumentQueueStore queueStore;
     private final AuditLogService auditLogService;
+    private final OpenSearchIndexService openSearchIndexService;
 
     public AdminIngestQueueController(final DocumentRepository documentRepository,
                                       final BatchRepository batchRepository,
                                       final PendingUploadRepository pendingUploadRepository,
                                       final DocumentQueueStore queueStore,
-                                      final AuditLogService auditLogService) {
+                                      final AuditLogService auditLogService,
+                                      final OpenSearchIndexService openSearchIndexService) {
         this.documentRepository = documentRepository;
         this.batchRepository = batchRepository;
         this.pendingUploadRepository = pendingUploadRepository;
         this.queueStore = queueStore;
         this.auditLogService = auditLogService;
+        this.openSearchIndexService = openSearchIndexService;
     }
 
     @GetMapping
@@ -172,6 +176,7 @@ public class AdminIngestQueueController {
         }
         // Best-effort sidecar cleanup — only some uploads have one (PDFs).
         try { pendingUploadRepository.deleteById(id); } catch (Exception ignored) {}
+        openSearchIndexService.removeDocument(id);
 
         // Filename hashed (R2-F7) — filenames carry PII; audit log is
         // cross-group-readable by auditors.
@@ -203,6 +208,7 @@ public class AdminIngestQueueController {
             return "redirect:/admin/ingest-queue";
         }
         try { pendingUploadRepository.deleteById(id); } catch (Exception ignored) {}
+        openSearchIndexService.removeDocument(id);
 
         // Filename hashed (R2-F7).
         auditLogService.log("INGEST_QUEUE_FAILURE_CLEAR", "Document", id,
@@ -312,6 +318,7 @@ public class AdminIngestQueueController {
         final long removed = ids.size();
         for (String id : ids) {
             try { pendingUploadRepository.deleteById(id); } catch (Exception ignored) {}
+            openSearchIndexService.removeDocument(id);
         }
 
         auditLogService.log("INGEST_QUEUE_FAILURES_CLEAR_ALL", "Settings", "ingest-queue",

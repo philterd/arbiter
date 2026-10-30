@@ -274,10 +274,12 @@ class BlindDoubleReviewIntegrationTest {
     // ---------- review page: full-text search gate on the Find similar button ----------
 
     @Test
-    void reviewPageExposesFullTextSearchEnabledFlagAsTrueByDefault() {
-        // The default GeneralSettings has fullTextSearchEnabled = true; the controller
-        // must surface that as a model attribute so the template can render the
+    void reviewPageExposesFullTextSearchEnabledFlagWhenItIsOn() {
+        // The controller must surface the flag as a model attribute so the template can render the
         // Find similar documents button.
+        final ai.philterd.workspace.model.GeneralSettings enabled = new ai.philterd.workspace.model.GeneralSettings();
+        enabled.setFullTextSearchEnabled(true);
+        when(generalSettingsService.load()).thenReturn(enabled);
         final Document d = baseDocument("d-fts-on", "alpha bravo");
         documents.put(d.getId(), d);
         spansByDocument.put(d.getId(), new ArrayList<>());
@@ -287,6 +289,20 @@ class BlindDoubleReviewIntegrationTest {
 
         assertEquals(true, model.getAttribute("fullTextSearchEnabled"),
                 "When the master flag is on, the review page must expose fullTextSearchEnabled=true.");
+    }
+
+    @Test
+    void reviewPageHidesFindSimilarOnADefaultInstallation() {
+        // Full text search is off by default (#23).
+        when(generalSettingsService.load()).thenReturn(new ai.philterd.workspace.model.GeneralSettings());
+        final Document d = baseDocument("d-fts-default", "alpha bravo");
+        documents.put(d.getId(), d);
+        spansByDocument.put(d.getId(), new ArrayList<>());
+
+        final org.springframework.ui.ConcurrentModel model = new org.springframework.ui.ConcurrentModel();
+        reviewController.review("d-fts-default", alice(), model);
+
+        assertEquals(false, model.getAttribute("fullTextSearchEnabled"));
     }
 
     @Test

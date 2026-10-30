@@ -247,6 +247,11 @@
                     page, which surfaces other documents in the same batch with related
                     text.
                 </p>
+                <div class="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                    Turning this on copies each document's <strong>original, unredacted text</strong> into
+                    OpenSearch, outside Philter Workspace's encryption at rest. Secure the cluster accordingly.
+                    A document is removed from the index when it is deleted or its original text is cleared.
+                </div>
 
                 <form id="ftsForm" th:action="@{/admin/general/full-text-search}" method="post" class="space-y-4">
                     <label class="inline-flex items-start gap-2 text-sm text-gray-700">
@@ -256,8 +261,9 @@
                         <span>Enable full text search</span>
                     </label>
                     <p class="text-xs text-gray-500 -mt-2">
-                        Default: enabled. Disabling stops new ingests from writing to OpenSearch and
-                        leaves the Search page empty.
+                        Off by default. Turning it off stops new documents from being indexed and leaves
+                        the Search page empty, but does not remove documents already indexed: delete the
+                        index in OpenSearch to remove them.
                     </p>
 
                     <div>

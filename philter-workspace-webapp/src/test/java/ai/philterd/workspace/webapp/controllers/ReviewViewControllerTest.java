@@ -327,6 +327,9 @@ class ReviewViewControllerTest {
         assertEquals("SOURCE_CLEARED", details.getValue().get("action"));
         assertEquals("DELETE_IMMEDIATELY", details.getValue().get("option"));
         assertEquals(3L, details.getValue().get("spansDeleted"));
+        // The index holds the original text too, so it is removed there as well.
+        verify(openSearchIndexService).removeDocument("d1");
+        assertEquals(false, details.getValue().get("indexCleared"), "the mock reports the removal as not done");
     }
 
     @Test

@@ -5,7 +5,8 @@
 - A running MongoDB instance Philter Workspace can reach, or nothing extra with the
   SQLite store (see [Database](reference/database.md))
 - A running Valkey instance for sessions
-- A running OpenSearch instance Philter Workspace can reach (for full-text search)
+- Optionally, an OpenSearch instance Philter Workspace can reach, for full-text search,
+  which is off by default
 - A running Philter 4.x that Philter Workspace can call (`docker-compose.yaml`
   starts one for development)
 
@@ -35,8 +36,8 @@ The OpenSearch cluster used to power the full-text search index is
 configured at runtime under **Admin → Settings → Full text search** —
 the section accepts the endpoint, optional basic-auth username and
 password, and the index name. There is no longer an environment
-variable for the OpenSearch endpoint; an admin must save the form once
-on first startup so the values are written to the database.
+variable for the OpenSearch endpoint; an admin turns full-text search on and
+saves the form, which writes the values to the database. It is off until then.
 
 ## First run
 
@@ -99,7 +100,11 @@ following. The old names are not read.
 
 - **Philter Workspace URL.** The URL saved under **Admin → General** is not carried over; save it
   again.
-- **Full text search.** The default index name is `philter-workspace-documents`. A deployment that
+- **Full text search is off by default.** It indexes each document's original, unredacted
+  text, so an administrator now turns it on under **Admin → General → Full text search**. An
+  Arbiter install that saved its general settings keeps the value it saved; one that never
+  saved them starts with full text search off.
+- **Full text search index.** The default index name is `philter-workspace-documents`. A deployment that
   used the old default, `arbiter-documents`, sets that name under **Admin → General → Full text
   search** to keep its index.
 - **Policies kept in Arbiter.** Arbiter's own copies of redaction policies are no longer read;

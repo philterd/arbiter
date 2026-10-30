@@ -469,12 +469,15 @@ public class ReviewViewController {
                 document.setOriginalText(null);
                 document.setStoragePath(null);
                 documentRepository.save(document);
+                // The full-text index holds the original text too.
+                final boolean indexCleared = openSearchIndexService.removeDocument(document.getId());
                 auditLogService.log("FINALIZATION_POLICY_APPLIED", "Document", document.getId(),
                         Map.of("policyId", policy.getId() == null ? "" : policy.getId(),
                                 "policyName", policy.getName() == null ? "" : policy.getName(),
                                 "option", option,
                                 "action", "SOURCE_CLEARED",
                                 "spansDeleted", spansDeleted,
+                                "indexCleared", indexCleared,
                                 "actor", actorEmail == null ? "" : actorEmail));
                 break;
             default:

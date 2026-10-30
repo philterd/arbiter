@@ -6,9 +6,12 @@ into an **OpenSearch** cluster, and the **Search** page in the sidebar plus
 the [`GET /api/v1/search`](../reference/api.md) endpoint serve queries from
 that index.
 
-The feature is **enabled by default** but the connection details to the
-OpenSearch cluster live entirely in the database — there is no environment
-variable to set on first startup.
+The feature is **off by default**, because the index is a copy of every
+document's original, unredacted text outside Philter Workspace's encryption at
+rest. An administrator turns it on deliberately; the change is recorded in the
+audit log as `GENERAL_SETTINGS_CHANGE`, with the previous and new values. The
+connection details to the OpenSearch cluster live in the database; there is no
+environment variable to set.
 
 The settings panel lives under **Admin → Settings** on the General tab,
 inside the **Full text search** card.
@@ -37,7 +40,7 @@ The Full text search card carries five fields:
 
 | Field        | Required | Notes                                                                                   |
 |--------------|----------|-----------------------------------------------------------------------------------------|
-| Enabled      | yes      | Master on/off switch. **Enabled by default** for new and legacy installs.                |
+| Enabled      | yes      | Master on/off switch. **Off by default.** Turning it on indexes original, unredacted text. |
 | Endpoint     | yes      | Base URL of the OpenSearch cluster, including scheme and port (e.g. `http://opensearch:9200`). |
 | Index name   | yes      | Lower-case letters, digits, `-`, `_`, `+`. Defaults to `philter-workspace-documents`.              |
 | Username     | no       | Optional HTTP basic-auth username for clusters that require it.                         |
@@ -116,7 +119,7 @@ When disabled:
 - The OpenSearch cluster, if you still have one running, is left untouched.
   No documents are deleted; previously-indexed documents stay in the index
   so a future re-enable can use them as-is (subject to the mapping
-  comparison above).
+  comparison above). To remove their text, delete the index in OpenSearch.
 
 ### Implications of disabling
 
@@ -151,6 +154,20 @@ Disabling is the right choice when:
 - You're temporarily isolating the deployment from the OpenSearch cluster
   for maintenance and want clean signals (no warning logs about indexing
   failures).
+
+## Removing documents from the index
+
+While full text search is on, a document is removed from the index when:
+
+- Finalization clears its original text (a batch finalization policy that
+  deletes originals). The `FINALIZATION_POLICY_APPLIED` audit entry records
+  whether the index removal succeeded (`indexCleared`).
+- An administrator removes it from **Admin → Ingest Queue**, as a queued
+  document or a failure.
+
+Removal is best-effort: if OpenSearch does not answer, Philter Workspace logs a
+warning naming the document's id, and the indexed copy remains until it is
+removed in OpenSearch. Removal is skipped while full text search is off.
 
 ## Security considerations
 
