@@ -250,6 +250,52 @@
                     </button>
                 </form>
             </div>
+
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 mb-6 max-w-3xl">
+                <h3 class="text-lg font-semibold text-gray-900 mb-1">Webhook</h3>
+                <p class="text-xs text-gray-500 mb-4">
+                    Philter calls this webhook when a job queued with Philter Workspace's API key finishes. It is set
+                    with <code>PHILTER_WORKSPACE_PHILTER_WEBHOOK_SECRET</code> and <code>PHILTER_WORKSPACE_PHILTER_WEBHOOK_URL</code>
+                    in Philter Workspace's environment, then registered with Philter here.
+                    <a href="/docs/reference/configuration/#philter-webhook" target="_blank" rel="noopener noreferrer"
+                       class="text-blue-600 hover:underline">How</a>
+                </p>
+                <p th:unless="${webhookEnabled}" class="text-sm text-gray-700">
+                    Not set: Philter Workspace receives no webhooks without <code>PHILTER_WORKSPACE_PHILTER_WEBHOOK_SECRET</code>.
+                </p>
+                <div th:if="${webhookEnabled}">
+                    <dl class="grid grid-cols-[auto,1fr] gap-x-6 gap-y-2 text-sm mb-4">
+                        <dt class="text-xs font-medium text-gray-600 uppercase tracking-wide">URL</dt>
+                        <dd class="font-mono text-gray-900 break-all">
+                            <span th:if="${webhookUrl != null}" th:text="${webhookUrl}">https://workspace.example.com/api/philter/webhook</span>
+                            <span th:unless="${webhookUrl != null}" class="font-sans text-gray-700">Not set; set <code>PHILTER_WORKSPACE_PHILTER_WEBHOOK_URL</code> to register it</span>
+                        </dd>
+                        <dt class="text-xs font-medium text-gray-600 uppercase tracking-wide">In Philter</dt>
+                        <dd class="text-gray-900">
+                            <span th:if="${philterWebhookError != null}" class="text-red-700" th:text="${philterWebhookError}">error</span>
+                            <span th:if="${philterWebhookError == null and philterWebhookMatches}">Registered</span>
+                            <span th:if="${philterWebhookError == null and !philterWebhookMatches and philterWebhookUrl == null}">Not registered</span>
+                            <span th:if="${philterWebhookError == null and !philterWebhookMatches and philterWebhookUrl != null}">
+                                Registered to a different URL: <span class="font-mono break-all" th:text="${philterWebhookUrl}">url</span>
+                            </span>
+                        </dd>
+                    </dl>
+                    <div class="flex gap-2" sec:authorize="hasRole('ADMIN')">
+                        <form th:action="@{/admin/philter/webhook/register}" method="post">
+                            <button type="submit" th:disabled="${!webhookRegistrable}"
+                                    class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 font-medium rounded-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                                Register with Philter
+                            </button>
+                        </form>
+                        <form th:action="@{/admin/philter/webhook/test}" method="post">
+                            <button type="submit"
+                                    class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 font-medium rounded-lg">
+                                Send a test event
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
         </main>
         <div th:replace="~{fragments/footer :: footer}"></div>
         </div>

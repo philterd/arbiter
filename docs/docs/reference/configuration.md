@@ -276,6 +276,41 @@ itself, see [Client certificates (mutual TLS)](https://philterd.github.io/philte
 in Philter's settings. A client certificate does not replace Philter Workspace's Philter
 API key: Philter still requires the key on every request.
 
+### Philter webhook
+
+Philter calls a webhook when a job queued with Philter Workspace's API key finishes,
+so Philter Workspace does not have to ask. Philter Workspace queues no jobs in Philter
+yet; the webhook is ready for the PDF review that will.
+
+| Property | Environment variable | Purpose |
+| -------- | -------------------- | ------- |
+| `philter-workspace.philter.webhook-secret` | `PHILTER_WORKSPACE_PHILTER_WEBHOOK_SECRET` | The shared secret Philter signs each delivery with. At least 16 characters; generate one with `openssl rand -hex 24`. Without it, Philter Workspace receives no webhooks. |
+| `philter-workspace.philter.webhook-url` | `PHILTER_WORKSPACE_PHILTER_WEBHOOK_URL` | The URL Philter calls: Philter Workspace's address as Philter reaches it, followed by `/api/philter/webhook`, for example `http://philter-workspace:8080/api/philter/webhook`. Needed to register the webhook. |
+
+A secret shorter than 16 characters, or a URL that is not `http` or `https`, stops
+Philter Workspace at startup. Set the secret through the environment or a secrets
+mechanism.
+
+To set it up:
+
+1. Set both in Philter Workspace's environment and restart it.
+2. Give `PHILTER_WORKSPACE_PHILTER_API_KEY` the `webhooks:read` and `webhooks:write`
+   scopes in Philter, since the webhook belongs to that key's user.
+3. When Philter Workspace is on a private network, as in Docker Compose, allow it in
+   Philter's webhook allowlist (**Admin → Philter → Settings**): list both Philter
+   Workspace's host name and its address or range, such as the Docker network's
+   range. Philter refuses a private address that is not listed, even when its host
+   name is.
+4. Under **Admin → Philter**, choose **Register with Philter**, then **Send a test
+   event**.
+
+Philter Workspace accepts a delivery only when its `X-Philter-Signature` is the
+HMAC-SHA256 of its timestamp and body with the secret, and its timestamp is within
+five minutes. Anything else is refused with `401` and logged with the delivery's id
+and the reason, never its body. A delivery Philter retries is recognized by its
+`X-Philter-Delivery-Id` and acknowledged without being handled again. Events Philter
+Workspace does not handle are acknowledged, as Philter asks.
+
 ## Data-source allow-list
 
 ```

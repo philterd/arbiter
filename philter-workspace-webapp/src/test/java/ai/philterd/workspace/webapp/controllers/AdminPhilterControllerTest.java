@@ -69,7 +69,8 @@ class AdminPhilterControllerTest {
                 PhilterTlsConfig.none());
         auditLogService = mock(AuditLogService.class);
         bootstrapKeyWarning = mock(BootstrapKeyWarning.class);
-        controller = new AdminPhilterController(philter, auditLogService, bootstrapKeyWarning);
+        controller = new AdminPhilterController(philter, auditLogService, bootstrapKeyWarning,
+                new ai.philterd.workspace.webapp.security.PhilterWebhookSettings("", ""));
     }
 
     @AfterEach

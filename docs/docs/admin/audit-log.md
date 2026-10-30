@@ -55,6 +55,7 @@ and export them:
 | `GROUP_CREATE` / `_UPDATE` / `_DELETE` | Group    | Admin group management                              |
 | `NOTIFICATION_SETTINGS_CHANGE`      | Settings    | SMTP settings save (excluding the password value)   |
 | `PHILTER_TEST`                      | Philter     | Admin → Philter's Test: Philter's URL, whether it passed, and the HTTP status and reason. Never the API key. |
+| `PHILTER_WEBHOOK_REGISTER`, `PHILTER_WEBHOOK_TEST` | Philter | Admin → Philter's Register with Philter (the webhook URL, whether it succeeded, and Philter's status) and Send a test event (whether it was delivered, and the status the webhook answered). Never the secret. Philter records both too, naming only the API key. |
 | `REDACTED_PDF_REFUSED`              | Redaction   | A redacted PDF was refused rather than produced, with the reason. No document content. |
 | `INBOX_MESSAGE_READ`                | InboxMessage | User marked an inbox notification as read           |
 | `INBOX_MESSAGE_ARCHIVED`            | InboxMessage | User archived an inbox notification                 |

@@ -187,6 +187,9 @@ public class RedactionControllerTest {
     private MongoOperations mongoOperations;
 
     @MockBean
+    private ai.philterd.workspace.repository.PhilterWebhookDeliveryRepository philterWebhookDeliveryRepository;
+
+    @MockBean
     private GeneralSettingsService generalSettingsService;
 
     @Test

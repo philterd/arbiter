@@ -109,6 +109,9 @@ abstract class WebMvcSliceMocks {
     @MockBean protected UserSettingsRepository userSettingsRepository;
     @MockBean protected InboxMessageRepository inboxMessageRepository;
     @MockBean protected PendingUploadRepository pendingUploadRepository;
+    @MockBean protected ai.philterd.workspace.repository.PhilterWebhookDeliveryRepository philterWebhookDeliveryRepository;
+    @MockBean protected ai.philterd.workspace.webapp.security.PhilterWebhookSettings philterWebhookSettings;
+    @MockBean protected ai.philterd.workspace.webapp.security.PhilterWebhookReceiver philterWebhookReceiver;
     @MockBean protected RedactionCertificateRepository redactionCertificateRepository;
     @MockBean protected ai.philterd.workspace.repository.FinalizationPolicyRepository finalizationPolicyRepository;
     @MockBean protected ai.philterd.workspace.repository.ComplianceProfileRepository complianceProfileRepository;

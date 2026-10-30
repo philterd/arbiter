@@ -132,6 +132,10 @@ public class SecurityConfig {
                         // credential exists. Returns the aggregate status and build version
                         // only; that version is a reason to keep the port internal.
                         .requestMatchers(HttpMethod.GET, "/api/health").permitAll()
+                        // Philter's webhook deliveries. Philter signs each one with the shared secret, and
+                        // the controller refuses any whose signature or timestamp does not check out.
+                        .requestMatchers(HttpMethod.POST, ai.philterd.workspace.api.controller.PhilterWebhookController.PATH)
+                                .permitAll()
                         // Actuator, GET-only and unauthenticated, matching Philter. Only
                         // health and prometheus are exposed, so the wildcard cannot reach
                         // env, beans, loggers, or heapdump.

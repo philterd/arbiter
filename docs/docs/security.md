@@ -194,8 +194,16 @@ re-applies group restrictions.
 
 Three `GET` paths answer without a credential, so that a container runtime,
 load balancer, or Prometheus scraper can reach Philter Workspace before any account
-exists: `/api/health`, `/actuator/health`, and `/actuator/prometheus`. Every
-other path, API and UI alike, requires authentication.
+exists: `/api/health`, `/actuator/health`, and `/actuator/prometheus`. One
+`POST` path, `/api/philter/webhook`, takes Philter's webhook deliveries; Philter
+signs each one instead of authenticating. Every other path, API and UI alike,
+requires authentication.
+
+The webhook path answers `404` unless `PHILTER_WORKSPACE_PHILTER_WEBHOOK_SECRET` is
+set. With it set, a delivery is handled only when its HMAC-SHA256 signature matches
+the secret and its timestamp is within five minutes, which also stops a captured
+delivery from being replayed. Bodies over 64 KiB are refused unread. See
+[Philter webhook](reference/configuration.md#philter-webhook).
 
 What they disclose:
 

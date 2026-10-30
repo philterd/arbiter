@@ -72,7 +72,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 // Set here rather than in @DynamicPropertySource, which is applied after Philter Workspace's store post-processor
 // reads philter-workspace.store. Spring Session is left out, so sessions are in memory and no Valkey is needed.
-@SpringBootTest(classes = PhilterWorkspaceApplication.class, properties = {
+// On a real port, so Philter can deliver its webhook to Philter Workspace.
+@SpringBootTest(classes = PhilterWorkspaceApplication.class,
+        webEnvironment = SpringBootTest.WebEnvironment.DEFINED_PORT, properties = {
         "philter-workspace.sign-in.check-interval-seconds=0",
         "philter-workspace.store=sqlite",
         "philter-workspace.demo-data.enabled=false",
@@ -97,7 +99,12 @@ class PhilterSignInIT {
             .withEnv("TRUSTED_PROXIES", "0.0.0.0/0,::/0")
             .waitingFor(Wait.forHttp("/api/health").forStatusCode(200).withStartupTimeout(Duration.ofMinutes(3)));
 
+    /** The port Philter Workspace listens on, which the Philter container reaches as host.testcontainers.internal. */
+    static final int PORT = freePort();
+    static final String WEBHOOK_SECRET = "webhook-" + HexFormat.of().formatHex(bytes(16));
+
     static {
+        org.testcontainers.Testcontainers.exposeHostPorts(PORT);
         PHILTER.start();
     }
 
@@ -111,6 +118,7 @@ class PhilterSignInIT {
     @Autowired private ai.philterd.workspace.repository.PendingUploadRepository pendingUploadRepository;
     @Autowired private ai.philterd.workspace.repository.SpanRepository spanRepository;
     @Autowired private javax.sql.DataSource dataSource;
+    @Autowired private ai.philterd.workspace.repository.PhilterWebhookDeliveryRepository webhookDeliveries;
 
     @DynamicPropertySource
     static void properties(final DynamicPropertyRegistry registry) throws Exception {
@@ -121,11 +129,23 @@ class PhilterSignInIT {
         registry.add("philter-workspace.philter.api-key", () -> BOOTSTRAP_KEY);
         final String database = Files.createTempDirectory("philter-workspace-it").resolve("philter-workspace.db").toString();
         registry.add("philter-workspace.sqlite.path", () -> database);
+        registry.add("server.port", () -> PORT);
+        registry.add("philter-workspace.philter.webhook-secret", () -> WEBHOOK_SECRET);
+        registry.add("philter-workspace.philter.webhook-url",
+                () -> "http://host.testcontainers.internal:" + PORT + "/api/philter/webhook");
     }
 
     @BeforeAll
     static void setUpPhilter() throws Exception {
         bootstrap().setPassword("admin", ADMIN_PASSWORD);
+    }
+
+    private static int freePort() {
+        try (java.net.ServerSocket socket = new java.net.ServerSocket(0)) {
+            return socket.getLocalPort();
+        } catch (java.io.IOException e) {
+            throw new IllegalStateException(e);
+        }
     }
 
     private static byte[] bytes(final int n) {
@@ -1119,5 +1139,53 @@ class PhilterSignInIT {
             d = documentRepository.findById(id).orElseThrow();
         }
         return d;
+    }
+
+    @Test
+    void philterDeliversItsSignedWebhookToPhilterWorkspace() throws Exception {
+        final MockHttpSession session = new MockHttpSession();
+        final String address = newAddress();
+        signIn(session, address, "admin", ADMIN_PASSWORD);
+        final String webhookUrl = "http://host.testcontainers.internal:" + PORT + "/api/philter/webhook";
+        // Philter refuses private addresses unless an administrator allowlists both the host and the
+        // address it resolves to, as a deployment on a private network must.
+        final String resolved = PHILTER.execInContainer("getent", "hosts", "host.testcontainers.internal")
+                .getStdout().trim().split("\\s+")[0];
+        final ai.philterd.philter.model.AdminSettings before = bootstrap().getAdminSettings();
+        final ai.philterd.philter.model.UpdateAdminSettingsRequest allow = new ai.philterd.philter.model.UpdateAdminSettingsRequest();
+        allow.setWebhookAllowlist("host.testcontainers.internal," + resolved);
+        bootstrap().updateAdminSettings(allow);
+        try {
+            assertTrue(mockMvc.perform(get("/admin/philter").session(session).with(from(address)))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString().contains("Not registered"));
+
+            mockMvc.perform(post("/admin/philter/webhook/register").session(session).with(csrf()).with(from(address)))
+                    .andExpect(flash().attribute("success", "Philter will send its webhooks to " + webhookUrl
+                            + ". Send a test event to check that they arrive."));
+            assertTrue(mockMvc.perform(get("/admin/philter").session(session).with(from(address)))
+                    .andReturn().getResponse().getContentAsString().contains("<span>Registered</span>"));
+
+            // Philter signs a test event with the secret and delivers it over HTTP.
+            final long received = webhookDeliveries.count();
+            final String delivered = (String) mockMvc.perform(post("/admin/philter/webhook/test").session(session)
+                            .with(csrf()).with(from(address)))
+                    .andReturn().getFlashMap().get("success");
+            assertNotNull(delivered, "Philter delivered the test event");
+            assertTrue(delivered.startsWith("Philter delivered a test event to Philter Workspace"), delivered);
+            assertEquals(received + 1, webhookDeliveries.count());
+            assertTrue(webhookDeliveries.findAll().stream().anyMatch(d -> "WEBHOOK_TEST".equals(d.getEvent())));
+
+            // Signed with another secret, the delivery is refused, and the page says why.
+            bootstrap().setWebhook(webhookUrl, "a-different-secret-" + HexFormat.of().formatHex(bytes(8)));
+            mockMvc.perform(post("/admin/philter/webhook/test").session(session).with(csrf()).with(from(address)))
+                    .andExpect(flash().attribute("error", "Philter Workspace refused the test event's signature: the "
+                            + "secret Philter holds is not PHILTER_WORKSPACE_PHILTER_WEBHOOK_SECRET. Register the webhook again."));
+            assertEquals(received + 1, webhookDeliveries.count(), "the refused delivery is not recorded");
+        } finally {
+            bootstrap().removeWebhook();
+            final ai.philterd.philter.model.UpdateAdminSettingsRequest restore = new ai.philterd.philter.model.UpdateAdminSettingsRequest();
+            restore.setWebhookAllowlist(before.getWebhookAllowlist() == null ? "" : before.getWebhookAllowlist());
+            bootstrap().updateAdminSettings(restore);
+        }
     }
 }

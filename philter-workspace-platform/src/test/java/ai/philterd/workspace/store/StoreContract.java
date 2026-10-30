@@ -106,7 +106,7 @@ public abstract class StoreContract {
     @Test
     void everyRepositoryIsAvailable() throws Exception {
         final List<Class<?>> repos = repositoryInterfaces();
-        assertEquals(27, repos.size());
+        assertEquals(28, repos.size());
         for (Class<?> repo : repos) {
             assertNotNull(repository(repo), repo.getSimpleName());
         }
@@ -437,6 +437,20 @@ public abstract class StoreContract {
         save(document("b", "FAILED", "d", LocalDateTime.now()));
         assertEquals(2, queue().removeAllWithStatus("FAILED").size());
         assertEquals(1, repository(DocumentRepository.class).count());
+    }
+
+    @Test
+    void webhookDeliveryRecordsArePrunedByAge() {
+        final ai.philterd.workspace.repository.PhilterWebhookDeliveryRepository deliveries =
+                repository(ai.philterd.workspace.repository.PhilterWebhookDeliveryRepository.class);
+        final Instant now = Instant.parse("2026-10-30T12:00:00Z");
+        deliveries.save(new ai.philterd.workspace.model.PhilterWebhookDelivery("old", "WEBHOOK_TEST", now.minusSeconds(8 * 86400)));
+        deliveries.save(new ai.philterd.workspace.model.PhilterWebhookDelivery("new", "WEBHOOK_TEST", now.minusSeconds(3600)));
+
+        assertTrue(deliveries.existsById("old"));
+        assertEquals(1, deliveries.deleteByReceivedAtBefore(now.minusSeconds(7 * 86400)));
+        assertFalse(deliveries.existsById("old"));
+        assertTrue(deliveries.existsById("new"));
     }
 
     // ---- the audit log
