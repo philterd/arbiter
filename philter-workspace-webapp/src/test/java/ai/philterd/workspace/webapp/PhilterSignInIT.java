@@ -1188,4 +1188,34 @@ class PhilterSignInIT {
             bootstrap().updateAdminSettings(restore);
         }
     }
+
+    /**
+     * Philter Workspace draws redaction boxes on PDFs with the same Phileas that Philter detects with. When the
+     * Philter image these tests run is moved to a release with another Phileas, this fails until
+     * {@code phileas.version} in pom.xml is moved too.
+     */
+    @Test
+    void philterWorkspaceUsesThePhileasVersionPhilterUses() throws Exception {
+        final java.util.Properties ours = new java.util.Properties();
+        try (java.io.InputStream in = ai.philterd.phileas.PhileasConfiguration.class
+                .getResourceAsStream("/META-INF/maven/ai.philterd/phileas/pom.properties")) {
+            assertNotNull(in, "Phileas's Maven metadata is on the classpath");
+            ours.load(in);
+        }
+        final String philters = PHILTER.copyFileFromContainer("/opt/philter/philter.jar", in -> {
+            try (java.util.zip.ZipInputStream zip = new java.util.zip.ZipInputStream(in)) {
+                for (java.util.zip.ZipEntry e; (e = zip.getNextEntry()) != null; ) {
+                    final java.util.regex.Matcher m = java.util.regex.Pattern
+                            .compile("BOOT-INF/lib/phileas-(\\d[^/]*)\\.jar").matcher(e.getName());
+                    if (m.matches()) {
+                        return m.group(1);
+                    }
+                }
+            }
+            return null;
+        });
+        assertNotNull(philters, "Philter's jar bundles Phileas");
+        assertEquals(philters, ours.getProperty("version"), "Philter " + PHILTER.getDockerImageName()
+                + " uses Phileas " + philters + "; set phileas.version in pom.xml to match");
+    }
 }

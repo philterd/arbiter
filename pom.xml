@@ -40,7 +40,9 @@
         <philter.sdk.version>3.0.0</philter.sdk.version>
         <!-- Newer than Spring Boot 3.3's 1.19.8, which predates Docker Engine 29's minimum API version. -->
         <testcontainers.version>2.0.5</testcontainers.version>
-        <phileas.version>3.3.0</phileas.version>
+        <!-- The Phileas that Philter uses (Philter 4.0.0: 4.5.0), since it draws the redaction boxes on PDFs that
+             Philter's detection located. PhilterSignInIT fails when the Philter image it runs bundles another. -->
+        <phileas.version>4.5.0</phileas.version>
         <commons-lang3.version>3.18.0</commons-lang3.version>
         <awssdk.version>2.25.50</awssdk.version>
         <!-- Newer than Spring Boot's managed version, for SQLite security fixes. -->

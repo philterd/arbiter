@@ -22,6 +22,8 @@ public final class PiiWeights {
     static {
         final Map<String, Integer> m = new LinkedHashMap<>();
         m.put("ssn", 10);
+        m.put("canada-sin", 10);
+        m.put("itin", 10);
         m.put("credit-card", 10);
         m.put("phone-number", 5);
         m.put("email-address", 5);

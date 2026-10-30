@@ -21,7 +21,7 @@ import ai.philterd.workspace.philter.PhilterClient;
 import ai.philterd.workspace.philter.PhilterClientFactory;
 import ai.philterd.phileas.PhileasConfiguration;
 import ai.philterd.phileas.model.filtering.MimeType;
-import ai.philterd.phileas.model.filtering.Span;
+import ai.philterd.phileas.policy.graphical.BoundingBox;
 import ai.philterd.phileas.policy.Policy;
 import ai.philterd.phileas.services.filters.filtering.PdfFilterService;
 import org.slf4j.Logger;
@@ -66,8 +66,13 @@ public class RedactionServiceImpl implements RedactionService {
     }
 
     /**
-     * Applies the reviewed spans to the PDF with the Phileas library. Refuses, rather than return the
-     * original, when a span has no position on the page to draw its box at.
+     * Applies the reviewed spans to the PDF with the Phileas library: each span becomes a filled box at its
+     * page and position, and Phileas rasterizes the pages, so the text under a box is gone from the output.
+     * Refuses, rather than return the original, when a span has no position on the page to draw its box at.
+     *
+     * <p>The boxes go in as the policy's bounding boxes. Phileas matches the spans it is given to text by a
+     * line hash from its own detection, which reviewed spans do not carry, so a span passed as a span would
+     * cover nothing.
      */
     @Override
     public byte[] getRedactedPdf(final InputStream originalPdf,
@@ -76,33 +81,40 @@ public class RedactionServiceImpl implements RedactionService {
         final List<Redaction> redactions = redactionResponse == null || redactionResponse.getRedactions() == null
                 ? List.of() : redactionResponse.getRedactions();
 
-        final List<Span> spans = new ArrayList<>();
+        final List<BoundingBox> boxes = new ArrayList<>();
         for (Redaction r : redactions) {
-            if (!hasCoordinates(r)) {
+            if (!hasCoordinates(r) || r.getPageNumber() < 0) {
                 throw new IOException("A redaction has no position in the PDF, so a redacted PDF cannot be "
                         + "produced. PDF redaction through Philter is not yet available.");
             }
-            final Span span = new Span();
-            span.setText(r.getText());
-            span.setReplacement(r.getType().toUpperCase());
-            span.setPageNumber(r.getPageNumber());
-            span.setLowerLeftX(r.getLowerLeftX());
-            span.setLowerLeftY(r.getLowerLeftY());
-            span.setUpperRightX(r.getUpperRightX());
-            span.setUpperRightY(r.getUpperRightY());
-            span.setApplied(true);
-            spans.add(span);
+            boxes.add(box(r));
         }
 
         try {
+            final Policy policy = new Policy();
+            policy.getGraphical().setBoundingBoxes(boxes);
             final PdfFilterService filterService = new PdfFilterService(
                     new PhileasConfiguration(new Properties()), null, null, null);
-            // apply() does not read the policy, but needs one.
-            return filterService.apply(new Policy(), pdfBytes, spans, MimeType.APPLICATION_PDF);
+            return filterService.apply(policy, pdfBytes, List.of(), MimeType.APPLICATION_PDF);
         } catch (Exception e) {
             log.error("Failed to apply redactions to PDF via Phileas: {}", e.getClass().getSimpleName());
             throw new IOException("Failed to apply redactions to PDF", e);
         }
+    }
+
+    /**
+     * A filled box over a span. A span's page counts from 0, as Phileas's detection reports it, and a
+     * bounding box's from 1. It is padded as Phileas pads the boxes it draws for the spans it detects, so it
+     * covers the glyphs' descenders and ascenders.
+     */
+    static BoundingBox box(final Redaction r) {
+        final BoundingBox box = new BoundingBox();
+        box.setPage(r.getPageNumber() + 1);
+        box.setX(r.getLowerLeftX());
+        box.setY(r.getLowerLeftY() - 3);
+        box.setW(r.getUpperRightX() - r.getLowerLeftX());
+        box.setH(r.getUpperRightY() - r.getLowerLeftY() + 10);
+        return box;
     }
 
     private static boolean hasCoordinates(final Redaction r) {

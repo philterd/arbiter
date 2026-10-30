@@ -19,6 +19,9 @@ public final class PiiTypes {
 
     private static final Map<String, String> SPECIAL_LABELS = Map.ofEntries(
             Map.entry("ssn", "SSN"),
+            Map.entry("canada-sin", "Canada SIN"),
+            Map.entry("ein", "EIN"),
+            Map.entry("itin", "ITIN"),
             Map.entry("vin", "VIN"),
             Map.entry("url", "URL"),
             Map.entry("id", "Identifier"),
@@ -32,6 +35,7 @@ public final class PiiTypes {
             "age",
             "bank-routing-number",
             "bitcoin-address",
+            "canada-sin",
             "city",
             "county",
             "credit-card",
@@ -39,6 +43,7 @@ public final class PiiTypes {
             "custom-dictionary",
             "date",
             "drivers-license-number",
+            "ein",
             "email-address",
             "first-name",
             "hospital",
@@ -46,6 +51,7 @@ public final class PiiTypes {
             "iban-code",
             "id",
             "ip-address",
+            "itin",
             "mac-address",
             "medical-condition",
             "other",

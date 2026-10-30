@@ -84,4 +84,13 @@ class PiiTypesTest {
         final String firstLabel = labels.values().iterator().next();
         assertEquals("Age", firstLabel);
     }
+
+    @Test
+    void everyTypePhileasDetectsIsATypeReviewersCanChoose() {
+        // Phileas is kept at Philter's version, so this is every type Philter can return.
+        for (ai.philterd.phileas.model.filtering.FilterType type : ai.philterd.phileas.model.filtering.FilterType.values()) {
+            org.junit.jupiter.api.Assertions.assertTrue(PiiTypes.isValid(type.getType()),
+                    "Phileas type " + type.getType() + " is missing from PiiTypes");
+        }
+    }
 }

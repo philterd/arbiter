@@ -1,7 +1,7 @@
 # PII types
 
-Philter Workspace knows about the following PII types, mirroring the upstream Phileas
-filter set. Every type has a default sensitivity weight used by the
+Philter Workspace knows about the following PII types, mirroring the filter set of the
+Phileas version Philter uses (4.5.0 for Philter 4.0.0). Every type has a default sensitivity weight used by the
 [risk score](risk-score.md); admins can override these per batch on the
 batch's weights page.
 
@@ -10,6 +10,7 @@ batch's weights page.
 | `age`                   | Age                        | 1              |
 | `bank-routing-number`   | Bank Routing Number        | 1              |
 | `bitcoin-address`       | Bitcoin Address            | 1              |
+| `canada-sin`            | Canada SIN                 | **10**         |
 | `city`                  | City                       | 1              |
 | `county`                | County                     | 1              |
 | `credit-card`           | Credit Card                | **10**         |
@@ -17,6 +18,7 @@ batch's weights page.
 | `custom-dictionary`     | Custom Dictionary          | 1              |
 | `date`                  | Date                       | 1              |
 | `drivers-license-number`| Drivers License Number     | 1              |
+| `ein`                   | EIN                        | 1              |
 | `email-address`         | Email Address              | **5**          |
 | `first-name`            | First Name                 | **3**          |
 | `hospital`              | Hospital                   | 1              |
@@ -24,6 +26,7 @@ batch's weights page.
 | `iban-code`             | IBAN Code                  | 1              |
 | `id`                    | Identifier                 | 1              |
 | `ip-address`            | IP Address                 | 1              |
+| `itin`                  | ITIN                       | **10**         |
 | `mac-address`           | MAC Address                | 1              |
 | `medical-condition`     | Medical Condition          | 1              |
 | `other`                 | Other                      | 1              |
@@ -43,6 +46,10 @@ batch's weights page.
 | `url`                   | URL                        | 1              |
 | `vin`                   | VIN                        | 1              |
 | `zip-code`              | Zip Code                   | **2**          |
+
+Philter no longer detects `medical-condition` or `physician-name`: Phileas
+removed both. They stay in the list so spans that already carry them keep
+their type, and reviewers can still choose them for spans they add.
 
 The values in the left column are the canonical strings used everywhere PII
 types appear: span records in MongoDB, the `type` field of `PATCH

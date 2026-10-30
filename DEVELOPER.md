@@ -102,6 +102,12 @@ A few patterns that bite:
   Spring Data adds a version increment to any MongoDB update that does not
   touch the version field, so the MongoDB stores pass their updates through
   `MongoDocumentLockService.keepVersion`.
+- **The embedded Phileas matches Philter's.** Philter Workspace uses Phileas only
+  to draw the redaction boxes on a reviewed PDF (`RedactionServiceImpl.getRedactedPdf`),
+  so `phileas.version` is the version the Philter image in `PhilterSignInIT`
+  bundles, and that test fails when they differ. Reviewed spans go to Phileas as
+  the policy's bounding boxes: Phileas matches spans passed as spans to text by a
+  line hash from its own detection, so they would cover nothing.
 - **Unique fields are unique among records that have a value.** MongoDB's
   unique `@Indexed` fields are `sparse = true`, matching SQLite, where a
   unique index never counts a missing value. An empty string is a value.
