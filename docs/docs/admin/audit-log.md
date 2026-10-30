@@ -49,6 +49,7 @@ and export them:
 | `DOCUMENT_LOCK_BROKEN`              | Document    | Admin forcibly cleared a review lock held by another user |
 | `FINALIZATION_POLICY_APPLIED`       | Document    | A finalization policy ran after document finalize; payload includes `policyId`, `policyName`, `option`, and `action` |
 | `SPAN_UPDATE`                       | Span        | Status and/or type change                           |
+| `DETECTION_RULE_CREATE`, `DETECTION_RULE_PROPOSE`, `DETECTION_RULE_CONFIRM`, `DETECTION_RULE_DISMISS`, `DETECTION_RULE_REMOVE` | DetectionRule | A [detection rule](../user-guide/detection-rules.md) made by a reviewer, proposed after repeated refusals, confirmed (and whether its value was added to Philter's list), dismissed, or removed. The rule's kind, status, PII type, document, and batch, and a keyed hash and the length of its value, never the value. |
 | `SPAN_REDACT_LIKE`                  | Span        | Counts of new-and-approved spans                    |
 | `USER_UPDATE`                       | User        | A person's Philter Workspace role (User or Auditor) or groups changed under Admin → Users |
 | `USER_DELETE`                       | User        | A Philter Workspace user record deleted under Admin → Users → Records |
@@ -82,7 +83,7 @@ and export them:
 | `INGEST_QUEUE_RETRY`, `INGEST_QUEUE_RETRY_ALL` | Document / Settings | An admin put a failed document, or every failed document that can be redacted again, back in the queue; with the filename as a hash, or the number queued and the number that could not be |
 | `OLLAMA_INSTANCE_CREATE` / `_DELETE` / `_TEST` | OllamaInstance | An Ollama instance added, removed, or tested    |
 | `LLM_JUDGE_DEFAULTS_CHANGE`         | Settings    | The default Ollama instances for LLM-as-a-Judge changed |
-| `GENERAL_SETTINGS_CHANGE`           | Settings    | An Admin → General setting saved: the Philter Workspace URL, upload size limit, data-import concurrency, time zone, or full-text search, with the previous value |
+| `GENERAL_SETTINGS_CHANGE`           | Settings    | An Admin → General setting saved: the Philter Workspace URL, upload size limit, data-import concurrency, time zone, full-text search, or detection rule settings, with the previous value |
 | `SECURITY_SETTINGS_CHANGE`          | Settings    | The data-source host allow-list turned on or off     |
 | `NOTIFICATION_SETTINGS_TEST`        | Settings    | A test email sent from the notification settings     |
 | `USER_SETTINGS_CHANGE`              | User        | A person's review preferences saved under Settings   |

@@ -22,4 +22,7 @@ public interface SpanRepository extends WorkspaceRepository<Span, String> {
     long countByDocumentIdAndStatus(String documentId, String status);
     long countByDocumentIdInAndManuallyCreated(java.util.Collection<String> documentIds, boolean manuallyCreated);
     long deleteByDocumentId(String documentId);
+
+    List<Span> findByDocumentIdInAndStatusIn(java.util.Collection<String> documentIds,
+                                             java.util.Collection<String> statuses);
 }

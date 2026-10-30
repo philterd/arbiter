@@ -30,6 +30,7 @@ nav:
       - Adding documents: user-guide/uploading.md
       - Background jobs: user-guide/background-jobs.md
       - Reviewing: user-guide/reviewing.md
+      - Detection rules: user-guide/detection-rules.md
       - Personal settings: user-guide/settings.md
       - Try a policy: user-guide/try-a-policy.md
   - Admin guide:

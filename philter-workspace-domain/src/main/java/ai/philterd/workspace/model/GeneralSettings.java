@@ -76,6 +76,19 @@ public class GeneralSettings {
      * field load with the allow-list enabled.
      */
     private boolean hostAllowListEnabled = true;
+    /**
+     * Whether reviewers, and not only administrators, may confirm, dismiss, and remove detection rules
+     * ({@link DetectionRule}). A reviewer's rule is otherwise a proposal until an administrator confirms it.
+     */
+    private boolean reviewersConfirmRules;
+    /**
+     * How many times a value must be refused in one batch's documents, and never accepted, before Philter
+     * Workspace proposes never flagging it. {@code 0} proposes nothing.
+     */
+    private int ruleProposalRefusals = DEFAULT_RULE_PROPOSAL_REFUSALS;
+
+    public static final int DEFAULT_RULE_PROPOSAL_REFUSALS = 5;
+    public static final int MAX_RULE_PROPOSAL_REFUSALS = 1000;
 
     public GeneralSettings() {
     }
@@ -128,5 +141,15 @@ public class GeneralSettings {
     public boolean isHostAllowListEnabled() { return hostAllowListEnabled; }
     public void setHostAllowListEnabled(final boolean hostAllowListEnabled) {
         this.hostAllowListEnabled = hostAllowListEnabled;
+    }
+
+    public boolean isReviewersConfirmRules() { return reviewersConfirmRules; }
+    public void setReviewersConfirmRules(final boolean reviewersConfirmRules) {
+        this.reviewersConfirmRules = reviewersConfirmRules;
+    }
+
+    public int getRuleProposalRefusals() { return ruleProposalRefusals; }
+    public void setRuleProposalRefusals(final int ruleProposalRefusals) {
+        this.ruleProposalRefusals = ruleProposalRefusals;
     }
 }

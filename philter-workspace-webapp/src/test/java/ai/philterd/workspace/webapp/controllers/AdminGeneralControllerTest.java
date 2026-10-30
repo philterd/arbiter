@@ -18,6 +18,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.springframework.web.servlet.mvc.support.RedirectAttributesModelMap;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -66,6 +67,38 @@ class AdminGeneralControllerTest {
     }
     private static String success(final RedirectAttributes ra) {
         final Object s = ra.getFlashAttributes().get("success"); return s == null ? null : s.toString();
+    }
+
+    // ---------- detection rules (#39) ----------
+
+    @Test
+    void detectionRuleSettingsAreSavedAndAudited() {
+        final GeneralSettings settings = new GeneralSettings();
+        givenSettings(settings);
+        assertFalse(settings.isReviewersConfirmRules(), "administrators only by default");
+        assertEquals(5, settings.getRuleProposalRefusals());
+
+        final RedirectAttributes ra = flash();
+        controller.saveDetectionRules(true, 0, ra);
+
+        assertEquals("Detection rule settings saved.", success(ra));
+        assertTrue(settings.isReviewersConfirmRules());
+        assertEquals(0, settings.getRuleProposalRefusals());
+        verify(settingsService).save(settings);
+        verify(auditLogService).log(org.mockito.ArgumentMatchers.eq("GENERAL_SETTINGS_CHANGE"), any(), any(),
+                org.mockito.ArgumentMatchers.eq(java.util.Map.of("previousReviewersConfirmRules", false,
+                        "reviewersConfirmRules", true, "previousRuleProposalRefusals", 5,
+                        "ruleProposalRefusals", 0)));
+    }
+
+    @Test
+    void detectionRuleRefusalsOutOfRangeAreRefused() {
+        givenSettings(new GeneralSettings());
+        final RedirectAttributes negative = flash();
+        controller.saveDetectionRules(false, -1, negative);
+        assertEquals("Refusals before a proposal must be between 0 and 1000.", error(negative));
+        controller.saveDetectionRules(false, 1001, flash());
+        verify(settingsService, never()).save(any());
     }
 
     // ---------- saveUrl ----------

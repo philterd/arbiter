@@ -53,6 +53,9 @@ Each navigator entry shows:
   The page reloads to reflect the new spans. (Match is case-sensitive and
   literal — substrings of longer words can match, so use it on
   unambiguous text like a project name or an email address.)
+- **Don't flag this again** on a refused span, and **Always flag this** on a
+  span added by hand, make a [detection rule](detection-rules.md) that changes
+  what Philter flags in documents redacted from then on, in every batch.
 
 ## Document-level actions
 

@@ -190,6 +190,12 @@ public class RedactionControllerTest {
     private ai.philterd.workspace.repository.PhilterWebhookDeliveryRepository philterWebhookDeliveryRepository;
 
     @MockBean
+    private ai.philterd.workspace.repository.DetectionRuleRepository detectionRuleRepository;
+
+    @MockBean
+    private ai.philterd.workspace.service.DetectionRuleService detectionRuleService;
+
+    @MockBean
     private GeneralSettingsService generalSettingsService;
 
     @Test

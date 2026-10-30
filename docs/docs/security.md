@@ -246,7 +246,8 @@ for background work such as ingest. Philter Workspace checks the role Philter re
 it (`GET /api/limits`) at startup and on **Test** under **Admin → Philter**,
 fails the Test for an administrator's key, and flags the key there and in the
 log until its user is no longer an administrator. Give Philter Workspace a key with only
-the `redact` and `policies:read` scopes. For a deployment already using an
+the `redact` and `policies:read` scopes, plus `lists:read` and `lists:write` for
+[detection rules](user-guide/detection-rules.md). For a deployment already using an
 administrator's key, remove that user's administrator role rather than switching
 users, since Philter's policies and contexts belong to the key's user; see
 [Philter API key for Philter Workspace](workflow.md#philter-api-key-for-philter-workspace).
@@ -302,6 +303,7 @@ The fields encrypted at rest are:
 | `redaction_certificates` | `documentFilename` | Filenames often carry names or record numbers.          |
 | `redaction_certificates` | overturned span text | The literal PII on each overturned decision.             |
 | `pending_uploads`  | `content`        | The bytes of an uploaded file (text or PDF) waiting in the ingest queue. Removed once the document is redacted; kept, still encrypted, while a failed document remains. |
+| `detection_rules`  | `text`           | A value reviewers decided Philter should never, or always, flag. Found by a keyed hash of its lower-cased form (`textKey`), not by the value. |
 | `settings`         | `opensearchPassword` | The OpenSearch basic-auth password (the general settings).   |
 
 Other fields on these documents (status, timestamps, source attribution,

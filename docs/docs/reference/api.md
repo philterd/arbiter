@@ -451,6 +451,31 @@ existing spans flipped to approved.
 `400` if the source span has empty text. `404` if the span or its document is
 missing.
 
+### `POST /api/v1/spans/{id}/rule`
+
+Session-allowed. Make a [detection rule](../user-guide/detection-rules.md) from
+the span: `NEVER` ("Don't flag this again") from a refused detected span, or
+`ALWAYS` ("Always flag this") from a span added by hand. Allowed whatever the
+document's status. Requires `Content-Type: application/json`.
+
+Request:
+
+```json
+{ "kind": "NEVER" }
+```
+
+Response:
+
+```json
+{ "status": "ACTIVE", "message": "Rule confirmed: Philter will never flag this value in documents redacted from now on." }
+```
+
+`status` is `ACTIVE` when the caller may confirm rules and the rule was written
+to Philter, or `PROPOSED` when it waits for confirmation. `409` with a
+`message` when no rule was made: the span is not eligible, the value is too
+long or ends in `:fuzzy`, the other kind of rule exists for the value, or
+Philter refused the change. `404` if the span or its document is missing.
+
 ### `POST /api/v1/spans/{id}/reset`
 
 Session-allowed. Revert a span back to its previous status. The intended use

@@ -18,6 +18,7 @@ import ai.philterd.workspace.model.Span;
 import ai.philterd.workspace.repository.DocumentRepository;
 import ai.philterd.workspace.repository.SpanRepository;
 import ai.philterd.workspace.service.AuditLogService;
+import ai.philterd.workspace.service.DetectionRuleService;
 import ai.philterd.workspace.service.DocumentAccessService;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -39,6 +40,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
@@ -54,15 +56,18 @@ public class ReviewController {
     private final DocumentRepository documentRepository;
     private final DocumentAccessService documentAccessService;
     private final AuditLogService auditLogService;
+    private final DetectionRuleService detectionRuleService;
 
     public ReviewController(final SpanRepository spanRepository,
                             final DocumentRepository documentRepository,
                             final DocumentAccessService documentAccessService,
-                            final AuditLogService auditLogService) {
+                            final AuditLogService auditLogService,
+                            final DetectionRuleService detectionRuleService) {
         this.spanRepository = spanRepository;
         this.documentRepository = documentRepository;
         this.documentAccessService = documentAccessService;
         this.auditLogService = auditLogService;
+        this.detectionRuleService = detectionRuleService;
     }
 
     /**
@@ -219,11 +224,40 @@ public class ReviewController {
             changes.put("type", normalized);
             span.setType(normalized);
         }
+        final String previousStatus = (String) changes.get("previousStatus");
         final Span saved = spanRepository.save(span);
         changes.put("spanId", saved.getId());
         changes.put("documentId", saved.getDocumentId() == null ? "" : saved.getDocumentId());
         auditLogService.log("SPAN_UPDATE", "Span", saved.getId(), changes);
+        if ("REJECTED".equals(request.status()) && !"REJECTED".equals(previousStatus)) {
+            detectionRuleService.noteRefusal(saved, document);
+        }
         return saved;
+    }
+
+    public record RuleRequest(String kind) {}
+
+    /**
+     * Makes a rule from a span: {@code NEVER} ("Don't flag this again") from a refused span, {@code ALWAYS}
+     * ("Always flag this") from one added by hand. Allowed whatever the document's status, since a rule changes
+     * later documents, not this one. The answer's {@code message} says whether the rule is now in Philter or
+     * waits to be confirmed, or why it was refused.
+     */
+    @PostMapping(value = "/spans/{id}/rule", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> makeRule(@PathVariable final String id,
+                                                        @RequestBody final RuleRequest request,
+                                                        final Authentication authentication) {
+        final Span span = spanRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found."));
+        final Document document = documentAccessService.loadAccessibleParentForSpan(span, authentication);
+        try {
+            final DetectionRuleService.Made made = detectionRuleService.makeFromSpan(
+                    request == null ? null : request.kind(), span, document, authentication);
+            return ResponseEntity.ok(Map.of("status", made.rule().getStatus(), "message", made.message()));
+        } catch (DetectionRuleService.RuleException e) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.CONFLICT)
+                    .body(Map.of("message", e.getMessage()));
+        }
     }
 
     @DeleteMapping(value = "/spans/{id}",

@@ -356,6 +356,32 @@ public class AdminGeneralController {
         return "redirect:/admin/general";
     }
 
+    @PostMapping("/detection-rules")
+    public String saveDetectionRules(
+            @RequestParam(value = "reviewersConfirmRules", defaultValue = "false") final boolean reviewersConfirmRules,
+            @RequestParam("ruleProposalRefusals") final int ruleProposalRefusals,
+            final RedirectAttributes redirectAttributes) {
+        if (ruleProposalRefusals < 0 || ruleProposalRefusals > GeneralSettings.MAX_RULE_PROPOSAL_REFUSALS) {
+            redirectAttributes.addFlashAttribute("error", "Refusals before a proposal must be between 0 and "
+                    + GeneralSettings.MAX_RULE_PROPOSAL_REFUSALS + ".");
+            return "redirect:/admin/general";
+        }
+        final GeneralSettings settings = generalSettingsService.load();
+        final boolean previousReviewers = settings.isReviewersConfirmRules();
+        final int previousRefusals = settings.getRuleProposalRefusals();
+        settings.setReviewersConfirmRules(reviewersConfirmRules);
+        settings.setRuleProposalRefusals(ruleProposalRefusals);
+        generalSettingsService.save(settings);
+
+        auditLogService.log("GENERAL_SETTINGS_CHANGE", "Settings", GeneralSettings.SINGLETON_ID,
+                Map.of("previousReviewersConfirmRules", previousReviewers,
+                        "reviewersConfirmRules", reviewersConfirmRules,
+                        "previousRuleProposalRefusals", previousRefusals,
+                        "ruleProposalRefusals", ruleProposalRefusals));
+        redirectAttributes.addFlashAttribute("success", "Detection rule settings saved.");
+        return "redirect:/admin/general";
+    }
+
     @PostMapping("/timezone")
     public String saveTimezone(@RequestParam("timezone") final String timezone,
                                final RedirectAttributes redirectAttributes) {

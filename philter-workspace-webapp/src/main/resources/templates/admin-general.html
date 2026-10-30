@@ -62,6 +62,12 @@
                     </svg>
                     Second Opinions
                 </a>
+                <a th:href="@{/detection-rules}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                    </svg>
+                    Detection Rules
+                </a>
                 </div>
                 <div class="mt-2 pt-2 border-t border-gray-200 space-y-1">
                     <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Tools</p>
@@ -424,6 +430,43 @@
                                     th:selected="${n == settings.maxConcurrentDataImports}">1</option>
                         </select>
                         <p class="text-xs text-gray-500 mt-1">Default is 1.</p>
+                    </div>
+                    <div class="flex justify-end">
+                        <button type="submit"
+                                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                            Save
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <div id="detection-rules" class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-3xl mb-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-1">Detection rules</h3>
+                <p class="text-sm text-gray-600 mb-4">
+                    Reviewers can ask Philter to never flag a refused value again, or to always flag a value they
+                    added by hand. A confirmed rule goes on the never-redact or always-redact list of the Philter
+                    user whose key Philter Workspace redacts batches with, and applies to every batch.
+                    <a th:href="@{/detection-rules}" class="text-blue-600 hover:underline">Detection Rules</a>
+                </p>
+
+                <form th:action="@{/admin/general/detection-rules}" method="post" class="space-y-4">
+                    <label class="flex items-start gap-2 text-sm text-gray-700">
+                        <input type="checkbox" name="reviewersConfirmRules" value="true" class="mt-0.5"
+                               th:checked="${settings.reviewersConfirmRules}">
+                        <span>Reviewers may confirm, dismiss, and remove rules for documents they can see. When off,
+                            only administrators may, and a reviewer's rule waits as a proposal.</span>
+                    </label>
+                    <div>
+                        <label for="ruleProposalRefusals" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
+                            Refusals before a proposal
+                        </label>
+                        <input id="ruleProposalRefusals" name="ruleProposalRefusals" type="number" min="0"
+                               max="1000"
+                               th:value="${settings.ruleProposalRefusals}" required
+                               class="block w-full max-w-xs rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <p class="text-xs text-gray-500 mt-1">How many times a value must be refused in one batch's
+                            documents, and accepted in none of them, before Philter Workspace proposes never flagging
+                            it. 0 turns proposals off. Default is 5.</p>
                     </div>
                     <div class="flex justify-end">
                         <button type="submit"

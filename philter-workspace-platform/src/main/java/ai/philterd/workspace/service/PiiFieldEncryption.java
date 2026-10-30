@@ -9,6 +9,7 @@
  */
 package ai.philterd.workspace.service;
 
+import ai.philterd.workspace.model.DetectionRule;
 import ai.philterd.workspace.model.Document;
 import ai.philterd.workspace.model.DocumentComment;
 import ai.philterd.workspace.model.GeneralSettings;
@@ -43,6 +44,8 @@ import java.util.function.UnaryOperator;
  *         text that may reference PII while documenting a decision.</li>
  *     <li>{@link PendingUpload#getContent() PendingUpload.content}: the bytes of an upload
  *         waiting in the ingest queue, with {@link SymmetricCipher#encryptBytes}.</li>
+ *     <li>{@link DetectionRule#getText() DetectionRule.text}: a value reviewers decided Philter
+ *         should never, or always, flag.</li>
  * </ul>
  *
  * <h3>How it works</h3>
@@ -100,6 +103,8 @@ public final class PiiFieldEncryption {
             g.setOpensearchPassword(f.apply(g.getOpensearchPassword()));
         } else if (entity instanceof DocumentComment c) {
             c.setText(f.apply(c.getText()));
+        } else if (entity instanceof DetectionRule r) {
+            r.setText(f.apply(r.getText()));
         } else if (entity instanceof RedactionCertificate rc) {
             rc.setDocumentFilename(f.apply(rc.getDocumentFilename()));
             if (rc.getOverturns() != null) {
@@ -194,6 +199,16 @@ public final class PiiFieldEncryption {
     public static class DocumentCommentCallbacks extends MongoCallbacks<DocumentComment> {
 
         public DocumentCommentCallbacks(final SymmetricCipher cipher) {
+            super(cipher);
+        }
+    }
+
+    /** Lifecycle callbacks that wrap DetectionRule save/load: the rule's value. */
+    @Component
+    @ConditionalOnProperty(prefix = "philter-workspace", name = "store", havingValue = "mongodb", matchIfMissing = true)
+    public static class DetectionRuleCallbacks extends MongoCallbacks<DetectionRule> {
+
+        public DetectionRuleCallbacks(final SymmetricCipher cipher) {
             super(cipher);
         }
     }

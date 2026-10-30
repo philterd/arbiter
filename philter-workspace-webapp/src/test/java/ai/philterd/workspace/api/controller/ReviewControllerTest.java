@@ -33,6 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -48,6 +49,7 @@ class ReviewControllerTest {
     private TestDoubles.FakeUserGroups userGroupsService;
     private TestDoubles.RecordingAuditLog auditLogService;
     private ReviewController controller;
+    private ai.philterd.workspace.service.DetectionRuleService detectionRules;
     private static final org.springframework.security.core.Authentication ADMIN = TestAuth.admin("admin@example.com");
 
     @BeforeEach
@@ -59,7 +61,7 @@ class ReviewControllerTest {
         auditLogService = TestDoubles.auditLog();
         controller = new ReviewController(spanRepository, documentRepository,
                 TestDoubles.documentAccess(batchRepository, documentRepository, userGroupsService),
-                auditLogService);
+                auditLogService, detectionRules = mock(ai.philterd.workspace.service.DetectionRuleService.class));
         // Default stub: a document "d1" the access helper can resolve.
         // Tests that need a different shape override this.
         when(documentRepository.findById("d1")).thenReturn(Optional.of(document("d1", "the original text")));
@@ -82,6 +84,48 @@ class ReviewControllerTest {
         d.setId(id);
         d.setOriginalText(text);
         return d;
+    }
+
+    // ---- detection rules (#39) ----
+
+    @Test
+    void refusingADetectedSpanAsksWhetherToProposeARule() {
+        final Span s = span("s1", "d1", "person", "PENDING", 0, 3, "the");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(s));
+        when(spanRepository.save(any(Span.class))).thenAnswer(i -> i.getArgument(0));
+
+        controller.updateSpan("s1", new SpanUpdateRequest("REJECTED", null), ADMIN);
+        verify(detectionRules).noteRefusal(org.mockito.ArgumentMatchers.same(s), any(Document.class));
+
+        // Already refused, or accepted: nothing more to count.
+        controller.updateSpan("s1", new SpanUpdateRequest("REJECTED", null), ADMIN);
+        controller.updateSpan("s1", new SpanUpdateRequest("APPROVED", null), ADMIN);
+        verify(detectionRules, org.mockito.Mockito.times(1)).noteRefusal(any(), any());
+    }
+
+    @Test
+    void makingARuleAnswersWithItsStatusOrWhyNot() {
+        final Span s = span("s1", "d1", "person", "REJECTED", 0, 3, "the");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(s));
+        final ai.philterd.workspace.model.DetectionRule rule = new ai.philterd.workspace.model.DetectionRule();
+        rule.setStatus(ai.philterd.workspace.model.DetectionRule.STATUS_PROPOSED);
+        when(detectionRules.makeFromSpan(eq("NEVER"), eq(s), any(Document.class), eq(ADMIN)))
+                .thenReturn(new ai.philterd.workspace.service.DetectionRuleService.Made(rule, "Rule proposed."));
+
+        final org.springframework.http.ResponseEntity<Map<String, Object>> made =
+                controller.makeRule("s1", new ReviewController.RuleRequest("NEVER"), ADMIN);
+        assertEquals(200, made.getStatusCode().value());
+        assertEquals(Map.of("status", "PROPOSED", "message", "Rule proposed."), made.getBody());
+
+        when(detectionRules.makeFromSpan(eq("ALWAYS"), eq(s), any(Document.class), eq(ADMIN)))
+                .thenThrow(new ai.philterd.workspace.service.DetectionRuleService.RuleException("Not this one."));
+        final org.springframework.http.ResponseEntity<Map<String, Object>> refused =
+                controller.makeRule("s1", new ReviewController.RuleRequest("ALWAYS"), ADMIN);
+        assertEquals(409, refused.getStatusCode().value());
+        assertEquals(Map.of("message", "Not this one."), refused.getBody());
+
+        assertThrows(ResponseStatusException.class,
+                () -> controller.makeRule("ghost", new ReviewController.RuleRequest("NEVER"), ADMIN));
     }
 
     // ---- getSpans ----

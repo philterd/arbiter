@@ -82,7 +82,8 @@ class MongoStoreContractIT extends StoreContract {
             MongoBackgroundJobStore.class, MongoAuditLogQueryService.class, SymmetricCipher.class,
             PiiFieldEncryption.DocumentCallbacks.class, PiiFieldEncryption.SpanCallbacks.class,
             PiiFieldEncryption.GeneralSettingsCallbacks.class, PiiFieldEncryption.DocumentCommentCallbacks.class,
-            PiiFieldEncryption.RedactionCertificateCallbacks.class, PiiFieldEncryption.PendingUploadCallbacks.class})
+            PiiFieldEncryption.RedactionCertificateCallbacks.class, PiiFieldEncryption.PendingUploadCallbacks.class,
+            PiiFieldEncryption.DetectionRuleCallbacks.class})
     static class Store {
     }
 

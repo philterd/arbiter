@@ -106,6 +106,8 @@ groups, a team lead has the same permissions as the **USER** column.
 | Break someone else's review lock | — | — | — | ✓ |
 | Add a comment to a document | ✓ (own group) | ✓ (own group) | — | ✓ |
 | Request an LLM second opinion | ✓ (own group) | ✓ (own group) | — | ✓ |
+| Make or propose a [detection rule](../user-guide/detection-rules.md) | ✓ (own group) | ✓ (own group) | No | ✓ |
+| Confirm, dismiss, or remove a detection rule | Only if allowed in Admin → General (own group) | Only if allowed in Admin → General (own group) | No | ✓ |
 
 ### Batch operations
 

@@ -106,7 +106,7 @@ public abstract class StoreContract {
     @Test
     void everyRepositoryIsAvailable() throws Exception {
         final List<Class<?>> repos = repositoryInterfaces();
-        assertEquals(28, repos.size());
+        assertEquals(29, repos.size());
         for (Class<?> repo : repos) {
             assertNotNull(repository(repo), repo.getSimpleName());
         }
@@ -542,6 +542,45 @@ public abstract class StoreContract {
         assertTrue(rawSettings.contains("enc:v1:"), rawSettings);
         assertEquals("search-secret", repository(GeneralSettingsRepository.class)
                 .findById(GeneralSettings.SINGLETON_ID).orElseThrow().getOpensearchPassword());
+    }
+
+    @Test
+    void detectionRulesAreFoundByTheirKeyWithTheirValueEncrypted() {
+        final ai.philterd.workspace.repository.DetectionRuleRepository rules =
+                repository(ai.philterd.workspace.repository.DetectionRuleRepository.class);
+        final ai.philterd.workspace.model.DetectionRule rule = new ai.philterd.workspace.model.DetectionRule();
+        rule.setId("r1");
+        rule.setKind(ai.philterd.workspace.model.DetectionRule.KIND_NEVER);
+        rule.setStatus(ai.philterd.workspace.model.DetectionRule.STATUS_ACTIVE);
+        rule.setText("Acme Dental");
+        rule.setTextKey("key-1");
+        rule.setProposedAt(Instant.parse("2026-10-30T12:00:00Z"));
+        rules.save(rule);
+
+        final String raw = raw(ai.philterd.workspace.model.DetectionRule.class, "r1");
+        assertFalse(raw.contains("Acme Dental"), raw);
+        assertTrue(raw.contains("enc:v1:"), raw);
+        assertEquals(List.of("r1"), rules.findByTextKey("key-1").stream()
+                .map(ai.philterd.workspace.model.DetectionRule::getId).toList());
+        assertEquals("Acme Dental", rules.findByTextKey("key-1").get(0).getText());
+        assertTrue(rules.findByTextKey("key-2").isEmpty());
+    }
+
+    @Test
+    void spansAreFoundByTheirDocumentsAndStatuses() {
+        final SpanRepository spans = repository(SpanRepository.class);
+        for (String[] s : new String[][]{{"s1", "d1", "REJECTED"}, {"s2", "d2", "APPROVED"}, {"s3", "d2", "PENDING"},
+                {"s4", "d3", "REJECTED"}}) {
+            final Span span = new Span();
+            span.setId(s[0]);
+            span.setDocumentId(s[1]);
+            span.setStatus(s[2]);
+            span.setText("text " + s[0]);
+            spans.save(span);
+        }
+        assertEquals(Set.of("s1", "s2"), spans.findByDocumentIdInAndStatusIn(List.of("d1", "d2"),
+                List.of("REJECTED", "APPROVED")).stream().map(Span::getId).collect(java.util.stream.Collectors.toSet()));
+        assertEquals("text s1", spans.findByDocumentIdInAndStatusIn(List.of("d1"), List.of("REJECTED")).get(0).getText());
     }
 
     @Test

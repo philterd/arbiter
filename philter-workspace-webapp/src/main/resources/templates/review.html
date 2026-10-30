@@ -175,6 +175,12 @@
                     </svg>
                     Second Opinions
                 </a>
+                <a th:href="@{/detection-rules}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md text-gray-700 hover:bg-gray-100">
+                    <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
+                    </svg>
+                    Detection Rules
+                </a>
                 </div>
                 <div class="mt-2 pt-2 border-t border-gray-200 space-y-1">
                     <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Tools</p>
@@ -808,6 +814,16 @@
                                 Reset
                             </button>
                         </div>`;
+                // A rule changes later documents, not this one, so it is offered whatever the document's status.
+                const ruleKind = manual ? 'ALWAYS' : (isRejected ? 'NEVER' : null);
+                const ruleButton = ruleKind
+                    ? `<button type="button"
+                                class="mt-1.5 w-full text-xs font-medium text-gray-700 hover:bg-gray-50 border border-gray-200 rounded px-2 py-1 transition-colors"
+                                data-rule-kind="${ruleKind}" data-rule-span="${escapeHtml(item.id)}"
+                                title="${ruleKind === 'ALWAYS' ? 'Have Philter always flag this value in documents redacted from now on' : 'Have Philter stop flagging this value in documents redacted from now on'}">
+                            ${ruleKind === 'ALWAYS' ? 'Always flag this' : 'Don&#39;t flag this again'}
+                        </button>`
+                    : '';
                 const manualBadge = manual
                     ? `<span class="ml-1 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-blue-100 text-blue-800 uppercase tracking-wide">Manual</span>`
                     : '';
@@ -856,6 +872,7 @@
                             History
                         </button>
                     </div>
+                    ${ruleButton}
                 </div>`;
             }).join('');
             list.scrollTop = scrollTop;
@@ -970,6 +987,13 @@
                     if (secondOpinion.disabled) return;
                     const id = secondOpinion.getAttribute('data-second-opinion');
                     askSecondOpinion(id, secondOpinion);
+                    return;
+                }
+                const ruleButton = e.target.closest('[data-rule-kind]');
+                if (ruleButton) {
+                    e.stopPropagation();
+                    if (ruleButton.disabled) return;
+                    await makeRule(ruleButton);
                     return;
                 }
                 const redactLike = e.target.closest('[data-redact-like]');
@@ -1108,6 +1132,38 @@
                 });
             });
         });
+
+        // "Don't flag this again" and "Always flag this": a rule on Philter's never-redact or always-redact
+        // list, applied to every batch. The confirmation states that scope before anything is made.
+        async function makeRule(button) {
+            const kind = button.getAttribute('data-rule-kind');
+            const id = button.getAttribute('data-rule-span');
+            const item = originalRedactions.find(r => r.id === id);
+            const text = item ? item.text : '';
+            const type = item ? item.type : '';
+            const scope = kind === 'NEVER'
+                ? `Philter will stop flagging "${text}" in every batch, as any PII type (not only ${type}), ignoring case.`
+                : `Philter will always flag "${text}" in every batch, ignoring case. Philter reports it as a custom dictionary match, not as ${type}.`;
+            if (!confirm(`${scope} Documents already redacted are not changed.\n\nMake this rule?`)) return;
+            button.disabled = true;
+            const originalLabel = button.textContent;
+            button.textContent = 'Working…';
+            try {
+                const response = await fetch(`/api/v1/spans/${encodeURIComponent(id)}/rule`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ kind })
+                });
+                let message = `HTTP ${response.status}`;
+                try { message = (await response.json()).message || message; } catch (_) {}
+                alert(message);
+            } catch (err) {
+                alert(`Failed to make the rule: ${err.message}`);
+            } finally {
+                button.disabled = false;
+                button.textContent = originalLabel;
+            }
+        }
 
         async function applySpanStatus(id, newStatus, previousStatus, reason, exemptionCode) {
             const item = originalRedactions.find(r => r.id === id);

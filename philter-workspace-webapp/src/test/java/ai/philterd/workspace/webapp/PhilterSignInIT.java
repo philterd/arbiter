@@ -145,6 +145,7 @@ class PhilterSignInIT {
     @Autowired private ai.philterd.workspace.repository.SpanRepository spanRepository;
     @Autowired private javax.sql.DataSource dataSource;
     @Autowired private ai.philterd.workspace.repository.PhilterWebhookDeliveryRepository webhookDeliveries;
+    @Autowired private ai.philterd.workspace.service.DetectionRuleService detectionRuleService;
 
     @DynamicPropertySource
     static void properties(final DynamicPropertyRegistry registry) throws Exception {
@@ -1023,6 +1024,75 @@ class PhilterSignInIT {
                         .anyMatch(r -> "email-address".equals(r.getType()) && "jdoe@example.com".equals(r.getText())),
                 "Philter's default policy finds the email address");
         assertFalse(response.getRedactedText().contains("jdoe@example.com"));
+    }
+
+    @Test
+    void detectionRulesChangeWhatPhilterFlagsInLaterDocuments() throws Exception {
+        final org.springframework.security.core.Authentication admin =
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken("admin@example.com",
+                        null, java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority(
+                                "ROLE_ADMIN")));
+        final ai.philterd.workspace.model.Batch batch = new ai.philterd.workspace.model.Batch();
+        batch.setId(java.util.UUID.randomUUID().toString());
+        batch.setName("Rules " + batch.getId());
+        batchRepository.save(batch);
+        final ai.philterd.workspace.model.Document document = new ai.philterd.workspace.model.Document();
+        document.setId(java.util.UUID.randomUUID().toString());
+        document.setBatchId(batch.getId());
+        document.setFilename("letterhead.txt");
+        documentRepository.save(document);
+
+        final String text = "Reply to front-desk@example.net about Project Phoenix.";
+        final java.util.function.Function<String, java.util.List<String>> flagged = value -> {
+            try {
+                return redactionService.redactText(text, null, null).getRedactions().stream()
+                        .filter(r -> value.equals(r.getText())).map(r -> r.getType()).toList();
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        };
+        assertEquals(java.util.List.of("email-address"), flagged.apply("front-desk@example.net"));
+        assertTrue(flagged.apply("Project Phoenix").isEmpty(), "the default policy has no reason to flag it");
+
+        final ai.philterd.workspace.model.Span refused = new ai.philterd.workspace.model.Span();
+        refused.setId(java.util.UUID.randomUUID().toString());
+        refused.setDocumentId(document.getId());
+        refused.setType("email-address");
+        refused.setText("front-desk@example.net");
+        refused.setStatus("REJECTED");
+        final ai.philterd.workspace.model.Span added = new ai.philterd.workspace.model.Span();
+        added.setId(java.util.UUID.randomUUID().toString());
+        added.setDocumentId(document.getId());
+        added.setType("organization");
+        added.setText("Project Phoenix");
+        added.setStatus("APPROVED");
+        added.setManuallyCreated(true);
+
+        final ai.philterd.workspace.model.DetectionRule never = detectionRuleService.makeFromSpan(
+                ai.philterd.workspace.model.DetectionRule.KIND_NEVER, refused, document, admin).rule();
+        final ai.philterd.workspace.model.DetectionRule always = detectionRuleService.makeFromSpan(
+                ai.philterd.workspace.model.DetectionRule.KIND_ALWAYS, added, document, admin).rule();
+        try {
+            assertTrue(never.isActive() && always.isActive());
+            assertTrue(bootstrap().getRedactList(ai.philterd.philter.model.RedactList.NEVER).getTerms()
+                    .contains("front-desk@example.net"));
+
+            assertTrue(flagged.apply("front-desk@example.net").isEmpty(), "never flagged once the rule is confirmed");
+            assertEquals(java.util.List.of("custom-dictionary"), flagged.apply("Project Phoenix"),
+                    "always flagged, as a custom dictionary match");
+            // Both lists match without regard to case.
+            final ai.philterd.workspace.core.model.RedactionResponse otherCase = redactionService.redactText(
+                    "Reply to FRONT-DESK@EXAMPLE.NET about project phoenix.", null, null);
+            assertTrue(otherCase.getRedactions().stream().noneMatch(r -> "FRONT-DESK@EXAMPLE.NET".equals(r.getText())),
+                    "never flagged in another case");
+            assertTrue(otherCase.getRedactions().stream().anyMatch(r -> "project phoenix".equals(r.getText())),
+                    "always flagged in another case");
+        } finally {
+            detectionRuleService.remove(never, admin);
+            detectionRuleService.remove(always, admin);
+        }
+        assertEquals(java.util.List.of("email-address"), flagged.apply("front-desk@example.net"), "removed");
+        assertTrue(flagged.apply("Project Phoenix").isEmpty(), "removed");
     }
 
     @Test
