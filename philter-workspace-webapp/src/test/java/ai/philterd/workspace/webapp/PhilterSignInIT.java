@@ -106,6 +106,32 @@ class PhilterSignInIT {
     static {
         org.testcontainers.Testcontainers.exposeHostPorts(PORT);
         PHILTER.start();
+        awaitBootstrapKey();
+    }
+
+    /**
+     * Philter answers /api/health before it has seeded the bootstrap key: it seeds the admin user, its
+     * managed policies, and then the key once the application is ready, after the web server is up. So
+     * wait until the key is accepted, or the first call with it can fail as unauthorized.
+     */
+    private static void awaitBootstrapKey() {
+        final long deadline = System.nanoTime() + Duration.ofMinutes(2).toNanos();
+        while (true) {
+            try {
+                bootstrap().getLimits();
+                return;
+            } catch (Exception e) {
+                if (System.nanoTime() > deadline) {
+                    throw new IllegalStateException("Philter did not accept its bootstrap API key within two minutes", e);
+                }
+                try {
+                    Thread.sleep(250);
+                } catch (InterruptedException interrupted) {
+                    Thread.currentThread().interrupt();
+                    throw new IllegalStateException(interrupted);
+                }
+            }
+        }
     }
 
     @Autowired private MockMvc mockMvc;
