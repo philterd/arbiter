@@ -46,6 +46,7 @@ import java.util.Base64;
 import java.util.HexFormat;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -104,6 +105,10 @@ class PhilterSignInIT {
     @Autowired private ai.philterd.workspace.service.RedactionService redactionService;
     @Autowired private ai.philterd.workspace.repository.BatchRepository batchRepository;
     @Autowired private ai.philterd.workspace.repository.DocumentRepository documentRepository;
+    @Autowired private ai.philterd.workspace.service.IngestQueueService ingestQueueService;
+    @Autowired private ai.philterd.workspace.repository.PendingUploadRepository pendingUploadRepository;
+    @Autowired private ai.philterd.workspace.repository.SpanRepository spanRepository;
+    @Autowired private javax.sql.DataSource dataSource;
 
     @DynamicPropertySource
     static void properties(final DynamicPropertyRegistry registry) throws Exception {
@@ -970,5 +975,82 @@ class PhilterSignInIT {
                         .anyMatch(r -> "email-address".equals(r.getType()) && "jdoe@example.com".equals(r.getText())),
                 "Philter's default policy finds the email address");
         assertFalse(response.getRedactedText().contains("jdoe@example.com"));
+    }
+
+    @Test
+    void queuedUploadsAreEncryptedAtRestAndStillRedacted() throws Exception {
+        final org.springframework.jdbc.core.JdbcTemplate jdbc = new org.springframework.jdbc.core.JdbcTemplate(dataSource);
+        final ai.philterd.workspace.model.Batch batch = new ai.philterd.workspace.model.Batch();
+        batch.setId(java.util.UUID.randomUUID().toString());
+        batch.setName("Queued uploads " + batch.getId());
+        batchRepository.save(batch);
+
+        final String text = "Write to jdoe@example.com about the claim.";
+        final byte[] pdf;
+        try (org.apache.pdfbox.pdmodel.PDDocument doc = new org.apache.pdfbox.pdmodel.PDDocument()) {
+            final org.apache.pdfbox.pdmodel.PDPage page = new org.apache.pdfbox.pdmodel.PDPage();
+            doc.addPage(page);
+            try (org.apache.pdfbox.pdmodel.PDPageContentStream stream =
+                         new org.apache.pdfbox.pdmodel.PDPageContentStream(doc, page)) {
+                stream.beginText();
+                stream.setFont(new org.apache.pdfbox.pdmodel.font.PDType1Font(
+                        org.apache.pdfbox.pdmodel.font.Standard14Fonts.FontName.HELVETICA), 12);
+                stream.newLineAtOffset(72, 720);
+                stream.showText(text);
+                stream.endText();
+            }
+            final java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            doc.save(out);
+            pdf = out.toByteArray();
+        }
+
+        final ai.philterd.workspace.model.Document plain = ingestQueueService.enqueueFile(batch, "note.txt",
+                text.getBytes(java.nio.charset.StandardCharsets.UTF_8), "text/plain", 2);
+        final ai.philterd.workspace.model.Document scanned = ingestQueueService.enqueueFile(batch, "claim.pdf",
+                pdf, "application/pdf", 2);
+        final ai.philterd.workspace.model.Document legacy = ingestQueueService.enqueueFile(batch, "old.txt",
+                text.getBytes(java.nio.charset.StandardCharsets.UTF_8), "text/plain", 2);
+
+        for (ai.philterd.workspace.model.Document d : java.util.List.of(plain, scanned, legacy)) {
+            final byte[] stored = java.util.Base64.getDecoder().decode(jdbc.queryForObject(
+                    "SELECT json_extract(doc, '$.content') FROM pending_uploads WHERE id = ?", String.class, d.getId()));
+            assertTrue(new String(stored, 0, 7, java.nio.charset.StandardCharsets.US_ASCII).equals("enc:v1:"),
+                    "stored encrypted");
+            assertFalse(new String(stored, java.nio.charset.StandardCharsets.ISO_8859_1).contains("jdoe@example.com"));
+        }
+        // One row as it was stored before uploads were encrypted: the plain bytes.
+        jdbc.update("UPDATE pending_uploads SET doc = json_set(doc, '$.content', ?) WHERE id = ?",
+                java.util.Base64.getEncoder().encodeToString(text.getBytes(java.nio.charset.StandardCharsets.UTF_8)),
+                legacy.getId());
+
+        // The scheduled worker may be draining too; either way each document is processed once.
+        final long deadline = System.currentTimeMillis() + 120_000;
+        while (System.currentTimeMillis() < deadline && java.util.List.of(plain, scanned, legacy).stream()
+                .map(d -> documentRepository.findById(d.getId()).orElseThrow().getStatus())
+                .anyMatch(st -> "PENDING".equals(st) || "PROCESSING".equals(st))) {
+            ingestQueueService.drain();
+            Thread.sleep(250);
+        }
+
+        // Queued PDFs fail until Philter's PDF review is supported (#13), so the upload is kept: still
+        // encrypted at rest, and its bytes intact.
+        final ai.philterd.workspace.model.Document failed = documentRepository.findById(scanned.getId()).orElseThrow();
+        assertEquals("FAILED", failed.getStatus());
+        assertTrue(failed.getFailureMessage().startsWith("PDF review through Philter is not yet available."),
+                failed.getFailureMessage());
+        final byte[] kept = java.util.Base64.getDecoder().decode(jdbc.queryForObject(
+                "SELECT json_extract(doc, '$.content') FROM pending_uploads WHERE id = ?", String.class, scanned.getId()));
+        assertEquals("enc:v1:", new String(kept, 0, 7, java.nio.charset.StandardCharsets.US_ASCII));
+        assertArrayEquals(pdf, pendingUploadRepository.findById(scanned.getId()).orElseThrow().getContent());
+
+        for (ai.philterd.workspace.model.Document d : java.util.List.of(plain, legacy)) {
+            final ai.philterd.workspace.model.Document done = documentRepository.findById(d.getId()).orElseThrow();
+            assertFalse(java.util.List.of("PENDING", "PROCESSING", "FAILED").contains(done.getStatus()),
+                    d.getFilename() + " is " + done.getStatus() + ": " + done.getFailureMessage());
+            assertTrue(spanRepository.findByDocumentId(d.getId()).stream()
+                            .anyMatch(span -> "jdoe@example.com".equals(span.getText())),
+                    d.getFilename() + ": Philter found the email address in the uploaded bytes");
+            assertTrue(pendingUploadRepository.findById(d.getId()).isEmpty(), "the upload is removed once redacted");
+        }
     }
 }

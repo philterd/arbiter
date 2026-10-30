@@ -12,6 +12,7 @@ package ai.philterd.workspace.service;
 import ai.philterd.workspace.model.Document;
 import ai.philterd.workspace.model.DocumentComment;
 import ai.philterd.workspace.model.GeneralSettings;
+import ai.philterd.workspace.model.PendingUpload;
 import ai.philterd.workspace.model.RedactionCertificate;
 import ai.philterd.workspace.model.Span;
 import org.springframework.data.mongodb.core.mapping.event.AfterConvertCallback;
@@ -40,6 +41,8 @@ import java.util.function.UnaryOperator;
  *     <li>{@link Span#getText() Span.text} — the literal PII string that was detected.</li>
  *     <li>{@link DocumentComment#getText() DocumentComment.text} — reviewer-supplied free
  *         text that may reference PII while documenting a decision.</li>
+ *     <li>{@link PendingUpload#getContent() PendingUpload.content}: the bytes of an upload
+ *         waiting in the ingest queue, with {@link SymmetricCipher#encryptBytes}.</li>
  * </ul>
  *
  * <h3>How it works</h3>
@@ -70,11 +73,19 @@ public final class PiiFieldEncryption {
      * alone. Every store calls this before writing an entity.
      */
     public static void encrypt(final SymmetricCipher cipher, final Object entity) {
+        if (entity instanceof PendingUpload pu) {
+            pu.setContent(cipher.encryptBytes(pu.getContent()));
+            return;
+        }
         apply(entity, cipher::encryptField);
     }
 
     /** Decrypt the PII fields of {@code entity} in place. Every store calls this after reading or writing an entity. */
     public static void decrypt(final SymmetricCipher cipher, final Object entity) {
+        if (entity instanceof PendingUpload pu) {
+            pu.setContent(cipher.decryptBytes(pu.getContent()));
+            return;
+        }
         apply(entity, cipher::decryptField);
     }
 
@@ -138,6 +149,16 @@ public final class PiiFieldEncryption {
     public static class DocumentCallbacks extends MongoCallbacks<Document> {
 
         public DocumentCallbacks(final SymmetricCipher cipher) {
+            super(cipher);
+        }
+    }
+
+    /** Lifecycle callbacks that wrap PendingUpload save/load: the queued upload's bytes. */
+    @Component
+    @ConditionalOnProperty(prefix = "philter-workspace", name = "store", havingValue = "mongodb", matchIfMissing = true)
+    public static class PendingUploadCallbacks extends MongoCallbacks<PendingUpload> {
+
+        public PendingUploadCallbacks(final SymmetricCipher cipher) {
             super(cipher);
         }
     }

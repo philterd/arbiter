@@ -178,4 +178,55 @@ class SymmetricCipherFieldEncryptionTest {
         assertTrue(SymmetricCipher.FIELD_PREFIX.startsWith("enc:"),
                 "The marker must remain self-describing — 'enc:' identifies the family.");
     }
+
+    // ---- binary content (queued uploads)
+
+    @Test
+    void bytesRoundTripIncludingEveryByteValue() {
+        final byte[] all = new byte[256];
+        for (int i = 0; i < all.length; i++) all[i] = (byte) i;
+        final byte[] stored = cipher.encryptBytes(all);
+        assertTrue(new String(stored, 0, 7, java.nio.charset.StandardCharsets.US_ASCII).equals(SymmetricCipher.FIELD_PREFIX));
+        assertEquals(SymmetricCipher.FIELD_PREFIX.length() + 12 + all.length + 16, stored.length);
+        org.junit.jupiter.api.Assertions.assertArrayEquals(all, cipher.decryptBytes(stored));
+        assertFalse(java.util.Arrays.equals(stored, cipher.encryptBytes(all)), "a fresh IV each time");
+    }
+
+    @Test
+    void nullAndEmptyBytesPassThrough() {
+        assertNull(cipher.encryptBytes(null));
+        assertNull(cipher.decryptBytes(null));
+        assertEquals(0, cipher.encryptBytes(new byte[0]).length);
+        assertEquals(0, cipher.decryptBytes(new byte[0]).length);
+    }
+
+    @Test
+    void bytesStoredBeforeEncryptionReadAsTheyAre() {
+        final byte[] legacy = "%PDF-1.7 plain".getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+        org.junit.jupiter.api.Assertions.assertArrayEquals(legacy, cipher.decryptBytes(legacy));
+    }
+
+    @Test
+    void encryptingThisKeysCiphertextAgainChangesNothing() {
+        final byte[] stored = cipher.encryptBytes("Jane Roe".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        org.junit.jupiter.api.Assertions.assertArrayEquals(stored, cipher.encryptBytes(stored));
+    }
+
+    @Test
+    void contentThatOnlyLooksEncryptedIsEncrypted() {
+        final byte[] lookalike = (SymmetricCipher.FIELD_PREFIX + "not really ciphertext, Jane Roe")
+                .getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        final byte[] stored = cipher.encryptBytes(lookalike);
+        assertNotEquals(lookalike.length, stored.length);
+        org.junit.jupiter.api.Assertions.assertArrayEquals(lookalike, cipher.decryptBytes(stored));
+    }
+
+    @Test
+    void bytesUnderAnotherKeyFailToDecrypt() {
+        final byte[] other = new byte[32];
+        new SecureRandom().nextBytes(other);
+        final byte[] stored = new SymmetricCipher(Base64.getEncoder().encodeToString(other))
+                .encryptBytes("Jane Roe".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        assertThrows(IllegalStateException.class, () -> cipher.decryptBytes(stored));
+    }
 }

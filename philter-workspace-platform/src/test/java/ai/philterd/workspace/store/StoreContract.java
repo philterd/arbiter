@@ -18,6 +18,7 @@ import ai.philterd.workspace.model.GeneralSettings;
 import ai.philterd.workspace.model.Group;
 import ai.philterd.workspace.model.InboxMessage;
 import ai.philterd.workspace.model.OpenSearchDataSource;
+import ai.philterd.workspace.model.PendingUpload;
 import ai.philterd.workspace.model.RedactionCertificate;
 import ai.philterd.workspace.model.Span;
 import ai.philterd.workspace.model.User;
@@ -29,6 +30,7 @@ import ai.philterd.workspace.repository.DocumentRepository;
 import ai.philterd.workspace.repository.GroupRepository;
 import ai.philterd.workspace.repository.InboxMessageRepository;
 import ai.philterd.workspace.repository.OpenSearchDataSourceRepository;
+import ai.philterd.workspace.repository.PendingUploadRepository;
 import ai.philterd.workspace.repository.SpanRepository;
 import ai.philterd.workspace.repository.UserRepository;
 import ai.philterd.workspace.repository.WorkspaceRepository;
@@ -44,6 +46,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -55,6 +58,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -87,6 +91,9 @@ public abstract class StoreContract {
 
     /** The record as the store holds it at rest, as text. */
     protected abstract String raw(Class<?> type, String id);
+
+    /** A binary field of a stored record, as the store holds it at rest. */
+    protected abstract byte[] rawBytes(Class<?> type, String id, String field);
 
     /** Sets one field of a stored record directly, bypassing the entity. */
     protected abstract void setField(Class<?> type, String id, String field, Object value);
@@ -493,7 +500,92 @@ public abstract class StoreContract {
                 .findById(GeneralSettings.SINGLETON_ID).orElseThrow().getOpensearchPassword());
     }
 
+    @Test
+    void queuedUploadsAreEncryptedAtRestAndReadBackIdentically() throws Exception {
+        final PendingUploadRepository uploads = repository(PendingUploadRepository.class);
+        final byte[] text = "Patient Jane Roe, SSN 123-45-6789.".getBytes(StandardCharsets.UTF_8);
+        final byte[] pdf = pdf("Patient Jane Roe, SSN 123-45-6789.");
+        for (byte[] content : List.of(text, pdf)) {
+            final PendingUpload upload = upload(content);
+            uploads.save(upload);
+            assertArrayEquals(content, upload.getContent(), "the caller's entity keeps the plaintext");
+
+            final byte[] stored = rawBytes(PendingUpload.class, upload.getId(), "content");
+            assertFalse(contains(stored, "123-45-6789".getBytes(StandardCharsets.UTF_8)), "the SSN is not stored");
+            assertFalse(contains(stored, "Jane Roe".getBytes(StandardCharsets.UTF_8)), "the name is not stored");
+            assertTrue(contains(stored, "enc:v1:".getBytes(StandardCharsets.US_ASCII)));
+            assertArrayEquals(content, uploads.findById(upload.getId()).orElseThrow().getContent());
+        }
+    }
+
+    @Test
+    void aQueuedUploadStoredBeforeEncryptionStillReads() {
+        final PendingUploadRepository uploads = repository(PendingUploadRepository.class);
+        final byte[] legacy = "Patient Jane Roe, SSN 123-45-6789.".getBytes(StandardCharsets.UTF_8);
+        final PendingUpload upload = uploads.save(upload(legacy));
+        // As a row written before this change held it: the plain bytes.
+        setField(PendingUpload.class, upload.getId(), "content", legacy);
+        assertArrayEquals(legacy, rawBytes(PendingUpload.class, upload.getId(), "content"));
+
+        assertArrayEquals(legacy, uploads.findById(upload.getId()).orElseThrow().getContent());
+    }
+
+    @Test
+    void anUploadThatStartsWithTheMarkerIsStillEncrypted() {
+        final PendingUploadRepository uploads = repository(PendingUploadRepository.class);
+        final byte[] content = "enc:v1:Jane Roe".getBytes(StandardCharsets.UTF_8);
+        final PendingUpload upload = uploads.save(upload(content));
+
+        assertFalse(contains(rawBytes(PendingUpload.class, upload.getId(), "content"),
+                "Jane Roe".getBytes(StandardCharsets.UTF_8)));
+        assertArrayEquals(content, uploads.findById(upload.getId()).orElseThrow().getContent());
+    }
+
     // ---- fixtures
+
+    private static PendingUpload upload(final byte[] content) {
+        final PendingUpload u = new PendingUpload();
+        u.setId(java.util.UUID.randomUUID().toString());
+        u.setContentType("application/octet-stream");
+        u.setContent(content);
+        u.setCreatedAt(LocalDateTime.now());
+        return u;
+    }
+
+    /** A one-page PDF whose content stream holds {@code text} uncompressed, so the bytes show it. */
+    private static byte[] pdf(final String text) throws Exception {
+        try (org.apache.pdfbox.pdmodel.PDDocument doc = new org.apache.pdfbox.pdmodel.PDDocument()) {
+            final org.apache.pdfbox.pdmodel.PDPage page = new org.apache.pdfbox.pdmodel.PDPage();
+            doc.addPage(page);
+            try (org.apache.pdfbox.pdmodel.PDPageContentStream stream = new org.apache.pdfbox.pdmodel.PDPageContentStream(
+                    doc, page, org.apache.pdfbox.pdmodel.PDPageContentStream.AppendMode.OVERWRITE, false)) {
+                stream.beginText();
+                stream.setFont(new org.apache.pdfbox.pdmodel.font.PDType1Font(
+                        org.apache.pdfbox.pdmodel.font.Standard14Fonts.FontName.HELVETICA), 12);
+                stream.newLineAtOffset(72, 720);
+                stream.showText(text);
+                stream.endText();
+            }
+            final java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream();
+            doc.save(out);
+            final byte[] bytes = out.toByteArray();
+            assertTrue(contains(bytes, "123-45-6789".getBytes(StandardCharsets.US_ASCII)), "the PDF shows the text plainly");
+            return bytes;
+        }
+    }
+
+    private static boolean contains(final byte[] haystack, final byte[] needle) {
+        outer:
+        for (int i = 0; i + needle.length <= haystack.length; i++) {
+            for (int j = 0; j < needle.length; j++) {
+                if (haystack[i + j] != needle[j]) {
+                    continue outer;
+                }
+            }
+            return true;
+        }
+        return false;
+    }
 
     public static List<Class<?>> repositoryInterfaces() throws ClassNotFoundException {
         final ClassPathScanningCandidateComponentProvider scanner = new ClassPathScanningCandidateComponentProvider(false) {

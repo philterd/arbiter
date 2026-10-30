@@ -82,6 +82,13 @@ class SqliteStoreContractTest extends StoreContract {
     }
 
     @Override
+    protected byte[] rawBytes(final Class<?> type, final String id, final String field) {
+        final String base64 = db.jdbc.queryForObject("SELECT json_extract(doc, '$." + field + "') FROM \""
+                + db.store.info(type).table + "\" WHERE id = ?", String.class, id);
+        return base64 == null ? null : java.util.Base64.getDecoder().decode(base64);
+    }
+
+    @Override
     protected void setField(final Class<?> type, final String id, final String field, final Object value) {
         db.store.updateOne(type, Where.eq("id", id), Map.of(field, value), List.of());
     }

@@ -138,4 +138,61 @@ public class SymmetricCipher {
         return decrypt(stored.substring(FIELD_PREFIX.length()));
     }
 
+    private static final byte[] BYTES_PREFIX = FIELD_PREFIX.getBytes(StandardCharsets.US_ASCII);
+
+    /**
+     * Encrypt binary content, such as an uploaded file, for at-rest storage: the
+     * {@link #FIELD_PREFIX} bytes, then the IV and the GCM ciphertext, as raw bytes. Null and
+     * empty input are returned unchanged. Input that is already this key's ciphertext is
+     * returned as-is; an upload that merely starts with the marker bytes is still encrypted,
+     * since it does not decrypt.
+     */
+    public byte[] encryptBytes(final byte[] plaintext) {
+        if (plaintext == null || plaintext.length == 0) return plaintext;
+        if (hasBytesPrefix(plaintext) && tryDecryptBytes(plaintext) != null) return plaintext;
+        try {
+            final byte[] iv = new byte[IV_BYTES];
+            random.nextBytes(iv);
+            final Cipher c = Cipher.getInstance(TRANSFORM);
+            c.init(Cipher.ENCRYPT_MODE, key, new GCMParameterSpec(TAG_BITS, iv));
+            final byte[] ct = c.doFinal(plaintext);
+            return ByteBuffer.allocate(BYTES_PREFIX.length + iv.length + ct.length)
+                    .put(BYTES_PREFIX).put(iv).put(ct).array();
+        } catch (Exception e) {
+            throw new IllegalStateException("Encryption failed", e);
+        }
+    }
+
+    /**
+     * Decrypt content written by {@link #encryptBytes(byte[])}. Content without the marker
+     * was stored before encryption and is returned as-is. Content with the marker that does not
+     * decrypt (a different key, or tampering) fails, as {@link #decryptField(String)} does.
+     */
+    public byte[] decryptBytes(final byte[] stored) {
+        if (stored == null || !hasBytesPrefix(stored)) return stored;
+        final byte[] plaintext = tryDecryptBytes(stored);
+        if (plaintext == null) {
+            throw new IllegalStateException("Decryption failed");
+        }
+        return plaintext;
+    }
+
+    private static boolean hasBytesPrefix(final byte[] value) {
+        return value.length >= BYTES_PREFIX.length
+                && java.util.Arrays.equals(value, 0, BYTES_PREFIX.length, BYTES_PREFIX, 0, BYTES_PREFIX.length);
+    }
+
+    /** The plaintext of {@code stored} under this key, or null when it is not this key's ciphertext. */
+    private byte[] tryDecryptBytes(final byte[] stored) {
+        final int offset = BYTES_PREFIX.length;
+        if (stored.length <= offset + IV_BYTES) return null;
+        try {
+            final Cipher c = Cipher.getInstance(TRANSFORM);
+            c.init(Cipher.DECRYPT_MODE, key, new GCMParameterSpec(TAG_BITS, stored, offset, IV_BYTES));
+            return c.doFinal(stored, offset + IV_BYTES, stored.length - offset - IV_BYTES);
+        } catch (java.security.GeneralSecurityException e) {
+            return null;
+        }
+    }
+
 }

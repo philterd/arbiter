@@ -82,7 +82,7 @@ class MongoStoreContractIT extends StoreContract {
             MongoBackgroundJobStore.class, MongoAuditLogQueryService.class, SymmetricCipher.class,
             PiiFieldEncryption.DocumentCallbacks.class, PiiFieldEncryption.SpanCallbacks.class,
             PiiFieldEncryption.GeneralSettingsCallbacks.class, PiiFieldEncryption.DocumentCommentCallbacks.class,
-            PiiFieldEncryption.RedactionCertificateCallbacks.class})
+            PiiFieldEncryption.RedactionCertificateCallbacks.class, PiiFieldEncryption.PendingUploadCallbacks.class})
     static class Store {
     }
 
@@ -143,6 +143,14 @@ class MongoStoreContractIT extends StoreContract {
         final org.bson.Document doc = mongoOperations.getCollection(mongoOperations.getCollectionName(type))
                 .find(new org.bson.Document("_id", key)).first();
         return doc == null ? null : doc.toJson();
+    }
+
+    @Override
+    protected byte[] rawBytes(final Class<?> type, final String id, final String field) {
+        final Object key = org.bson.types.ObjectId.isValid(id) ? new org.bson.types.ObjectId(id) : id;
+        final org.bson.Document doc = mongoOperations.getCollection(mongoOperations.getCollectionName(type))
+                .find(new org.bson.Document("_id", key)).first();
+        return doc == null ? null : doc.get(field, org.bson.types.Binary.class).getData();
     }
 
     @Override

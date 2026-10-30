@@ -293,6 +293,8 @@ The fields encrypted at rest are:
 | `document_comments`| `text`           | Reviewer-supplied free text that may reference PII.                   |
 | `redaction_certificates` | `documentFilename` | Filenames often carry names or record numbers.          |
 | `redaction_certificates` | overturned span text | The literal PII on each overturned decision.             |
+| `pending_uploads`  | `content`        | The bytes of an uploaded file (text or PDF) waiting in the ingest queue. Removed once the document is redacted; kept, still encrypted, while a failed document remains. |
+| `settings`         | `opensearchPassword` | The OpenSearch basic-auth password (the general settings).   |
 
 Other fields on these documents (status, timestamps, source attribution,
 hashes, lock metadata, span coordinates, reviewer attribution) are stored
@@ -308,13 +310,15 @@ the in-memory entity, and the callbacks transparently encrypt before save and
 decrypt after load. The on-disk form of an encrypted field carries an
 `enc:v1:` prefix marker followed by the base64-encoded ciphertext (12-byte
 random IV concatenated with the GCM ciphertext + 16-byte auth tag), e.g.
-`enc:v1:bXlJVi4uLg==`.
+`enc:v1:bXlJVi4uLg==`. Uploaded bytes are stored as binary in the same
+form without the base64: the `enc:v1:` bytes, the IV, then the ciphertext
+and tag.
 
 ### Backwards compatibility
 
 The marker prefix lets the read path tell encrypted values from values that
-predate the rollout. Any field without the prefix is returned to the
-application as-is, so a database that was populated before this feature was
+predate the rollout. Any field without the prefix, including an upload's
+bytes, is returned to the application as-is, so a database that was populated before this feature was
 turned on continues to read normally. The first save of any such row
 re-writes the affected field as ciphertext. There is no offline migration —
 encryption rolls forward as documents are touched.
