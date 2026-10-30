@@ -13,6 +13,28 @@ The Original and Redacted panes scroll together. Clicking a highlighted span
 in either pane focuses the matching entry in the navigator and scrolls it
 into view; clicking a navigator entry does the reverse.
 
+## Finding what is left to review
+
+An entry is **unreviewed** until someone accepts, refuses, or asks for a second
+opinion on it. Entries the batch's PII threshold accepted arrive accepted, so
+on many documents only a few need a decision. The navigator's header shows how
+many entries there are and how many are unreviewed.
+
+- **All**, **Unreviewed**, and **2nd opinion** above the list choose which
+  entries it shows. With **Unreviewed**, an entry leaves the list as soon as
+  it is decided, and the list keeps its place. When none are left, the list
+  says the document is ready to approve, how many entries still await a
+  second opinion, or, if you have already approved it, that the next approval
+  must come from another reviewer. The choice is kept while you move between
+  documents in the same browser tab.
+- **Next unreviewed** goes to the next unreviewed entry after the one you last
+  selected, in document order, and scrolls both panes to it. After the last
+  one it starts again from the top. It is disabled when every entry has a
+  decision.
+
+Both only change what you see. They work on a document that is approved,
+rejected, or open for someone else, where the entries cannot be changed.
+
 ## Per-span actions
 
 Each navigator entry shows:
@@ -22,9 +44,9 @@ Each navigator entry shows:
   change is saved immediately and the highlighted text updates.
 - The matched **text**.
 - The redactor's **confidence** as a percentage.
-- A status pill — **Accepted** or **Refused** — that toggles when clicked.
-  Refusing a span strikes it through in the navigator and removes its
-  redaction marker from the Redacted pane.
+- **Accept**, **Refuse**, **2nd Opinion**, and **Reset** buttons. Refusing a
+  span strikes it through in the navigator and removes its redaction marker
+  from the Redacted pane. **Reset** returns the entry to unreviewed.
 - A full-width **Redact All Like This** button. Clicking it scans the
   document for every other occurrence of the exact text and creates or
   updates spans so that all of them are accepted with the same PII type.

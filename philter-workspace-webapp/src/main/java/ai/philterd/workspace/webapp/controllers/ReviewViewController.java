@@ -283,6 +283,9 @@ public class ReviewViewController {
         final int approvalsGiven = document.getApprovedBy().size();
         model.addAttribute("approvalsRequired", approvalsRequired);
         model.addAttribute("approvalsGiven", approvalsGiven);
+        // As the approve action checks it: a reviewer cannot approve the same document twice.
+        model.addAttribute("approvedByCurrentUser", authentication != null
+                && document.getApprovedBy().contains(authentication.getName()));
         model.addAttribute("lockedByOther", lockedByOther);
         model.addAttribute("lockHolder", lockHolder == null ? "" : lockHolder);
         model.addAttribute("lockExpiresAt", lockExpiresAt);

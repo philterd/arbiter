@@ -491,11 +491,23 @@
                         <h3 class="text-lg font-semibold text-gray-800">PII Navigator</h3>
                         <span id="navCount" class="text-xs text-gray-500"></span>
                     </div>
-                    <label class="flex items-center gap-2 mb-2 px-1 text-sm text-gray-700 cursor-pointer select-none">
-                        <input type="checkbox" id="navFilterSecondOpinion"
-                               class="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500">
-                        Only show spans needing a second opinion
-                    </label>
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-2 px-1">
+                        <div id="navFilter" role="group" aria-label="Show entries"
+                             class="inline-flex rounded-md overflow-hidden border border-gray-300 text-xs font-medium">
+                            <button type="button" data-nav-filter="all" aria-pressed="true"
+                                    class="px-2 py-1">All</button>
+                            <button type="button" data-nav-filter="unreviewed" aria-pressed="false"
+                                    title="Only entries no one has decided yet"
+                                    class="px-2 py-1 border-l border-gray-300">Unreviewed</button>
+                            <button type="button" data-nav-filter="second-opinion" aria-pressed="false"
+                                    title="Only entries needing a second opinion"
+                                    class="px-2 py-1 border-l border-gray-300">2nd opinion</button>
+                        </div>
+                        <button type="button" id="navNextUnreviewed"
+                                class="px-2 py-1 text-xs font-medium border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:text-gray-300 disabled:cursor-not-allowed disabled:hover:bg-transparent">
+                            Next unreviewed &darr;
+                        </button>
+                    </div>
                     <div id="navList" class="bg-white border border-gray-200 rounded-lg divide-y divide-gray-100 max-h-[70vh] overflow-y-auto">
                     </div>
                     <div class="mt-4">
@@ -572,6 +584,7 @@
                         ? `Currently being reviewed by ${lockHolder}`
                         : '')));
         const currentUserEmail = /*[[${currentUserEmail}]]*/ '';
+        const approvedByCurrentUser = /*[[${approvedByCurrentUser}]]*/ false;
         const documentId = /*[[${document.id}]]*/ '';
         const exemptionCodes = /*[[${exemptionCodes}]]*/ [];
         const exemptionCodeRequired = /*[[${exemptionCodeRequired}]]*/ false;
@@ -641,33 +654,100 @@
             container.innerHTML = html;
         }
 
+        // The PII Navigator's filter ('all', 'unreviewed', or 'second-opinion') and the entry last
+        // focused, which "Next unreviewed" moves on from. Both only navigate; neither changes a span.
+        // The filter is kept for the tab, so it survives the page reloading and moving to the next document.
+        const NAV_FILTERS = ['all', 'unreviewed', 'second-opinion'];
+        let navFilter = 'all';
+        try {
+            const saved = sessionStorage.getItem('reviewNavFilter');
+            if (NAV_FILTERS.includes(saved)) navFilter = saved;
+        } catch (_) { /* storage unavailable: start from All */ }
+        let currentId = null;
+
+        function isUnreviewed(item) {
+            return item.status == null || item.status === 'PENDING';
+        }
+
+        /** Entries in document order; ties by id so the order is stable. */
+        function inDocumentOrder(items) {
+            return [...items].sort((a, b) => a.start - b.start || String(a.id).localeCompare(String(b.id)));
+        }
+
+        function nextUnreviewed() {
+            const pending = inDocumentOrder(originalRedactions.filter(isUnreviewed));
+            if (pending.length === 0) return null;
+            const current = currentId == null ? null : originalRedactions.find(r => r.id === currentId);
+            if (current) {
+                const after = pending.find(r => r.start > current.start
+                        || (r.start === current.start && String(r.id).localeCompare(String(current.id)) > 0));
+                if (after) return after;
+            }
+            // From the top when nothing is focused, or past the last one.
+            return pending[0];
+        }
+
+        function renderFilterControls(unreviewedCount) {
+            document.querySelectorAll('[data-nav-filter]').forEach(btn => {
+                const on = btn.getAttribute('data-nav-filter') === navFilter;
+                btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+                btn.classList.toggle('bg-blue-600', on);
+                btn.classList.toggle('text-white', on);
+                btn.classList.toggle('bg-white', !on);
+                btn.classList.toggle('text-gray-700', !on);
+            });
+            const next = document.getElementById('navNextUnreviewed');
+            if (next) {
+                next.disabled = unreviewedCount === 0;
+                next.title = unreviewedCount === 0
+                    ? 'Every entry has a decision'
+                    : 'Go to the next entry no one has decided yet';
+            }
+        }
+
         function renderNavigator() {
             const list = document.getElementById('navList');
             const count = document.getElementById('navCount');
-            const filterToggle = document.getElementById('navFilterSecondOpinion');
-            const onlySecondOpinion = !!(filterToggle && filterToggle.checked);
+            const unreviewedCount = originalRedactions.filter(isUnreviewed).length;
+            const secondOpinionCount = originalRedactions.filter(r => r.status === 'NEEDS_SECOND_OPINION').length;
+            renderFilterControls(unreviewedCount);
             // Stable global index: position in the sorted-by-start full list.
             const globalIndex = new Map();
-            [...originalRedactions]
-                .sort((a, b) => a.start - b.start)
-                .forEach((item, i) => globalIndex.set(item.id, i));
-            const visible = onlySecondOpinion
-                ? originalRedactions.filter(r => r.status === 'NEEDS_SECOND_OPINION')
-                : originalRedactions;
+            inDocumentOrder(originalRedactions).forEach((item, i) => globalIndex.set(item.id, i));
+            const visible = navFilter === 'unreviewed'
+                ? originalRedactions.filter(isUnreviewed)
+                : (navFilter === 'second-opinion'
+                    ? originalRedactions.filter(r => r.status === 'NEEDS_SECOND_OPINION')
+                    : originalRedactions);
             const totalLabel = `${originalRedactions.length} item${originalRedactions.length === 1 ? '' : 's'}`;
-            const filteredLabel = onlySecondOpinion
-                ? `${visible.length} of ${totalLabel} need 2nd opinion`
-                : totalLabel;
-            count.textContent = originalRedactions.length === 0 ? 'no items' : filteredLabel;
+            count.textContent = originalRedactions.length === 0
+                ? 'no items'
+                : (navFilter === 'second-opinion'
+                    ? `${visible.length} of ${totalLabel} need 2nd opinion`
+                    : `${totalLabel}, ${unreviewedCount} unreviewed`);
+            // Keep the reviewer's place in the list when it is rebuilt after a decision.
+            const scrollTop = list.scrollTop;
             if (originalRedactions.length === 0) {
                 list.innerHTML = '<div class="px-4 py-6 text-sm text-gray-500 text-center">No PII detected.</div>';
                 return;
             }
             if (visible.length === 0) {
-                list.innerHTML = '<div class="px-4 py-6 text-sm text-gray-500 text-center">No spans are awaiting a second opinion.</div>';
+                let empty;
+                if (navFilter === 'unreviewed') {
+                    empty = secondOpinionCount > 0
+                        ? `No unreviewed entries. ${secondOpinionCount} still ${secondOpinionCount === 1 ? 'awaits' : 'await'} a second opinion.`
+                        : (documentLocked
+                            ? 'No unreviewed entries: every entry has a decision.'
+                            : (approvedByCurrentUser
+                                ? 'No unreviewed entries: every entry has a decision. You have approved this document; the next approval must come from another reviewer.'
+                                : 'No unreviewed entries: every entry has a decision, so the document is ready to approve.'));
+                } else {
+                    empty = 'No spans are awaiting a second opinion.';
+                }
+                list.innerHTML = `<div id="navEmpty" class="px-4 py-6 text-sm text-gray-500 text-center">${escapeHtml(empty)}</div>`;
                 return;
             }
-            const sorted = [...visible].sort((a, b) => a.start - b.start);
+            const sorted = inDocumentOrder(visible);
             list.innerHTML = sorted.map((item) => {
                 const idx = globalIndex.get(item.id);
                 const status = item.status || (acceptedById.get(item.id) ? 'APPROVED' : 'REJECTED');
@@ -778,9 +858,15 @@
                     </div>
                 </div>`;
             }).join('');
+            list.scrollTop = scrollTop;
+            if (currentId != null) {
+                const active = list.querySelector(`.nav-item[data-id="${CSS.escape(currentId)}"]`);
+                if (active) active.classList.add('is-active');
+            }
         }
 
         function focusRedaction(id) {
+            currentId = id;
             document.querySelectorAll('.redaction.is-active, .nav-item.is-active')
                 .forEach(el => el.classList.remove('is-active'));
 
@@ -810,9 +896,20 @@
         document.addEventListener('DOMContentLoaded', () => {
             rerender();
 
-            const filterToggle = document.getElementById('navFilterSecondOpinion');
-            if (filterToggle) {
-                filterToggle.addEventListener('change', () => renderNavigator());
+            document.querySelectorAll('[data-nav-filter]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    navFilter = btn.getAttribute('data-nav-filter');
+                    try { sessionStorage.setItem('reviewNavFilter', navFilter); } catch (_) {}
+                    document.getElementById('navList').scrollTop = 0;
+                    renderNavigator();
+                });
+            });
+            const nextBtn = document.getElementById('navNextUnreviewed');
+            if (nextBtn) {
+                nextBtn.addEventListener('click', () => {
+                    const next = nextUnreviewed();
+                    if (next) focusRedaction(next.id);
+                });
             }
 
             // Pessimistic-lock pulse loop. Skip when this user doesn't hold the lock
