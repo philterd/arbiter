@@ -1228,6 +1228,53 @@ class PhilterSignInIT {
     }
 
     @Test
+    void aReviewerMovesTheBoundariesOfASpanPhilterDetectedAndResetPutsThemBack() throws Exception {
+        final MockHttpSession session = new MockHttpSession();
+        final String address = newAddress();
+        signIn(session, address, "admin", ADMIN_PASSWORD);
+        final ai.philterd.workspace.model.Batch batch = new ai.philterd.workspace.model.Batch();
+        batch.setId(java.util.UUID.randomUUID().toString());
+        batch.setName("Boundaries " + batch.getId());
+        batch.setConfidenceThreshold(1.01);
+        batchRepository.save(batch);
+        final ai.philterd.workspace.model.Document queued = ingestQueueService.enqueueText(batch, "letter.txt",
+                "Write to jdoe@example.com about the claim.", 2);
+        drainUntilDone(queued.getId());
+        final ai.philterd.workspace.model.Span detected = spanRepository.findByDocumentId(queued.getId()).stream()
+                .filter(sp -> "jdoe@example.com".equals(sp.getText())).findFirst().orElseThrow();
+        assertEquals("PENDING", detected.getStatus());
+        final int start = detected.getLocation().characterStart();
+        final int end = detected.getLocation().characterEnd();
+
+        // "jdoe@example.com" shrunk to "jdoe": moved and accepted in one call.
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                        .patch("/api/v1/spans/" + detected.getId()).session(session).with(csrf()).with(from(address))
+                        .contentType("application/json").content("{\"start\":" + start + ",\"end\":" + (start + 4) + "}"))
+                .andExpect(status().isOk());
+        final ai.philterd.workspace.model.Span moved = spanRepository.findById(detected.getId()).orElseThrow();
+        assertEquals("jdoe", moved.getText());
+        assertEquals("APPROVED", moved.getStatus());
+        assertTrue(moved.isAdjusted());
+        assertEquals(start, moved.getOriginalCharacterStart());
+        assertEquals(end, moved.getOriginalCharacterEnd());
+        final String page = mockMvc.perform(get("/review/" + queued.getId()).session(session).with(from(address)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertTrue(page.contains("\"adjusted\":true"), "the review page marks it adjusted");
+        final String history = mockMvc.perform(get("/api/v1/documents/" + queued.getId() + "/history")
+                .session(session).with(from(address))).andReturn().getResponse().getContentAsString();
+        assertTrue(history.contains("SPAN_ADJUST"), history);
+
+        mockMvc.perform(post("/api/v1/spans/" + detected.getId() + "/reset").session(session).with(csrf())
+                        .with(from(address)).contentType("application/json").content("{\"originalStatus\":\"PENDING\"}"))
+                .andExpect(status().isOk());
+        final ai.philterd.workspace.model.Span reset = spanRepository.findById(detected.getId()).orElseThrow();
+        assertEquals("jdoe@example.com", reset.getText());
+        assertEquals(end, reset.getLocation().characterEnd());
+        assertFalse(reset.isAdjusted());
+        assertEquals("PENDING", reset.getStatus());
+    }
+
+    @Test
     void aBatchRedactsEachDocumentWithThePolicyMappedToItsCaseType() throws Exception {
         final String suffix = HexFormat.of().formatHex(bytes(3));
         final String policy = "it-email-only-" + suffix;

@@ -139,6 +139,7 @@ public class ReportingController {
         long spansAcceptedTotal = 0;
         long spansRejectedTotal = 0;
         long spansManualTotal = 0;
+        long spansAdjustedTotal = 0;
         long spansTotal = 0;
 
         // Aggregations keyed by policy name (or "(default policy)").
@@ -227,6 +228,9 @@ public class ReportingController {
                     : spanRepository.countByDocumentIdInAndStatus(docIds, "REJECTED");
             final long spansManual = docIds.isEmpty() ? 0L
                     : spanRepository.countByDocumentIdInAndManuallyCreated(docIds, true);
+            // Detections whose boundaries a reviewer moved (#20); moving one accepts it, so these are also accepted.
+            final long spansAdjusted = docIds.isEmpty() ? 0L
+                    : spanRepository.countByDocumentIdInAndAdjustedAndManuallyCreated(docIds, true, false);
             final long spansBatchTotal = spansAccepted + spansRejected;
             final long editRateBaseline = Math.max(1L, spansBatchTotal + spansManual);
             final double editRate = (double) spansManual / (double) editRateBaseline;
@@ -234,6 +238,7 @@ public class ReportingController {
             spansAcceptedTotal += spansAccepted;
             spansRejectedTotal += spansRejected;
             spansManualTotal += spansManual;
+            spansAdjustedTotal += spansAdjusted;
             spansTotal += spansBatchTotal;
 
             final String policyName = batch.getPolicyName() == null ? "(default policy)" : batch.getPolicyName();
@@ -245,6 +250,7 @@ public class ReportingController {
                 m.put("spansAccepted", 0L);
                 m.put("spansRejected", 0L);
                 m.put("spansManual", 0L);
+                m.put("spansAdjusted", 0L);
                 return m;
             });
             agg.put("batches", (Long) agg.get("batches") + 1);
@@ -252,6 +258,7 @@ public class ReportingController {
             agg.put("spansAccepted", (Long) agg.get("spansAccepted") + spansAccepted);
             agg.put("spansRejected", (Long) agg.get("spansRejected") + spansRejected);
             agg.put("spansManual", (Long) agg.get("spansManual") + spansManual);
+            agg.put("spansAdjusted", (Long) agg.get("spansAdjusted") + spansAdjusted);
 
             final String domainKey = batch.getDomain() == null ? "(none)" : batch.getDomain();
             final Map<String, Object> dAgg = domainAggregates.computeIfAbsent(domainKey, k -> {
@@ -262,6 +269,7 @@ public class ReportingController {
                 m.put("spansAccepted", 0L);
                 m.put("spansRejected", 0L);
                 m.put("spansManual", 0L);
+                m.put("spansAdjusted", 0L);
                 return m;
             });
             dAgg.put("batches", (Long) dAgg.get("batches") + 1);
@@ -269,6 +277,7 @@ public class ReportingController {
             dAgg.put("spansAccepted", (Long) dAgg.get("spansAccepted") + spansAccepted);
             dAgg.put("spansRejected", (Long) dAgg.get("spansRejected") + spansRejected);
             dAgg.put("spansManual", (Long) dAgg.get("spansManual") + spansManual);
+            dAgg.put("spansAdjusted", (Long) dAgg.get("spansAdjusted") + spansAdjusted);
 
             final Map<String, Object> row = new LinkedHashMap<>();
             row.put("id", batch.getId());
@@ -282,6 +291,7 @@ public class ReportingController {
             row.put("spansAccepted", spansAccepted);
             row.put("spansRejected", spansRejected);
             row.put("spansManual", spansManual);
+            row.put("spansAdjusted", spansAdjusted);
             row.put("editRate", editRate);
             batchRows.add(row);
         }
@@ -333,6 +343,7 @@ public class ReportingController {
         model.addAttribute("spansAcceptedTotal", spansAcceptedTotal);
         model.addAttribute("spansRejectedTotal", spansRejectedTotal);
         model.addAttribute("spansManualTotal", spansManualTotal);
+        model.addAttribute("spansAdjustedTotal", spansAdjustedTotal);
         model.addAttribute("globalEditRate", globalEditRate);
         model.addAttribute("policyRows", policyRows);
         model.addAttribute("domainRows", domainRows);

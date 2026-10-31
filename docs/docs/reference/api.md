@@ -452,7 +452,7 @@ above produces.
 
 ### `PATCH /api/v1/spans/{id}`
 
-Session-allowed. Update a span's status, type, or both.
+Session-allowed. Update a span's status, type, or boundaries.
 
 ```json
 {
@@ -460,16 +460,19 @@ Session-allowed. Update a span's status, type, or both.
   "type":          "ssn",
   "reason":        "...",
   "exemptionCode": "...",
-  "adjudicate":    true
+  "adjudicate":    true,
+  "start":         12,
+  "end":           24
 }
 ```
 
 | Field           | Required | Notes                                                                                     |
 | --------------- | -------- | ----------------------------------------------------------------------------------------- |
-| `status`        | optional | One of the allowed statuses. Sending neither `status` nor `type` returns `400`.            |
+| `status`        | optional | One of the allowed statuses. Sending none of `status`, `type`, or `start` and `end` returns `400`. |
 | `type`          | optional | New PII type; validated against the [PII types list](pii-types.md).                        |
 | `reason`        | optional | Required when **overturning** another reviewer's prior `APPROVED` decision (changing status away from `APPROVED` while the prior approval was recorded by a different actor). Returns `409 OVERTURN_REASON_REQUIRED` otherwise. Recorded in the audit trail. |
 | `exemptionCode` | optional | Free-form string applied only when the new `status` is `APPROVED`. Cleared automatically when the span moves out of `APPROVED`. |
+| `start`, `end`  | optional | Move the span to characters `[start, end)` of the document's original text ([adjusting boundaries](../user-guide/reviewing.md#adjusting-a-spans-boundaries)). Sent together, and accept the span: `status` must be absent or `APPROVED`. `400` for a range outside the text or covering only whitespace; `409` for a range overlapping another span, or for a span in a PDF. The span records where it was detected (`originalCharacterStart`, `originalCharacterEnd`), `adjusted`, `adjustedBy`, and `adjustedAt`; the move is audited as `SPAN_ADJUST`. |
 | `adjudicate`    | optional | `true` makes the change an approver's final decision on the span ([adjudication](../user-guide/reviewing.md#adjudicating-a-span)). Requires an approver of the document's group or an administrator, and a `status` of `APPROVED` or `REJECTED`. Sets `adjudicatedBy` and `adjudicatedAt`, and is audited as `SPAN_ADJUDICATE`. |
 
 Returns the updated `Span` object.

@@ -153,6 +153,27 @@ public abstract class StoreContract {
     }
 
     @Test
+    void adjustedDetectionsAreCountedApartFromHandAddedSpans() {
+        final ai.philterd.workspace.repository.SpanRepository spans =
+                repository(ai.philterd.workspace.repository.SpanRepository.class);
+        final ai.philterd.workspace.model.Span adjusted = new ai.philterd.workspace.model.Span();
+        adjusted.setDocumentId("d1");
+        adjusted.setAdjusted(true);
+        final ai.philterd.workspace.model.Span adjustedManual = new ai.philterd.workspace.model.Span();
+        adjustedManual.setDocumentId("d1");
+        adjustedManual.setAdjusted(true);
+        adjustedManual.setManuallyCreated(true);
+        final ai.philterd.workspace.model.Span old = new ai.philterd.workspace.model.Span();
+        old.setDocumentId("d1");
+        spans.saveAll(List.of(adjusted, adjustedManual, old));
+        // A span saved before "adjusted" existed has no such field.
+        removeField(ai.philterd.workspace.model.Span.class, old.getId(), "adjusted");
+
+        assertEquals(1, spans.countByDocumentIdInAndAdjustedAndManuallyCreated(List.of("d1"), true, false));
+        assertEquals(0, spans.countByDocumentIdInAndAdjustedAndManuallyCreated(List.of("d2"), true, false));
+    }
+
+    @Test
     void negationAlsoMatchesMissingFields() {
         final InboxMessageRepository inbox = repository(InboxMessageRepository.class);
         final InboxMessage unread = message("u1", false, false);

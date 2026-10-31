@@ -63,6 +63,7 @@ detections inside documents):
 | **Spans accepted** | PII detections approved by a reviewer.                                              |
 | **Spans rejected** | False positives or incorrect detections rejected by a reviewer.                     |
 | **Manually created**| Spans the redactor missed and a reviewer added by hand.                            |
+| **Boundaries adjusted**| Detections whose start or end a reviewer moved. Moving a span accepts it, so these are also counted as accepted. Spans added by hand are not counted here, even if moved. |
 | **Edit rate**      | `manual ÷ (accepted + rejected + manual)`. The fraction of decisions that required a manual addition. Higher numbers mean the redactor is missing PII the reviewers have to backfill. |
 
 ## Documents by status
@@ -92,6 +93,7 @@ value, plus a `(none)` row for batches with no domain set):
 | Accepted   | Spans accepted by reviewers across those batches.                             |
 | Rejected   | Spans rejected.                                                               |
 | Manual     | Spans manually added by reviewers.                                            |
+| Adjusted   | Detections whose boundaries a reviewer moved.                                 |
 | Edit rate  | `manual ÷ (accepted + rejected + manual)` for the domain. Edit rate is colored amber at 10% and red at 20% to flag domains where the redactor leans on reviewers more than expected. |
 
 Sorted by edit rate descending so problem domains float to the top.
@@ -124,6 +126,7 @@ per-domain table:
 | Accepted   | Spans accepted by reviewers.                                                 |
 | Rejected   | Spans rejected.                                                              |
 | Manual     | Spans manually added.                                                        |
+| Adjusted   | Detections whose boundaries a reviewer moved.                                |
 | Edit rate  | Same as per-domain. Same color thresholds.                                   |
 
 Sorted by edit rate descending. High edit rate flags policies that are
@@ -160,6 +163,7 @@ The bottom-of-page comprehensive table — one row per batch in scope:
 | Accepted         | Spans accepted by reviewers.                                                     |
 | Rejected         | Spans rejected.                                                                  |
 | Manual           | Spans manually added.                                                            |
+| Adjusted         | Detections whose boundaries a reviewer moved.                                    |
 | Edit rate        | `manual ÷ (accepted + rejected + manual)`. Color thresholds as above.            |
 | Auto-approved    | Documents in `AUTO_APPROVED` status.                                             |
 | Avg risk         | Mean risk score across this batch's documents.                                   |

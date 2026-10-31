@@ -186,9 +186,19 @@ public class ReviewController {
     public Span updateSpan(@PathVariable final String id,
                            @RequestBody final SpanUpdateRequest request,
                            final Authentication authentication) {
-        if (request == null || (request.status() == null && request.type() == null)) {
-            throw new ResponseStatusException(BAD_REQUEST, "At least one of 'status' or 'type' must be provided.");
+        final boolean moving = request != null && (request.start() != null || request.end() != null);
+        if (request == null || (request.status() == null && request.type() == null && !moving)) {
+            throw new ResponseStatusException(BAD_REQUEST,
+                    "At least one of 'status', 'type', or 'start' and 'end' must be provided.");
         }
+        if (moving && (request.start() == null || request.end() == null)) {
+            throw new ResponseStatusException(BAD_REQUEST, "'start' and 'end' must be given together.");
+        }
+        // Moving a span's boundaries also accepts it (#20).
+        if (moving && request.status() != null && !"APPROVED".equals(request.status())) {
+            throw new ResponseStatusException(BAD_REQUEST, "Moving a span's boundaries accepts it.");
+        }
+        final String status = moving ? "APPROVED" : request.status();
         final Span span = spanRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found."));
         final Document document = documentAccessService.loadAccessibleParentForSpan(span, authentication);
@@ -196,20 +206,22 @@ public class ReviewController {
         final boolean adjudicating = requireMayChange(span, document, authentication,
                 Boolean.TRUE.equals(request.adjudicate()));
         if (Boolean.TRUE.equals(request.adjudicate())
-                && !"APPROVED".equals(request.status()) && !"REJECTED".equals(request.status())) {
+                && !"APPROVED".equals(status) && !"REJECTED".equals(status)) {
             throw new ResponseStatusException(BAD_REQUEST, "An adjudication accepts or refuses the span.");
         }
+        final int[] previousRange = {span.getLocation().characterStart(), span.getLocation().characterEnd()};
+        final String movedText = moving ? requireMovable(span, document, request.start(), request.end()) : null;
 
         final String actor = authentication == null ? null : authentication.getName();
         final Map<String, Object> changes = new LinkedHashMap<>();
-        if (request.status() != null) {
-            if (!ALLOWED_STATUSES.contains(request.status())) {
-                throw new ResponseStatusException(BAD_REQUEST, "Invalid status: " + request.status());
+        if (status != null) {
+            if (!ALLOWED_STATUSES.contains(status)) {
+                throw new ResponseStatusException(BAD_REQUEST, "Invalid status: " + status);
             }
             // Overturn check: moving a span *out of* APPROVED, where the prior approval
             // was recorded by a different reviewer, requires a reason for the audit trail.
             final boolean leavingApproved = "APPROVED".equals(span.getStatus())
-                    && !"APPROVED".equals(request.status());
+                    && !"APPROVED".equals(status);
             final String priorActor = span.getStatusChangedBy();
             final boolean differentReviewer = priorActor != null && actor != null
                     && !priorActor.equalsIgnoreCase(actor);
@@ -219,7 +231,7 @@ public class ReviewController {
                         "OVERTURN_REASON_REQUIRED: a reason is required to overturn another reviewer's approval.");
             }
             changes.put("previousStatus", span.getStatus() == null ? "" : span.getStatus());
-            changes.put("status", request.status());
+            changes.put("status", status);
             if (priorActor != null) {
                 changes.put("previousStatusChangedBy", priorActor);
             }
@@ -230,8 +242,8 @@ public class ReviewController {
                 // Reason supplied without an overturn — record it for traceability.
                 changes.put("reason", reason);
             }
-            span.changeStatus(request.status(), actor);
-            if ("APPROVED".equals(request.status())) {
+            span.changeStatus(status, actor);
+            if ("APPROVED".equals(status)) {
                 final String code = request.exemptionCode() == null ? null : request.exemptionCode().trim();
                 span.setExemptionCode(code == null || code.isEmpty() ? null : code);
                 if (span.getExemptionCode() != null) {
@@ -258,14 +270,77 @@ public class ReviewController {
             span.setAdjudicatedBy(actor);
             span.setAdjudicatedAt(LocalDateTime.now());
         }
+        if (movedText != null) {
+            move(span, request.start(), request.end(), movedText, actor);
+        }
         final Span saved = spanRepository.save(span);
+        if (movedText != null && (previousRange[0] != request.start() || previousRange[1] != request.end())) {
+            auditLogService.log("SPAN_ADJUST", "Span", saved.getId(), adjustment(saved, previousRange));
+        }
         changes.put("spanId", saved.getId());
         changes.put("documentId", saved.getDocumentId() == null ? "" : saved.getDocumentId());
         auditLogService.log(adjudicating ? "SPAN_ADJUDICATE" : "SPAN_UPDATE", "Span", saved.getId(), changes);
-        if ("REJECTED".equals(request.status()) && !"REJECTED".equals(previousStatus)) {
+        if ("REJECTED".equals(status) && !"REJECTED".equals(previousStatus)) {
             detectionRuleService.noteRefusal(saved, document);
         }
         return saved;
+    }
+
+    /**
+     * Checks a span can be moved to {@code [start, end)} of the document's text and returns the text there. Not for
+     * a span in a PDF, whose position on the page would no longer match (that follows PDF review, #58), and never
+     * onto another span.
+     */
+    private String requireMovable(final Span span, final Document document, final int start, final int end) {
+        final ai.philterd.workspace.model.Coordinates c = span.getLocation().coordinates();
+        if (c != null && (c.w() > 0 || c.h() > 0)) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
+                    "A span in a PDF cannot be moved yet.");
+        }
+        final String original = document.getOriginalText() == null ? "" : document.getOriginalText();
+        if (start < 0 || end <= start || end > original.length()) {
+            throw new ResponseStatusException(BAD_REQUEST, "Invalid range.");
+        }
+        final String text = original.substring(start, end);
+        if (text.isBlank()) {
+            throw new ResponseStatusException(BAD_REQUEST, "The new range is empty.");
+        }
+        for (Span other : spanRepository.findByDocumentId(document.getId())) {
+            if (other.getId() == null || other.getId().equals(span.getId()) || other.getLocation() == null) continue;
+            if (start < other.getLocation().characterEnd() && end > other.getLocation().characterStart()) {
+                throw new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
+                        "The new range overlaps another span.");
+            }
+        }
+        return text;
+    }
+
+    /** Moves the span, first recording where it was detected so the link to the detection is kept. */
+    private static void move(final Span span, final int start, final int end, final String text, final String actor) {
+        if (span.getOriginalCharacterStart() == null) {
+            span.setOriginalCharacterStart(span.getLocation().characterStart());
+            span.setOriginalCharacterEnd(span.getLocation().characterEnd());
+        }
+        span.setLocation(new Location(start, end, span.getLocation().page(), span.getLocation().coordinates()));
+        span.setText(text);
+        span.setAdjusted(start != span.getOriginalCharacterStart() || end != span.getOriginalCharacterEnd());
+        span.setAdjustedBy(actor);
+        span.setAdjustedAt(LocalDateTime.now());
+    }
+
+    /** Before and after positions for the audit log; never the text, which is personal information. */
+    private static Map<String, Object> adjustment(final Span span, final int[] previous) {
+        final Map<String, Object> details = new LinkedHashMap<>();
+        details.put("spanId", span.getId());
+        details.put("documentId", span.getDocumentId() == null ? "" : span.getDocumentId());
+        details.put("previousStart", previous[0]);
+        details.put("previousEnd", previous[1]);
+        details.put("start", span.getLocation().characterStart());
+        details.put("end", span.getLocation().characterEnd());
+        details.put("originalStart", span.getOriginalCharacterStart());
+        details.put("originalEnd", span.getOriginalCharacterEnd());
+        details.put("length", span.getLocation().characterEnd() - span.getLocation().characterStart());
+        return details;
     }
 
     public record RuleRequest(String kind) {}
@@ -462,7 +537,17 @@ public class ReviewController {
         if (originalStatus == null || !ALLOWED_STATUSES.contains(originalStatus)) {
             throw new ResponseStatusException(BAD_REQUEST, "Invalid status: " + originalStatus);
         }
+        // Back to the detection as it arrived (#20): its original boundaries too, unless a span added since
+        // covers part of them.
+        final int[] previousRange = {span.getLocation().characterStart(), span.getLocation().characterEnd()};
+        final boolean restoring = span.isAdjusted() && span.getOriginalCharacterStart() != null;
+        final String restoredText = restoring
+                ? requireMovable(span, document, span.getOriginalCharacterStart(), span.getOriginalCharacterEnd())
+                : null;
         span.changeStatus(originalStatus, actor);
+        if (restoring) {
+            move(span, span.getOriginalCharacterStart(), span.getOriginalCharacterEnd(), restoredText, actor);
+        }
         // Back to unreviewed: an approver resetting an adjudicated span withdraws the adjudication.
         final String withdrawn = span.getAdjudicatedBy();
         span.setAdjudicatedBy(null);
@@ -478,6 +563,9 @@ public class ReviewController {
         details.put("previousStatus", previousStatus);
         details.put("originalStatus", originalStatus == null ? "" : originalStatus);
         auditLogService.log("SPAN_RESET", "Span", saved.getId(), details);
+        if (restoring) {
+            auditLogService.log("SPAN_ADJUST", "Span", saved.getId(), adjustment(saved, previousRange));
+        }
         return saved;
     }
 

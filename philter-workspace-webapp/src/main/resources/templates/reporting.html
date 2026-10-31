@@ -244,7 +244,7 @@
             </div>
 
             <!-- Span KPI cards -->
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
                 <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
                     <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Spans accepted</div>
                     <div class="text-3xl font-bold text-green-700 mt-1" th:text="${spansAcceptedTotal}">0</div>
@@ -259,6 +259,11 @@
                     <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Manually created</div>
                     <div class="text-3xl font-bold text-amber-700 mt-1" th:text="${spansManualTotal}">0</div>
                     <div class="text-xs text-gray-500 mt-1">spans the redactor missed; reviewer added</div>
+                </div>
+                <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
+                    <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Boundaries adjusted</div>
+                    <div class="text-3xl font-bold text-blue-700 mt-1" th:text="${spansAdjustedTotal}">0</div>
+                    <div class="text-xs text-gray-500 mt-1">detections a reviewer moved, then accepted</div>
                 </div>
                 <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100">
                     <div class="text-xs font-medium text-gray-500 uppercase tracking-wide">Edit rate</div>
@@ -324,12 +329,13 @@
                             <th class="px-3 py-3 text-right text-xs font-medium text-green-700 uppercase tracking-wider">Accepted</th>
                             <th class="px-3 py-3 text-right text-xs font-medium text-red-700 uppercase tracking-wider">Rejected</th>
                             <th class="px-3 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Manual</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-blue-700 uppercase tracking-wider">Adjusted</th>
                             <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Edit rate</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
                         <tr th:if="${#lists.isEmpty(domainRows)}">
-                            <td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500">
+                            <td colspan="8" class="px-6 py-8 text-center text-sm text-gray-500">
                                 No batches in scope.
                             </td>
                         </tr>
@@ -341,6 +347,7 @@
                             <td class="px-3 py-3 whitespace-nowrap text-sm text-green-700 text-right font-medium" th:text="${r.spansAccepted}">0</td>
                             <td class="px-3 py-3 whitespace-nowrap text-sm text-red-700 text-right font-medium" th:text="${r.spansRejected}">0</td>
                             <td class="px-3 py-3 whitespace-nowrap text-sm text-amber-700 text-right font-medium" th:text="${r.spansManual}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-blue-700 text-right font-medium" th:text="${r.spansAdjusted}">0</td>
                             <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right"
                                 th:classappend="${r.editRate >= 0.20} ? 'text-red-700 font-semibold' : (${r.editRate >= 0.10} ? 'text-amber-700' : '')"
                                 th:text="${#numbers.formatDecimal(r.editRate * 100, 1, 1) + '%'}">0.0%</td>
@@ -400,12 +407,13 @@
                             <th class="px-3 py-3 text-right text-xs font-medium text-green-700 uppercase tracking-wider">Accepted</th>
                             <th class="px-3 py-3 text-right text-xs font-medium text-red-700 uppercase tracking-wider">Rejected</th>
                             <th class="px-3 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Manual</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-blue-700 uppercase tracking-wider">Adjusted</th>
                             <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Edit rate</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
                         <tr th:if="${#lists.isEmpty(policyRows)}">
-                            <td colspan="7" class="px-6 py-8 text-center text-sm text-gray-500">
+                            <td colspan="8" class="px-6 py-8 text-center text-sm text-gray-500">
                                 No batches in scope.
                             </td>
                         </tr>
@@ -416,6 +424,7 @@
                             <td class="px-3 py-3 whitespace-nowrap text-sm text-green-700 text-right font-medium" th:text="${r.spansAccepted}">0</td>
                             <td class="px-3 py-3 whitespace-nowrap text-sm text-red-700 text-right font-medium" th:text="${r.spansRejected}">0</td>
                             <td class="px-3 py-3 whitespace-nowrap text-sm text-amber-700 text-right font-medium" th:text="${r.spansManual}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-blue-700 text-right font-medium" th:text="${r.spansAdjusted}">0</td>
                             <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right"
                                 th:classappend="${r.editRate >= 0.20} ? 'text-red-700 font-semibold' : (${r.editRate >= 0.10} ? 'text-amber-700' : '')"
                                 th:text="${#numbers.formatDecimal(r.editRate * 100, 1, 1) + '%'}">0.0%</td>
@@ -498,6 +507,7 @@
                             <th class="px-3 py-3 text-right text-xs font-medium text-green-700 uppercase tracking-wider">Accepted</th>
                             <th class="px-3 py-3 text-right text-xs font-medium text-red-700 uppercase tracking-wider">Rejected</th>
                             <th class="px-3 py-3 text-right text-xs font-medium text-amber-700 uppercase tracking-wider">Manual</th>
+                            <th class="px-3 py-3 text-right text-xs font-medium text-blue-700 uppercase tracking-wider">Adjusted</th>
                             <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Edit rate</th>
                             <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Auto-approved</th>
                             <th class="px-3 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Avg risk</th>
@@ -505,7 +515,7 @@
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-100">
                         <tr th:if="${#lists.isEmpty(batchRows)}">
-                            <td colspan="9" class="px-6 py-8 text-center text-sm text-gray-500">
+                            <td colspan="10" class="px-6 py-8 text-center text-sm text-gray-500">
                                 No batches in scope.
                             </td>
                         </tr>
@@ -522,6 +532,7 @@
                             <td class="px-3 py-3 whitespace-nowrap text-sm text-green-700 text-right font-medium" th:text="${row.spansAccepted}">0</td>
                             <td class="px-3 py-3 whitespace-nowrap text-sm text-red-700 text-right font-medium" th:text="${row.spansRejected}">0</td>
                             <td class="px-3 py-3 whitespace-nowrap text-sm text-amber-700 text-right font-medium" th:text="${row.spansManual}">0</td>
+                            <td class="px-3 py-3 whitespace-nowrap text-sm text-blue-700 text-right font-medium" th:text="${row.spansAdjusted}">0</td>
                             <td class="px-3 py-3 whitespace-nowrap text-sm text-gray-900 text-right"
                                 th:classappend="${row.editRate >= 0.20} ? 'text-red-700 font-semibold' : (${row.editRate >= 0.10} ? 'text-amber-700' : '')"
                                 th:text="${#numbers.formatDecimal(row.editRate * 100, 1, 1) + '%'}">0.0%</td>

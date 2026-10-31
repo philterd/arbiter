@@ -73,4 +73,38 @@ class ReportingAutoApprovedTest {
         d.setRiskScore(0.03);
         return d;
     }
+
+    /** Adjusted detections (#20) are counted on their own, apart from hand-added spans. */
+    @Test
+    void adjustedSpansAreCountedSeparately() {
+        final Batch batch = new Batch();
+        batch.setId("b1");
+        batch.setName("b1");
+        batch.setPolicyName("court");
+        batch.setDomain("legal");
+        final BatchRepository batchRepository = mock(BatchRepository.class);
+        final DocumentRepository documentRepository = mock(DocumentRepository.class);
+        final AuditLogRepository auditLogRepository = mock(AuditLogRepository.class);
+        final SpanRepository spanRepository = mock(SpanRepository.class);
+        when(batchRepository.findAll(any(PageRequest.class))).thenReturn(new PageImpl<>(List.of(batch)));
+        when(documentRepository.findByBatchId("b1")).thenReturn(List.of(doc("d1", "REVIEW_REQUIRED")));
+        when(auditLogRepository.findByTimestampBetweenAndActionIn(any(), any(), any())).thenReturn(List.of());
+        when(spanRepository.countByDocumentIdInAndAdjustedAndManuallyCreated(List.of("d1"), true, false))
+                .thenReturn(3L);
+        when(spanRepository.countByDocumentIdInAndManuallyCreated(List.of("d1"), true)).thenReturn(2L);
+
+        final ReportingController controller = new ReportingController(batchRepository, documentRepository,
+                spanRepository, mock(UserGroupsService.class), auditLogRepository);
+        final ConcurrentModel model = new ConcurrentModel();
+        controller.view(null, null, null, new UsernamePasswordAuthenticationToken("admin@example.com", "n/a",
+                List.of(new SimpleGrantedAuthority("ROLE_ADMIN"))), model);
+
+        assertEquals(3L, model.getAttribute("spansAdjustedTotal"));
+        assertEquals(2L, model.getAttribute("spansManualTotal"));
+        for (String rows : List.of("batchRows", "policyRows", "domainRows")) {
+            @SuppressWarnings("unchecked")
+            final List<Map<String, Object>> r = (List<Map<String, Object>>) model.getAttribute(rows);
+            assertEquals(3L, r.get(0).get("spansAdjusted"), rows);
+        }
+    }
 }

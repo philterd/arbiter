@@ -1013,6 +1013,7 @@ public class ReviewViewController {
         entry.put("manuallyCreated", span.isManuallyCreated());
         entry.put("statusChangedBy", span.getStatusChangedBy());
         entry.put("adjudicatedBy", span.getAdjudicatedBy());
+        entry.put("adjusted", span.isAdjusted());
         return entry;
     }
 }

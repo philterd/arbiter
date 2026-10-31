@@ -83,6 +83,7 @@ and export them:
 | `DOCUMENT_COMMENT_ADD`              | Document    | A comment added to a document; its length, not its text |
 | `DOCUMENT_SEARCH`                   | Document    | A full-text search; the query is recorded as a hash, with its length and the result count |
 | `SPAN_CREATE` / `SPAN_DELETE` / `SPAN_RESET` | Span | A reviewer added, deleted, or reset a span      |
+| `SPAN_ADJUST`                       | Span        | A span's boundaries moved by a reviewer, or back to where it was detected by **Reset**: the start and end before and after, where it was detected, and its new length, never its text. Moving a span also accepts it, recorded as a `SPAN_UPDATE` (or `SPAN_ADJUDICATE`) |
 | `FINALIZATION_POLICY_CREATE` / `_UPDATE` / `_DELETE` | FinalizationPolicy | Batch finalization policy management |
 | `COMPLIANCE_PROFILE_CREATE` / `_EDIT` / `_ARCHIVE` / `_DELETE` | ComplianceProfile | Compliance profile management |
 | `WEIGHT_SET_CREATE` / `_UPDATE` / `_DELETE` | WeightSet | Weight set management                         |

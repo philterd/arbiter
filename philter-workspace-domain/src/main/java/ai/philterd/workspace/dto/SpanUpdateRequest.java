@@ -13,9 +13,11 @@ package ai.philterd.workspace.dto;
  * Patch payload for a span. {@code reason} is required only when the change overturns
  * a prior approval set by a different reviewer (status moving out of APPROVED); it is
  * recorded on the audit log entry for that change. {@code adjudicate} makes the change an approver's final
- * decision on the span (#5).
+ * decision on the span (#5). {@code start} and {@code end}, given together, move the span's boundaries in the
+ * document's text and accept it (#20).
  */
-public record SpanUpdateRequest(String status, String type, String reason, String exemptionCode, Boolean adjudicate) {
+public record SpanUpdateRequest(String status, String type, String reason, String exemptionCode, Boolean adjudicate,
+                                Integer start, Integer end) {
     public SpanUpdateRequest(final String status, final String type) {
         this(status, type, null, null, null);
     }
@@ -24,5 +26,9 @@ public record SpanUpdateRequest(String status, String type, String reason, Strin
     }
     public SpanUpdateRequest(final String status, final String type, final String reason, final String exemptionCode) {
         this(status, type, reason, exemptionCode, null);
+    }
+    public SpanUpdateRequest(final String status, final String type, final String reason, final String exemptionCode,
+                             final Boolean adjudicate) {
+        this(status, type, reason, exemptionCode, adjudicate, null, null);
     }
 }

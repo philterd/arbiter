@@ -754,12 +754,90 @@
         const acceptedById = new Map();
         originalRedactions.forEach(r => acceptedById.set(r.id, r.status !== 'REJECTED'));
 
+        // The span whose boundaries are being adjusted (#20), and where its start and end would move to.
+        let adjusting = null;
+
+        /** How far the span being adjusted can reach without touching another span. */
+        function adjustLimits(id) {
+            let min = 0;
+            let max = originalText.length;
+            const item = originalRedactions.find(r => r.id === id);
+            for (const r of originalRedactions) {
+                if (r.id === id) continue;
+                if (r.end <= item.start) min = Math.max(min, r.end);
+                if (r.start >= item.end) max = Math.min(max, r.start);
+            }
+            return { min, max };
+        }
+
+        function spanLockedReasonFor(item) {
+            if (documentLocked) return lockedReason;
+            if (item.adjudicatedBy && !isApprover) {
+                return 'An approver made the final decision on this span. Only an approver can change it.';
+            }
+            return null;
+        }
+
+        /**
+         * Moves a span to [start, end) of the original text and accepts it (#20), asking for an exemption code
+         * when the batch requires one.
+         */
+        async function adjustSpan(id, start, end) {
+            const item = originalRedactions.find(r => r.id === id);
+            if (!item) return false;
+            const locked = spanLockedReasonFor(item);
+            if (locked) { alert(locked); return false; }
+            if (!originalText.substring(start, end).trim()) { alert('The new boundaries cover no text.'); return false; }
+            let exemptionCode = null;
+            if (exemptionCodeRequired && exemptionCodes.length > 0) {
+                exemptionCode = await promptExemptionCode(item);
+                if (exemptionCode === null) return false;
+            }
+            const body = { start, end, status: 'APPROVED' };
+            if (exemptionCode) body.exemptionCode = exemptionCode;
+            try {
+                const response = await fetch(`/api/v1/spans/${encodeURIComponent(id)}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if (!response.ok) {
+                    throw new Error(response.status === 409
+                        ? 'the new boundaries overlap another span, or the span can no longer be changed'
+                        : `HTTP ${response.status}`);
+                }
+                applySpanUpdate(item, await response.json());
+                acceptedById.set(id, true);
+                adjusting = null;
+                rerender();
+                focusRedaction(id);
+                return true;
+            } catch (err) {
+                alert(`The span was not adjusted: ${err.message}`);
+                return false;
+            }
+        }
+
+        /** Copies a saved span's decision and boundaries onto its entry. */
+        function applySpanUpdate(item, updated) {
+            if (!item || !updated) return;
+            if (updated.statusChangedBy !== undefined) item.statusChangedBy = updated.statusChangedBy;
+            if (updated.status !== undefined) item.status = updated.status;
+            if (updated.adjudicatedBy !== undefined) item.adjudicatedBy = updated.adjudicatedBy;
+            if (updated.adjusted !== undefined) item.adjusted = updated.adjusted;
+            if (updated.location) {
+                item.start = updated.location.characterStart;
+                item.end = updated.location.characterEnd;
+                item.text = originalText.substring(item.start, item.end);
+            }
+        }
+
         // Snapshot of each span's status at page-load time — used by the Reset button.
         const originalStatusById = new Map();
         originalRedactions.forEach(r => originalStatusById.set(r.id, r.status ?? null));
 
-        function buildRedacted() {
-            const sorted = [...originalRedactions].sort((a, b) => a.start - b.start);
+        function buildRedacted(items = originalRedactions) {
+            const sorted = [...items].sort((a, b) => a.start - b.start);
             let out = '';
             const adjusted = [];
             let cursor = 0;
@@ -975,7 +1053,31 @@
                     : '';
                 const manualBadge = manual
                     ? `<span class="ml-1 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-blue-100 text-blue-800 uppercase tracking-wide">Manual</span>`
-                    : '';
+                    : (item.adjusted
+                        ? `<span class="ml-1 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-blue-100 text-blue-800 uppercase tracking-wide" title="A reviewer moved this span's boundaries">Adjusted</span>`
+                        : '');
+                // Moving the span's start or end (#20): one character at a time, previewed in the panes.
+                const moveButton = (edge, step, label, title) => `<button type="button" data-adjust-move="${edge}" data-step="${step}"
+                            class="px-1.5 py-0.5 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50" title="${title}">${label}</button>`;
+                const adjustControls = adjusting && adjusting.id === item.id
+                    ? `<div class="mt-1.5 p-2 rounded border border-blue-200 bg-blue-50 text-[11px] text-gray-700 space-y-1.5" data-adjust-panel>
+                            <div class="flex items-center gap-1"><span class="w-9 font-medium">Start</span>
+                                ${moveButton('start', -1, '&larr;', 'Start one character earlier')}${moveButton('start', 1, '&rarr;', 'Start one character later')}</div>
+                            <div class="flex items-center gap-1"><span class="w-9 font-medium">End</span>
+                                ${moveButton('end', -1, '&larr;', 'End one character earlier')}${moveButton('end', 1, '&rarr;', 'End one character later')}</div>
+                            <div class="font-mono text-gray-900 break-all" data-adjust-preview>${escapeHtml(originalText.substring(adjusting.start, adjusting.end))}</div>
+                            <div class="flex gap-1.5">
+                                <button type="button" data-adjust-save="${escapeHtml(item.id)}"
+                                        class="px-2 py-0.5 rounded bg-green-600 text-white font-semibold hover:bg-green-700">Save and accept</button>
+                                <button type="button" data-adjust-cancel
+                                        class="px-2 py-0.5 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-50">Cancel</button>
+                            </div>
+                        </div>`
+                    : `<button type="button" data-adjust-open="${escapeHtml(item.id)}"${lockedAttr}
+                                class="mt-1.5 w-full text-xs font-medium text-gray-700 hover:bg-gray-50 border border-gray-200 rounded px-2 py-1 transition-colors disabled:text-gray-400 disabled:cursor-not-allowed"
+                                title="${spanLocked ? spanLockedReason : 'Move where this span starts or ends, then accept it. You can also select the new extent in the Original pane.'}">
+                            Adjust boundaries
+                        </button>`;
                 const adjudicatedBanner = adjudicatedBy
                     ? `<div class="text-[11px] mb-2 px-2 py-1 rounded bg-brand-50 border border-brand-200 text-brand-800">
                             Adjudicated by ${escapeHtml(adjudicatedBy)}: the final decision.
@@ -1038,6 +1140,7 @@
                             History
                         </button>
                     </div>
+                    ${adjustControls}
                     ${ruleButton}
                 </div>`;
             }).join('');
@@ -1070,8 +1173,12 @@
             // Original pane shows every span — including REJECTED — so the reviewer can
             // see refused redactions in red. Redacted pane keeps REJECTED filtered out
             // (via buildRedacted's acceptedById check) since refused spans aren't redacted.
-            const { text: redacted, items: adjusted } = buildRedacted();
-            renderHighlighted(document.getElementById('originalPane'), originalText, originalRedactions);
+            // While a span's boundaries are being adjusted (#20), the panes show where it would go.
+            const items = adjusting
+                ? originalRedactions.map(r => r.id === adjusting.id ? { ...r, start: adjusting.start, end: adjusting.end } : r)
+                : originalRedactions;
+            const { text: redacted, items: adjusted } = buildRedacted(items);
+            renderHighlighted(document.getElementById('originalPane'), originalText, items);
             renderHighlighted(document.getElementById('redactedPane'), redacted, adjusted);
             renderNavigator();
         }
@@ -1276,6 +1383,54 @@
                     await applySpanStatus(id, newStatus, previousStatus, reason, exemptionCode);
                     return;
                 }
+                const adjustOpen = e.target.closest('[data-adjust-open]');
+                if (adjustOpen) {
+                    e.stopPropagation();
+                    if (adjustOpen.disabled) return;
+                    const target = originalRedactions.find(r => r.id === adjustOpen.getAttribute('data-adjust-open'));
+                    if (!target) return;
+                    adjusting = { id: target.id, start: target.start, end: target.end };
+                    rerender();
+                    focusRedaction(target.id);
+                    return;
+                }
+                const adjustMove = e.target.closest('[data-adjust-move]');
+                if (adjustMove && adjusting) {
+                    e.stopPropagation();
+                    const step = Number(adjustMove.getAttribute('data-step'));
+                    const { min, max } = adjustLimits(adjusting.id);
+                    if (adjustMove.getAttribute('data-adjust-move') === 'start') {
+                        adjusting.start = Math.min(Math.max(min, adjusting.start + step), adjusting.end - 1);
+                    } else {
+                        adjusting.end = Math.max(Math.min(max, adjusting.end + step), adjusting.start + 1);
+                    }
+                    rerender();
+                    focusRedaction(adjusting.id);
+                    return;
+                }
+                const adjustSave = e.target.closest('[data-adjust-save]');
+                if (adjustSave && adjusting) {
+                    e.stopPropagation();
+                    const target = originalRedactions.find(r => r.id === adjusting.id);
+                    if (target && adjusting.start === target.start && adjusting.end === target.end) {
+                        adjusting = null;
+                        rerender();
+                        return;
+                    }
+                    adjustSave.disabled = true;
+                    if (!(await adjustSpan(adjusting.id, adjusting.start, adjusting.end))) adjustSave.disabled = false;
+                    return;
+                }
+                if (e.target.closest('[data-adjust-cancel]')) {
+                    e.stopPropagation();
+                    adjusting = null;
+                    rerender();
+                    return;
+                }
+                if (e.target.closest('[data-adjust-panel]')) {
+                    e.stopPropagation();
+                    return;
+                }
                 const history = e.target.closest('[data-history]');
                 if (history) {
                     e.stopPropagation();
@@ -1359,6 +1514,7 @@
         }
 
         async function applySpanStatus(id, newStatus, previousStatus, reason, exemptionCode, adjudicate) {
+            if (adjusting && adjusting.id === id) adjusting = null;
             const item = originalRedactions.find(r => r.id === id);
             if (item) item.status = newStatus;
             // Redacted preview keeps NEEDS_SECOND_OPINION visible (treated as accepted).
@@ -1412,6 +1568,7 @@
         }
 
         async function doResetSpan(id) {
+            if (adjusting && adjusting.id === id) adjusting = null;
             const item = originalRedactions.find(r => r.id === id);
             const previousStatus = item ? item.status : null;
             if (previousStatus == null || previousStatus === 'PENDING') return;
@@ -1429,11 +1586,8 @@
                 });
                 if (!response.ok) throw new Error(`HTTP ${response.status}`);
                 const updated = await response.json();
-                if (item && updated) {
-                    if (updated.statusChangedBy !== undefined) item.statusChangedBy = updated.statusChangedBy;
-                    if (updated.status !== undefined) item.status = updated.status;
-                    if (updated.adjudicatedBy !== undefined) item.adjudicatedBy = updated.adjudicatedBy;
-                }
+                // Reset also puts an adjusted span back where it was detected (#20).
+                applySpanUpdate(item, updated);
                 rerender();
                 focusRedaction(id);
             } catch (err) {
@@ -1975,9 +2129,21 @@
                 // Reject overlapping an existing accepted span (the marker case
                 // is already filtered above; this catches refused spans, which
                 // render in-line in the redacted pane).
-                const overlap = originalRedactions.some(r =>
+                const overlapping = originalRedactions.filter(r =>
                     !(origEnd <= r.start || origStart >= r.end));
-                if (overlap) return;
+                // A selection over exactly one span in the Original pane offers to move that span to it (#20).
+                if (overlapping.length === 1 && !mapsThroughRedacted) {
+                    const target = overlapping[0];
+                    if (target.start === origStart && target.end === origEnd) return;
+                    sel.removeAllRanges();
+                    const locked = spanLockedReasonFor(target);
+                    if (locked) { alert(locked); return; }
+                    if (confirm(`Adjust this ${target.type} span to "${selectedText}" and accept it?`)) {
+                        adjustSpan(target.id, origStart, origEnd);
+                    }
+                    return;
+                }
+                if (overlapping.length > 0) return;
 
                 sel.removeAllRanges();
                 open(selectedText, origStart, origEnd);

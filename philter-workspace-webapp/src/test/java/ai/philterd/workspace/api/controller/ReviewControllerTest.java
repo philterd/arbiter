@@ -1014,6 +1014,148 @@ class ReviewControllerTest {
         assertTrue(second.decidedByPerson());
     }
 
+    // ---- boundaries (#20) ----
+
+    /** "the original text": s1 is "the" (0-3), s2 is "text" (13-17). */
+    private Span seedBoundaries(final String status) {
+        final Span s1 = span("s1", "d1", "person", status, 0, 3, "the");
+        final Span s2 = span("s2", "d1", "person", "PENDING", 13, 17, "text");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(s1));
+        when(spanRepository.findByDocumentId("d1")).thenReturn(List.of(s1, s2));
+        when(spanRepository.save(any(Span.class))).thenAnswer(i -> i.getArgument(0));
+        return s1;
+    }
+
+    private static SpanUpdateRequest move(final int start, final int end) {
+        return new SpanUpdateRequest(null, null, null, null, null, start, end);
+    }
+
+    @Test
+    void movingASpanAcceptsItKeepsItsDetectionAndAuditsBothPositions() {
+        final Span s = seedBoundaries("REJECTED");
+
+        final Span saved = controller.updateSpan("s1", move(0, 12), ADMIN);
+
+        assertEquals("the original", saved.getText());
+        assertEquals(0, saved.getLocation().characterStart());
+        assertEquals(12, saved.getLocation().characterEnd());
+        assertEquals("APPROVED", saved.getStatus(), "moving a span accepts it");
+        assertEquals("s1", saved.getId(), "the same span, so the link to the detection is kept");
+        assertEquals(0, saved.getOriginalCharacterStart());
+        assertEquals(3, saved.getOriginalCharacterEnd());
+        assertTrue(saved.isAdjusted());
+        assertEquals("admin@example.com", saved.getAdjustedBy());
+        final TestDoubles.RecordingAuditLog.Entry adjust = auditLogService.entries.stream()
+                .filter(e -> "SPAN_ADJUST".equals(e.action())).findFirst().orElseThrow();
+        assertEquals(Map.of("spanId", "s1", "documentId", "d1", "previousStart", 0, "previousEnd", 3, "start", 0,
+                "end", 12, "originalStart", 0, "originalEnd", 3, "length", 12), adjust.details());
+        assertTrue(auditLogService.entries.stream().anyMatch(e -> "SPAN_UPDATE".equals(e.action())
+                && "APPROVED".equals(e.details().get("status")) && "REJECTED".equals(e.details().get("previousStatus"))));
+        assertFalse(adjust.details().values().stream().anyMatch(v -> String.valueOf(v).contains("original")),
+                "positions only, never the text");
+        assertEquals(s, saved);
+    }
+
+    @Test
+    void theDetectionIsRecordedOnceAndMovingBackClearsAdjusted() {
+        seedBoundaries("PENDING");
+        controller.updateSpan("s1", move(4, 12), ADMIN);
+        final Span again = controller.updateSpan("s1", move(4, 8), ADMIN);
+        assertEquals(0, again.getOriginalCharacterStart(), "still where it was detected");
+        assertEquals(3, again.getOriginalCharacterEnd());
+        assertEquals("orig", again.getText());
+
+        final Span back = controller.updateSpan("s1", move(0, 3), ADMIN);
+        assertFalse(back.isAdjusted());
+        assertEquals("the", back.getText());
+    }
+
+    @Test
+    void aMoveCarriesTheExemptionCodeLikeAnyAcceptance() {
+        seedBoundaries("PENDING");
+        final Span saved = controller.updateSpan("s1",
+                new SpanUpdateRequest("APPROVED", null, null, "b6", null, 0, 12), ADMIN);
+        assertEquals("b6", saved.getExemptionCode());
+    }
+
+    @Test
+    void aMoveIsRefusedOntoAnotherSpanOutOfRangeOrWithoutBothEnds() {
+        seedBoundaries("PENDING");
+        final java.util.function.Function<SpanUpdateRequest, Integer> status = request -> assertThrows(
+                ResponseStatusException.class, () -> controller.updateSpan("s1", request, ADMIN))
+                .getStatusCode().value();
+        assertEquals(409, status.apply(move(0, 14)), "onto s2");
+        assertEquals(400, status.apply(move(10, 99)), "past the end");
+        assertEquals(400, status.apply(move(5, 5)), "empty");
+        assertEquals(400, status.apply(move(3, 4)), "only a space");
+        assertEquals(400, status.apply(new SpanUpdateRequest(null, null, null, null, null, 0, null)));
+        assertEquals(400, status.apply(new SpanUpdateRequest("REJECTED", null, null, null, null, 0, 12)),
+                "moving a span accepts it");
+        assertTrue(auditLogService.entries.isEmpty());
+        verify(spanRepository, never()).save(any());
+    }
+
+    @Test
+    void aSpanInAPdfCannotBeMovedYet() {
+        final Span s = seedBoundaries("PENDING");
+        s.setLocation(new Location(0, 3, 2, new Coordinates(72, 600, 40, 12)));
+        final ResponseStatusException e = assertThrows(ResponseStatusException.class,
+                () -> controller.updateSpan("s1", move(0, 12), ADMIN));
+        assertEquals(409, e.getStatusCode().value());
+        verify(spanRepository, never()).save(any());
+    }
+
+    @Test
+    void aMoveFollowsTheDocumentAndAdjudicationRules() {
+        final Span s = seedAdjudication("APPROVED");
+        s.setAdjudicatedBy("ann@example.com");
+        when(spanRepository.findByDocumentId("d1")).thenReturn(List.of(s));
+        assertEquals(403, assertThrows(ResponseStatusException.class,
+                () -> controller.updateSpan("s1", move(0, 12), REVIEWER)).getStatusCode().value());
+        final Span byApprover = controller.updateSpan("s1", move(0, 12), APPROVER);
+        assertEquals("ann@example.com", byApprover.getAdjudicatedBy(), "an approver's change is a new adjudication");
+
+        documentRepository.findById("d1").orElseThrow().setStatus("APPROVED");
+        assertEquals(409, assertThrows(ResponseStatusException.class,
+                () -> controller.updateSpan("s1", move(0, 3), APPROVER)).getStatusCode().value());
+    }
+
+    @Test
+    void resetPutsAnAdjustedSpanBackWhereItWasDetected() {
+        seedBoundaries("PENDING");
+        controller.updateSpan("s1", move(0, 12), ADMIN);
+        auditLogService.entries.clear();
+
+        final Span reset = controller.resetSpan("s1", new ReviewController.ResetSpanRequest("PENDING"), ADMIN);
+
+        assertEquals("PENDING", reset.getStatus());
+        assertEquals("the", reset.getText());
+        assertEquals(0, reset.getLocation().characterStart());
+        assertEquals(3, reset.getLocation().characterEnd());
+        assertFalse(reset.isAdjusted());
+        assertEquals(List.of("SPAN_RESET", "SPAN_ADJUST"),
+                auditLogService.entries.stream().map(TestDoubles.RecordingAuditLog.Entry::action).toList());
+        assertEquals(12, auditLogService.entries.get(1).details().get("previousEnd"));
+        assertEquals(3, auditLogService.entries.get(1).details().get("end"));
+    }
+
+    @Test
+    void resetLeavesTheBoundariesAloneWhenASpanAddedSinceCoversThem() {
+        final Span s = seedBoundaries("PENDING");
+        controller.updateSpan("s1", move(1, 3), ADMIN);
+        // A span added by hand over the "t" the move freed.
+        final Span added = span("s3", "d1", "person", "APPROVED", 0, 1, "t");
+        when(spanRepository.findByDocumentId("d1")).thenReturn(List.of(s, added));
+        auditLogService.entries.clear();
+
+        final ResponseStatusException e = assertThrows(ResponseStatusException.class,
+                () -> controller.resetSpan("s1", new ReviewController.ResetSpanRequest("PENDING"), ADMIN));
+        assertEquals(409, e.getStatusCode().value());
+        assertEquals("APPROVED", s.getStatus(), "nothing changed");
+        assertEquals(1, s.getLocation().characterStart());
+        assertTrue(auditLogService.entries.isEmpty());
+    }
+
     // ---- adjudication (#5) ----
 
     private static final org.springframework.security.core.Authentication APPROVER = TestAuth.user("ann@example.com");

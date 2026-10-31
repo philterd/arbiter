@@ -51,6 +51,16 @@ public class Span {
      */
     private String adjudicatedBy;
     private LocalDateTime adjudicatedAt;
+    /**
+     * Where the span was when it was detected or added (#20), recorded the first time a reviewer moves its
+     * boundaries, so the span keeps its link to the detection and Reset can restore it. Null until then.
+     */
+    private Integer originalCharacterStart;
+    private Integer originalCharacterEnd;
+    /** Whether the span's boundaries differ from where it was detected or added (#20). */
+    private boolean adjusted;
+    private String adjustedBy;
+    private LocalDateTime adjustedAt;
 
     public Span() {
     }
@@ -176,4 +186,19 @@ public class Span {
 
     public LocalDateTime getAdjudicatedAt() { return adjudicatedAt; }
     public void setAdjudicatedAt(final LocalDateTime adjudicatedAt) { this.adjudicatedAt = adjudicatedAt; }
+
+    public Integer getOriginalCharacterStart() { return originalCharacterStart; }
+    public void setOriginalCharacterStart(final Integer originalCharacterStart) { this.originalCharacterStart = originalCharacterStart; }
+
+    public Integer getOriginalCharacterEnd() { return originalCharacterEnd; }
+    public void setOriginalCharacterEnd(final Integer originalCharacterEnd) { this.originalCharacterEnd = originalCharacterEnd; }
+
+    public boolean isAdjusted() { return adjusted; }
+    public void setAdjusted(final boolean adjusted) { this.adjusted = adjusted; }
+
+    public String getAdjustedBy() { return adjustedBy; }
+    public void setAdjustedBy(final String adjustedBy) { this.adjustedBy = adjustedBy; }
+
+    public LocalDateTime getAdjustedAt() { return adjustedAt; }
+    public void setAdjustedAt(final LocalDateTime adjustedAt) { this.adjustedAt = adjustedAt; }
 }

@@ -46,7 +46,8 @@ Each navigator entry shows:
 - The redactor's **confidence** as a percentage.
 - **Accept**, **Refuse**, **2nd Opinion**, and **Reset** buttons. Refusing a
   span strikes it through in the navigator and removes its redaction marker
-  from the Redacted pane. **Reset** returns the entry to unreviewed.
+  from the Redacted pane. **Reset** returns the entry to unreviewed, and puts
+  an adjusted span back where it was detected.
 - A full-width **Redact All Like This** button. Clicking it scans the
   document for every other occurrence of the exact text and creates or
   updates spans so that all of them are accepted with the same PII type.
@@ -56,6 +57,30 @@ Each navigator entry shows:
 - **Don't flag this again** on a refused span, and **Always flag this** on a
   span added by hand, make a [detection rule](detection-rules.md) that changes
   what Philter flags in documents redacted from then on, in every batch.
+
+## Adjusting a span's boundaries
+
+When a detection covers too little (for example, the last digits of an account
+number) or too much, move its start or end instead of refusing it and adding a
+new span. Either way:
+
+- **Adjust boundaries** on the span's entry shows **Start** and **End** arrows
+  that move each end one character at a time, previewed in both panes.
+  **Save and accept** saves it; **Cancel** leaves the span as it was.
+- **Select the new extent in the Original pane** over the span. Philter
+  Workspace asks whether to adjust that span to the selection.
+
+Saving new boundaries also accepts the span, with an exemption code when the
+batch requires one. The span keeps its identity and its link to the detection:
+it records where it was detected, is marked **Adjusted** in the navigator, and
+**Reset** returns it to those boundaries, unless a span added since covers part
+of them; then Reset is refused until that span is removed. A span cannot be moved onto another
+span or onto only whitespace, and a span an approver adjudicated can be moved
+only by an approver. Each move is audited as `SPAN_ADJUST` with the start and
+end before and after, never the text.
+
+Boundaries can be adjusted in text documents. Spans in PDFs cannot be adjusted
+yet, since a moved span also needs a new position on the page.
 
 ## Read-only access for auditors
 
