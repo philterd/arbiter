@@ -344,13 +344,26 @@ public class EmbeddedSearchService implements DocumentSearchService, AutoCloseab
         }
     }
 
+    /**
+     * Starts the index afresh: closes it, deletes its files, and creates an empty one. Unlike deleting its documents,
+     * this also recovers an index that cannot be opened, such as one written under an earlier crypto secret or a
+     * damaged one, which is why a rebuild starts here.
+     */
     @Override
-    public boolean clear() {
+    public synchronized boolean clear() {
         if (!enabled()) return true;
         try {
-            final Index i = open();
-            i.writer().deleteAll();
-            commit(i);
+            close();
+            if (Files.isDirectory(indexDirectory)) {
+                try (java.util.stream.Stream<Path> files = Files.list(indexDirectory)) {
+                    for (Path f : files.toList()) {
+                        if (Files.isRegularFile(f)) {
+                            Files.delete(f);
+                        }
+                    }
+                }
+            }
+            open();
             return true;
         } catch (IOException | RuntimeException e) {
             log.warn("Embedded search could not empty the index: {}", e.getClass().getSimpleName());

@@ -37,7 +37,7 @@ COPY --from=build /build/philter-workspace-webapp/target/philter-workspace-webap
 
 EXPOSE 8080
 # Ready once GET /api/health answers 200: Actuator's aggregate, so a dependency it watches (the
-# database, Valkey, and OpenSearch when full text search is on) being down makes the container
+# database, Valkey, and the full-text search backend when search is on) being down makes the container
 # unhealthy. The start period covers a cold start. A compose healthcheck overrides this one.
 HEALTHCHECK --interval=15s --timeout=5s --start-period=120s --retries=3 \
     CMD curl -fsS -o /dev/null "http://localhost:${SERVER_PORT:-8080}/api/health" || exit 1

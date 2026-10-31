@@ -148,6 +148,7 @@ class PhilterSignInIT {
     @Autowired private ai.philterd.workspace.service.DetectionRuleService detectionRuleService;
     @Autowired private ai.philterd.workspace.service.GeneralSettingsService generalSettingsService;
     @Autowired private ai.philterd.workspace.service.DocumentSearchService documentSearchService;
+    @Autowired private ai.philterd.workspace.service.SearchIndexRebuildService searchIndexRebuildService;
 
     @DynamicPropertySource
     static void properties(final DynamicPropertyRegistry registry) throws Exception {
@@ -1069,6 +1070,18 @@ class PhilterSignInIT {
                     .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
             assertTrue(similar.indexOf(copy.getId()) >= 0, similar);
             assertFalse(similar.contains(lease.getId()), "not the document itself");
+
+            // A rebuild from the store: emptied, then refilled from every document with text.
+            assertTrue(documentSearchService.clear());
+            assertEquals(0, documentSearchService.search(word, 0, 10).total());
+            assertEquals(null, searchIndexRebuildService.start("admin"));
+            final long rebuilt = System.currentTimeMillis() + 60_000;
+            while (searchIndexRebuildService.status().running() && System.currentTimeMillis() < rebuilt) {
+                Thread.sleep(100);
+            }
+            assertEquals(null, searchIndexRebuildService.status().error());
+            assertTrue(searchIndexRebuildService.status().indexed() >= 3);
+            assertEquals(2, documentSearchService.search(word, 0, 10).total(), "refilled from the database");
         } finally {
             documentSearchService.clear();
             final ai.philterd.workspace.model.GeneralSettings after = generalSettingsService.load();

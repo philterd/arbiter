@@ -53,10 +53,10 @@ public class SearchController {
                                       @RequestParam(name = "offset", defaultValue = "0") final int offset,
                                       @RequestParam(name = "size", defaultValue = "10") final int size,
                                       final Authentication authentication) {
-        // Restrict at the OpenSearch query layer for non-admins so the reported `total` and
+        // Restrict at the search backend for non-admins so the reported `total` and
         // the hit list both exclude foreign documents — an attacker can no longer probe
         // queries to detect the existence of content in batches they can't see.
-        // Auditors see cross-group results too — this controls the OpenSearch
+        // Auditors see cross-group results too: this controls the search backend's
         // batch-id filter, a read-only decision.
         final boolean admin = AuthUtils.isAdminOrAuditor(authentication);
         final Set<String> allowedBatchIds = admin ? null : batchAccessService.allowedBatchIds(authentication);
@@ -86,7 +86,7 @@ public class SearchController {
         final List<Map<String, Object>> hits = new ArrayList<>();
         for (SearchHit h : results.hits()) {
             // Defense in depth: verify the hit's batchId is in the allowed set even though
-            // the OpenSearch terms filter should already guarantee it. Skip silently on a
+            // the search backend's batch filter should already guarantee it. Skip silently on a
             // mismatch (could only happen via an indexing bug or schema drift).
             if (!admin && (h.batchId() == null || !allowedBatchIds.contains(h.batchId()))) {
                 continue;

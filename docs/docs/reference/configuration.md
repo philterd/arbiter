@@ -268,8 +268,8 @@ failures in a row. Failures during the first 120 seconds, while Philter
 Workspace starts, are not counted.
 
 Because `/api/health` answers `503` while a dependency is down, the container
-turns `unhealthy` while MongoDB, Valkey, or (with full text search on)
-OpenSearch is unreachable, and `healthy` again once it is back. With MongoDB
+turns `unhealthy` while MongoDB, Valkey, or (with full text search on) its
+search backend is unreachable, and `healthy` again once it is back. With MongoDB
 down, the request outlasts the 5-second probe, which also counts as a failure.
 
 `docker-compose.yaml` and `docker-compose.prod.yaml` set the same healthcheck

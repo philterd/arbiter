@@ -79,7 +79,7 @@ These contribute to the aggregate:
 | Component | Reports `DOWN` when |
 |---|---|
 | MongoDB | the database does not answer a ping |
-| OpenSearch | full text search is enabled and the cluster does not answer |
+| Full text search (`fullTextSearch`) | full text search is enabled and its backend cannot be used: the embedded index cannot be opened, or the OpenSearch cluster does not answer |
 | Disk space | free space on the data partition is nearly exhausted |
 | Valkey | the session store does not answer |
 
@@ -93,9 +93,9 @@ faster answer, keeping in mind it applies to every Philter Workspace query, not 
 health.
 
 A deployment that runs with full text search turned off is not marked down for
-having no OpenSearch cluster. One that leaves it on without a reachable cluster
-is: search and indexing are degraded, so turn the feature off under **Admin →
-Settings** if you do not run a cluster. See
+its search backend. One that leaves it on with a backend it cannot use is:
+search and indexing are degraded, so fix the backend, or turn the feature off
+under **Admin → General**. See
 [Full text search](../admin/full-text-search.md).
 
 `applicationVersion` is the build version recorded in the jar at package time.
@@ -568,7 +568,7 @@ receive email addresses instead — this parameter requires `ROLE_ADMIN` or
 
 ### `GET /api/v1/search`
 
-Bearer-only. Full-text search across the OpenSearch index of ingested documents. Each
+Bearer-only. Full-text search across the [full-text index](../admin/full-text-search.md) of ingested documents. Each
 document is indexed at ingest time with its filename, batch, status, and full
 original text.
 
@@ -603,7 +603,7 @@ only see hits from their own group's batches; `total` reflects that filtered
 count, not the full index size. Inaccessible hits are silently excluded — they
 are never returned as placeholder rows.
 
-If OpenSearch is unreachable, a query returns an empty result set rather than
+If the search backend cannot be used, a query returns an empty result set rather than
 failing the request — search is best-effort.
 
 ## LLM-as-a-Judge

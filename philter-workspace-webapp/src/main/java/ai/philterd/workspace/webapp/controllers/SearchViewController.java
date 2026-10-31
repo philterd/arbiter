@@ -71,10 +71,10 @@ public class SearchViewController {
         final List<Map<String, Object>> rows = new ArrayList<>();
         long total = 0;
         if (!query.isEmpty()) {
-            // Restrict at the OpenSearch layer for non-admins so the reported total and the
+            // Restrict at the search backend for non-admins so the reported total and the
             // hit list both exclude documents the caller can't see — see SearchController for
             // the matching API change.
-            // Auditors see cross-group results too — this controls the OpenSearch
+            // Auditors see cross-group results too: this controls the search backend's
             // batch-id filter, a read-only decision.
             final boolean admin = AuthUtils.isAdminOrAuditor(authentication);
             final Set<String> allowedBatchIds = admin ? null : allowedBatchIds(authentication);
@@ -101,7 +101,7 @@ public class SearchViewController {
                 if (h.batchId() != null && !h.batchId().isBlank()) batchIds.add(h.batchId());
             }
 
-            // Live document data from MongoDB — the OpenSearch index can be stale after status changes.
+            // Live document data from the database, since the search index can be stale after status changes.
             final Map<String, Map<String, Object>> liveDocs = new LinkedHashMap<>();
             for (Document d : documentRepository.findAllById(docIds)) {
                 final Map<String, Object> data = new LinkedHashMap<>();
@@ -121,7 +121,7 @@ public class SearchViewController {
 
             for (SearchHit h : results.hits()) {
                 // Defense in depth: silently skip any hit whose batchId is outside the allow-list.
-                // The OpenSearch terms filter should already guarantee this, so reaching this
+                // The search backend's batch filter should already guarantee this, so reaching this
                 // branch means an indexing bug or schema drift.
                 if (!admin && (h.batchId() == null || !allowedBatchIds.contains(h.batchId()))) {
                     continue;
