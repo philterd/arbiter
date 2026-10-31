@@ -30,6 +30,9 @@ import static org.mockito.Mockito.when;
 
 class AdminGeneralControllerTest {
 
+    private ai.philterd.workspace.service.DocumentSearchService searchService;
+    private ai.philterd.workspace.service.SearchIndexRebuildService rebuildService;
+
     private GeneralSettingsService settingsService;
     private AuditLogService auditLogService;
     private ai.philterd.workspace.service.FullTextSearchIndexManager indexManager;
@@ -41,7 +44,12 @@ class AdminGeneralControllerTest {
         when(settingsService.load()).thenReturn(new GeneralSettings());
         auditLogService = mock(AuditLogService.class);
         indexManager = mock(ai.philterd.workspace.service.FullTextSearchIndexManager.class);
-        controller = new AdminGeneralController(settingsService, auditLogService, indexManager);
+        searchService = mock(ai.philterd.workspace.service.DocumentSearchService.class);
+        // These tests cover the OpenSearch form; the embedded backend's are below.
+        when(searchService.backend()).thenReturn("opensearch");
+        rebuildService = mock(ai.philterd.workspace.service.SearchIndexRebuildService.class);
+        controller = new AdminGeneralController(settingsService, auditLogService, indexManager, searchService,
+                rebuildService);
     }
 
     private RedirectAttributes flash() { return new RedirectAttributesModelMap(); }
@@ -67,6 +75,47 @@ class AdminGeneralControllerTest {
     }
     private static String success(final RedirectAttributes ra) {
         final Object s = ra.getFlashAttributes().get("success"); return s == null ? null : s.toString();
+    }
+
+    // ---------- the embedded search backend (#7) ----------
+
+    @Test
+    void withTheEmbeddedBackendOnlyTheSwitchIsSavedAndTheIndexIsOpened() {
+        when(searchService.backend()).thenReturn("embedded");
+        when(searchService.probe()).thenReturn(ai.philterd.workspace.service.DocumentSearchService.State.REACHABLE);
+        final GeneralSettings settings = new GeneralSettings();
+        settings.setOpensearchEndpoint("http://kept:9200");
+        givenSettings(settings);
+
+        final RedirectAttributes on = flash();
+        controller.saveFullTextSearch(true, null, null, null, null, null, on);
+
+        assertTrue(settings.isFullTextSearchEnabled());
+        assertEquals("http://kept:9200", settings.getOpensearchEndpoint(), "OpenSearch settings are left alone");
+        assertTrue(success(on).startsWith("Full text search enabled."), success(on));
+        verify(indexManager, never()).ensureIndex(any(), any(), any(), any());
+        verify(auditLogService).log(org.mockito.ArgumentMatchers.eq("GENERAL_SETTINGS_CHANGE"), any(), any(),
+                org.mockito.ArgumentMatchers.eq(java.util.Map.of("previousFullTextSearchEnabled", false,
+                        "fullTextSearchEnabled", true, "searchBackend", "embedded")));
+
+        when(searchService.probe()).thenReturn(ai.philterd.workspace.service.DocumentSearchService.State.UNREACHABLE);
+        final RedirectAttributes broken = flash();
+        controller.saveFullTextSearch(true, null, null, null, null, null, broken);
+        assertTrue(error(broken).contains("could not be opened"), error(broken));
+    }
+
+    @Test
+    void aRebuildIsStartedOrItsRefusalShown() {
+        when(rebuildService.start("admin@example.com")).thenReturn(null).thenReturn("A rebuild is already running.");
+        final org.springframework.security.core.Authentication admin =
+                new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                        "admin@example.com", null, java.util.List.of());
+        final RedirectAttributes started = flash();
+        controller.rebuildSearchIndex(admin, started);
+        assertTrue(success(started).startsWith("Rebuilding the full-text index."));
+        final RedirectAttributes again = flash();
+        controller.rebuildSearchIndex(admin, again);
+        assertEquals("A rebuild is already running.", error(again));
     }
 
     // ---------- case types (#16) ----------

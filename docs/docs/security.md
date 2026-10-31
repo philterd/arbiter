@@ -345,9 +345,11 @@ The following fields are **not** part of the at-rest encryption boundary:
 - **Reviewer attribution** (`statusChangedBy`, `userEmail`, `approvedBy`,
   audit-log actors). An admin investigation needs these in plaintext to
   attribute decisions; they are not PII for our purposes.
-- **OpenSearch search index**. When OpenSearch indexing is configured the
-  document content is also written to OpenSearch — that store is **outside**
-  the at-rest encryption boundary documented here. If your deployment
+- **Search index**. With full text search on and the default embedded
+  backend, document text is indexed in a directory whose files are encrypted
+  with AES-256 under a key derived from `philter-workspace.crypto.secret`. With
+  the OpenSearch backend, the document content is written to OpenSearch, a store
+  **outside** the at-rest encryption boundary documented here. If your deployment
   indexes documents into OpenSearch, configure encryption-at-rest on the
   OpenSearch cluster as well; the application does not double-encrypt
   payloads sent over the indexing path. Full text search is off by default

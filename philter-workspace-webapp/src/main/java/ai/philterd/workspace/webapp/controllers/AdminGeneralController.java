@@ -40,18 +40,33 @@ public class AdminGeneralController {
     private final GeneralSettingsService generalSettingsService;
     private final AuditLogService auditLogService;
     private final FullTextSearchIndexManager indexManager;
+    private final ai.philterd.workspace.service.DocumentSearchService searchService;
+    private final ai.philterd.workspace.service.SearchIndexRebuildService rebuildService;
 
     public AdminGeneralController(final GeneralSettingsService generalSettingsService,
                                   final AuditLogService auditLogService,
-                                  final FullTextSearchIndexManager indexManager) {
+                                  final FullTextSearchIndexManager indexManager,
+                                  final ai.philterd.workspace.service.DocumentSearchService searchService,
+                                  final ai.philterd.workspace.service.SearchIndexRebuildService rebuildService) {
         this.generalSettingsService = generalSettingsService;
         this.auditLogService = auditLogService;
         this.indexManager = indexManager;
+        this.searchService = searchService;
+        this.rebuildService = rebuildService;
+    }
+
+    private boolean embeddedSearch() {
+        return ai.philterd.workspace.service.SearchBackendConfiguration.EMBEDDED.equals(searchService.backend());
     }
 
     @GetMapping
     public String form(final Model model) {
         model.addAttribute("settings", generalSettingsService.load());
+        model.addAttribute("searchBackend", searchService.backend());
+        model.addAttribute("searchIndexDirectory",
+                searchService instanceof ai.philterd.workspace.service.EmbeddedSearchService embedded
+                        ? embedded.indexDirectory().toString() : null);
+        model.addAttribute("searchRebuild", rebuildService.status());
         model.addAttribute("timezones", availableTimezones());
         return "admin-general";
     }
@@ -115,14 +130,17 @@ public class AdminGeneralController {
     @PostMapping("/full-text-search")
     public String saveFullTextSearch(
             @RequestParam(value = "fullTextSearchEnabled", required = false) final Boolean fullTextSearchEnabled,
-            @RequestParam("opensearchEndpoint") final String opensearchEndpoint,
-            @RequestParam("opensearchIndexName") final String opensearchIndexName,
+            @RequestParam(value = "opensearchEndpoint", required = false) final String opensearchEndpoint,
+            @RequestParam(value = "opensearchIndexName", required = false) final String opensearchIndexName,
             @RequestParam(value = "opensearchUsername", required = false) final String opensearchUsername,
             @RequestParam(value = "opensearchPassword", required = false) final String opensearchPassword,
             @RequestParam(value = "clearOpensearchPassword", required = false) final Boolean clearOpensearchPassword,
             final RedirectAttributes redirectAttributes) {
 
         final boolean enabled = fullTextSearchEnabled != null && fullTextSearchEnabled;
+        if (embeddedSearch()) {
+            return saveEmbeddedSearch(enabled, redirectAttributes);
+        }
         final FtsFormResult parsed = parseFtsForm(opensearchEndpoint, opensearchIndexName,
                 opensearchUsername, opensearchPassword, clearOpensearchPassword);
         if (parsed.error() != null) {
@@ -188,6 +206,47 @@ public class AdminGeneralController {
      * the divergent shape, and re-probing here would just race against another possible
      * mismatch reading.
      */
+    /**
+     * The embedded backend (#7) has only the on/off switch; its index directory comes from configuration. Turning it
+     * on opens the index, so a directory that cannot be written is reported at once.
+     */
+    private String saveEmbeddedSearch(final boolean enabled, final RedirectAttributes redirectAttributes) {
+        final GeneralSettings settings = generalSettingsService.load();
+        final boolean previous = settings.isFullTextSearchEnabled();
+        settings.setFullTextSearchEnabled(enabled);
+        generalSettingsService.save(settings);
+        auditLogService.log("GENERAL_SETTINGS_CHANGE", "Settings", GeneralSettings.SINGLETON_ID,
+                Map.of("previousFullTextSearchEnabled", previous, "fullTextSearchEnabled", enabled,
+                        "searchBackend", searchService.backend()));
+        if (!enabled) {
+            redirectAttributes.addFlashAttribute("success", "Full text search disabled.");
+        } else if (searchService.probe() == ai.philterd.workspace.service.DocumentSearchService.State.REACHABLE) {
+            redirectAttributes.addFlashAttribute("success", previous
+                    ? "Full text search settings saved."
+                    : "Full text search enabled. Documents are indexed as they are redacted; rebuild the index to "
+                            + "add documents redacted before now.");
+        } else {
+            redirectAttributes.addFlashAttribute("error", "Full text search is on, but its index could not be "
+                    + "opened. Check that Philter Workspace can write to the index directory, and that no other "
+                    + "instance uses it.");
+        }
+        return "redirect:/admin/general#full-text-search";
+    }
+
+    /** Rebuilds the full-text index from the database, in the background (#7). */
+    @PostMapping("/full-text-search/rebuild")
+    public String rebuildSearchIndex(final org.springframework.security.core.Authentication authentication,
+                                     final RedirectAttributes redirectAttributes) {
+        final String refused = rebuildService.start(authentication == null ? null : authentication.getName());
+        if (refused != null) {
+            redirectAttributes.addFlashAttribute("error", refused);
+        } else {
+            redirectAttributes.addFlashAttribute("success", "Rebuilding the full-text index. Its progress shows "
+                    + "below; reload to update it.");
+        }
+        return "redirect:/admin/general#full-text-search";
+    }
+
     @PostMapping("/full-text-search/confirm")
     public String confirmFullTextSearch(
             @RequestParam(value = "fullTextSearchEnabled", required = false) final Boolean fullTextSearchEnabled,

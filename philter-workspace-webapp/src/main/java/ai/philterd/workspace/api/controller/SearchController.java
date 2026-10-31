@@ -14,9 +14,9 @@ import ai.philterd.workspace.repository.DocumentRepository;
 import ai.philterd.workspace.service.AuditLogService;
 import ai.philterd.workspace.service.AuthUtils;
 import ai.philterd.workspace.service.BatchAccessService;
-import ai.philterd.workspace.service.OpenSearchIndexService;
-import ai.philterd.workspace.service.OpenSearchIndexService.SearchHit;
-import ai.philterd.workspace.service.OpenSearchIndexService.SearchResults;
+import ai.philterd.workspace.service.DocumentSearchService;
+import ai.philterd.workspace.service.DocumentSearchService.SearchHit;
+import ai.philterd.workspace.service.DocumentSearchService.SearchResults;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -33,16 +33,16 @@ import java.util.Set;
 @RequestMapping("/api/v1")
 public class SearchController {
 
-    private final OpenSearchIndexService openSearchIndexService;
+    private final DocumentSearchService searchService;
     private final DocumentRepository documentRepository;
     private final AuditLogService auditLogService;
     private final BatchAccessService batchAccessService;
 
-    public SearchController(final OpenSearchIndexService openSearchIndexService,
+    public SearchController(final DocumentSearchService searchService,
                             final DocumentRepository documentRepository,
                             final AuditLogService auditLogService,
                             final BatchAccessService batchAccessService) {
-        this.openSearchIndexService = openSearchIndexService;
+        this.searchService = searchService;
         this.documentRepository = documentRepository;
         this.auditLogService = auditLogService;
         this.batchAccessService = batchAccessService;
@@ -60,7 +60,7 @@ public class SearchController {
         // batch-id filter, a read-only decision.
         final boolean admin = AuthUtils.isAdminOrAuditor(authentication);
         final Set<String> allowedBatchIds = admin ? null : batchAccessService.allowedBatchIds(authentication);
-        final SearchResults results = openSearchIndexService.search(query, offset, size, allowedBatchIds);
+        final SearchResults results = searchService.search(query, offset, size, allowedBatchIds);
         if (offset == 0) {
             // Hash + length only — search queries routinely contain PII (SSN/PAN
             // typed in to locate a document) and the audit log is readable by

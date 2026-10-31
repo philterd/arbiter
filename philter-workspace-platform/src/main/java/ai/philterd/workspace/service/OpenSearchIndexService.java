@@ -16,7 +16,6 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -29,8 +28,11 @@ import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 
-@Service
-public class OpenSearchIndexService {
+/**
+ * The full-text index on an OpenSearch cluster ({@code philter-workspace.search.backend=opensearch}), configured under
+ * Admin, General, Full text search. Created by {@link SearchBackendConfiguration}, not component scanning.
+ */
+public class OpenSearchIndexService implements DocumentSearchService {
 
     private static final Logger log = LoggerFactory.getLogger(OpenSearchIndexService.class);
 
@@ -56,11 +58,17 @@ public class OpenSearchIndexService {
         this.generalSettingsService = generalSettingsService;
     }
 
+    @Override
+    public String backend() {
+        return SearchBackendConfiguration.OPENSEARCH;
+    }
+
     /**
      * Best-effort index of the document's full text. Failures are logged but not propagated —
      * an unreachable OpenSearch should not block ingestion. Skipped when the full-text
      * search feature is turned off in {@code GeneralSettings}.
      */
+    @Override
     public void indexDocument(final Document document) {
         if (document == null || document.getId() == null) return;
         if (!isFullTextSearchEnabled()) return;
@@ -108,6 +116,7 @@ public class OpenSearchIndexService {
      *
      * @return whether the index no longer holds the document (true also when search is off)
      */
+    @Override
     public boolean removeDocument(final String documentId) {
         if (documentId == null) return true;
         if (!isFullTextSearchEnabled()) return true;
@@ -134,23 +143,6 @@ public class OpenSearchIndexService {
         return false;
     }
 
-    public record SearchHit(String id, String batchId, String filename, String status, List<String> highlights) {}
-    public record SearchResults(long total, int from, int size, List<SearchHit> hits) {}
-
-    /**
-     * Run a full-text match query over the indexed documents. Returns an empty result set if
-     * OpenSearch is unreachable or returns an error — callers should not crash the request on
-     * search failures.
-     *
-     * <p>Equivalent to calling {@link #search(String, int, int, java.util.Collection)} with
-     * {@code allowedBatchIds = null}, which means "do not restrict by batch" — admin callers
-     * use this form. Group-scoped callers must use the four-arg overload so the {@code total}
-     * and the hit list reflect only documents the caller is permitted to see.
-     */
-    public SearchResults search(final String query, final int from, final int size) {
-        return search(query, from, size, null);
-    }
-
     /**
      * Same as {@link #search(String, int, int)} but with an allow-list of {@code batchId}s.
      * When {@code allowedBatchIds} is non-null, the OpenSearch query is wrapped in a
@@ -159,6 +151,7 @@ public class OpenSearchIndexService {
      * to an empty result without contacting OpenSearch (a {@code terms} clause with no values
      * is rejected by some servers and would otherwise be a useless round-trip).
      */
+    @Override
     public SearchResults search(final String query, final int from, final int size,
                                 final java.util.Collection<String> allowedBatchIds) {
         final SearchResults empty = new SearchResults(0, Math.max(0, from), Math.max(1, size), List.of());
@@ -207,8 +200,9 @@ public class OpenSearchIndexService {
             // surrounding document text becomes inert text) and only then swap our sentinels
             // for <mark>...</mark>. User content cannot forge the sentinel because it embeds a
             // fresh UUID per request.
-            final String openTag = "[[arbHL_" + java.util.UUID.randomUUID().toString().replace("-", "") + "_OPEN]]";
-            final String closeTag = "[[arbHL_" + java.util.UUID.randomUUID().toString().replace("-", "") + "_CLOSE]]";
+            final SearchHighlights.Tags tags = SearchHighlights.Tags.fresh();
+            final String openTag = tags.open();
+            final String closeTag = tags.close();
             final ObjectNode highlightFields = objectMapper.createObjectNode();
             highlightFields.set("originalText", objectMapper.createObjectNode());
             final ObjectNode highlight = objectMapper.createObjectNode();
@@ -273,6 +267,7 @@ public class OpenSearchIndexService {
      * using OpenSearch's more_like_this query. The source document is automatically excluded
      * from the results. Returns an empty result set on any failure.
      */
+    @Override
     public SearchResults findSimilar(final String documentId, final String batchId, final int size) {
         final SearchResults empty = new SearchResults(0, 0, size, List.of());
         if (documentId == null || documentId.isBlank()) return empty;
@@ -289,7 +284,7 @@ public class OpenSearchIndexService {
             mlt.set("fields", fields);
             final ArrayNode like = objectMapper.createArrayNode();
             final ObjectNode likeDoc = objectMapper.createObjectNode();
-            likeDoc.put("_index", INDEX);
+            likeDoc.put("_index", indexName());
             likeDoc.put("_id", documentId);
             like.add(likeDoc);
             mlt.set("like", like);
@@ -346,25 +341,16 @@ public class OpenSearchIndexService {
         }
     }
 
-    /** Outcome of the cluster probe behind the health endpoint. */
-    public enum ClusterState {
-        /** Full-text search is off, so no cluster is expected. */
-        DISABLED,
-        /** The cluster answered. */
-        REACHABLE,
-        /** The cluster did not answer, or answered non-2xx. */
-        UNREACHABLE
-    }
-
     /**
      * Ask the cluster whether it is answering, for the health endpoint. Sends no document data
      * and discards the body, so it cannot leak PII. Feature off is {@code DISABLED}, not a
      * fault; feature on with no cluster means search and indexing are degraded.
      */
-    public ClusterState probeCluster() {
-        if (!isFullTextSearchEnabled()) return ClusterState.DISABLED;
+    @Override
+    public State probe() {
+        if (!isFullTextSearchEnabled()) return State.DISABLED;
         final String endpoint = endpoint();
-        if (endpoint == null) return ClusterState.DISABLED;
+        if (endpoint == null) return State.DISABLED;
         try {
             final HttpRequest req = applyAuth(HttpRequest.newBuilder()
                     .uri(URI.create(endpoint + "/"))
@@ -372,14 +358,14 @@ public class OpenSearchIndexService {
                     .GET())
                     .build();
             final HttpResponse<Void> resp = probeClient.send(req, HttpResponse.BodyHandlers.discarding());
-            return resp.statusCode() / 100 == 2 ? ClusterState.REACHABLE : ClusterState.UNREACHABLE;
+            return resp.statusCode() / 100 == 2 ? State.REACHABLE : State.UNREACHABLE;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return ClusterState.UNREACHABLE;
+            return State.UNREACHABLE;
         } catch (Exception e) {
             // DEBUG, not WARN: runs on every health poll. DOWN is the operator signal.
             log.debug("OpenSearch health probe failed for {}: {}", endpoint, e.getMessage());
-            return ClusterState.UNREACHABLE;
+            return State.UNREACHABLE;
         }
     }
 
@@ -456,13 +442,31 @@ public class OpenSearchIndexService {
      * embed a fresh UUID per request, so user content cannot forge them.
      */
     static String sanitizeHighlight(final String raw, final String openTag, final String closeTag) {
-        if (raw == null) return "";
-        final String escaped = raw
-                .replace("&", "&amp;")
-                .replace("<", "&lt;")
-                .replace(">", "&gt;");
-        return escaped
-                .replace(openTag, "<mark>")
-                .replace(closeTag, "</mark>");
+        return SearchHighlights.sanitize(raw, openTag, closeTag);
+    }
+
+    /** Deletes every document in the index ({@code _delete_by_query} over everything), before a rebuild. */
+    @Override
+    public boolean clear() {
+        if (!isFullTextSearchEnabled()) return true;
+        final String endpoint = endpoint();
+        if (endpoint == null) return true;
+        final String url = endpoint + "/" + indexName() + "/_delete_by_query?refresh=true";
+        try {
+            final HttpRequest req = applyAuth(HttpRequest.newBuilder()
+                    .uri(URI.create(url))
+                    .timeout(Duration.ofMinutes(5))
+                    .header("Content-Type", "application/json")
+                    .POST(HttpRequest.BodyPublishers.ofString("{\"query\":{\"match_all\":{}}}")))
+                    .build();
+            final HttpResponse<Void> resp = httpClient.send(req, HttpResponse.BodyHandlers.discarding());
+            if (resp.statusCode() / 100 == 2 || resp.statusCode() == 404) {
+                return true;
+            }
+            log.warn("OpenSearch could not empty the index ({}): HTTP {}", url, resp.statusCode());
+        } catch (Exception e) {
+            log.warn("OpenSearch could not empty the index ({}): {}", url, e.getClass().getSimpleName());
+        }
+        return false;
     }
 }

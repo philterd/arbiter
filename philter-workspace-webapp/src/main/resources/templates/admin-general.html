@@ -242,8 +242,46 @@
                 </form>
             </div>
 
-            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-3xl mb-6">
+            <div id="full-text-search" class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-3xl mb-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-1">Full text search</h3>
+                <p class="text-sm text-gray-600 mb-2">
+                    Backend: <strong th:text="${searchBackend == 'embedded' ? 'Embedded' : 'OpenSearch'}">Embedded</strong>,
+                    set by <code>PHILTER_WORKSPACE_SEARCH_BACKEND</code>.
+                    <a href="/docs/admin/full-text-search/" target="_blank" rel="noopener noreferrer" class="text-brand-600 hover:underline">Choosing a backend</a>
+                </p>
+                <th:block th:if="${searchBackend == 'embedded'}">
+                <p class="text-sm text-gray-600 mb-4">
+                    Indexes each document's text in Philter Workspace itself so reviewers can search documents
+                    by their text on the <a th:href="@{/search}" class="text-brand-600 underline">Search</a> page,
+                    and powers <strong>Find similar documents</strong> on the review page. No other service is needed.
+                </p>
+                <div class="mb-4 p-3 rounded-lg bg-amber-50 border border-amber-200 text-sm text-amber-800">
+                    Turning this on copies each document's <strong>original, unredacted text</strong> into the index
+                    at <code th:text="${searchIndexDirectory}">/app/data/search-index</code>. The index files are
+                    encrypted with Philter Workspace's key and stored on disk. A document is removed from the index
+                    when it is deleted or its original text is cleared.
+                </div>
+                <form th:action="@{/admin/general/full-text-search}" method="post" class="space-y-4">
+                    <label class="inline-flex items-start gap-2 text-sm text-gray-700">
+                        <input id="fullTextSearchEnabledEmbedded" type="checkbox" name="fullTextSearchEnabled" value="true"
+                               class="mt-0.5 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
+                               th:checked="${settings.fullTextSearchEnabled}">
+                        <span>Enable full text search</span>
+                    </label>
+                    <p class="text-xs text-gray-500 -mt-2">
+                        Off by default. Turning it off stops new documents from being indexed and leaves the Search
+                        page empty, but does not remove documents already indexed: delete the index directory, with
+                        Philter Workspace stopped, to remove them.
+                    </p>
+                    <div class="flex justify-end">
+                        <button type="submit"
+                                class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition duration-200">
+                            Save
+                        </button>
+                    </div>
+                </form>
+                </th:block>
+                <th:block th:if="${searchBackend == 'opensearch'}">
                 <p class="text-sm text-gray-600 mb-4">
                     Indexes each ingested document into OpenSearch so reviewers can search
                     documents by their text. When enabled, Philter Workspace writes the document text
@@ -377,6 +415,29 @@
                             Cancel
                         </a>
                     </div>
+                </div>
+                </th:block>
+
+                <div th:if="${settings.fullTextSearchEnabled}" class="mt-6 pt-4 border-t border-gray-100">
+                    <h4 class="text-sm font-semibold text-gray-900 mb-1">Rebuild the index</h4>
+                    <p class="text-sm text-gray-600 mb-3">
+                        Empties the index and indexes every document that still has its original text, in the
+                        background. Use it after turning search on, after moving to another backend, or to recover
+                        the index. Running it again gives the same index.
+                    </p>
+                    <p th:if="${searchRebuild.running()}" class="text-sm text-gray-700 mb-3"
+                       th:text="|Rebuilding: ${searchRebuild.indexed()} documents indexed so far, of ${searchRebuild.total()}.|">Rebuilding</p>
+                    <p th:if="${!searchRebuild.running() and searchRebuild.finishedAt() != null and searchRebuild.error() == null}"
+                       class="text-sm text-gray-700 mb-3"
+                       th:text="|Last rebuild: ${searchRebuild.indexed()} documents indexed, ${searchRebuild.skipped()} without text skipped.|">Last rebuild</p>
+                    <p th:if="${!searchRebuild.running() and searchRebuild.error() != null}" class="text-sm text-red-700 mb-3"
+                       th:text="${searchRebuild.error()}">error</p>
+                    <form th:action="@{/admin/general/full-text-search/rebuild}" method="post">
+                        <button type="submit" th:disabled="${searchRebuild.running()}"
+                                class="px-4 py-2 border border-brand-600 text-brand-600 hover:bg-brand-50 font-medium rounded-lg transition duration-200 disabled:border-gray-300 disabled:text-gray-400 disabled:hover:bg-transparent disabled:cursor-not-allowed">
+                            Rebuild index
+                        </button>
+                    </form>
                 </div>
             </div>
 

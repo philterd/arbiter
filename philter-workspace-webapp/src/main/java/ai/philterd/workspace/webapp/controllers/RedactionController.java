@@ -39,7 +39,7 @@ import ai.philterd.workspace.repository.S3DataSourceRepository;
 import ai.philterd.workspace.repository.SpanRepository;
 import ai.philterd.workspace.service.AuditLogService;
 import ai.philterd.workspace.service.GeneralSettingsService;
-import ai.philterd.workspace.service.OpenSearchIndexService;
+import ai.philterd.workspace.service.DocumentSearchService;
 import ai.philterd.workspace.service.RedactionService;
 import ai.philterd.workspace.service.AuthUtils;
 import ai.philterd.workspace.service.BatchAccessService;
@@ -87,7 +87,7 @@ public class RedactionController {
     private final UserGroupsService userGroupsService;
     private final BatchAccessService batchAccessService;
     private final AuditLogService auditLogService;
-    private final OpenSearchIndexService openSearchIndexService;
+    private final DocumentSearchService searchService;
     private final IngestQueueService ingestQueueService;
     private final GeneralSettingsService generalSettingsService;
     private final OpenSearchDataSourceRepository dataSourceRepository;
@@ -109,7 +109,7 @@ public class RedactionController {
                                final UserGroupsService userGroupsService,
                                final BatchAccessService batchAccessService,
                                final AuditLogService auditLogService,
-                               final OpenSearchIndexService openSearchIndexService,
+                               final DocumentSearchService searchService,
                                final IngestQueueService ingestQueueService,
                                final GeneralSettingsService generalSettingsService,
                                final OpenSearchDataSourceRepository dataSourceRepository,
@@ -130,7 +130,7 @@ public class RedactionController {
         this.userGroupsService = userGroupsService;
         this.batchAccessService = batchAccessService;
         this.auditLogService = auditLogService;
-        this.openSearchIndexService = openSearchIndexService;
+        this.searchService = searchService;
         this.ingestQueueService = ingestQueueService;
         this.generalSettingsService = generalSettingsService;
         this.dataSourceRepository = dataSourceRepository;
@@ -502,7 +502,7 @@ public class RedactionController {
         if (!spans.isEmpty()) {
             spanRepository.saveAll(spans);
         }
-        openSearchIndexService.indexDocument(document);
+        searchService.indexDocument(document);
         return document;
     }
 

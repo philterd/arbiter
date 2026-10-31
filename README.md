@@ -32,7 +32,7 @@ when it finishes. The first build takes several minutes. Set these to change wha
 | `PHILTER_WORKSPACE_PORT`  | `8080`      | The host port Philter Workspace is published on.           |
 | `ADMIN_PASSWORD`          | generated   | `admin`'s first password, 16 characters to 72 bytes.       |
 | `PHILTER_WORKSPACE_STORE` | `sqlite`    | `mongodb` to use MongoDB instead.                          |
-| `OPENSEARCH_PORT`, `POLICY_EDITOR_PORT`, `MINIO_PORT`, `MINIO_CONSOLE_PORT`, `POSTGRES_PORT`, `MONGODB_PORT` | `9200`, `8081`, `9000`, `9001`, `5432`, `27017` | The host ports of the stack's other services. |
+| `OPENSEARCH_PORT`, `POLICY_EDITOR_PORT`, `MINIO_PORT`, `MINIO_CONSOLE_PORT`, `POSTGRES_PORT`, `MONGODB_PORT` | `9200`, `8081`, `9000`, `9001`, `5432`, `27017` | The host ports of the stack's other services. OpenSearch and MongoDB start only with their Compose profiles. |
 
 Before starting anything, it checks that every host port the stack publishes is free and
 names the variable that moves each one in use.

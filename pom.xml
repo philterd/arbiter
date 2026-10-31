@@ -47,6 +47,8 @@
         <awssdk.version>2.25.50</awssdk.version>
         <!-- Newer than Spring Boot's managed version, for SQLite security fixes. -->
         <sqlite-jdbc.version>3.53.4.0</sqlite-jdbc.version>
+        <!-- The embedded full-text search backend (#7). -->
+        <lucene.version>9.12.1</lucene.version>
     </properties>
     <dependencyManagement>
         <dependencies>

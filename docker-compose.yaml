@@ -23,6 +23,12 @@ services:
       # PHILTER_WORKSPACE_STORE=mongodb docker compose --profile mongodb up
       - PHILTER_WORKSPACE_STORE=${PHILTER_WORKSPACE_STORE:-sqlite}
       - PHILTER_WORKSPACE_SQLITE_PATH=/app/data/philter-workspace.db
+      # Full-text search (off until an administrator turns it on): the embedded, encrypted index in the
+      # philter-workspace-data volume. To use OpenSearch instead:
+      #
+      # PHILTER_WORKSPACE_SEARCH_BACKEND=opensearch docker compose --profile opensearch up
+      - PHILTER_WORKSPACE_SEARCH_BACKEND=${PHILTER_WORKSPACE_SEARCH_BACKEND:-embedded}
+      - PHILTER_WORKSPACE_SEARCH_INDEX_DIR=/app/data/search-index
       - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/philter-workspace
       - SPRING_DATA_REDIS_HOST=valkey
       - SPRING_DATA_REDIS_PORT=6379
@@ -69,6 +75,8 @@ services:
         required: false
       opensearch:
         condition: service_healthy
+        # Only started with --profile opensearch.
+        required: false
       elasticsearch:
         condition: service_healthy
       valkey:
@@ -138,9 +146,12 @@ services:
     networks:
       - philter-workspace
 
+  # Optional: the OpenSearch full-text backend, and the demo OpenSearch data source. Started with
+  # --profile opensearch; the default embedded backend needs no search service.
   opensearch:
     image: opensearchproject/opensearch:3.6.0
     container_name: philter-workspace-opensearch
+    profiles: ["opensearch"]
     environment:
       - discovery.type=single-node
       - bootstrap.memory_lock=true

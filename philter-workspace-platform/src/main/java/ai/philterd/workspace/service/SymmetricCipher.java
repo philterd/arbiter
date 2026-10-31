@@ -195,4 +195,17 @@ public class SymmetricCipher {
         }
     }
 
+    /**
+     * A separate AES-256 key for one purpose, derived from the configured secret with HMAC-SHA-256 over the purpose,
+     * so a key used elsewhere (such as for the embedded search index's files) is never the field-encryption key.
+     */
+    public SecretKey deriveKey(final String purpose) {
+        try {
+            final javax.crypto.Mac mac = javax.crypto.Mac.getInstance("HmacSHA256");
+            mac.init(new SecretKeySpec(key.getEncoded(), "HmacSHA256"));
+            return new SecretKeySpec(mac.doFinal(purpose.getBytes(java.nio.charset.StandardCharsets.UTF_8)), "AES");
+        } catch (java.security.GeneralSecurityException e) {
+            throw new IllegalStateException("HmacSHA256 unavailable", e);
+        }
+    }
 }

@@ -1,20 +1,22 @@
 # Full text search
 
 Full text search is the optional capability that lets reviewers find documents
-by their content. When enabled, every document Philter Workspace ingests is also pushed
-into an **OpenSearch** cluster, and the **Search** page in the sidebar plus
-the [`GET /api/v1/search`](../reference/api.md) endpoint serve queries from
-that index.
+by their content. When it is on, every document Philter Workspace redacts is also
+indexed, and the **Search** page in the sidebar, the
+[`GET /api/v1/search`](../reference/api.md) endpoint, and **Find similar
+documents** on the review page are served from that index.
 
 The feature is **off by default**, because the index is a copy of every
-document's original, unredacted text outside Philter Workspace's encryption at
-rest. An administrator turns it on deliberately; the change is recorded in the
-audit log as `GENERAL_SETTINGS_CHANGE`, with the previous and new values. The
-connection details to the OpenSearch cluster live in the database; there is no
-environment variable to set.
+document's original, unredacted text. An administrator turns it on deliberately
+under **Admin → General → Full text search**; the change is recorded in the
+audit log as `GENERAL_SETTINGS_CHANGE`, with the previous and new values.
 
-The settings panel lives under **Admin → Settings** on the General tab,
-inside the **Full text search** card.
+The index is kept by one of two **backends**, chosen when Philter Workspace
+starts (see [Choosing a backend](#choosing-a-backend)):
+
+- **Embedded** (the default): an index inside Philter Workspace, on its own
+  disk, encrypted with Philter Workspace's key. No other service is needed.
+- **OpenSearch**: an index in an OpenSearch cluster you run.
 
 ## What full text search is used for
 
@@ -34,7 +36,80 @@ status filtering, dual-approval evaluation, audit log, or any of the
 review-decision pipeline. Disabling full text search affects discovery only;
 ingest, redaction, review, and finalize all continue to function normally.
 
-## Enabling and configuring full text search
+## Choosing a backend
+
+Set `PHILTER_WORKSPACE_SEARCH_BACKEND` (`philter-workspace.search.backend`) to
+`embedded` or `opensearch`. Any other value stops Philter Workspace at startup.
+The Full text search card on **Admin → General** names the backend in use, and
+Philter Workspace logs it at startup (`Full-text search backend: ...`).
+
+| | Embedded | OpenSearch |
+|---|---|---|
+| Needs | Nothing beyond Philter Workspace | An OpenSearch cluster, its credentials, and its own backups and patching |
+| Index stored | A directory on Philter Workspace's disk (`PHILTER_WORKSPACE_SEARCH_INDEX_DIR`) | The cluster |
+| Encryption at rest | The index files, by Philter Workspace, with a key derived from `PHILTER_WORKSPACE_CRYPTO_SECRET` | Whatever the cluster's disks provide; Philter Workspace sends plaintext |
+| Philter Workspace instances | One per index directory | Any number sharing one index |
+| Memory | Read from disk, not memory-mapped, so it competes only for the operating system's file cache | The cluster's own heap, typically 2 to 4 GB |
+| Configured in | The environment (the index directory) | **Admin → General** (endpoint, index name, credentials) |
+
+Use the embedded backend for a single Philter Workspace, such as Philter One
+or another single-server or air-gapped install. Use OpenSearch when several
+Philter Workspace instances serve one deployment, or when you already run a
+cluster and want the index there. Both serve the same Search page, API, and
+Find similar documents, with the same group restrictions and highlighting.
+
+## The embedded backend
+
+The embedded index is a directory, `PHILTER_WORKSPACE_SEARCH_INDEX_DIR`
+(`philter-workspace.search.index-dir`, default `data/search-index` under
+Philter Workspace's working directory; `/app/data/search-index`, in the data
+volume, in the shipped Compose files). Every file in it is encrypted with
+AES-256 under a key derived from `PHILTER_WORKSPACE_CRYPTO_SECRET`, so a copy of
+the directory without that secret reveals no document text. Changing the secret
+makes the index unreadable; rebuild it afterwards.
+
+The index is a disposable copy: the database stays the record, and losing the
+directory costs a [rebuild](#rebuilding-the-index), not data. Exclude it from
+backups if you like, or place it on a volume of your choice by setting the
+directory. Only one Philter Workspace may use a directory at a time; a second
+instance cannot write to it.
+
+Nothing is created on disk until full text search is turned on. Turning it on
+opens the index, and **Admin → General** reports an error if the directory
+cannot be written.
+
+## Rebuilding the index
+
+Documents are indexed as they are redacted, so documents redacted while full
+text search was off, or before a move to another backend, are not in the index.
+**Rebuild index** on the Full text search card empties the index and indexes
+every document that still has its original text, in the background; the card
+shows its progress and how the last rebuild ended. Running it again gives the
+same index. It is recorded in the audit log as `SEARCH_INDEX_REBUILD_START` and
+`SEARCH_INDEX_REBUILD_FINISH`.
+
+## Moving from OpenSearch to the embedded backend
+
+An existing deployment on OpenSearch keeps working by setting
+`PHILTER_WORKSPACE_SEARCH_BACKEND=opensearch`, with no reindex. To move to the
+embedded backend:
+
+1. Set `PHILTER_WORKSPACE_SEARCH_BACKEND=embedded`, and
+   `PHILTER_WORKSPACE_SEARCH_INDEX_DIR` to a directory on a persistent volume.
+2. Restart Philter Workspace.
+3. Under **Admin → General → Full text search**, click **Rebuild index**.
+   Search results fill in as the rebuild runs.
+4. Once you no longer need it, delete the old index in OpenSearch, which holds
+   the documents' unredacted text, and stop the cluster.
+
+The two backends do not run side by side; moving back is the same steps in the
+other direction.
+
+## Enabling and configuring OpenSearch
+
+These settings apply with `PHILTER_WORKSPACE_SEARCH_BACKEND=opensearch`.
+The connection details to the OpenSearch cluster live in the database; there is
+no environment variable for them.
 
 The Full text search card carries five fields:
 
@@ -131,14 +206,15 @@ When disabled:
   surfaces textually-related documents in the same batch.
 - **No new documents index.** If you re-enable later, the gap between
   disable and re-enable will not be back-filled — only documents ingested
-  after re-enable show up in search results. Run a re-index against the
-  cluster yourself if you need full coverage.
+  after re-enable show up in search results, until you
+  [rebuild the index](#rebuilding-the-index).
 - **Reports, audit log, and the review queue are unchanged.** None of
   those depend on OpenSearch.
-- **Health stops reporting the cluster.** With the feature enabled, an
-  unreachable cluster makes `/api/health` and `/actuator/health` report
-  `DOWN`, because search and indexing are degraded. With it disabled, no
-  cluster is expected and health ignores OpenSearch entirely. If you do not
+- **Health stops reporting the backend.** With the feature enabled, an
+  index that cannot be opened or a cluster that does not answer makes
+  `/api/health` and `/actuator/health` report `DOWN` (component
+  `fullTextSearch`), because search and indexing are degraded. With it
+  disabled, health does not check the backend. If you do not
   run a cluster, turn the feature off rather than leaving health down. See
   [REST API → Health and metrics](../reference/api.md#health-and-metrics).
 
@@ -165,11 +241,17 @@ While full text search is on, a document is removed from the index when:
 - An administrator removes it from **Admin → Ingest Queue**, as a queued
   document or a failure.
 
-Removal is best-effort: if OpenSearch does not answer, Philter Workspace logs a
+Removal is best-effort: if the backend does not answer, Philter Workspace logs a
 warning naming the document's id, and the indexed copy remains until it is
-removed in OpenSearch. Removal is skipped while full text search is off.
+removed there or the index is rebuilt. Removal is skipped while full text
+search is off.
 
 ## Security considerations
+
+With the embedded backend, the index files are encrypted by Philter Workspace
+(see [The embedded backend](#the-embedded-backend)); protect the
+`PHILTER_WORKSPACE_CRYPTO_SECRET` as you would for the database. The rest of
+this section applies to the OpenSearch backend.
 
 !!! danger "PII is indexed in OpenSearch when this feature is enabled"
     Enabling full text search causes the **complete, unredacted source text**

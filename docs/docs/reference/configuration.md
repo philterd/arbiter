@@ -53,6 +53,24 @@ server.servlet.session.cookie.same-site=strict
   cross-site request, which closes the cross-site request forgery vector
   that a missing `SameSite` attribute would otherwise leave open.
 
+## Full-text search
+
+```
+philter-workspace.search.backend=embedded
+philter-workspace.search.index-dir=data/search-index
+```
+
+- **`philter-workspace.search.backend`** (`PHILTER_WORKSPACE_SEARCH_BACKEND`):
+  `embedded` (the default) or `opensearch`. Any other value stops Philter
+  Workspace at startup. Full text search itself stays off until an
+  administrator turns it on. See
+  [Full text search](../admin/full-text-search.md#choosing-a-backend).
+- **`philter-workspace.search.index-dir`** (`PHILTER_WORKSPACE_SEARCH_INDEX_DIR`):
+  the embedded index's directory, relative to the working directory unless
+  absolute. Its files are encrypted with a key derived from
+  `philter-workspace.crypto.secret`. The shipped Compose files set
+  `/app/data/search-index`, in the data volume.
+
 ## Upload limits
 
 ```

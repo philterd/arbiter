@@ -5,8 +5,8 @@
 - A running MongoDB instance Philter Workspace can reach, or nothing extra with the
   SQLite store (see [Database](reference/database.md))
 - A running Valkey instance for sessions
-- Optionally, an OpenSearch instance Philter Workspace can reach, for full-text search,
-  which is off by default
+- Nothing extra for full-text search, which is off by default and uses an index
+  inside Philter Workspace; an OpenSearch cluster is optional
 - A running Philter 4.x that Philter Workspace can call (`docker-compose.yaml`
   starts one for development)
 
@@ -32,12 +32,11 @@ full reference. The settings most operators need to set are:
 Philter Workspace needs a running Philter 4.x; it does not detect PII itself.
 See [Configure Philter](workflow.md#1-configure-philter).
 
-The OpenSearch cluster used to power the full-text search index is
-configured at runtime under **Admin → Settings → Full text search** —
-the section accepts the endpoint, optional basic-auth username and
-password, and the index name. There is no longer an environment
-variable for the OpenSearch endpoint; an admin turns full-text search on and
-saves the form, which writes the values to the database. It is off until then.
+Full-text search is off until an administrator turns it on under
+**Admin → General → Full text search**. By default its index is kept inside
+Philter Workspace, encrypted, in `PHILTER_WORKSPACE_SEARCH_INDEX_DIR`; set
+`PHILTER_WORKSPACE_SEARCH_BACKEND=opensearch` to use an OpenSearch cluster,
+configured on the same page. See [Full text search](admin/full-text-search.md).
 
 ## First run
 

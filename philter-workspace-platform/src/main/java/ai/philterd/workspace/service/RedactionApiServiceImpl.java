@@ -39,20 +39,20 @@ public class RedactionApiServiceImpl implements RedactionApiService {
     private final DocumentRepository documentRepository;
     private final SpanRepository spanRepository;
     private final BatchRepository batchRepository;
-    private final OpenSearchIndexService openSearchIndexService;
+    private final DocumentSearchService searchService;
 
     public RedactionApiServiceImpl(final PhilterClientFactory philterClientFactory,
                                    final PhilterSettings philter,
                                    final DocumentRepository documentRepository,
                                    final SpanRepository spanRepository,
                                    final BatchRepository batchRepository,
-                                   final OpenSearchIndexService openSearchIndexService) {
+                                   final DocumentSearchService searchService) {
         this.philterClientFactory = philterClientFactory;
         this.philter = philter;
         this.documentRepository = documentRepository;
         this.spanRepository = spanRepository;
         this.batchRepository = batchRepository;
-        this.openSearchIndexService = openSearchIndexService;
+        this.searchService = searchService;
     }
 
     private PhilterClient philterClient(final Batch batch) {
@@ -107,7 +107,7 @@ public class RedactionApiServiceImpl implements RedactionApiService {
         if (document.getOriginalText() == null) {
             document.setOriginalText(text);
         }
-        openSearchIndexService.indexDocument(document);
+        searchService.indexDocument(document);
     }
 
     // TODO: Reach parity with ReviewViewController.finalizeDocument by also generating a

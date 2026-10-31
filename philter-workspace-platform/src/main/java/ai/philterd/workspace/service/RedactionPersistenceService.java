@@ -20,7 +20,7 @@ import ai.philterd.workspace.model.RiskScore;
 import ai.philterd.workspace.model.Span;
 import ai.philterd.workspace.repository.DocumentRepository;
 import ai.philterd.workspace.repository.SpanRepository;
-import ai.philterd.workspace.service.OpenSearchIndexService;
+import ai.philterd.workspace.service.DocumentSearchService;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -40,14 +40,14 @@ public class RedactionPersistenceService {
 
     private final DocumentRepository documentRepository;
     private final SpanRepository spanRepository;
-    private final OpenSearchIndexService openSearchIndexService;
+    private final DocumentSearchService searchService;
 
     public RedactionPersistenceService(final DocumentRepository documentRepository,
                                        final SpanRepository spanRepository,
-                                       final OpenSearchIndexService openSearchIndexService) {
+                                       final DocumentSearchService searchService) {
         this.documentRepository = documentRepository;
         this.spanRepository = spanRepository;
-        this.openSearchIndexService = openSearchIndexService;
+        this.searchService = searchService;
     }
 
     public Document apply(final Document document, final Batch batch, final RedactionResponse response) {
@@ -121,7 +121,7 @@ public class RedactionPersistenceService {
         if (!spans.isEmpty()) {
             spanRepository.saveAll(spans);
         }
-        openSearchIndexService.indexDocument(document);
+        searchService.indexDocument(document);
         return document;
     }
 }

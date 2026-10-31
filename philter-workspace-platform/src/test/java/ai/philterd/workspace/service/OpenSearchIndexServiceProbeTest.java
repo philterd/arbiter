@@ -51,8 +51,8 @@ class OpenSearchIndexServiceProbeTest {
     void answeringClusterIsReachable() throws IOException {
         final HttpServer server = serverReturning(200);
         try {
-            assertEquals(OpenSearchIndexService.ClusterState.REACHABLE,
-                    serviceFor(true, urlOf(server)).probeCluster());
+            assertEquals(DocumentSearchService.State.REACHABLE,
+                    serviceFor(true, urlOf(server)).probe());
         } finally {
             server.stop(0);
         }
@@ -63,8 +63,8 @@ class OpenSearchIndexServiceProbeTest {
     void clusterRejectingTheRequestIsUnreachable() throws IOException {
         final HttpServer server = serverReturning(401);
         try {
-            assertEquals(OpenSearchIndexService.ClusterState.UNREACHABLE,
-                    serviceFor(true, urlOf(server)).probeCluster());
+            assertEquals(DocumentSearchService.State.UNREACHABLE,
+                    serviceFor(true, urlOf(server)).probe());
         } finally {
             server.stop(0);
         }
@@ -77,19 +77,19 @@ class OpenSearchIndexServiceProbeTest {
         final String url = urlOf(server);
         server.stop(0);
 
-        assertEquals(OpenSearchIndexService.ClusterState.UNREACHABLE, serviceFor(true, url).probeCluster());
+        assertEquals(DocumentSearchService.State.UNREACHABLE, serviceFor(true, url).probe());
     }
 
     /** Feature off means no network call, even though settings always carry a default endpoint. */
     @Test
     void featureOffReportsDisabledWithoutProbing() {
-        assertEquals(OpenSearchIndexService.ClusterState.DISABLED,
-                serviceFor(false, "http://127.0.0.1:9200").probeCluster());
+        assertEquals(DocumentSearchService.State.DISABLED,
+                serviceFor(false, "http://127.0.0.1:9200").probe());
     }
 
     @Test
     void blankEndpointReportsDisabled() {
-        assertEquals(OpenSearchIndexService.ClusterState.DISABLED, serviceFor(true, "  ").probeCluster());
+        assertEquals(DocumentSearchService.State.DISABLED, serviceFor(true, "  ").probe());
     }
 
     // ---- removal (#23)

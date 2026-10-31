@@ -35,7 +35,7 @@ import ai.philterd.workspace.service.AuditLogService;
 import ai.philterd.workspace.service.AuthUtils;
 import ai.philterd.workspace.service.DocumentAccessService;
 import ai.philterd.workspace.service.LlmJudgeDefaultsService;
-import ai.philterd.workspace.service.OpenSearchIndexService;
+import ai.philterd.workspace.service.DocumentSearchService;
 import ai.philterd.workspace.service.UserGroupsService;
 import ai.philterd.workspace.service.UserSettingsService;
 import ai.philterd.workspace.service.RedactionCertificateService;
@@ -96,7 +96,7 @@ public class ReviewViewController {
     private final UserSettingsService userSettingsService;
     private final UserRepository userRepository;
     private final ApprovalRuleEvaluator approvalRuleEvaluator;
-    private final OpenSearchIndexService openSearchIndexService;
+    private final DocumentSearchService searchService;
     private final ai.philterd.workspace.service.DocumentLockService documentLockService;
     private final RedactionCertificateService redactionCertificateService;
     private final FinalizationPolicyRepository finalizationPolicyRepository;
@@ -114,7 +114,7 @@ public class ReviewViewController {
                                 final UserSettingsService userSettingsService,
                                 final UserRepository userRepository,
                                 final ApprovalRuleEvaluator approvalRuleEvaluator,
-                                final OpenSearchIndexService openSearchIndexService,
+                                final DocumentSearchService searchService,
                                 final ai.philterd.workspace.service.DocumentLockService documentLockService,
                                 final RedactionCertificateService redactionCertificateService,
                                 final FinalizationPolicyRepository finalizationPolicyRepository,
@@ -131,7 +131,7 @@ public class ReviewViewController {
         this.userSettingsService = userSettingsService;
         this.userRepository = userRepository;
         this.approvalRuleEvaluator = approvalRuleEvaluator;
-        this.openSearchIndexService = openSearchIndexService;
+        this.searchService = searchService;
         this.documentLockService = documentLockService;
         this.redactionCertificateService = redactionCertificateService;
         this.finalizationPolicyRepository = finalizationPolicyRepository;
@@ -349,8 +349,8 @@ public class ReviewViewController {
         // Verify the caller can access the source document's batch.
         documentAccessService.requireDocumentAccess(authentication, document);
 
-        final OpenSearchIndexService.SearchResults results =
-                openSearchIndexService.findSimilar(documentId, document.getBatchId(), 10);
+        final DocumentSearchService.SearchResults results =
+                searchService.findSimilar(documentId, document.getBatchId(), 10);
 
         // Filter every returned hit against the caller's accessible batches. Admins see
         // all results; non-admins only see hits whose batchId is in one of their groups.
@@ -363,7 +363,7 @@ public class ReviewViewController {
         final Set<String> allowedBatchIds = admin ? null : similarAllowedBatchIds(authentication);
 
         final java.util.Set<String> docIds = new java.util.HashSet<>();
-        for (OpenSearchIndexService.SearchHit h : results.hits()) {
+        for (DocumentSearchService.SearchHit h : results.hits()) {
             if (h.id() != null && !h.id().isBlank()) docIds.add(h.id());
         }
         final Map<String, Document> liveDocs = new java.util.HashMap<>();
@@ -372,7 +372,7 @@ public class ReviewViewController {
         }
 
         final List<Map<String, Object>> out = new ArrayList<>();
-        for (OpenSearchIndexService.SearchHit h : results.hits()) {
+        for (DocumentSearchService.SearchHit h : results.hits()) {
             if (!admin && (h.batchId() == null || !allowedBatchIds.contains(h.batchId()))) {
                 continue;
             }
@@ -476,7 +476,7 @@ public class ReviewViewController {
                 document.setStoragePath(null);
                 documentRepository.save(document);
                 // The full-text index holds the original text too.
-                final boolean indexCleared = openSearchIndexService.removeDocument(document.getId());
+                final boolean indexCleared = searchService.removeDocument(document.getId());
                 auditLogService.log("FINALIZATION_POLICY_APPLIED", "Document", document.getId(),
                         Map.of("policyId", policy.getId() == null ? "" : policy.getId(),
                                 "policyName", policy.getName() == null ? "" : policy.getName(),

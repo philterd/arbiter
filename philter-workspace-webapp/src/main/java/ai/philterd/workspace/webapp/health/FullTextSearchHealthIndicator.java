@@ -9,8 +9,8 @@
  */
 package ai.philterd.workspace.webapp.health;
 
-import ai.philterd.workspace.service.OpenSearchIndexService;
-import ai.philterd.workspace.service.OpenSearchIndexService.ClusterState;
+import ai.philterd.workspace.service.DocumentSearchService;
+import ai.philterd.workspace.service.DocumentSearchService.State;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.actuate.health.Health;
 import org.springframework.boot.actuate.health.HealthIndicator;
@@ -23,12 +23,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * Adds the full-text search cluster to {@code /actuator/health} as {@code openSearch}. MongoDB
- * and Valkey get auto-configured indicators; OpenSearch is plain HTTP to a runtime-configured
- * endpoint, so it needs this. Details name a state only, never the endpoint URL.
+ * Adds the full-text search backend to {@code /actuator/health} as {@code fullTextSearch}: the embedded index
+ * opening, or the OpenSearch cluster answering. Details name a state only, never the endpoint URL or index path.
  */
-@Component("openSearch")
-public class OpenSearchHealthIndicator implements HealthIndicator {
+@Component("fullTextSearch")
+public class FullTextSearchHealthIndicator implements HealthIndicator {
 
     /** Ceiling on the probe: it reads settings from MongoDB, so a MongoDB outage blocks it. */
     private static final Duration DEFAULT_BUDGET = Duration.ofSeconds(5);
@@ -36,18 +35,18 @@ public class OpenSearchHealthIndicator implements HealthIndicator {
     /** One virtual thread per probe, so a slow probe never holds the caller. */
     private static final Executor PROBE_EXECUTOR = task -> Thread.ofVirtual().start(task);
 
-    private final OpenSearchIndexService openSearchIndexService;
+    private final DocumentSearchService searchService;
 
     private final Duration budget;
 
     @Autowired
-    public OpenSearchHealthIndicator(final OpenSearchIndexService openSearchIndexService) {
-        this(openSearchIndexService, DEFAULT_BUDGET);
+    public FullTextSearchHealthIndicator(final DocumentSearchService searchService) {
+        this(searchService, DEFAULT_BUDGET);
     }
 
     /** Test seam for a short budget. */
-    OpenSearchHealthIndicator(final OpenSearchIndexService openSearchIndexService, final Duration budget) {
-        this.openSearchIndexService = openSearchIndexService;
+    FullTextSearchHealthIndicator(final DocumentSearchService searchService, final Duration budget) {
+        this.searchService = searchService;
         this.budget = budget;
     }
 
@@ -58,22 +57,22 @@ public class OpenSearchHealthIndicator implements HealthIndicator {
             // UNKNOWN, not UP: nothing was checked. It ranks below UP, so a deployment
             // without full-text search still aggregates to UP.
             case DISABLED -> Health.unknown().withDetail("fullTextSearch", "disabled").build();
-            case UNREACHABLE -> Health.down().withDetail("fullTextSearch", "enabled, cluster unreachable").build();
+            case UNREACHABLE -> Health.down().withDetail("fullTextSearch", "enabled, backend unreachable").build();
         };
     }
 
-    private ClusterState probeWithinBudget() {
-        final CompletableFuture<ClusterState> probe =
-                CompletableFuture.supplyAsync(openSearchIndexService::probeCluster, PROBE_EXECUTOR);
+    private State probeWithinBudget() {
+        final CompletableFuture<State> probe =
+                CompletableFuture.supplyAsync(searchService::probe, PROBE_EXECUTOR);
         try {
             return probe.get(budget.toMillis(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return ClusterState.UNREACHABLE;
+            return State.UNREACHABLE;
         } catch (TimeoutException | java.util.concurrent.ExecutionException e) {
             // Not finishing in budget is not evidence of a usable cluster.
             probe.cancel(true);
-            return ClusterState.UNREACHABLE;
+            return State.UNREACHABLE;
         }
     }
 

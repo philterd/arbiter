@@ -15,9 +15,9 @@ import ai.philterd.workspace.repository.BatchRepository;
 import ai.philterd.workspace.repository.DocumentRepository;
 import ai.philterd.workspace.service.AuditLogService;
 import ai.philterd.workspace.service.AuthUtils;
-import ai.philterd.workspace.service.OpenSearchIndexService;
-import ai.philterd.workspace.service.OpenSearchIndexService.SearchHit;
-import ai.philterd.workspace.service.OpenSearchIndexService.SearchResults;
+import ai.philterd.workspace.service.DocumentSearchService;
+import ai.philterd.workspace.service.DocumentSearchService.SearchHit;
+import ai.philterd.workspace.service.DocumentSearchService.SearchResults;
 import ai.philterd.workspace.service.UserGroupsService;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Controller;
@@ -42,18 +42,18 @@ public class SearchViewController {
 
     private static final int PAGE_SIZE = 10;
 
-    private final OpenSearchIndexService openSearchIndexService;
+    private final DocumentSearchService searchService;
     private final BatchRepository batchRepository;
     private final DocumentRepository documentRepository;
     private final UserGroupsService userGroupsService;
     private final AuditLogService auditLogService;
 
-    public SearchViewController(final OpenSearchIndexService openSearchIndexService,
+    public SearchViewController(final DocumentSearchService searchService,
                                 final BatchRepository batchRepository,
                                 final DocumentRepository documentRepository,
                                 final UserGroupsService userGroupsService,
                                 final AuditLogService auditLogService) {
-        this.openSearchIndexService = openSearchIndexService;
+        this.searchService = searchService;
         this.batchRepository = batchRepository;
         this.documentRepository = documentRepository;
         this.userGroupsService = userGroupsService;
@@ -78,7 +78,7 @@ public class SearchViewController {
             // batch-id filter, a read-only decision.
             final boolean admin = AuthUtils.isAdminOrAuditor(authentication);
             final Set<String> allowedBatchIds = admin ? null : allowedBatchIds(authentication);
-            final SearchResults results = openSearchIndexService.search(query, safeOffset, PAGE_SIZE, allowedBatchIds);
+            final SearchResults results = searchService.search(query, safeOffset, PAGE_SIZE, allowedBatchIds);
             total = results.total();
             if (safeOffset == 0) {
                 // Persist only the SHA-256 + length, not the cleartext. Search

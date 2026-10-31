@@ -147,6 +147,7 @@ class PhilterSignInIT {
     @Autowired private ai.philterd.workspace.repository.PhilterWebhookDeliveryRepository webhookDeliveries;
     @Autowired private ai.philterd.workspace.service.DetectionRuleService detectionRuleService;
     @Autowired private ai.philterd.workspace.service.GeneralSettingsService generalSettingsService;
+    @Autowired private ai.philterd.workspace.service.DocumentSearchService documentSearchService;
 
     @DynamicPropertySource
     static void properties(final DynamicPropertyRegistry registry) throws Exception {
@@ -1025,6 +1026,55 @@ class PhilterSignInIT {
                         .anyMatch(r -> "email-address".equals(r.getType()) && "jdoe@example.com".equals(r.getText())),
                 "Philter's default policy finds the email address");
         assertFalse(response.getRedactedText().contains("jdoe@example.com"));
+    }
+
+    @Test
+    void theEmbeddedIndexServesSearchAndFindSimilarForRedactedDocuments() throws Exception {
+        final MockHttpSession session = new MockHttpSession();
+        final String address = newAddress();
+        signIn(session, address, "admin", ADMIN_PASSWORD);
+        final ai.philterd.workspace.model.GeneralSettings settings = generalSettingsService.load();
+        settings.setFullTextSearchEnabled(true);
+        generalSettingsService.save(settings);
+        final String suffix = HexFormat.of().formatHex(bytes(3));
+        final ai.philterd.workspace.model.Batch batch = new ai.philterd.workspace.model.Batch();
+        batch.setId(java.util.UUID.randomUUID().toString());
+        batch.setName("Search " + suffix);
+        batchRepository.save(batch);
+        final String word = "zq" + suffix;
+        final ai.philterd.workspace.model.Document lease = ingestQueueService.enqueueText(batch, "lease.txt",
+                "The tenant " + word + " breached the warehouse lease on Elm Street; write to jdoe@example.com.", 2);
+        final ai.philterd.workspace.model.Document copy = ingestQueueService.enqueueText(batch, "copy.txt",
+                "The tenant " + word + " breached the lease for the Elm Street warehouse; write to jdoe@example.com.", 2);
+        final ai.philterd.workspace.model.Document other = ingestQueueService.enqueueText(batch, "invoice.txt",
+                "Quarterly invoice totals for accounting.", 2);
+        try {
+            final long deadline = System.currentTimeMillis() + 120_000;
+            while (System.currentTimeMillis() < deadline && java.util.List.of(lease, copy, other).stream()
+                    .map(d -> documentRepository.findById(d.getId()).orElseThrow().getStatus())
+                    .anyMatch(st -> "PENDING".equals(st) || "PROCESSING".equals(st))) {
+                ingestQueueService.drain();
+                Thread.sleep(250);
+            }
+            assertEquals("embedded", documentSearchService.backend());
+
+            final String page = mockMvc.perform(get("/search").param("q", word).session(session).with(from(address)))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+            assertTrue(page.contains("lease.txt") && page.contains("copy.txt"), "both documents are found");
+            assertTrue(page.contains("<mark>" + word + "</mark>"), "the match is highlighted");
+            assertFalse(page.contains("invoice.txt"));
+
+            final String similar = mockMvc.perform(get("/api/v1/review/" + lease.getId() + "/similar")
+                            .session(session).with(from(address)))
+                    .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+            assertTrue(similar.indexOf(copy.getId()) >= 0, similar);
+            assertFalse(similar.contains(lease.getId()), "not the document itself");
+        } finally {
+            documentSearchService.clear();
+            final ai.philterd.workspace.model.GeneralSettings after = generalSettingsService.load();
+            after.setFullTextSearchEnabled(false);
+            generalSettingsService.save(after);
+        }
     }
 
     @Test

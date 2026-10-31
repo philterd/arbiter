@@ -44,6 +44,10 @@ services:
     environment:
       - PHILTER_WORKSPACE_STORE=sqlite
       - PHILTER_WORKSPACE_SQLITE_PATH=/app/data/philter-workspace.db
+      # Full-text search, off until an administrator turns it on: the embedded, encrypted index, in the
+      # philter-workspace-data volume. See the full text search docs to use OpenSearch instead.
+      - PHILTER_WORKSPACE_SEARCH_BACKEND=${PHILTER_WORKSPACE_SEARCH_BACKEND:-embedded}
+      - PHILTER_WORKSPACE_SEARCH_INDEX_DIR=/app/data/search-index
       - PHILTER_WORKSPACE_CRYPTO_SECRET=${PHILTER_WORKSPACE_CRYPTO_SECRET:?Set PHILTER_WORKSPACE_CRYPTO_SECRET in .env (openssl rand -base64 32)}
       - PHILTER_WORKSPACE_DEMO_DATA_ENABLED=false
       # Philter Workspace's one Philter, for sign-in, policies, and redaction.

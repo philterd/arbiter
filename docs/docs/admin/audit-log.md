@@ -86,6 +86,7 @@ and export them:
 | `OLLAMA_INSTANCE_CREATE` / `_DELETE` / `_TEST` | OllamaInstance | An Ollama instance added, removed, or tested    |
 | `LLM_JUDGE_DEFAULTS_CHANGE`         | Settings    | The default Ollama instances for LLM-as-a-Judge changed |
 | `CASE_TYPE_POLICY_CHANGE`           | Settings    | A case type mapped to a policy, its policy replaced, or its mapping removed (`policyName` empty), with the previous policy |
+| `SEARCH_INDEX_REBUILD_START`, `SEARCH_INDEX_REBUILD_FINISH` | Settings | An administrator rebuilt the [full-text index](full-text-search.md#rebuilding-the-index): the backend and document count when it started; the documents indexed and skipped, with the outcome, when it finished |
 | `GENERAL_SETTINGS_CHANGE`           | Settings    | An Admin → General setting saved: the Philter Workspace URL, upload size limit, data-import concurrency, time zone, full-text search, or detection rule settings, with the previous value |
 | `SECURITY_SETTINGS_CHANGE`          | Settings    | The data-source host allow-list turned on or off     |
 | `NOTIFICATION_SETTINGS_TEST`        | Settings    | A test email sent from the notification settings     |
