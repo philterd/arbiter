@@ -154,7 +154,10 @@ public class ReviewViewController {
         // gets a fresh lock; other openers see read-only mode with a banner naming the
         // current holder. Admins can still open in read-only and choose to break the lock.
         final String email = authentication == null ? null : authentication.getName();
-        final Document acquired = email == null ? null
+        // Auditors only read (#60): they take no review lock, which they could neither renew nor release, so a
+        // reviewer is never locked out by an auditor looking at the document.
+        final boolean readOnly = AuthUtils.isAuditor(authentication);
+        final Document acquired = email == null || readOnly ? null
                 : documentLockService.acquire(documentId, email);
         boolean lockedByOther = false;
         String lockHolder = null;
@@ -291,6 +294,7 @@ public class ReviewViewController {
         model.addAttribute("lockedByOther", lockedByOther);
         model.addAttribute("lockHolder", lockHolder == null ? "" : lockHolder);
         model.addAttribute("lockExpiresAt", lockExpiresAt);
+        model.addAttribute("readOnly", readOnly);
         // An approver of the document's group (#5) adjudicates spans and releases a document another reviewer holds.
         final boolean approver = documentAccessService.canApproveDocument(authentication, document);
         model.addAttribute("isApprover", approver);

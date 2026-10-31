@@ -357,11 +357,12 @@
 
             <div class="flex justify-between items-start mb-6 gap-4">
                 <div>
-                    <form th:action="@{/review/{id}/release(id=${document.id})}" method="post" class="focus-hide inline mb-2">
+                    <form th:unless="${readOnly}" th:action="@{/review/{id}/release(id=${document.id})}" method="post" class="focus-hide inline mb-2">
                         <button type="submit" class="text-sm text-brand-600 hover:text-brand-800 inline-block bg-transparent border-0 p-0 cursor-pointer">
                             &larr; Back to queue
                         </button>
                     </form>
+                    <a th:if="${readOnly}" th:href="@{/queue}" class="focus-hide inline-block mb-2 text-sm text-brand-600 hover:text-brand-800">&larr; Back to queue</a>
                     <div class="flex items-center gap-2 mb-2">
                         <a th:if="${prevDocumentId != null}"
                            th:href="@{/review/{id}(id=${prevDocumentId})}"
@@ -408,8 +409,9 @@
                         <span>Status: <span class="font-medium" th:text="${document.status}">STATUS</span></span>
                         <span class="flex items-center gap-2">
                             Risk Score: <span class="font-medium" th:text="${#numbers.formatDecimal(document.riskScore, 1, 2)}">0.00</span>
-                            <button id="explainBtn" type="button"
-                                    class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md border border-purple-300 bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors">
+                            <button id="explainBtn" type="button" th:disabled="${readOnly}"
+                                    th:title="${readOnly} ? 'Auditors have read-only access' : 'Explain the risk score with the configured AI model'"
+                                    class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-md border border-purple-300 bg-purple-50 text-purple-700 hover:bg-purple-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed">
                                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
                                      class="h-3.5 w-3.5">
                                     <path d="M12 2l1.6 4.6L18 8l-4.4 1.6L12 14l-1.6-4.4L6 8l4.4-1.4L12 2zm7 11l.9 2.6L22 17l-2.1.4-.9 2.6-.9-2.6L16 17l2.1-1.4.9-2.6zM5 14l.9 2.6L8 18l-2.1.4-.9 2.6-.9-2.6L2 18l2.1-1.4L5 14z"/>
@@ -444,14 +446,14 @@
                             <span class="text-sm text-gray-500">
                                 Decision recorded: <span class="font-medium" th:text="${document.status}">STATUS</span>
                             </span>
-                            <form th:if="${document.status == 'APPROVED'}"
+                            <form th:if="${document.status == 'APPROVED' and !readOnly}"
                                   th:action="@{/review/{id}/unapprove(id=${document.id})}" method="post" class="inline">
                                 <button type="submit"
                                         class="px-3 py-1.5 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 font-medium rounded-lg transition duration-200">
                                     Unapprove
                                 </button>
                             </form>
-                            <form th:if="${document.status == 'REJECTED'}"
+                            <form th:if="${document.status == 'REJECTED' and !readOnly}"
                                   th:action="@{/review/{id}/unreject(id=${document.id})}" method="post" class="inline">
                                 <button type="submit"
                                         class="px-3 py-1.5 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 font-medium rounded-lg transition duration-200">
@@ -460,20 +462,21 @@
                             </form>
                         </div>
                     </div>
-                    <form th:if="${!terminal.contains(document.status)}"
+                    <form th:if="${!terminal.contains(document.status) and !readOnly}"
                           th:action="@{/review/{id}/reject(id=${document.id})}" method="post" class="inline">
                         <button type="submit"
                                 class="px-4 py-2 border border-red-600 text-red-600 hover:bg-red-50 font-medium rounded-lg transition duration-200">
                             Reject
                         </button>
                     </form>
-                    <form th:if="${!terminal.contains(document.status)}"
+                    <form th:if="${!terminal.contains(document.status) and !readOnly}"
                           th:action="@{/review/{id}/approve(id=${document.id})}" method="post" class="inline">
                         <button type="submit"
                                 class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-200">
                             Approve
                         </button>
                     </form>
+                    <span th:if="${readOnly}" class="text-sm text-gray-500">Read-only access</span>
                     <button id="focusToggle" type="button"
                             class="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium transition duration-200 bg-white border-gray-300 text-gray-700 hover:bg-gray-50">
                         <svg id="focusIcon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none"
@@ -687,8 +690,10 @@
         const documentFinalized = /*[[${document.status == 'FINALIZED'}]]*/ false;
         const lockedByOther = /*[[${lockedByOther}]]*/ false;
         const lockHolder = /*[[${lockHolder}]]*/ '';
-        const documentLocked = documentApproved || documentRejected || documentFinalized || lockedByOther;
-        const lockedReason = documentFinalized
+        // Auditors read only (#60): every span control follows documentLocked, and the server refuses their writes.
+        const readOnly = /*[[${readOnly}]]*/ false;
+        const documentLocked = readOnly || documentApproved || documentRejected || documentFinalized || lockedByOther;
+        const lockedReason = readOnly ? 'Auditors have read-only access' : documentFinalized
             ? 'Document is FINALIZED — no further changes allowed'
             : (documentApproved
                 ? 'Document is APPROVED — Unapprove to edit spans'
@@ -919,8 +924,7 @@
                                 Refuse
                             </button>
                             <button type="button" data-set-status="NEEDS_SECOND_OPINION" data-span-id="${escapeHtml(item.id)}"
-                                    title="Need a second opinion from another reviewer"
-                                    class="px-2 py-1 text-xs font-semibold border-l border-gray-300 ${isSecondOpinion ? 'bg-amber-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}"${lockedAttr}${lockedTitle}>
+                                    class="px-2 py-1 text-xs font-semibold border-l border-gray-300 ${isSecondOpinion ? 'bg-amber-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'}"${lockedAttr}${spanLocked ? lockedTitle : ' title="Need a second opinion from another reviewer"'}>
                                 2nd Opinion
                             </button>
                             <button type="button" data-reset-span="${escapeHtml(item.id)}"
@@ -932,10 +936,10 @@
                 // A rule changes later documents, not this one, so it is offered whatever the document's status.
                 const ruleKind = manual ? 'ALWAYS' : (isRejected ? 'NEVER' : null);
                 const ruleButton = ruleKind
-                    ? `<button type="button"
-                                class="mt-1.5 w-full text-xs font-medium text-gray-700 hover:bg-gray-50 border border-gray-200 rounded px-2 py-1 transition-colors"
+                    ? `<button type="button"${readOnly ? ' disabled' : ''}
+                                class="mt-1.5 w-full text-xs font-medium text-gray-700 hover:bg-gray-50 border border-gray-200 rounded px-2 py-1 transition-colors disabled:text-gray-400 disabled:cursor-not-allowed"
                                 data-rule-kind="${ruleKind}" data-rule-span="${escapeHtml(item.id)}"
-                                title="${ruleKind === 'ALWAYS' ? 'Have Philter always flag this value in documents redacted from now on' : 'Have Philter stop flagging this value in documents redacted from now on'}">
+                                title="${readOnly ? lockedReason : (ruleKind === 'ALWAYS' ? 'Have Philter always flag this value in documents redacted from now on' : 'Have Philter stop flagging this value in documents redacted from now on')}">
                             ${ruleKind === 'ALWAYS' ? 'Always flag this' : 'Don&#39;t flag this again'}
                         </button>`
                     : '';
@@ -987,8 +991,8 @@
                             Redact All Like This
                         </button>
                         <button type="button"
-                                ${secondOpinionConfigured ? '' : 'disabled'}
-                                title="${secondOpinionConfigured ? 'Ask the configured AI model' : 'No AI model configured'}"
+                                ${secondOpinionConfigured && !readOnly ? '' : 'disabled'}
+                                title="${readOnly ? lockedReason : (secondOpinionConfigured ? 'Ask the configured AI model' : 'No AI model configured')}"
                                 class="inline-flex items-center justify-center gap-1 text-xs font-medium text-purple-700 hover:bg-purple-50 border border-purple-200 rounded px-2 py-1 transition-colors disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                                 data-second-opinion="${escapeHtml(item.id)}">
                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"
@@ -1063,7 +1067,7 @@
 
             // Pessimistic-lock pulse loop. Skip when this user doesn't hold the lock
             // (read-only mode, or document is in a terminal status).
-            if (!lockedByOther && !documentApproved && !documentRejected && documentId) {
+            if (!readOnly && !lockedByOther && !documentApproved && !documentRejected && documentId) {
                 const PULSE_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
                 const pulse = async () => {
                     try {
@@ -2003,7 +2007,7 @@
 
             <div id="commentsList" class="flex-1 overflow-y-auto bg-gray-50 border border-gray-200 rounded-lg p-3 mb-4 space-y-3"></div>
 
-            <div>
+            <div th:classappend="${readOnly} ? 'hidden'">
                 <label for="commentText" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">New comment</label>
                 <textarea id="commentText" rows="3" maxlength="4000"
                           placeholder="Add a comment…"
@@ -2016,7 +2020,7 @@
                         class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
                     Close
                 </button>
-                <button type="button" id="commentsSaveBtn"
+                <button type="button" id="commentsSaveBtn" th:disabled="${readOnly}" th:classappend="${readOnly} ? 'hidden'"
                         class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition duration-200 disabled:bg-gray-300 disabled:cursor-not-allowed">
                     Save
                 </button>

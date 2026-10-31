@@ -57,6 +57,14 @@ Each navigator entry shows:
   span added by hand, make a [detection rule](detection-rules.md) that changes
   what Philter flags in documents redacted from then on, in every batch.
 
+## Read-only access for auditors
+
+An auditor sees the review page with every action that would change the
+document disabled or hidden, and "Read-only access" beside **Focus**. See
+[What an AUDITOR can do](../reference/roles.md#what-an-auditor-can-do).
+Opening a document as an auditor does not lock it, so reviewers can keep
+working on it.
+
 ## Case metadata
 
 Below the status line, the review page shows the document's

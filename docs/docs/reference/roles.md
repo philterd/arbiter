@@ -33,7 +33,12 @@ write affordances disabled. Specifically, they can:
 - **See the global Document Queue** across every batch (the `Limit to my
   groups` toggle has no effect — auditors aren't in groups).
 - **Open any batch and any document** for read-only review, including
-  documents in groups they don't belong to.
+  documents in groups they don't belong to. On the review page every span
+  action, adding a span by selecting text, Ask AI, Explain, adding a comment,
+  and the document's Approve, Reject, Unapprove, and Unreject are disabled or
+  hidden, each disabled control saying "Auditors have read-only access"; span
+  history, the navigator filters, comments, and Focus mode still work. Opening
+  a document takes no review lock, so an auditor never locks a reviewer out.
 - **Search** across every document body in the system.
 - **Read every audit-log entry**, including actor emails, and **export** the
   per-document audit history as CSV.
