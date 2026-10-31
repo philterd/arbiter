@@ -57,6 +57,7 @@ class AdminDestinationControllerTest {
     private AuditLogService auditLogService;
     private SymmetricCipher cipher;
     private DestinationTester destinationTester;
+    private ai.philterd.workspace.repository.BatchRepository batchRepository;
     private AdminDestinationController controller;
 
     @BeforeEach
@@ -66,6 +67,7 @@ class AdminDestinationControllerTest {
         auditLogService = mock(AuditLogService.class);
         cipher = mock(SymmetricCipher.class);
         destinationTester = mock(DestinationTester.class);
+        batchRepository = mock(ai.philterd.workspace.repository.BatchRepository.class);
         when(cipher.encrypt(anyString())).thenAnswer(inv -> "enc:" + inv.getArgument(0));
 
         // Default: no destinations.
@@ -75,7 +77,7 @@ class AdminDestinationControllerTest {
                 .thenReturn(new PageImpl<>(List.of()));
 
         controller = new AdminDestinationController(
-                localRepository, s3Repository, auditLogService, cipher, destinationTester);
+                localRepository, s3Repository, auditLogService, cipher, destinationTester, batchRepository);
     }
 
     private static RedirectAttributes flash() { return new RedirectAttributesModelMap(); }
@@ -595,6 +597,30 @@ class AdminDestinationControllerTest {
 
         assertEquals("S3 destination not found.", error(ra));
         verify(s3Repository, never()).save(any());
+    }
+
+    @Test
+    void aDestinationABatchDeliversToCannotBeRemoved() {
+        final LocalDirectoryDestination local = new LocalDirectoryDestination();
+        local.setId("l1"); local.setName("archive");
+        when(localRepository.findById("l1")).thenReturn(Optional.of(local));
+        final S3Destination s3 = new S3Destination();
+        s3.setId("s1"); s3.setName("s3-archive");
+        when(s3Repository.findById("s1")).thenReturn(Optional.of(s3));
+        when(batchRepository.existsByDestinationTypeAndDestinationId("LOCAL", "l1")).thenReturn(true);
+        when(batchRepository.existsByDestinationTypeAndDestinationId("S3", "s1")).thenReturn(true);
+
+        final RedirectAttributes localRa = flash();
+        controller.deleteLocal("l1", localRa);
+        assertEquals("Local directory destination \"archive\" is used by a batch. Choose another destination for "
+                + "that batch first.", error(localRa));
+        final RedirectAttributes s3Ra = flash();
+        controller.deleteS3("s1", s3Ra);
+        assertEquals("S3 destination \"s3-archive\" is used by a batch. Choose another destination for that batch "
+                + "first.", error(s3Ra));
+        verify(localRepository, never()).deleteById(anyString());
+        verify(s3Repository, never()).deleteById(anyString());
+        verify(auditLogService, never()).log(anyString(), anyString(), anyString(), any());
     }
 
     // ====================================================================

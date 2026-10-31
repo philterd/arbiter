@@ -78,6 +78,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "philter-workspace.sign-in.check-interval-seconds=0",
         "philter-workspace.store=sqlite",
         "philter-workspace.demo-data.enabled=false",
+        "philter-workspace.delivery.poll-millis=500",
         "philter-workspace.data-sources.allowed-hosts=localhost,127.0.0.1",
         "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.session.SessionAutoConfiguration"})
 @AutoConfigureMockMvc
@@ -149,6 +150,7 @@ class PhilterSignInIT {
     @Autowired private ai.philterd.workspace.service.GeneralSettingsService generalSettingsService;
     @Autowired private ai.philterd.workspace.service.DocumentSearchService documentSearchService;
     @Autowired private ai.philterd.workspace.service.SearchIndexRebuildService searchIndexRebuildService;
+    @Autowired private ai.philterd.workspace.repository.LocalDirectoryDestinationRepository localDestinations;
 
     @DynamicPropertySource
     static void properties(final DynamicPropertyRegistry registry) throws Exception {
@@ -1088,6 +1090,73 @@ class PhilterSignInIT {
             after.setFullTextSearchEnabled(false);
             generalSettingsService.save(after);
         }
+    }
+
+    @Test
+    void aFinalizedDocumentIsDeliveredToItsBatchDestination(@org.junit.jupiter.api.io.TempDir final java.nio.file.Path dir)
+            throws Exception {
+        final MockHttpSession session = new MockHttpSession();
+        final String address = newAddress();
+        signIn(session, address, "admin", ADMIN_PASSWORD);
+        final String suffix = HexFormat.of().formatHex(bytes(3));
+        final ai.philterd.workspace.model.LocalDirectoryDestination destination =
+                new ai.philterd.workspace.model.LocalDirectoryDestination();
+        destination.setId(java.util.UUID.randomUUID().toString());
+        destination.setName("staging-" + suffix);
+        destination.setDirectoryPath(dir.toString());
+        localDestinations.save(destination);
+        final ai.philterd.workspace.model.Batch batch = new ai.philterd.workspace.model.Batch();
+        batch.setId(java.util.UUID.randomUUID().toString());
+        batch.setName("Delivery " + suffix);
+        batchRepository.save(batch);
+
+        // The administrator chooses the destination on the Batches page.
+        mockMvc.perform(post("/batches/" + batch.getId() + "/destination").param("destination",
+                        "LOCAL:" + destination.getId()).session(session).with(csrf()).with(from(address)))
+                .andExpect(status().is3xxRedirection());
+        assertEquals("LOCAL", batchRepository.findById(batch.getId()).orElseThrow().getDestinationType());
+
+        final String text = "Write to jdoe@example.com about the claim.";
+        final ai.philterd.workspace.model.Document queued =
+                ingestQueueService.enqueueText(batch, "claim letter.txt", text, 2);
+        final long deadline = System.currentTimeMillis() + 120_000;
+        while (System.currentTimeMillis() < deadline && java.util.Set.of("PENDING", "PROCESSING")
+                .contains(documentRepository.findById(queued.getId()).orElseThrow().getStatus())) {
+            ingestQueueService.drain();
+            Thread.sleep(250);
+        }
+        // Accept every span and approve the document, as review would.
+        for (ai.philterd.workspace.model.Span span : spanRepository.findByDocumentId(queued.getId())) {
+            span.setStatus("APPROVED");
+            spanRepository.save(span);
+        }
+        final ai.philterd.workspace.model.Document approved = documentRepository.findById(queued.getId()).orElseThrow();
+        approved.changeStatus("APPROVED");
+        documentRepository.save(approved);
+
+        mockMvc.perform(post("/review/" + queued.getId() + "/finalize").session(session).with(csrf())
+                .with(from(address))).andExpect(status().is3xxRedirection());
+
+        final long delivered = System.currentTimeMillis() + 30_000;
+        ai.philterd.workspace.model.Document done = documentRepository.findById(queued.getId()).orElseThrow();
+        while (!"DELIVERED".equals(done.getDeliveryStatus()) && System.currentTimeMillis() < delivered) {
+            Thread.sleep(200);
+            done = documentRepository.findById(queued.getId()).orElseThrow();
+        }
+        assertEquals("DELIVERED", done.getDeliveryStatus(), done.getDeliveryError());
+        final java.nio.file.Path file = dir.resolve(queued.getId()).resolve("claim letter_redacted.txt");
+        final String written = java.nio.file.Files.readString(file);
+        assertEquals(done.getRedactedText(), written);
+        assertFalse(written.contains("jdoe@example.com"), written);
+
+        final String review = mockMvc.perform(get("/review/" + queued.getId()).session(session).with(from(address)))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
+        assertTrue(review.contains("Delivered to") && review.contains("staging-" + suffix), "the review page says so");
+
+        // The destination cannot be removed while the batch uses it.
+        mockMvc.perform(post("/admin/destinations/local/" + destination.getId() + "/delete").session(session)
+                .with(csrf()).with(from(address))).andExpect(status().is3xxRedirection());
+        assertTrue(localDestinations.findById(destination.getId()).isPresent());
     }
 
     @Test

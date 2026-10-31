@@ -71,7 +71,8 @@ class RedactionApiServiceImplFinalizeTest {
         when(philterClientFactory.create(any(), any(), any())).thenReturn(philterClient);
         service = new RedactionApiServiceImpl(philterClientFactory,
                 new PhilterSettings("http://philter:8080", "sk_test", ai.philterd.workspace.philter.PhilterTlsConfig.none()),
-                documentRepository, spanRepository, batchRepository, openSearchIndexService);
+                documentRepository, spanRepository, batchRepository, openSearchIndexService,
+                mock(DocumentDeliveryService.class));
     }
 
     private static Document approvedDoc(final String id, final String text) {

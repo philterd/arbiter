@@ -53,7 +53,7 @@ import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-/** The review page is read-only for auditors (#60), and unchanged for reviewers. */
+/** The review page is read-only for auditors (#60) and unchanged for reviewers, and shows a delivery's state (#24). */
 @WebMvcTest(controllers = ReviewViewController.class)
 @Import({SecurityConfig.class, DocumentAccessService.class, BatchAccessService.class})
 class ReviewPageReadOnlyTest extends WebMvcSliceMocks {
@@ -139,5 +139,45 @@ class ReviewPageReadOnlyTest extends WebMvcSliceMocks {
         assertTrue(html.contains("id=\"editCaseBtn\""));
         assertFalse(html.contains("Read-only access"));
         verify(documentLockService).acquire("d1", "someone");
+    }
+
+    @Test
+    void aFailedDeliveryIsShownToEveryoneAndOnlyAnAdministratorCanRetryIt() throws Exception {
+        document.setStatus("FINALIZED");
+        document.setDeliveryStatus("FAILED");
+        document.setDeliveryAttempts(4);
+        document.setDeliveryDestination("Local directory: staging");
+        document.setDeliveryError("Directory does not exist: /srv/staging");
+
+        final String admin = page("ADMIN");
+        assertTrue(admin.contains("Delivery to <span class=\"font-medium\">Local directory: staging</span> failed"), admin);
+        assertTrue(admin.contains("Directory does not exist: /srv/staging"));
+        assertTrue(admin.contains("action=\"/review/d1/delivery/retry\""), "an administrator can retry");
+
+        final String auditor = page("AUDITOR");
+        assertTrue(auditor.contains("Directory does not exist: /srv/staging"), "auditors see the failure");
+        assertFalse(auditor.contains("/review/d1/delivery/retry"), "but cannot retry");
+        assertFalse(page("USER").contains("/review/d1/delivery/retry"), "nor can a reviewer");
+    }
+
+    @Test
+    void aPendingRetryAndADeliveryAreDescribed() throws Exception {
+        document.setStatus("FINALIZED");
+        document.setDeliveryStatus("PENDING");
+        document.setDeliveryAttempts(1);
+        document.setDeliveryDestination("Amazon S3: staging");
+        document.setDeliveryError("Could not write to S3: Access Denied");
+        document.setDeliveryNextAttemptAt(java.time.Instant.parse("2026-10-31T12:01:00Z"));
+        final String pending = page("ADMIN").replaceAll("\\s+", " ");
+        assertTrue(pending.contains("is pending: attempt <span>1</span> failed (<span>Could not write to S3: Access Denied</span>)"
+                + " and is retried at"), pending);
+        assertFalse(pending.contains("/review/d1/delivery/retry"), "nothing to retry yet");
+
+        document.setDeliveryStatus("DELIVERED");
+        document.setDeliveredAt(java.time.Instant.parse("2026-10-31T12:01:02Z"));
+        assertTrue(page("ADMIN").replaceAll("\\s+", " ").contains("Delivered to <span class=\"font-medium\">Amazon S3: staging</span>"));
+
+        document.setDeliveryStatus(null);
+        assertFalse(page("ADMIN").contains("id=\"deliveryStatus\""), "no destination, no delivery line");
     }
 }

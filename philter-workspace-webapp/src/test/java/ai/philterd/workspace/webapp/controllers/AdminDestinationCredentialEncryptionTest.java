@@ -70,7 +70,8 @@ class AdminDestinationCredentialEncryptionTest {
         controller = new AdminDestinationController(
                 localRepository, s3Repository,
                 auditLogService, cipher,
-                mock(DestinationTester.class));
+                mock(DestinationTester.class),
+                mock(ai.philterd.workspace.repository.BatchRepository.class));
     }
 
     private static RedirectAttributes flash() { return new RedirectAttributesModelMap(); }

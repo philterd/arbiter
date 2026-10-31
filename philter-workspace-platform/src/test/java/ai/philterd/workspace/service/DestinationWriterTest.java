@@ -18,6 +18,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -75,5 +76,24 @@ class DestinationWriterTest {
         final DestinationWriter.Result result = writer.writeLocal(missing, "out.jsonl", source);
 
         assertFalse(result.isOk(), "writing to a non-existent directory must fail");
+    }
+
+    @Test
+    void aWriteReplacesTheFileWholeAndLeavesNoTemporaryFileBehind(@TempDir final Path dir) throws Exception {
+        final DestinationWriter writer = new DestinationWriter(org.mockito.Mockito.mock(SymmetricCipher.class));
+        final ai.philterd.workspace.model.LocalDirectoryDestination d = new ai.philterd.workspace.model.LocalDirectoryDestination();
+        d.setDirectoryPath(dir.toString());
+
+        assertTrue(writer.writeLocal(d, "d1/out.txt", "first".getBytes(java.nio.charset.StandardCharsets.UTF_8)).isOk());
+        assertTrue(writer.writeLocal(d, "d1/out.txt", "second".getBytes(java.nio.charset.StandardCharsets.UTF_8)).isOk());
+
+        assertEquals("second", java.nio.file.Files.readString(dir.resolve("d1/out.txt")));
+        try (java.util.stream.Stream<Path> files = java.nio.file.Files.list(dir.resolve("d1"))) {
+            assertEquals(java.util.List.of("out.txt"), files.map(f -> f.getFileName().toString()).toList());
+        }
+        final Path direct = java.nio.file.Files.writeString(dir.resolve("direct.txt"), "x");
+        assertEquals(java.nio.file.Files.getPosixFilePermissions(direct),
+                java.nio.file.Files.getPosixFilePermissions(dir.resolve("d1/out.txt")),
+                "the same permissions as a direct write, not narrowed to the owner");
     }
 }

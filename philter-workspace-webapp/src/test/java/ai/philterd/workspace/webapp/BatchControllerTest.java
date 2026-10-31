@@ -28,6 +28,7 @@ import org.springframework.web.servlet.mvc.support.RedirectAttributes;
 import org.mockito.ArgumentCaptor;
 import org.springframework.web.servlet.mvc.support.RedirectAttributesModelMap;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -38,6 +39,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -104,6 +106,54 @@ class BatchControllerTest {
     }
     private static String success(final RedirectAttributes ra) {
         final Object s = ra.getFlashAttributes().get("success"); return s == null ? null : s.toString();
+    }
+
+    // ---------- destination (#24) ----------
+
+    @Test
+    void anAdminChoosesAndClearsABatchDestination() {
+        final Batch b = new Batch();
+        b.setId("b1");
+        b.setName("Filings");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
+        final ai.philterd.workspace.model.S3Destination s3 = new ai.philterd.workspace.model.S3Destination();
+        s3.setId("s1");
+        s3.setName("staging");
+        when(s3DestinationRepository.findById("s1")).thenReturn(Optional.of(s3));
+
+        final RedirectAttributes ra = flash();
+        controller.changeDestination("b1", "S3:s1", admin(), ra);
+        assertEquals("S3", b.getDestinationType());
+        assertEquals("s1", b.getDestinationId());
+        assertEquals("Batch \"Filings\" delivers finalized documents to staging (Amazon S3).", success(ra));
+        verify(auditLogService).log(eq("BATCH_DESTINATION_CHANGE"), eq("Batch"), eq("b1"),
+                eq(java.util.Map.of("previousDestinationType", "", "previousDestinationId", "",
+                        "destinationType", "S3", "destinationId", "s1")));
+
+        final RedirectAttributes cleared = flash();
+        controller.changeDestination("b1", "", admin(), cleared);
+        assertNull(b.getDestinationType());
+        assertNull(b.getDestinationId());
+        assertEquals("Batch \"Filings\" no longer delivers finalized documents.", success(cleared));
+    }
+
+    @Test
+    void aDestinationIsRefusedForANonAdminOrWhenItDoesNotExist() {
+        final Batch b = new Batch();
+        b.setId("b1");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
+        when(localDirectoryDestinationRepository.findById("gone")).thenReturn(Optional.empty());
+
+        final RedirectAttributes nonAdmin = flash();
+        controller.changeDestination("b1", "LOCAL:gone", user(), nonAdmin);
+        assertEquals("Only administrators can choose a batch's destination.", error(nonAdmin));
+        for (String value : List.of("LOCAL:gone", "FTP:x", "nonsense")) {
+            final RedirectAttributes ra = flash();
+            controller.changeDestination("b1", value, admin(), ra);
+            assertEquals("Selected destination no longer exists.", error(ra), value);
+        }
+        assertNull(b.getDestinationType());
+        verify(batchRepository, never()).save(any());
     }
 
     // ---------- create ----------

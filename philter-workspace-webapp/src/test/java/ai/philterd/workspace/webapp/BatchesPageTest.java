@@ -31,6 +31,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 
 import static ai.philterd.workspace.webapp.SignedIn.signedIn;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
@@ -73,5 +74,45 @@ class BatchesPageTest extends WebMvcSliceMocks {
         assertTrue(html.contains("At least 1.0 in this deployment."), html);
         assertTrue(html.contains("id=\"thresholdsAudit\" type=\"number\" name=\"auditSamplingRate\" step=\"0.01\" max=\"1\" "
                 + "required min=\"1.0\""), "the batch settings form");
+    }
+
+    @Test
+    void anAdministratorChoosesTheDestinationAndEveryoneSeesItUnderInfo() throws Exception {
+        final Batch batch = new Batch();
+        batch.setId("b1");
+        batch.setName("Filings");
+        batch.setGroupId("g1");
+        batch.setDestinationType("S3");
+        batch.setDestinationId("s1");
+        when(batchRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(batch)));
+        when(batchRepository.findByGroupIdIn(any())).thenReturn(List.of(batch));
+        when(groupRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
+        when(finalizationPolicyRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
+        when(complianceProfileRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of()));
+        final ai.philterd.workspace.model.LocalDirectoryDestination local =
+                new ai.philterd.workspace.model.LocalDirectoryDestination();
+        local.setId("l1");
+        local.setName("archive");
+        when(localDirectoryDestinationRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(local)));
+        final ai.philterd.workspace.model.S3Destination s3 = new ai.philterd.workspace.model.S3Destination();
+        s3.setId("s1");
+        s3.setName("staging");
+        when(s3DestinationRepository.findAll(any(Pageable.class))).thenReturn(new PageImpl<>(List.of(s3)));
+        when(userGroupsService.groupIdsForEmail(any())).thenReturn(java.util.Set.of("g1"));
+        when(userGroupsService.leadGroupIdsForEmail(any())).thenReturn(java.util.Set.of("g1"));
+        when(documentRepository.findByBatchIdAndStatusIn(any(), any(), any(Pageable.class)))
+                .thenReturn(new PageImpl<>(List.of()));
+
+        final String admin = mockMvc.perform(get("/batches").with(signedIn("boss", "ADMIN")))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString().replaceAll("\\s+", " ");
+        assertTrue(admin.contains("class=\"destination-btn"), "the Destination button");
+        assertTrue(admin.contains("data-destination=\"S3:s1\""), admin);
+        assertTrue(admin.contains("<option value=\"LOCAL:l1\">archive (Local Directory)</option>"), admin);
+        assertTrue(admin.contains("data-destination=\"staging (Amazon S3)\""), "Info shows the destination");
+
+        final String lead = mockMvc.perform(get("/batches").with(signedIn("lead", "USER")))
+                .andExpect(status().isOk()).andReturn().getResponse().getContentAsString().replaceAll("\\s+", " ");
+        assertFalse(lead.contains("class=\"destination-btn"), "only administrators choose a destination");
+        assertTrue(lead.contains("data-destination=\"staging (Amazon S3)\""), "but a team lead sees it under Info");
     }
 }

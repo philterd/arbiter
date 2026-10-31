@@ -62,6 +62,12 @@ public class Batch {
     private String finalizationPolicyId;
     private String complianceProfileId;
     /**
+     * Where finalized documents in this batch are delivered (#24): {@code LOCAL} or {@code S3} with that
+     * destination's id, or both null for none.
+     */
+    private String destinationType;
+    private String destinationId;
+    /**
      * When {@code true}, accepting (APPROVING) a redaction in this batch requires the
      * reviewer to pick a Compliance Profile exemption code. When {@code false}, the
      * exemption-code prompt is suppressed even if the compliance profile defines codes.
@@ -312,4 +318,10 @@ public class Batch {
 
     public boolean isPolicyByCaseType() { return policyByCaseType; }
     public void setPolicyByCaseType(final boolean policyByCaseType) { this.policyByCaseType = policyByCaseType; }
+
+    public String getDestinationType() { return destinationType; }
+    public void setDestinationType(final String destinationType) { this.destinationType = destinationType; }
+
+    public String getDestinationId() { return destinationId; }
+    public void setDestinationId(final String destinationId) { this.destinationId = destinationId; }
 }

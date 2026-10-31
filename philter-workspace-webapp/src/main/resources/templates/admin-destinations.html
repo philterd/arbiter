@@ -198,9 +198,10 @@
                 <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Destinations</h2><a href="/docs/admin/destinations/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-brand-600 hover:underline self-baseline">Help</a></span>
             </div>
             <p class="text-sm text-gray-600 mb-6 max-w-3xl">
-                Destinations are locations where finalized redacted documents can be written to.
-                Configure one or more destinations below; they become available when finalizing
-                a batch.
+                Destinations are where finalized redacted documents are delivered. Configure them here,
+                then choose a batch's destination with <span class="font-medium">Destination</span> on the
+                Batches page: each document finalized in that batch has its redacted text written there.
+                A destination a batch uses cannot be removed.
             </p>
             <div th:if="${error}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
                  th:text="${error}">Error</div>

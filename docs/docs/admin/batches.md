@@ -54,6 +54,10 @@ Each batch row has:
   [choose each document's policy from its case type](../reference/case-metadata.md#choosing-the-policy-by-case-type);
   the column then shows **By case type**.
 - A **Weights** link that opens the per-batch PII weight editor (see below).
+- A **Destination** button (admin only) that chooses where documents
+  finalized in the batch are delivered: a configured
+  [destination](destinations.md#delivering-finalized-documents), or **None**.
+  **Info** shows the batch's current destination.
 - A **Close** button (admin only) that marks the batch closed.
 - A **Closed** badge next to the name when the batch is in the closed state.
 

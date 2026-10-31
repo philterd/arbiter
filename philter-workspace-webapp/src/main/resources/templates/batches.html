@@ -337,10 +337,11 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <button type="button"
                                         class="info-btn text-brand-600 hover:text-brand-800 font-medium mr-3"
-                                        title="Show compliance profile and finalization policy"
+                                        title="Show compliance profile, finalization policy, and delivery destination"
                                         th:attr="data-batch-name=${b.name},
                                                  data-compliance-profile=${b.complianceProfileName == null ? '' : b.complianceProfileName},
                                                  data-finalization-policy=${b.finalizationPolicyName == null ? '' : b.finalizationPolicyName},
+                                                 data-destination=${b.destinationLabel == null ? '' : b.destinationLabel},
                                                  data-blind-double-review=${b.blindDoubleReviewEnabled} ? 'on' : 'off',
                                                  data-blind-double-review-pct=${b.blindDoubleReviewPercentage}">
                                     Info
@@ -359,6 +360,14 @@
                                 </button>
                                 <a th:href="@{/batches/{id}/weights(id=${b.id})}"
                                    class="text-brand-600 hover:text-brand-800 font-medium mr-3">Weights</a>
+                                <button type="button" sec:authorize="hasRole('ADMIN')"
+                                        class="destination-btn text-brand-600 hover:text-brand-800 font-medium mr-3"
+                                        title="Choose where finalized documents are delivered"
+                                        th:attr="data-batch-id=${b.id},
+                                                 data-batch-name=${b.name},
+                                                 data-destination=${b.destinationValue}">
+                                    Destination
+                                </button>
                                 <button type="button"
                                         class="export-btn text-brand-600 hover:text-brand-800 font-medium mr-3"
                                         th:attr="data-batch-id=${b.id},
@@ -437,6 +446,10 @@
                     <dd id="batchInfoFinalization" class="text-gray-900">—</dd>
                 </div>
                 <div>
+                    <dt class="text-xs font-medium text-gray-600 uppercase tracking-wide mb-0.5">Delivery Destination</dt>
+                    <dd id="batchInfoDestination" class="text-gray-900"></dd>
+                </div>
+                <div>
                     <dt class="text-xs font-medium text-gray-600 uppercase tracking-wide mb-0.5">Blind Double Review</dt>
                     <dd id="batchInfoBlindDoubleReview" class="text-gray-900">—</dd>
                 </div>
@@ -448,6 +461,43 @@
                 </button>
             </div>
         </div>
+    </div>
+
+    <!-- Destination modal (#24): where finalized documents in the batch are delivered. Administrators only. The
+         form action is set in JS at open time, so the CSRF token is rendered explicitly. -->
+    <div id="destinationModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <form id="destinationForm" method="post" class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-md p-6">
+            <input type="hidden" name="_csrf" th:if="${_csrf != null}" th:value="${_csrf.token}">
+            <h3 class="text-lg font-semibold text-gray-900 mb-1">Delivery destination</h3>
+            <p class="text-sm text-gray-600 mb-4">
+                Batch: <span id="destinationBatchName" class="font-medium">batch</span>
+            </p>
+            <p class="text-xs text-gray-500 mb-4">
+                Each document finalized in this batch has its redacted text written to this destination. The original
+                document is never written. Documents already finalized are not delivered.
+            </p>
+            <label for="destinationSelect" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Destination</label>
+            <select id="destinationSelect" name="destination"
+                    class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                <option value="">None</option>
+                <option th:each="d : ${exportDestinations}"
+                        th:value="${d.kind + ':' + d.id}"
+                        th:text="${d.label}">Destination</option>
+            </select>
+            <p th:if="${#lists.isEmpty(exportDestinations)}" class="text-xs text-gray-500 mt-1">
+                No destinations are configured. Add one under Administration, Destinations.
+            </p>
+            <div class="flex items-center justify-end gap-2 mt-6">
+                <button type="button" id="destinationCancelBtn"
+                        class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition duration-200">
+                    Save
+                </button>
+            </div>
+        </form>
     </div>
 
     <!-- Export modal. Triggered by the "Export" link on each row. The form
@@ -917,6 +967,7 @@
             const nameEl = document.getElementById('batchInfoName');
             const complianceEl = document.getElementById('batchInfoCompliance');
             const finalizationEl = document.getElementById('batchInfoFinalization');
+            const destinationEl = document.getElementById('batchInfoDestination');
             const blindEl = document.getElementById('batchInfoBlindDoubleReview');
             const closeBtn = document.getElementById('batchInfoCloseBtn');
             if (!modal) return;
@@ -934,10 +985,11 @@
                 }
             }
 
-            function open(batchName, compliance, finalization, blindState, blindPct) {
+            function open(batchName, compliance, finalization, blindState, blindPct, destination) {
                 nameEl.textContent = batchName || '';
                 render(complianceEl, compliance);
                 render(finalizationEl, finalization);
+                render(destinationEl, destination);
                 if (blindState === 'on') {
                     blindEl.textContent = 'Enabled — ' + (blindPct || '10') + '% of documents selected';
                 } else {
@@ -954,11 +1006,38 @@
                          btn.getAttribute('data-compliance-profile'),
                          btn.getAttribute('data-finalization-policy'),
                          btn.getAttribute('data-blind-double-review'),
-                         btn.getAttribute('data-blind-double-review-pct'));
+                         btn.getAttribute('data-blind-double-review-pct'),
+                         btn.getAttribute('data-destination'));
                 });
             });
 
             closeBtn.addEventListener('click', close);
+            modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
+            });
+        })();
+    </script>
+
+    <script th:nonce="${cspNonce}">
+        // Destination modal (#24): opened from a row's Destination button, posts to /batches/{id}/destination.
+        (function () {
+            const modal = document.getElementById('destinationModal');
+            if (!modal) return;
+            const form = document.getElementById('destinationForm');
+            const select = document.getElementById('destinationSelect');
+            const close = () => modal.classList.add('hidden');
+            document.querySelectorAll('button.destination-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    form.action = '/batches/' + encodeURIComponent(btn.dataset.batchId) + '/destination';
+                    document.getElementById('destinationBatchName').textContent = btn.dataset.batchName || '';
+                    const current = btn.dataset.destination || '';
+                    // A removed destination is not in the list, so the select falls back to None.
+                    select.value = Array.from(select.options).some(o => o.value === current) ? current : '';
+                    modal.classList.remove('hidden');
+                });
+            });
+            document.getElementById('destinationCancelBtn').addEventListener('click', close);
             modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();

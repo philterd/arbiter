@@ -47,4 +47,5 @@ public interface DocumentRepository extends WorkspaceRepository<Document, String
     long countByStatus(String status);
     boolean existsBySourceIndexAndSourceDocId(String sourceIndex, String sourceDocId);
     List<Document> findByBatchId(String batchId);
+    List<Document> findByDeliveryStatus(String deliveryStatus);
 }

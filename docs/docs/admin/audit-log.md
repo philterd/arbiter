@@ -45,6 +45,8 @@ and export them:
 | `DOCUMENT_UNREJECT`                 | Document    | Rejection rescinded and document returned to review |
 | `DOCUMENT_FINALIZE`                 | Document    | Document finalized; includes `certificateId` and `documentHash` |
 | `DOCUMENT_DOWNLOAD`                 | Document    | Reviewer downloaded a finalized redacted document   |
+| `DOCUMENT_DELIVER`                  | Document    | One attempt to write a finalized document's redacted text to its batch's [destination](destinations.md#delivering-finalized-documents), as the person who finalized it (or retried the delivery). Outcome `SUCCESS` with the destination's type, id, and name, the attempt number, the file name as a keyed hash, and the SHA-256 and size of what was written; or `FAILURE` with the destination, the attempt number, and `finalAttempt` when no more attempts follow |
+| `DOCUMENT_DELIVERY_RETRY`           | Document    | An administrator or the batch's team lead queued a failed delivery again, with the destination |
 | `DOCUMENT_AUDIT_EXPORT`             | Document    | Admin downloaded the per-document audit log as CSV  |
 | `DOCUMENT_PII_SENT_TO_LLM`          | Document    | Fired **before** each outbound Ollama LLM call (Explain or Second Opinion). Records the Ollama instance, model, and span count. Written before the HTTP request so the entry exists even if Ollama is unreachable or returns an error. See [LLM-as-a-Judge](#llm-as-a-judge-events). |
 | `DOCUMENT_LOCK_BROKEN`              | Document    | An administrator, or an approver of the document's group (`asApprover`), released a document another user held |
@@ -72,6 +74,7 @@ and export them:
 | `RDB_WATERMARK_ADVANCE` / `_RESET` / `_SET_MANUAL` | RelationalDbDataSource | The incremental-import watermark moved after an import, was reset, or was set by an admin |
 | `LOCAL_DESTINATION_CREATE` / `_UPDATE` / `_DELETE` | LocalDirectoryDestination | Local directory destination added, edited, or removed |
 | `BATCH_DOMAIN_CHANGE`               | Batch       | Old → new domain                                    |
+| `BATCH_DESTINATION_CHANGE`          | Batch       | The batch's delivery [destination](destinations.md#delivering-finalized-documents) chosen or cleared: previous and new destination type and id |
 | `BATCH_RULES_ADD` / `_UPDATE` / `_REMOVE` | Batch | An approval rule set attached to, changed on, or removed from a batch, including whether it reserves the second approval for an approver (`requireApprover`) |
 | `BATCH_EXPORT`                      | Batch       | A batch export written to a destination, or failing to be; with the format, destination, document count, whether documents with redactions no person decided were left out, and how many |
 | `DOCUMENT_QUEUED`                   | Document    | A web upload queued for redaction; the filename is recorded as a hash, with the case type when one was given |

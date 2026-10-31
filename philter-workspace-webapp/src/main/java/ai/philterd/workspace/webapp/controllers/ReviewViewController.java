@@ -101,6 +101,7 @@ public class ReviewViewController {
     private final RedactionCertificateService redactionCertificateService;
     private final FinalizationPolicyRepository finalizationPolicyRepository;
     private final ai.philterd.workspace.service.GeneralSettingsService generalSettingsService;
+    private final ai.philterd.workspace.service.DocumentDeliveryService deliveryService;
 
     public ReviewViewController(final DocumentRepository documentRepository,
                                 final SpanRepository spanRepository,
@@ -118,7 +119,8 @@ public class ReviewViewController {
                                 final ai.philterd.workspace.service.DocumentLockService documentLockService,
                                 final RedactionCertificateService redactionCertificateService,
                                 final FinalizationPolicyRepository finalizationPolicyRepository,
-                                final ai.philterd.workspace.service.GeneralSettingsService generalSettingsService) {
+                                final ai.philterd.workspace.service.GeneralSettingsService generalSettingsService,
+                                final ai.philterd.workspace.service.DocumentDeliveryService deliveryService) {
         this.documentRepository = documentRepository;
         this.spanRepository = spanRepository;
         this.batchRepository = batchRepository;
@@ -136,6 +138,7 @@ public class ReviewViewController {
         this.redactionCertificateService = redactionCertificateService;
         this.finalizationPolicyRepository = finalizationPolicyRepository;
         this.generalSettingsService = generalSettingsService;
+        this.deliveryService = deliveryService;
     }
 
 
@@ -298,6 +301,8 @@ public class ReviewViewController {
         // An approver of the document's group (#5) adjudicates spans and releases a document another reviewer holds.
         final boolean approver = documentAccessService.canApproveDocument(authentication, document);
         model.addAttribute("isApprover", approver);
+        // A failed delivery (#24) can be retried by an administrator or the batch's team lead.
+        model.addAttribute("canRetryDelivery", !readOnly && documentAccessService.canLeadDocument(authentication, document));
         model.addAttribute("canReleaseLock", approver);
 
         final ai.philterd.workspace.model.ComplianceProfile complianceProfile =
@@ -444,7 +449,35 @@ public class ReviewViewController {
                         "documentHash", certificate.getDocumentHash() == null
                                 ? "" : certificate.getDocumentHash()));
         applyFinalizationPolicy(document, email);
+        // Deliver the finalized output to the batch's destination, if it has one (#24). Queued after the
+        // finalization policy has saved the document, so the delivery job and this request never save it at once.
+        final Batch batch = document.getBatchId() == null ? null
+                : batchRepository.findById(document.getBatchId()).orElse(null);
+        if (deliveryService.queue(document, batch, email)) {
+            documentRepository.save(document);
+        }
         return "redirect:/queue";
+    }
+
+    /** Queues a failed delivery again (#24). For administrators and the batch's team leads. */
+    @PostMapping("/review/{documentId}/delivery/retry")
+    public String retryDelivery(@PathVariable final String documentId,
+                                final Authentication authentication,
+                                final org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
+        final Document document = documentRepository.findById(documentId)
+                .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Document not found."));
+        documentAccessService.requireDocumentAccess(authentication, document);
+        if (!documentAccessService.canLeadDocument(authentication, document)) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN,
+                    "Only an administrator or the batch's team lead can retry a delivery.");
+        }
+        final String error = deliveryService.retry(document, authentication.getName());
+        if (error != null) {
+            redirectAttributes.addFlashAttribute("error", error);
+        } else {
+            redirectAttributes.addFlashAttribute("success", "Delivery queued again.");
+        }
+        return "redirect:/review/" + documentId;
     }
 
     /**

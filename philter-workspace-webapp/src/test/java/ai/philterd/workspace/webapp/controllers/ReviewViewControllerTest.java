@@ -87,6 +87,7 @@ class ReviewViewControllerTest {
     private OpenSearchIndexService openSearchIndexService;
     private RedactionCertificateService redactionCertificateService;
     private FinalizationPolicyRepository finalizationPolicyRepository;
+    private ai.philterd.workspace.service.DocumentDeliveryService deliveryService;
     private ReviewViewController controller;
 
     @BeforeEach
@@ -115,6 +116,7 @@ class ReviewViewControllerTest {
         final ai.philterd.workspace.service.GeneralSettingsService generalSettingsService =
                 mock(ai.philterd.workspace.service.GeneralSettingsService.class);
         when(generalSettingsService.load()).thenReturn(new ai.philterd.workspace.model.GeneralSettings());
+        deliveryService = mock(ai.philterd.workspace.service.DocumentDeliveryService.class);
         controller = new ReviewViewController(documentRepository, spanRepository, batchRepository,
                 complianceProfileRepository, userGroupsService,
                 new ai.philterd.workspace.service.DocumentAccessService(batchRepository, documentRepository,
@@ -122,7 +124,7 @@ class ReviewViewControllerTest {
                 auditLogService,
                 ollamaInstanceRepository, llmJudgeDefaultsService, userSettingsService,
                 userRepository, approvalRuleEvaluator, openSearchIndexService, documentLockService,
-                redactionCertificateService, finalizationPolicyRepository, generalSettingsService);
+                redactionCertificateService, finalizationPolicyRepository, generalSettingsService, deliveryService);
 
         // Default lock-acquire behavior: succeed by routing the request through the
         // mocked DocumentRepository so the returned doc carries the test's stubbed
@@ -258,6 +260,48 @@ class ReviewViewControllerTest {
         controller.finalizeDocument("d1", admin(), flash());
 
         verify(auditLogService).log(eq("DOCUMENT_FINALIZE"), eq("Document"), eq("d1"), any());
+    }
+
+    @Test
+    void finalizeQueuesDeliveryToTheBatchDestinationAfterTheFinalizationPolicy() {
+        final Document d = approvedDoc("d1", "b1", "hello");
+        when(documentRepository.findById("d1")).thenReturn(Optional.of(d));
+        when(spanRepository.findByDocumentId("d1")).thenReturn(new java.util.ArrayList<>());
+        final Batch b = new Batch();
+        b.setId("b1");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
+        when(deliveryService.queue(d, b, "admin@x.com")).thenReturn(true);
+
+        controller.finalizeDocument("d1", admin(), flash());
+
+        final org.mockito.InOrder order = org.mockito.Mockito.inOrder(deliveryService, documentRepository);
+        order.verify(documentRepository).save(d);
+        order.verify(deliveryService).queue(d, b, "admin@x.com");
+        order.verify(documentRepository).save(d);
+    }
+
+    @Test
+    void aFailedDeliveryIsRetriedByABatchLeadButNotByAReviewer() {
+        final Document d = approvedDoc("d1", "b1", "hello");
+        d.changeStatus("FINALIZED");
+        when(documentRepository.findById("d1")).thenReturn(Optional.of(d));
+        final Batch b = new Batch();
+        b.setId("b1");
+        b.setGroupId("g1");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
+        when(deliveryService.retry(d, "admin@x.com")).thenReturn(null);
+
+        final RedirectAttributes ra = flash();
+        assertEquals("redirect:/review/d1", controller.retryDelivery("d1", admin(), ra));
+        verify(deliveryService).retry(d, "admin@x.com");
+
+        when(userGroupsService.groupIdsForEmail("rev@x.com")).thenReturn(Set.of("g1"));
+        final Authentication reviewer = new UsernamePasswordAuthenticationToken("rev@x.com", null,
+                Set.of(new SimpleGrantedAuthority("ROLE_USER")));
+        final ResponseStatusException e = assertThrows(ResponseStatusException.class,
+                () -> controller.retryDelivery("d1", reviewer, flash()));
+        assertEquals(403, e.getStatusCode().value());
+        verify(deliveryService, never()).retry(d, "rev@x.com");
     }
 
     // ---------- applyFinalizationPolicy() via finalizeDocument() ----------

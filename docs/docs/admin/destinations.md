@@ -10,14 +10,8 @@ The page is at `/admin/destinations`, also reachable from the
 **Destinations** link in the sidebar's Administration section. ROLE_ADMIN
 only.
 
-> **Status:** Destinations can be **created**, **edited**, **removed**, and
-> **tested** from this page today, but Philter Workspace does not yet emit finalized
-> documents to them. Batches do not currently expose a destination picker, and
-> the finalize flow does not write to any destination. Configurations created
-> here are stored and verified (the **Test** button works end-to-end) but
-> remain inert until destination-write support is wired into finalize. Treat
-> the page as configuration the system will start using once that support
-> lands rather than a live output channel today.
+Each batch can deliver its finalized documents to one destination. See
+[Delivering finalized documents](#delivering-finalized-documents).
 
 ## Destination types
 
@@ -152,6 +146,54 @@ page:
 Saving fires a `*_DESTINATION_UPDATE` audit event (see the
 [Audit trail](#audit-trail) below) with a `credentialsChanged` boolean and,
 for S3, a `credentialsCleared` boolean.
+
+## Delivering finalized documents
+
+An administrator chooses a batch's destination with **Destination** on the
+[Batches](batches.md#per-row-actions) page. From then on, each document
+finalized in that batch, from the review page or through
+`POST /api/v1/documents/{id}/finalize`, has its redacted text written to the
+destination. Documents finalized before the destination was chosen are not
+delivered.
+
+What is written:
+
+- Only the redacted text, as UTF-8, at `<documentId>/<name>_redacted.txt`
+  under the directory, or under the bucket key for S3. `<name>` is the
+  uploaded file's name without its extension, with characters other than
+  letters, digits, `.`, `_`, `-`, and spaces replaced by `_`.
+- Never the original document, its spans, or the certificate of redaction,
+  which records span text.
+
+A Local Directory file is written under a hidden temporary name
+(`.philter-workspace-<random>.part`) and then renamed into place, so a process
+watching the directory never reads a partly written file. An S3 object appears
+only once it is complete.
+
+Delivery runs in the background shortly after finalizing. A failed write is
+retried after 1, 5, and 15 minutes. After four failed attempts, or at once
+when the batch's destination was removed or the document has no finalized
+output, the delivery is marked failed. The review page shows the delivery's
+state (pending, delivered, or failed with the reason), and an administrator or
+the batch's team lead can **Retry delivery**, which writes to the batch's
+current destination with a fresh set of attempts. A failed delivery does not
+change the finalized document, which can still be downloaded from the
+Document Queue.
+
+Every attempt is recorded in the audit log as `DOCUMENT_DELIVER` with the
+destination, the attempt number, and, on success, the file name as a keyed
+hash and the SHA-256 and size of what was written. The file name is hashed
+because it comes from the uploaded file's name, which can carry personal
+information.
+
+A destination that a batch uses cannot be removed. Choose another
+destination, or **None**, for that batch first.
+
+The delivery service checks for due deliveries every 10 seconds
+(`philter-workspace.delivery.poll-millis`). Writing a file again replaces it,
+so when several Philter Workspace instances share a store and two deliver the
+same document, the second write replaces the first with the same content, and
+both attempts are audited.
 
 ## Credential encryption
 

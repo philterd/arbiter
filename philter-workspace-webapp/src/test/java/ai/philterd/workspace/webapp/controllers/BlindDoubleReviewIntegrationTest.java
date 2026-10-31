@@ -679,7 +679,8 @@ class BlindDoubleReviewIntegrationTest {
                 userGroupsService, documentAccessService, auditLogService,
                 ollamaInstanceRepository, llmJudgeDefaultsService, userSettingsService, userRepository,
                 approvalRuleEvaluator, openSearchIndexService, documentLockService,
-                redactionCertificateService, finalizationPolicyRepository, generalSettingsService);
+                redactionCertificateService, finalizationPolicyRepository, generalSettingsService,
+                mock(ai.philterd.workspace.service.DocumentDeliveryService.class));
     }
 
     private TriageController buildTriageController() {

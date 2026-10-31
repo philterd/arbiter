@@ -83,7 +83,8 @@ class AdminDestinationCredentialEncryptionIntegrationTest {
 
         final AdminDestinationController controller = new AdminDestinationController(
                 localRepository, s3Repository,
-                auditLogService, cipher, mock(DestinationTester.class));
+                auditLogService, cipher, mock(DestinationTester.class),
+                mock(ai.philterd.workspace.repository.BatchRepository.class));
 
         // Standalone setup wires this single controller through the real Spring MVC
         // dispatcher. Form binding, @RequestParam resolution, and view-name redirect

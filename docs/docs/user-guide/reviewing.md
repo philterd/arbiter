@@ -65,6 +65,15 @@ document disabled or hidden, and "Read-only access" beside **Focus**. See
 Opening a document as an auditor does not lock it, so reviewers can keep
 working on it.
 
+## Delivery to a destination
+
+When a document's batch has a [destination](../admin/destinations.md#delivering-finalized-documents),
+finalizing the document writes its redacted text there in the background. The
+review page then shows whether the delivery is pending, delivered, or failed,
+with the reason. A failed write is retried three times; after that, an
+administrator or the batch's team lead can click **Retry delivery**. The
+finalized document is kept whatever happens to the delivery.
+
 ## Case metadata
 
 Below the status line, the review page shows the document's

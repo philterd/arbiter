@@ -40,19 +40,22 @@ public class RedactionApiServiceImpl implements RedactionApiService {
     private final SpanRepository spanRepository;
     private final BatchRepository batchRepository;
     private final DocumentSearchService searchService;
+    private final DocumentDeliveryService deliveryService;
 
     public RedactionApiServiceImpl(final PhilterClientFactory philterClientFactory,
                                    final PhilterSettings philter,
                                    final DocumentRepository documentRepository,
                                    final SpanRepository spanRepository,
                                    final BatchRepository batchRepository,
-                                   final DocumentSearchService searchService) {
+                                   final DocumentSearchService searchService,
+                                   final DocumentDeliveryService deliveryService) {
         this.philterClientFactory = philterClientFactory;
         this.philter = philter;
         this.documentRepository = documentRepository;
         this.spanRepository = spanRepository;
         this.batchRepository = batchRepository;
         this.searchService = searchService;
+        this.deliveryService = deliveryService;
     }
 
     private PhilterClient philterClient(final Batch batch) {
@@ -155,6 +158,10 @@ public class RedactionApiServiceImpl implements RedactionApiService {
         // paths leave the document in the same state.
         document.setRedactedText(finalizedText);
         document.changeStatus("FINALIZED");
+        // Deliver the finalized output to the batch's destination, if it has one (#24).
+        final org.springframework.security.core.Authentication auth =
+                org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+        deliveryService.queue(document, batch, auth == null ? null : auth.getName());
         documentRepository.save(document);
 
         return finalizedText;

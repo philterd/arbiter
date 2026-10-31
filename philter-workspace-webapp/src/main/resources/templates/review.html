@@ -506,6 +506,36 @@
                 This document is <span class="font-semibold">FINALIZED</span>. No further changes can be made.
             </div>
 
+            <!-- Delivery of the finalized output to the batch's destination (#24). -->
+            <div id="deliveryStatus" th:if="${document.deliveryStatus != null}"
+                 class="focus-hide mb-4 p-3 rounded-lg border text-sm flex items-center gap-3 flex-wrap"
+                 th:classappend="${document.deliveryStatus == 'FAILED'} ? 'bg-red-50 border-red-200 text-red-800'
+                     : (${document.deliveryStatus == 'DELIVERED'} ? 'bg-green-50 border-green-200 text-green-800' : 'bg-amber-50 border-amber-200 text-amber-800')">
+                <span th:if="${document.deliveryStatus == 'DELIVERED'}">
+                    Delivered to <span class="font-medium" th:text="${document.deliveryDestination}">destination</span>
+                    at <span th:text="${@timestampFormatter.format(document.deliveredAt)}">time</span>.
+                </span>
+                <span th:if="${document.deliveryStatus == 'PENDING'}">
+                    Delivery to <span class="font-medium" th:text="${document.deliveryDestination}">destination</span> is pending<th:block
+                        th:if="${document.deliveryAttempts > 0}">: attempt <span th:text="${document.deliveryAttempts}">1</span>
+                        failed (<span th:text="${document.deliveryError}">error</span>) and is retried at
+                        <span th:text="${@timestampFormatter.format(document.deliveryNextAttemptAt)}">time</span></th:block>.
+                </span>
+                <span th:if="${document.deliveryStatus == 'FAILED'}">
+                    Delivery to <span class="font-medium" th:text="${document.deliveryDestination}">destination</span> failed
+                    after <span th:text="${document.deliveryAttempts}">4</span>
+                    <span th:text="${document.deliveryAttempts == 1 ? 'attempt' : 'attempts'}">attempts</span>:
+                    <span th:text="${document.deliveryError}">error</span>. The finalized output is kept and can still be downloaded from the Document Queue.
+                </span>
+                <form th:if="${document.deliveryStatus == 'FAILED' and canRetryDelivery}"
+                      th:action="@{/review/{id}/delivery/retry(id=${document.id})}" method="post" class="inline">
+                    <button type="submit"
+                            class="px-3 py-1 text-xs font-medium rounded-md border border-red-300 bg-white text-red-700 hover:bg-red-100">
+                        Retry delivery
+                    </button>
+                </form>
+            </div>
+
             <div class="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_18rem] gap-6">
                 <div>
                     <h3 class="text-lg font-semibold mb-2 text-gray-800">Original</h3>

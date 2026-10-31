@@ -98,4 +98,11 @@ public class DocumentAccessService {
                 : batchRepository.findById(document.getBatchId()).orElse(null);
         return batchAccessService.canApproveBatch(auth, batch);
     }
+
+    /** Whether the caller leads the document's batch: an administrator, or a team lead of the batch's group. */
+    public boolean canLeadDocument(final Authentication auth, final Document document) {
+        final Batch batch = document == null || document.getBatchId() == null ? null
+                : batchRepository.findById(document.getBatchId()).orElse(null);
+        return batchAccessService.canLeadBatch(auth, batch);
+    }
 }

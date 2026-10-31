@@ -63,7 +63,13 @@ public class DestinationWriter {
             return Result.failure(t.error);
         }
         try {
-            Files.write(t.target, payload);
+            final Path part = partFile(t.target);
+            try {
+                Files.write(part, payload);
+                publish(part, t.target);
+            } finally {
+                Files.deleteIfExists(part);
+            }
             return Result.success("Wrote " + payload.length + " bytes to " + t.target);
         } catch (IOException e) {
             return localWriteFailure(t.target, e);
@@ -82,15 +88,40 @@ public class DestinationWriter {
             return Result.failure(t.error);
         }
         try {
-            Files.copy(source, t.target, StandardCopyOption.REPLACE_EXISTING);
+            final Path part = partFile(t.target);
+            try {
+                Files.copy(source, part, StandardCopyOption.REPLACE_EXISTING);
+                publish(part, t.target);
+            } finally {
+                Files.deleteIfExists(part);
+            }
             return Result.success("Wrote " + Files.size(t.target) + " bytes to " + t.target);
         } catch (IOException e) {
             return localWriteFailure(t.target, e);
         }
     }
 
+    /**
+     * A hidden temporary file beside {@code target}. The content is written there first and then moved into place,
+     * so a process watching the destination never reads a partly written file.
+     */
+    private static Path partFile(final Path target) {
+        // Not Files.createTempFile, which makes the file readable by its owner only; the file keeps the process's
+        // usual permissions, as a direct write would, so whatever reads the destination can still read it.
+        return target.resolveSibling(".philter-workspace-" + java.util.UUID.randomUUID() + ".part");
+    }
+
+    private static void publish(final Path part, final Path target) throws IOException {
+        try {
+            Files.move(part, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
+        } catch (java.nio.file.AtomicMoveNotSupportedException e) {
+            Files.move(part, target, StandardCopyOption.REPLACE_EXISTING);
+        }
+    }
+
     private Result localWriteFailure(final Path target, final IOException e) {
-        LOG.warn("Local export write failed for {}: {}", target, e.toString());
+        // The file name can come from an uploaded document's name, so only the directory is logged.
+        LOG.warn("Local destination write failed under {}: {}", target.getParent(), e.getClass().getName());
         if (e instanceof java.nio.file.NoSuchFileException) {
             // NoSuchFileException's getMessage() is just the path, which leads to messages like
             // "Could not write to /a/b: /a/b". Translate it into something an operator can act on.
@@ -193,8 +224,9 @@ public class DestinationWriter {
             return Result.success("Uploaded " + bytes + " bytes to s3://"
                     + destination.getBucketName() + "/" + objectKey);
         } catch (Exception e) {
-            LOG.warn("S3 export write failed for s3://{}/{}: {}",
-                    destination.getBucketName(), objectKey, e.toString());
+            // The object key can carry an uploaded document's name, so only the bucket is logged.
+            LOG.warn("S3 destination write failed for bucket {}: {}", destination.getBucketName(),
+                    e.getClass().getName());
             return Result.failure("Could not write to S3: " + e.getMessage());
         }
     }

@@ -23,5 +23,6 @@ public interface BatchRepository extends WorkspaceRepository<Batch, String> {
     boolean existsByFinalizationPolicyId(String finalizationPolicyId);
     java.util.List<Batch> findByFinalizationPolicyId(String finalizationPolicyId);
     java.util.List<Batch> findByComplianceProfileId(String complianceProfileId);
+    boolean existsByDestinationTypeAndDestinationId(String destinationType, String destinationId);
     java.util.List<Batch> findByGroupIdIn(Collection<String> groupIds);
 }

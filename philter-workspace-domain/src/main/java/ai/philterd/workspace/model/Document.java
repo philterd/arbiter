@@ -87,6 +87,20 @@ public class Document {
     private LocalDateTime statusChangedAt;
     private String failureMessage;
     /**
+     * Delivery of the finalized output to the batch's destination (#24): null when the batch has none, otherwise
+     * PENDING, DELIVERED, or FAILED. The finalized output stays on the document whatever happens to the delivery.
+     */
+    @Indexed
+    private String deliveryStatus;
+    private int deliveryAttempts;
+    private String deliveryError;
+    /** The destination as "type: name", recorded when the delivery was queued. */
+    private String deliveryDestination;
+    private Instant deliveryNextAttemptAt;
+    private Instant deliveredAt;
+    /** Who finalized the document, or asked for the delivery to be retried. */
+    private String deliveryRequestedBy;
+    /**
      * Emails of reviewers who have approved this document, in order of first → last approval.
      * Used to count progress against the batch's approval-rule requirement and to enforce that
      * the same reviewer cannot approve a document twice.
@@ -370,4 +384,25 @@ public class Document {
 
     public Integer getAppliedPolicyVersion() { return appliedPolicyVersion; }
     public void setAppliedPolicyVersion(final Integer appliedPolicyVersion) { this.appliedPolicyVersion = appliedPolicyVersion; }
+
+    public String getDeliveryStatus() { return deliveryStatus; }
+    public void setDeliveryStatus(final String deliveryStatus) { this.deliveryStatus = deliveryStatus; }
+
+    public int getDeliveryAttempts() { return deliveryAttempts; }
+    public void setDeliveryAttempts(final int deliveryAttempts) { this.deliveryAttempts = deliveryAttempts; }
+
+    public String getDeliveryError() { return deliveryError; }
+    public void setDeliveryError(final String deliveryError) { this.deliveryError = deliveryError; }
+
+    public String getDeliveryDestination() { return deliveryDestination; }
+    public void setDeliveryDestination(final String deliveryDestination) { this.deliveryDestination = deliveryDestination; }
+
+    public Instant getDeliveryNextAttemptAt() { return deliveryNextAttemptAt; }
+    public void setDeliveryNextAttemptAt(final Instant deliveryNextAttemptAt) { this.deliveryNextAttemptAt = deliveryNextAttemptAt; }
+
+    public Instant getDeliveredAt() { return deliveredAt; }
+    public void setDeliveredAt(final Instant deliveredAt) { this.deliveredAt = deliveredAt; }
+
+    public String getDeliveryRequestedBy() { return deliveryRequestedBy; }
+    public void setDeliveryRequestedBy(final String deliveryRequestedBy) { this.deliveryRequestedBy = deliveryRequestedBy; }
 }

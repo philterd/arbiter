@@ -175,6 +175,8 @@ public class BatchController {
                     ? null : complianceProfileNamesById.get(batch.getComplianceProfileId()));
             row.put("blindDoubleReviewEnabled", batch.isBlindDoubleReviewEnabled());
             row.put("blindDoubleReviewPercentage", batch.getBlindDoubleReviewPercentage());
+            row.put("destinationValue", batch.getDestinationType() == null || batch.getDestinationId() == null
+                    ? "" : batch.getDestinationType() + ":" + batch.getDestinationId());
             row.put("closed", batch.isClosed());
             row.put("closedAt", batch.getClosedAt());
             String firstUnreviewedId = null;
@@ -215,6 +217,17 @@ public class BatchController {
                 .findAll(PageRequest.of(0, 500, Sort.by("name"))).getContent()) {
             exportDestinations.add(Map.of("kind", "S3", "id", d.getId(),
                     "label", d.getName() + " (Amazon S3)"));
+        }
+
+        // The destination each batch delivers finalized documents to (#24), labelled like the Export modal's options.
+        final Map<String, String> destinationLabels = new java.util.HashMap<>();
+        for (Map<String, String> d : exportDestinations) {
+            destinationLabels.put(d.get("kind") + ":" + d.get("id"), d.get("label"));
+        }
+        for (Map<String, Object> row : rows) {
+            final String value = (String) row.get("destinationValue");
+            row.put("destinationLabel", value.isEmpty() ? null
+                    : destinationLabels.getOrDefault(value, "(removed destination)"));
         }
 
         model.addAttribute("batches", rows);
@@ -469,6 +482,59 @@ public class BatchController {
         redirectAttributes.addFlashAttribute(
                 "success",
                 "Batch \"" + batch.getName() + "\" assigned to group \"" + groupName + "\".");
+        return "redirect:/batches";
+    }
+
+    /**
+     * Chooses where finalized documents in the batch are delivered (#24): {@code LOCAL:<id>}, {@code S3:<id>}, or
+     * empty for none. Administrators only, since it decides where documents leave Philter Workspace.
+     */
+    @PostMapping("/{batchId}/destination")
+    public String changeDestination(@PathVariable final String batchId,
+                                    @RequestParam(value = "destination", required = false) final String destination,
+                                    final Authentication authentication,
+                                    final RedirectAttributes redirectAttributes) {
+        if (!AuthUtils.isAdmin(authentication)) {
+            redirectAttributes.addFlashAttribute("error", "Only administrators can choose a batch's destination.");
+            return "redirect:/batches";
+        }
+        final Batch batch = batchRepository.findById(batchId).orElse(null);
+        if (batch == null) {
+            redirectAttributes.addFlashAttribute("error", "Batch not found.");
+            return "redirect:/batches";
+        }
+        final String value = destination == null ? "" : destination.trim();
+        String type = null;
+        String id = null;
+        String label = null;
+        if (!value.isEmpty()) {
+            final int colon = value.indexOf(':');
+            type = colon < 0 ? "" : value.substring(0, colon);
+            id = colon < 0 ? "" : value.substring(colon + 1);
+            if ("LOCAL".equals(type)) {
+                label = localDirectoryDestinationRepository.findById(id)
+                        .map(d -> d.getName() + " (Local Directory)").orElse(null);
+            } else if ("S3".equals(type)) {
+                label = s3DestinationRepository.findById(id).map(d -> d.getName() + " (Amazon S3)").orElse(null);
+            }
+            if (label == null) {
+                redirectAttributes.addFlashAttribute("error", "Selected destination no longer exists.");
+                return "redirect:/batches";
+            }
+        }
+        final String previousType = batch.getDestinationType();
+        final String previousId = batch.getDestinationId();
+        batch.setDestinationType(type);
+        batch.setDestinationId(id);
+        batchRepository.save(batch);
+        auditLogService.log("BATCH_DESTINATION_CHANGE", "Batch", batch.getId(),
+                Map.of("previousDestinationType", previousType == null ? "" : previousType,
+                        "previousDestinationId", previousId == null ? "" : previousId,
+                        "destinationType", type == null ? "" : type,
+                        "destinationId", id == null ? "" : id));
+        redirectAttributes.addFlashAttribute("success", label == null
+                ? "Batch \"" + batch.getName() + "\" no longer delivers finalized documents."
+                : "Batch \"" + batch.getName() + "\" delivers finalized documents to " + label + ".");
         return "redirect:/batches";
     }
 

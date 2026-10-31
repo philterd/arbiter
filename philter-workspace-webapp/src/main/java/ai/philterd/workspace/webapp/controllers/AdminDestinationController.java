@@ -39,14 +39,8 @@ import java.util.UUID;
  * Today the page supports two destination types: local filesystem directories
  * and Amazon S3 buckets. Mirrors the layout of {@link AdminDataSourceController}.
  *
- * <p>TODO: Wire destinations into the finalize flow. Today admins can configure and
- * "Test" destinations here, but no part of the document workflow actually writes to them:
- * {@code Batch} has no {@code destinationId} field, no service references the destination
- * repositories outside this controller, and {@code finalizeRedaction} doesn't emit
- * anywhere. To finish the feature: add {@code Batch.destinationId}, surface a picker on
- * the batch edit form, and emit finalized documents through a {@code DestinationWriter}
- * invoked at the end of {@code RedactionApiServiceImpl.finalizeRedaction} and
- * {@code ReviewViewController.finalizeDocument}.
+ * <p>A batch delivers its finalized documents to one destination (#24; see {@code DocumentDeliveryService}), so a
+ * destination a batch uses cannot be removed.
  */
 @Controller
 @RequestMapping("/admin/destinations")
@@ -57,17 +51,20 @@ public class AdminDestinationController {
     private final AuditLogService auditLogService;
     private final SymmetricCipher cipher;
     private final DestinationTester destinationTester;
+    private final ai.philterd.workspace.repository.BatchRepository batchRepository;
 
     public AdminDestinationController(final LocalDirectoryDestinationRepository localRepository,
                                       final S3DestinationRepository s3Repository,
                                       final AuditLogService auditLogService,
                                       final SymmetricCipher cipher,
-                                      final DestinationTester destinationTester) {
+                                      final DestinationTester destinationTester,
+                                      final ai.philterd.workspace.repository.BatchRepository batchRepository) {
         this.localRepository = localRepository;
         this.s3Repository = s3Repository;
         this.auditLogService = auditLogService;
         this.cipher = cipher;
         this.destinationTester = destinationTester;
+        this.batchRepository = batchRepository;
     }
 
     @GetMapping
@@ -160,6 +157,12 @@ public class AdminDestinationController {
         final LocalDirectoryDestination dest = localRepository.findById(id).orElse(null);
         if (dest == null) {
             redirectAttributes.addFlashAttribute("error", "Local directory destination not found.");
+            return "redirect:/admin/destinations";
+        }
+        // A batch delivering to it (#24) would otherwise fail every delivery.
+        if (batchRepository.existsByDestinationTypeAndDestinationId("LOCAL", id)) {
+            redirectAttributes.addFlashAttribute("error", "Local directory destination \"" + dest.getName()
+                    + "\" is used by a batch. Choose another destination for that batch first.");
             return "redirect:/admin/destinations";
         }
         localRepository.deleteById(id);
@@ -309,6 +312,12 @@ public class AdminDestinationController {
         final S3Destination dest = s3Repository.findById(id).orElse(null);
         if (dest == null) {
             redirectAttributes.addFlashAttribute("error", "S3 destination not found.");
+            return "redirect:/admin/destinations";
+        }
+        // A batch delivering to it (#24) would otherwise fail every delivery.
+        if (batchRepository.existsByDestinationTypeAndDestinationId("S3", id)) {
+            redirectAttributes.addFlashAttribute("error", "S3 destination \"" + dest.getName()
+                    + "\" is used by a batch. Choose another destination for that batch first.");
             return "redirect:/admin/destinations";
         }
         s3Repository.deleteById(id);

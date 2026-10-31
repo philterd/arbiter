@@ -128,6 +128,31 @@ public abstract class StoreContract {
     }
 
     @Test
+    void deliveryQueriesFindPendingDocumentsAndBatchesByDestination() {
+        final DocumentRepository documents = repository(DocumentRepository.class);
+        final ai.philterd.workspace.model.Document pending = new ai.philterd.workspace.model.Document();
+        pending.setDeliveryStatus("PENDING");
+        pending.setDeliveryNextAttemptAt(java.time.Instant.parse("2026-10-31T12:00:00.123Z"));
+        final ai.philterd.workspace.model.Document delivered = new ai.philterd.workspace.model.Document();
+        delivered.setDeliveryStatus("DELIVERED");
+        documents.saveAll(List.of(pending, delivered, new ai.philterd.workspace.model.Document()));
+
+        final List<ai.philterd.workspace.model.Document> found = documents.findByDeliveryStatus("PENDING");
+        assertEquals(List.of(pending.getId()), found.stream().map(ai.philterd.workspace.model.Document::getId).toList());
+        assertEquals(java.time.Instant.parse("2026-10-31T12:00:00.123Z"), found.get(0).getDeliveryNextAttemptAt());
+
+        final BatchRepository batches = repository(BatchRepository.class);
+        final Batch batch = new Batch();
+        batch.setName("filings");
+        batch.setDestinationType("S3");
+        batch.setDestinationId("s1");
+        batches.save(batch);
+        assertTrue(batches.existsByDestinationTypeAndDestinationId("S3", "s1"));
+        assertFalse(batches.existsByDestinationTypeAndDestinationId("LOCAL", "s1"));
+        assertFalse(batches.existsByDestinationTypeAndDestinationId("S3", "s2"));
+    }
+
+    @Test
     void negationAlsoMatchesMissingFields() {
         final InboxMessageRepository inbox = repository(InboxMessageRepository.class);
         final InboxMessage unread = message("u1", false, false);

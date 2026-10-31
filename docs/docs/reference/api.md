@@ -330,6 +330,9 @@ spans to Philter and applying them. The response is the post-redaction string. O
 success, the document is transitioned to `FINALIZED` and the rendered
 redacted text is persisted on the document so a later download still works
 even if a finalization policy clears the source text.
+When the document's batch has a destination, the redacted text is then
+delivered to it in the background, as from the review page (see
+[Delivering finalized documents](../admin/destinations.md#delivering-finalized-documents)).
 
 The request has no body but requires `Content-Type: application/json`.
 
