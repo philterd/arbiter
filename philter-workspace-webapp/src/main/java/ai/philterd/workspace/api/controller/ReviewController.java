@@ -58,16 +58,20 @@ public class ReviewController {
     private final AuditLogService auditLogService;
     private final DetectionRuleService detectionRuleService;
 
+    private final ai.philterd.workspace.service.DocumentChangeGuard changeGuard;
+
     public ReviewController(final SpanRepository spanRepository,
                             final DocumentRepository documentRepository,
                             final DocumentAccessService documentAccessService,
                             final AuditLogService auditLogService,
-                            final DetectionRuleService detectionRuleService) {
+                            final DetectionRuleService detectionRuleService,
+                            final ai.philterd.workspace.service.DocumentChangeGuard changeGuard) {
         this.spanRepository = spanRepository;
         this.documentRepository = documentRepository;
         this.documentAccessService = documentAccessService;
         this.auditLogService = auditLogService;
         this.detectionRuleService = detectionRuleService;
+        this.changeGuard = changeGuard;
     }
 
     /**
@@ -75,6 +79,15 @@ public class ReviewController {
      * can be reopened (Unapprove / Unreject). FINALIZED is a permanent terminal state — no
      * further edits are accepted via the API.
      */
+    /**
+     * Spans change only on an editable document that no one else is reviewing (#71). A change while another person
+     * holds the review lock is refused.
+     */
+    private void requireChangeable(final Document document, final Authentication authentication) {
+        requireEditable(document);
+        changeGuard.requireNotHeldByOther(document, authentication == null ? null : authentication.getName());
+    }
+
     private static void requireEditable(final Document document) {
         if ("APPROVED".equals(document.getStatus())) {
             throw new ResponseStatusException(org.springframework.http.HttpStatus.CONFLICT,
@@ -149,7 +162,7 @@ public class ReviewController {
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND,
                         "Document not found."));
         documentAccessService.requireDocumentAccess(authentication, document);
-        requireEditable(document);
+        requireChangeable(document, authentication);
         final String original = document.getOriginalText() == null ? "" : document.getOriginalText();
         if (end > original.length()) {
             throw new ResponseStatusException(BAD_REQUEST, "Range exceeds document length.");
@@ -178,6 +191,8 @@ public class ReviewController {
                         "start", start,
                         "end", end,
                         "length", text.length()));
+        changeGuard.spansChanged(document, authentication == null ? null : authentication.getName(), "SPAN_CREATE",
+                saved.getId());
         return saved;
     }
 
@@ -202,7 +217,7 @@ public class ReviewController {
         final Span span = spanRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found."));
         final Document document = documentAccessService.loadAccessibleParentForSpan(span, authentication);
-        requireEditable(document);
+        requireChangeable(document, authentication);
         final boolean adjudicating = requireMayChange(span, document, authentication,
                 Boolean.TRUE.equals(request.adjudicate()));
         if (Boolean.TRUE.equals(request.adjudicate())
@@ -280,6 +295,7 @@ public class ReviewController {
         changes.put("spanId", saved.getId());
         changes.put("documentId", saved.getDocumentId() == null ? "" : saved.getDocumentId());
         auditLogService.log(adjudicating ? "SPAN_ADJUDICATE" : "SPAN_UPDATE", "Span", saved.getId(), changes);
+        changeGuard.spansChanged(document, actor, movedText != null ? "SPAN_ADJUST" : "SPAN_UPDATE", saved.getId());
         if ("REJECTED".equals(status) && !"REJECTED".equals(previousStatus)) {
             detectionRuleService.noteRefusal(saved, document);
         }
@@ -374,7 +390,7 @@ public class ReviewController {
         final Span span = spanRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found."));
         final Document document = documentAccessService.loadAccessibleParentForSpan(span, authentication);
-        requireEditable(document);
+        requireChangeable(document, authentication);
 
         if (!span.isManuallyCreated()) {
             throw new ResponseStatusException(BAD_REQUEST,
@@ -388,6 +404,8 @@ public class ReviewController {
                 Map.of("spanId", id,
                         "documentId", document.getId(),
                         "type", span.getType() == null ? "" : span.getType()));
+        changeGuard.spansChanged(document, authentication == null ? null : authentication.getName(), "SPAN_DELETE",
+                id);
         return Map.of("id", id, "deleted", true);
     }
 
@@ -409,7 +427,7 @@ public class ReviewController {
         // Now both surface as the same uniform "Span not found." 404 — see fix #4 for
         // the cross-controller contract this restores.
         final Document document = documentAccessService.loadAccessibleParentForSpan(source, authentication);
-        requireEditable(document);
+        requireChangeable(document, authentication);
 
         final String needle = source.getText();
         if (needle == null || needle.isEmpty()) {
@@ -514,6 +532,7 @@ public class ReviewController {
         auditDetails.put("approved", approved);
         auditDetails.put("adjudicatedSkipped", adjudicatedSkipped);
         auditLogService.log("SPAN_REDACT_LIKE", "Span", source.getId(), auditDetails);
+        changeGuard.spansChanged(document, actor, "SPAN_REDACT_LIKE", source.getId());
         return result;
     }
 
@@ -527,7 +546,7 @@ public class ReviewController {
         final Span span = spanRepository.findById(id)
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found."));
         final Document document = documentAccessService.loadAccessibleParentForSpan(span, authentication);
-        requireEditable(document);
+        requireChangeable(document, authentication);
         requireMayChange(span, document, authentication, false);
 
         final String actor = authentication == null ? null : authentication.getName();
@@ -566,6 +585,7 @@ public class ReviewController {
         if (restoring) {
             auditLogService.log("SPAN_ADJUST", "Span", saved.getId(), adjustment(saved, previousRange));
         }
+        changeGuard.spansChanged(document, actor, "SPAN_RESET", saved.getId());
         return saved;
     }
 

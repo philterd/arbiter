@@ -453,6 +453,10 @@ above produces.
 ### `PATCH /api/v1/spans/{id}`
 
 Session-allowed. Update a span's status, type, or boundaries.
+Any span change (this one, creating, deleting, resetting, or Redact All Like
+This) is refused with `409` while another person holds the document's review
+lock, and clears the approvals the document has so far, audited as
+`DOCUMENT_APPROVALS_CLEARED`.
 
 ```json
 {
@@ -477,7 +481,7 @@ Session-allowed. Update a span's status, type, or boundaries.
 
 Returns the updated `Span` object.
 
-`409` if the parent document is in a terminal state, or if an overturn is
+`409` if the parent document is in a terminal state, if another person holds its review lock, or if an overturn is
 attempted without a `reason`. `400` if `adjudicate` is sent without a `status`
 of `APPROVED` or `REJECTED`. `403` if `adjudicate` is sent by someone who is
 not an approver of the document's group, or if anyone other than such an

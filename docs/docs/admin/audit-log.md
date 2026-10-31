@@ -40,6 +40,7 @@ and export them:
 | `DATA_IMPORT_FAILED`                | BackgroundJob | Terminal FAILURE row for a data-import job (validation failure at queue time, or runtime error during the run). Carries the same counters plus an `error` string. |
 | `DOCUMENT_STATUS_CHANGE`            | Document    | Generic status transition; also fires on Approve / Unapprove / Unreject |
 | `DOCUMENT_APPROVAL`                 | Document    | Reviewer approved a document; payload includes `approvedBy`, `acquired`, and `required` approval counts, and `approverRequired` when a rule set reserves the second approval for an approver |
+| `DOCUMENT_APPROVALS_CLEARED`        | Document    | A change to the document's spans cleared the approvals recorded so far ([changes after an approval](rules.md#changes-after-an-approval)): the change (`SPAN_UPDATE`, `SPAN_ADJUST`, `SPAN_CREATE`, `SPAN_DELETE`, `SPAN_RESET`, or `SPAN_REDACT_LIKE`), the span, the approvers cleared, and the actor |
 | `DOCUMENT_REJECT`                   | Document    | Reviewer rejected a document; payload includes `previous` status and `rejectedBy` |
 | `DOCUMENT_UNAPPROVE`                | Document    | Approval rescinded and document returned to review  |
 | `DOCUMENT_UNREJECT`                 | Document    | Rejection rescinded and document returned to review |

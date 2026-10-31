@@ -102,6 +102,7 @@ public class ReviewViewController {
     private final FinalizationPolicyRepository finalizationPolicyRepository;
     private final ai.philterd.workspace.service.GeneralSettingsService generalSettingsService;
     private final ai.philterd.workspace.service.DocumentDeliveryService deliveryService;
+    private final ai.philterd.workspace.service.DocumentChangeGuard changeGuard;
 
     public ReviewViewController(final DocumentRepository documentRepository,
                                 final SpanRepository spanRepository,
@@ -120,7 +121,8 @@ public class ReviewViewController {
                                 final RedactionCertificateService redactionCertificateService,
                                 final FinalizationPolicyRepository finalizationPolicyRepository,
                                 final ai.philterd.workspace.service.GeneralSettingsService generalSettingsService,
-                                final ai.philterd.workspace.service.DocumentDeliveryService deliveryService) {
+                                final ai.philterd.workspace.service.DocumentDeliveryService deliveryService,
+                                final ai.philterd.workspace.service.DocumentChangeGuard changeGuard) {
         this.documentRepository = documentRepository;
         this.spanRepository = spanRepository;
         this.batchRepository = batchRepository;
@@ -139,6 +141,7 @@ public class ReviewViewController {
         this.finalizationPolicyRepository = finalizationPolicyRepository;
         this.generalSettingsService = generalSettingsService;
         this.deliveryService = deliveryService;
+        this.changeGuard = changeGuard;
     }
 
 
@@ -160,7 +163,10 @@ public class ReviewViewController {
         // Auditors only read (#60): they take no review lock, which they could neither renew nor release, so a
         // reviewer is never locked out by an auditor looking at the document.
         final boolean readOnly = AuthUtils.isAuditor(authentication);
-        final Document acquired = email == null || readOnly ? null
+        // Nor does anyone lock an approved, rejected, or finalized document (#71, #67): its spans cannot change until
+        // it is reopened, and a lock taken only by viewing it would hold up Finalize, Unapprove, and Unreject.
+        final boolean settled = Set.of("APPROVED", "REJECTED", "FINALIZED").contains(document.getStatus());
+        final Document acquired = email == null || readOnly || settled ? null
                 : documentLockService.acquire(documentId, email);
         boolean lockedByOther = false;
         String lockHolder = null;
@@ -418,6 +424,14 @@ public class ReviewViewController {
             return "redirect:/queue";
         }
         documentAccessService.requireDocumentAccess(authentication, document);
+        // No one finalizes a document another person is reviewing (#71).
+        final String holder = changeGuard.heldByOther(document,
+                authentication == null ? null : authentication.getName());
+        if (holder != null) {
+            redirectAttributes.addFlashAttribute("error",
+                    ai.philterd.workspace.service.DocumentChangeGuard.lockedMessage(holder));
+            return "redirect:/review/" + documentId;
+        }
         // Finalize is reachable only from a fully-approved document; the queue button is
         // gated on (status == APPROVED && approvalsAcquired >= approvalsRequired). Defend
         // here as well so direct POSTs can't bypass the precondition.
@@ -872,6 +886,14 @@ public class ReviewViewController {
                     "Document is FINALIZED. Finalized documents cannot be reopened.");
             return "redirect:/review/" + documentId;
         }
+        // No one reopens a document another person is reviewing (#71).
+        final String holder = changeGuard.heldByOther(document,
+                authentication == null ? null : authentication.getName());
+        if (holder != null) {
+            redirectAttributes.addFlashAttribute("error",
+                    ai.philterd.workspace.service.DocumentChangeGuard.lockedMessage(holder));
+            return "redirect:/review/" + documentId;
+        }
         clearApprovals(document);
         updateStatus(documentId, "REVIEW_REQUIRED", authentication);
         auditLogService.log("DOCUMENT_UNAPPROVE", "Document", documentId,
@@ -888,6 +910,14 @@ public class ReviewViewController {
         if ("FINALIZED".equals(document.getStatus())) {
             redirectAttributes.addFlashAttribute("error",
                     "Document is FINALIZED. Finalized documents cannot be reopened.");
+            return "redirect:/review/" + documentId;
+        }
+        // No one reopens a document another person is reviewing (#71).
+        final String holder = changeGuard.heldByOther(document,
+                authentication == null ? null : authentication.getName());
+        if (holder != null) {
+            redirectAttributes.addFlashAttribute("error",
+                    ai.philterd.workspace.service.DocumentChangeGuard.lockedMessage(holder));
             return "redirect:/review/" + documentId;
         }
         clearApprovals(document);

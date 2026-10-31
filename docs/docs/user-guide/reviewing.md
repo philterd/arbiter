@@ -131,6 +131,14 @@ an administrator, can click **Break Lock** to release it so someone else in the
 group can take it. The audit log records `DOCUMENT_LOCK_BROKEN` with the
 previous holder.
 
+Opening an approved, rejected, or finalized document takes no lock, since its
+spans cannot change until it is reopened with Unapprove or Unreject.
+
+While someone holds the lock, no one else can change the document's spans or
+approve, reject, unapprove, unreject, or finalize it, from the review page or
+through the API. Changing a span after the document has an approval clears
+that approval (see [Changes after an approval](../admin/rules.md#changes-after-an-approval)).
+
 ## Document-level actions
 
 The header has **Previous** / **Next** buttons that step through the

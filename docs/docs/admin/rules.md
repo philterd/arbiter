@@ -92,6 +92,18 @@ come from an approver of the group, and the document stays in
 an approver" when the option applies, and the `DOCUMENT_APPROVAL` audit entry
 records `approverRequired`.
 
+## Changes after an approval
+
+Every approval covers the spans the document is finalized with. Any change to a
+document's spans after an approval clears the approvals recorded so far:
+accepting, refusing, or retyping a span, adjusting its boundaries, adding or
+removing a span, Redact All Like This, and Reset. This includes an approver's
+adjudication. The review page asks before a change that would clear
+approvals, and the audit log records `DOCUMENT_APPROVALS_CLEARED` with the
+change, the span, and whose approvals were cleared. The document then needs
+all of its approvals again, so a dual-approval document needs both reviewers
+to approve the final spans.
+
 Approval rule sets hold no group of their own: the approvers are those of the
 group the batch belongs to.
 

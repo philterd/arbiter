@@ -124,7 +124,8 @@ class ReviewViewControllerTest {
                 auditLogService,
                 ollamaInstanceRepository, llmJudgeDefaultsService, userSettingsService,
                 userRepository, approvalRuleEvaluator, openSearchIndexService, documentLockService,
-                redactionCertificateService, finalizationPolicyRepository, generalSettingsService, deliveryService);
+                redactionCertificateService, finalizationPolicyRepository, generalSettingsService, deliveryService,
+                new ai.philterd.workspace.service.DocumentChangeGuard(documentRepository, auditLogService));
 
         // Default lock-acquire behavior: succeed by routing the request through the
         // mocked DocumentRepository so the returned doc carries the test's stubbed
@@ -497,6 +498,30 @@ class ReviewViewControllerTest {
     private static Authentication userIn(final String email) {
         return new UsernamePasswordAuthenticationToken(email, null,
                 Set.of(new SimpleGrantedAuthority("ROLE_USER")));
+    }
+
+    @Test
+    void unapproveUnrejectAndFinalizeWaitForWhoeverHoldsTheReviewLock() {
+        final Document d = approvedDoc("d1", "b1", "hello");
+        d.getApprovedBy().add("first@example.com");
+        d.setLockedBy("holder@example.com");
+        d.setLockExpiresAt(java.time.Instant.now().plusSeconds(600));
+        when(documentRepository.findById("d1")).thenReturn(Optional.of(d));
+
+        for (String action : List.of("unapprove", "unreject", "finalize")) {
+            final RedirectAttributes ra = flash();
+            final String view = switch (action) {
+                case "unapprove" -> controller.unapprove("d1", admin(), ra);
+                case "unreject" -> controller.unreject("d1", admin(), ra);
+                default -> controller.finalizeDocument("d1", admin(), ra);
+            };
+            assertEquals("redirect:/review/d1", view, action);
+            assertEquals("holder@example.com is reviewing this document. Wait for them to finish, or ask an approver "
+                    + "to release it.", error(ra), action);
+        }
+        assertEquals("APPROVED", d.getStatus());
+        assertEquals(List.of("first@example.com"), d.getApprovedBy());
+        verify(documentRepository, never()).save(any(Document.class));
     }
 
     @Test

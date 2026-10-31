@@ -180,4 +180,15 @@ class ReviewPageReadOnlyTest extends WebMvcSliceMocks {
         document.setDeliveryStatus(null);
         assertFalse(page("ADMIN").contains("id=\"deliveryStatus\""), "no destination, no delivery line");
     }
+
+    @Test
+    void openingAnApprovedRejectedOrFinalizedDocumentTakesNoLock() throws Exception {
+        // Its spans cannot change until it is reopened, and a lock taken by viewing it would hold up Finalize,
+        // Unapprove, and Unreject for everyone else (#71, #67).
+        for (String status : List.of("APPROVED", "REJECTED", "FINALIZED")) {
+            document.setStatus(status);
+            page("USER");
+        }
+        verify(documentLockService, never()).acquire(anyString(), anyString());
+    }
 }

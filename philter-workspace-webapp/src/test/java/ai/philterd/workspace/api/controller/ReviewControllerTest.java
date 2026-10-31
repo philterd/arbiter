@@ -61,7 +61,8 @@ class ReviewControllerTest {
         auditLogService = TestDoubles.auditLog();
         controller = new ReviewController(spanRepository, documentRepository,
                 TestDoubles.documentAccess(batchRepository, documentRepository, userGroupsService),
-                auditLogService, detectionRules = mock(ai.philterd.workspace.service.DetectionRuleService.class));
+                auditLogService, detectionRules = mock(ai.philterd.workspace.service.DetectionRuleService.class),
+                new ai.philterd.workspace.service.DocumentChangeGuard(documentRepository, auditLogService));
         // Default stub: a document "d1" the access helper can resolve.
         // Tests that need a different shape override this.
         when(documentRepository.findById("d1")).thenReturn(Optional.of(document("d1", "the original text")));
@@ -1154,6 +1155,122 @@ class ReviewControllerTest {
         assertEquals("APPROVED", s.getStatus(), "nothing changed");
         assertEquals(1, s.getLocation().characterStart());
         assertTrue(auditLogService.entries.isEmpty());
+    }
+
+    // ---- approvals and the review lock (#71) ----
+
+    /** d1 with one of two approvals, and s1 ("the", PENDING) on it. */
+    private Document seedApproved() {
+        final Document d = document("d1", "the original text");
+        d.setStatus("REVIEW_REQUIRED");
+        d.getApprovedBy().add("first@example.com");
+        when(documentRepository.findById("d1")).thenReturn(Optional.of(d));
+        final Span s1 = span("s1", "d1", "person", "APPROVED", 0, 3, "the");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(s1));
+        when(spanRepository.findByDocumentId("d1")).thenReturn(List.of(s1));
+        when(spanRepository.save(any(Span.class))).thenAnswer(i -> i.getArgument(0));
+        return d;
+    }
+
+    private void assertApprovalsClearedBy(final Document d, final String change) {
+        assertTrue(d.getApprovedBy().isEmpty(), change + " clears the approvals");
+        verify(documentRepository).save(d);
+        final TestDoubles.RecordingAuditLog.Entry cleared = auditLogService.entries.stream()
+                .filter(e -> "DOCUMENT_APPROVALS_CLEARED".equals(e.action())).findFirst().orElseThrow();
+        assertEquals(change, cleared.details().get("change"));
+        assertEquals(List.of("first@example.com"), cleared.details().get("clearedApprovals"));
+        assertEquals("admin@example.com", cleared.details().get("actor"));
+    }
+
+    @Test
+    void refusingASpanAfterTheFirstApprovalClearsIt() {
+        final Document d = seedApproved();
+        controller.updateSpan("s1", new SpanUpdateRequest("REJECTED", null, "not PII"), ADMIN);
+        assertApprovalsClearedBy(d, "SPAN_UPDATE");
+    }
+
+    @Test
+    void retypingMovingAddingRemovingAndResettingAlsoClearIt() {
+        Document d = seedApproved();
+        controller.updateSpan("s1", new SpanUpdateRequest(null, "ssn"), ADMIN);
+        assertApprovalsClearedBy(d, "SPAN_UPDATE");
+
+        setUp();
+        d = seedApproved();
+        controller.updateSpan("s1", new SpanUpdateRequest(null, null, null, null, null, 0, 12), ADMIN);
+        assertApprovalsClearedBy(d, "SPAN_ADJUST");
+
+        setUp();
+        d = seedApproved();
+        controller.createSpan("d1", new ReviewController.CreateSpanRequest("person", 13, 17), ADMIN);
+        assertApprovalsClearedBy(d, "SPAN_CREATE");
+
+        setUp();
+        d = seedApproved();
+        final Span manual = span("m1", "d1", "person", "APPROVED", 13, 17, "text");
+        manual.setManuallyCreated(true);
+        when(spanRepository.findById("m1")).thenReturn(Optional.of(manual));
+        controller.deleteSpan("m1", ADMIN);
+        assertApprovalsClearedBy(d, "SPAN_DELETE");
+
+        setUp();
+        d = seedApproved();
+        controller.resetSpan("s1", new ReviewController.ResetSpanRequest("PENDING"), ADMIN);
+        assertApprovalsClearedBy(d, "SPAN_RESET");
+
+        setUp();
+        d = seedApproved();
+        controller.redactAllLike("s1", ADMIN);
+        assertApprovalsClearedBy(d, "SPAN_REDACT_LIKE");
+    }
+
+    @Test
+    void aChangeWithNoApprovalsRecordedSavesNoDocumentAndAuditsNoClearing() {
+        final Document d = seedApproved();
+        d.getApprovedBy().clear();
+        controller.updateSpan("s1", new SpanUpdateRequest("REJECTED", null, "not PII"), ADMIN);
+        verify(documentRepository, never()).save(any(Document.class));
+        assertFalse(auditLogService.hasAction("DOCUMENT_APPROVALS_CLEARED"));
+    }
+
+    @Test
+    void noSpanChangesWhileAnotherPersonHoldsTheReviewLock() {
+        final Document d = seedApproved();
+        d.setLockedBy("holder@example.com");
+        d.setLockExpiresAt(java.time.Instant.now().plusSeconds(600));
+        final Span manual = span("m1", "d1", "person", "APPROVED", 13, 17, "text");
+        manual.setManuallyCreated(true);
+        when(spanRepository.findById("m1")).thenReturn(Optional.of(manual));
+
+        final List<org.junit.jupiter.api.function.Executable> changes = List.of(
+                () -> controller.updateSpan("s1", new SpanUpdateRequest("REJECTED", null, "x"), ADMIN),
+                () -> controller.createSpan("d1", new ReviewController.CreateSpanRequest("person", 13, 17), ADMIN),
+                () -> controller.deleteSpan("m1", ADMIN),
+                () -> controller.resetSpan("s1", new ReviewController.ResetSpanRequest("PENDING"), ADMIN),
+                () -> controller.redactAllLike("s1", ADMIN));
+        for (org.junit.jupiter.api.function.Executable change : changes) {
+            final ResponseStatusException e = assertThrows(ResponseStatusException.class, change);
+            assertEquals(409, e.getStatusCode().value());
+        }
+        verify(spanRepository, never()).save(any());
+        verify(spanRepository, never()).deleteById(any());
+        assertEquals(List.of("first@example.com"), d.getApprovedBy(), "nothing cleared");
+        assertTrue(auditLogService.entries.isEmpty());
+    }
+
+    @Test
+    void theLockHolderAndAnExpiredLockDoNotBlockAChange() {
+        final Document d = seedApproved();
+        d.setLockedBy("admin@example.com");
+        d.setLockExpiresAt(java.time.Instant.now().plusSeconds(600));
+        controller.updateSpan("s1", new SpanUpdateRequest("REJECTED", null, "x"), ADMIN);
+
+        setUp();
+        final Document expired = seedApproved();
+        expired.setLockedBy("holder@example.com");
+        expired.setLockExpiresAt(java.time.Instant.now().minusSeconds(1));
+        controller.updateSpan("s1", new SpanUpdateRequest("REJECTED", null, "x"), ADMIN);
+        assertTrue(expired.getApprovedBy().isEmpty());
     }
 
     // ---- adjudication (#5) ----

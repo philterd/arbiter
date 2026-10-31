@@ -324,7 +324,7 @@
                           d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
                 Approvals:
-                <span class="font-semibold" th:text="${approvalsGiven}">0</span>
+                <span id="approvalsGivenCount" class="font-semibold" th:text="${approvalsGiven}">0</span>
                 <span>of</span>
                 <span class="font-semibold" th:text="${approvalsRequired}">1</span>
                 <span th:if="${approvalsRequired > 1 and !approverRequired}" class="text-xs font-normal ml-1">(dual approval required)</span>
@@ -741,6 +741,25 @@
         // An approver of the document's group (#5) can adjudicate spans; only an approver can change an
         // adjudicated span, which the server enforces too.
         const isApprover = /*[[${isApprover}]]*/ false;
+        // Approvals recorded so far (#71). Any change to the spans clears them, so the reviewer is asked first.
+        let approvalsGiven = /*[[${approvalsGiven}]]*/ 0;
+
+        /** Asks before a span change that would clear the approvals already given. */
+        function confirmClearsApprovals() {
+            if (approvalsGiven < 1) return true;
+            return confirm(`This document has ${approvalsGiven} approval${approvalsGiven === 1 ? '' : 's'}. `
+                + 'Changing its spans clears '
+                + (approvalsGiven === 1 ? 'it' : 'them')
+                + ', and the document must be approved again. Continue?');
+        }
+
+        /** After a span change is saved, the approvals given so far are gone. */
+        function approvalsCleared() {
+            if (approvalsGiven < 1) return;
+            approvalsGiven = 0;
+            const count = document.getElementById('approvalsGivenCount');
+            if (count) count.textContent = '0';
+        }
 
         function escapeHtml(unsafe) {
             return String(unsafe)
@@ -788,6 +807,7 @@
             const locked = spanLockedReasonFor(item);
             if (locked) { alert(locked); return false; }
             if (!originalText.substring(start, end).trim()) { alert('The new boundaries cover no text.'); return false; }
+            if (!confirmClearsApprovals()) return false;
             let exemptionCode = null;
             if (exemptionCodeRequired && exemptionCodes.length > 0) {
                 exemptionCode = await promptExemptionCode(item);
@@ -807,6 +827,7 @@
                         : `HTTP ${response.status}`);
                 }
                 applySpanUpdate(item, await response.json());
+                approvalsCleared();
                 acceptedById.set(id, true);
                 adjusting = null;
                 rerender();
@@ -1204,7 +1225,7 @@
 
             // Pessimistic-lock pulse loop. Skip when this user doesn't hold the lock
             // (read-only mode, or document is in a terminal status).
-            if (!readOnly && !lockedByOther && !documentApproved && !documentRejected && documentId) {
+            if (!readOnly && !lockedByOther && !documentApproved && !documentRejected && !documentFinalized && documentId) {
                 const PULSE_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
                 const pulse = async () => {
                     try {
@@ -1275,6 +1296,7 @@
                     if (documentLocked) return;
                     if (redactLike.disabled) return;
                     const id = redactLike.getAttribute('data-redact-like');
+                    if (!confirmClearsApprovals()) return;
                     redactLike.disabled = true;
                     const originalLabel = redactLike.textContent;
                     redactLike.textContent = 'Working…';
@@ -1299,6 +1321,7 @@
                     if (deleteSpan.disabled) return;
                     const id = deleteSpan.getAttribute('data-delete-span');
                     if (!confirm('Remove this manually-created span? It will be deleted entirely.')) return;
+                    if (!confirmClearsApprovals()) return;
                     deleteSpan.disabled = true;
                     const originalLabel = deleteSpan.textContent;
                     deleteSpan.textContent = 'Removing…';
@@ -1451,6 +1474,10 @@
                 if (!target) return;
                 const previousType = target.type;
                 if (newType === previousType) return;
+                if (!confirmClearsApprovals()) {
+                    select.value = previousType;
+                    return;
+                }
                 target.type = newType;
                 const adjustedTarget = redactedRedactions.find(r => r.id === id);
                 if (adjustedTarget) adjustedTarget.type = newType;
@@ -1465,6 +1492,7 @@
                     if (!response.ok) {
                         throw new Error(`HTTP ${response.status}`);
                     }
+                    approvalsCleared();
                 } catch (err) {
                     target.type = previousType;
                     if (adjustedTarget) adjustedTarget.type = previousType;
@@ -1514,6 +1542,7 @@
         }
 
         async function applySpanStatus(id, newStatus, previousStatus, reason, exemptionCode, adjudicate) {
+            if (!confirmClearsApprovals()) return;
             if (adjusting && adjusting.id === id) adjusting = null;
             const item = originalRedactions.find(r => r.id === id);
             if (item) item.status = newStatus;
@@ -1546,6 +1575,7 @@
                     throw new Error(`HTTP ${response.status}`);
                 }
                 const updated = await response.json();
+                approvalsCleared();
                 if (item && updated) {
                     if (updated.statusChangedBy !== undefined) item.statusChangedBy = updated.statusChangedBy;
                     if (updated.status !== undefined) item.status = updated.status;
@@ -1572,6 +1602,7 @@
             const item = originalRedactions.find(r => r.id === id);
             const previousStatus = item ? item.status : null;
             if (previousStatus == null || previousStatus === 'PENDING') return;
+            if (!confirmClearsApprovals()) return;
 
             if (item) item.status = 'PENDING';
             acceptedById.set(id, true);
@@ -1588,6 +1619,7 @@
                 const updated = await response.json();
                 // Reset also puts an adjusted span back where it was detected (#20).
                 applySpanUpdate(item, updated);
+                approvalsCleared();
                 rerender();
                 focusRedaction(id);
             } catch (err) {
@@ -2151,6 +2183,7 @@
 
             async function save() {
                 if (pendingStart === null || pendingEnd === null) return;
+                if (!confirmClearsApprovals()) return;
                 clearError();
                 saveBtn.disabled = true;
                 try {
