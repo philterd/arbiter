@@ -1013,4 +1013,126 @@ class ReviewControllerTest {
         assertTrue(source.decidedByPerson());
         assertTrue(second.decidedByPerson());
     }
+
+    // ---- adjudication (#5) ----
+
+    private static final org.springframework.security.core.Authentication APPROVER = TestAuth.user("ann@example.com");
+    private static final org.springframework.security.core.Authentication REVIEWER = TestAuth.user("rob@example.com");
+    private static final org.springframework.security.core.Authentication OTHER_APPROVER =
+            TestAuth.user("oz@example.com");
+
+    private Span seedAdjudication(final String status) {
+        seedGroupedDocument();
+        userGroupsService.withApprover("ann@example.com", java.util.Set.of("g1"));
+        userGroupsService.withMembership("rob@example.com", java.util.Set.of("g1"));
+        userGroupsService.withApprover("oz@example.com", java.util.Set.of("g2"));
+        final Span s = span("s1", "d1", "person", status, 0, 3, "the");
+        s.setStatusChangedBy("rob@example.com");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(s));
+        when(spanRepository.save(any(Span.class))).thenAnswer(i -> i.getArgument(0));
+        return s;
+    }
+
+    private static SpanUpdateRequest adjudicate(final String status) {
+        return new SpanUpdateRequest(status, null, null, null, true);
+    }
+
+    @Test
+    void anApproverAdjudicatesASpanAwaitingASecondOpinion() {
+        final Span s = seedAdjudication(Span.STATUS_NEEDS_SECOND_OPINION);
+
+        final Span saved = controller.updateSpan("s1", adjudicate("REJECTED"), APPROVER);
+
+        assertEquals("REJECTED", saved.getStatus());
+        assertEquals("ann@example.com", saved.getAdjudicatedBy());
+        org.junit.jupiter.api.Assertions.assertNotNull(saved.getAdjudicatedAt());
+        assertTrue(auditLogService.entries.stream().anyMatch(e -> "SPAN_ADJUDICATE".equals(e.action())),
+                "recorded as an adjudication");
+        assertEquals(s, saved);
+    }
+
+    @Test
+    void onlyAnApproverOfTheDocumentsGroupCanAdjudicate() {
+        seedAdjudication("APPROVED");
+        final ResponseStatusException reviewer = assertThrows(ResponseStatusException.class,
+                () -> controller.updateSpan("s1", adjudicate("APPROVED"), REVIEWER));
+        assertEquals(403, reviewer.getStatusCode().value());
+        // An approver of another group cannot see the document at all.
+        final ResponseStatusException outsider = assertThrows(ResponseStatusException.class,
+                () -> controller.updateSpan("s1", adjudicate("APPROVED"), OTHER_APPROVER));
+        assertEquals(404, outsider.getStatusCode().value());
+        // An adjudication accepts or refuses.
+        final ResponseStatusException pending = assertThrows(ResponseStatusException.class,
+                () -> controller.updateSpan("s1", adjudicate("PENDING"), APPROVER));
+        assertEquals(400, pending.getStatusCode().value());
+        assertTrue(auditLogService.entries.isEmpty());
+    }
+
+    @Test
+    void onlyAnApproverCanChangeAnAdjudicatedSpanAndTheirChangeIsANewAdjudication() {
+        final Span s = seedAdjudication("REJECTED");
+        s.setAdjudicatedBy("ann@example.com");
+
+        for (Runnable change : List.<Runnable>of(
+                () -> controller.updateSpan("s1", new SpanUpdateRequest("APPROVED", null), REVIEWER),
+                () -> controller.updateSpan("s1", new SpanUpdateRequest(null, "location"), REVIEWER),
+                () -> controller.resetSpan("s1", new ReviewController.ResetSpanRequest("PENDING"), REVIEWER))) {
+            final ResponseStatusException e = assertThrows(ResponseStatusException.class, change::run);
+            assertEquals(403, e.getStatusCode().value());
+        }
+        assertEquals("REJECTED", s.getStatus());
+
+        userGroupsService.withApprover("amy@example.com", java.util.Set.of("g1"));
+        final Span saved = controller.updateSpan("s1", new SpanUpdateRequest("APPROVED", null),
+                TestAuth.user("amy@example.com"));
+        assertEquals("amy@example.com", saved.getAdjudicatedBy(), "an approver's change is theirs");
+        assertTrue(auditLogService.entries.stream().anyMatch(e -> "SPAN_ADJUDICATE".equals(e.action())
+                && "ann@example.com".equals(e.details().get("previousAdjudicatedBy"))));
+    }
+
+    @Test
+    void resettingAnAdjudicatedSpanWithdrawsTheAdjudication() {
+        final Span s = seedAdjudication("REJECTED");
+        s.setAdjudicatedBy("ann@example.com");
+        final Span saved = controller.resetSpan("s1", new ReviewController.ResetSpanRequest("PENDING"), APPROVER);
+        assertEquals("PENDING", saved.getStatus());
+        assertEquals(null, saved.getAdjudicatedBy());
+    }
+
+    @Test
+    void redactAllLikeThisLeavesAdjudicatedSpansAlone() {
+        seedGroupedDocument();
+        final Document doc = document("d1", "the cat and the dog");
+        doc.setBatchId("b1");
+        when(documentRepository.findById("d1")).thenReturn(Optional.of(doc));
+        userGroupsService.withMembership("rob@example.com", java.util.Set.of("g1"));
+        final Span source = span("s1", "d1", "person", "PENDING", 0, 3, "the");
+        final Span adjudicated = span("s2", "d1", "person", "REJECTED", 12, 15, "the");
+        adjudicated.setAdjudicatedBy("ann@example.com");
+        when(spanRepository.findById("s1")).thenReturn(Optional.of(source));
+        when(spanRepository.findByDocumentId("d1")).thenReturn(List.of(source, adjudicated));
+
+        final Map<String, Object> result = controller.redactAllLike("s1", REVIEWER);
+
+        assertEquals(1, result.get("adjudicatedSkipped"));
+        assertEquals(0, result.get("approved"));
+        assertEquals("REJECTED", adjudicated.getStatus());
+
+        // Nor can a reviewer start from an adjudicated span.
+        when(spanRepository.findById("s2")).thenReturn(Optional.of(adjudicated));
+        adjudicated.setStatus("APPROVED");
+        assertEquals(403, assertThrows(ResponseStatusException.class,
+                () -> controller.redactAllLike("s2", REVIEWER)).getStatusCode().value());
+    }
+
+    @Test
+    void anAdjudicatedSpanAddedByHandIsRemovedOnlyByAnApprover() {
+        final Span s = seedAdjudication("APPROVED");
+        s.setManuallyCreated(true);
+        s.setAdjudicatedBy("ann@example.com");
+        assertEquals(403, assertThrows(ResponseStatusException.class,
+                () -> controller.deleteSpan("s1", REVIEWER)).getStatusCode().value());
+        controller.deleteSpan("s1", APPROVER);
+        verify(spanRepository).deleteById("s1");
+    }
 }

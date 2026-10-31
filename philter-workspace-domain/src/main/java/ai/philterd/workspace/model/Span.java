@@ -45,6 +45,12 @@ public class Span {
     private String statusChangedBy;
 
     private String exemptionCode;
+    /**
+     * Email of the approver whose final decision this span's status is (#5), or null. While it is set, only an
+     * approver of the document's group can change the span, and their change is a new adjudication.
+     */
+    private String adjudicatedBy;
+    private LocalDateTime adjudicatedAt;
 
     public Span() {
     }
@@ -164,4 +170,10 @@ public class Span {
     public boolean decidedByPerson() {
         return manuallyCreated || (statusChangedBy != null && !statusChangedBy.isBlank());
     }
+
+    public String getAdjudicatedBy() { return adjudicatedBy; }
+    public void setAdjudicatedBy(final String adjudicatedBy) { this.adjudicatedBy = adjudicatedBy; }
+
+    public LocalDateTime getAdjudicatedAt() { return adjudicatedAt; }
+    public void setAdjudicatedAt(final LocalDateTime adjudicatedAt) { this.adjudicatedAt = adjudicatedAt; }
 }

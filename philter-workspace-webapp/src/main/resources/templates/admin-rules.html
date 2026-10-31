@@ -300,6 +300,9 @@
                                     <span class="font-mono text-gray-700"
                                           th:text="${#numbers.formatDecimal(row.dualApprovalSamplingRate, 1, 2)}">0.02</span>
                                 </p>
+                                <p th:if="${row.requireApprover}" class="mt-1 text-xs text-gray-500">
+                                    The second approval must come from an approver of the batch's group.
+                                </p>
                                 <!-- Edit launcher — opens the shared edit modal at the bottom of
                                      the page. Every relevant property on the rule set is carried via
                                      data-* attributes so the modal's JS can hydrate the form without
@@ -315,7 +318,8 @@
                                                  data-experienced-reviewer-threshold=${row.experiencedReviewerThreshold},
                                                  data-manual-spans-threshold=${row.manualSpansThreshold},
                                                  data-classified-keywords=${row.classifiedKeywords},
-                                                 data-dual-approval-sampling-rate=${row.dualApprovalSamplingRate}">
+                                                 data-dual-approval-sampling-rate=${row.dualApprovalSamplingRate},
+                                                 data-require-approver=${row.requireApprover}">
                                     Edit conditions
                                 </button>
                             </td>
@@ -428,6 +432,11 @@
                     </div>
                 </th:block>
             </fieldset>
+            <label class="flex items-start gap-2 text-sm text-gray-700 pt-2">
+                <input id="addRequireApprover" type="checkbox" name="requireApprover" value="true" class="mt-0.5">
+                <span>The second approval must come from an approver of the batch's group, set under
+                    <strong>Admin &rarr; Groups</strong>, rather than any other reviewer.</span>
+            </label>
             <div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
                 <button type="button" id="addRuleSetCancelBtn"
                         class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
@@ -547,6 +556,11 @@
                     </div>
                 </th:block>
             </fieldset>
+            <label class="flex items-start gap-2 text-sm text-gray-700 pt-2">
+                <input id="editRequireApprover" type="checkbox" name="requireApprover" value="true" class="mt-0.5">
+                <span>The second approval must come from an approver of the batch's group, set under
+                    <strong>Admin &rarr; Groups</strong>, rather than any other reviewer.</span>
+            </label>
             <div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
                 <button type="button" id="editRuleSetCancelBtn"
                         class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
@@ -583,6 +597,7 @@
         const manualSpansInput = document.getElementById('editManualSpansThreshold');
         const keywordsInput = document.getElementById('editClassifiedKeywords');
         const samplingRateInput = document.getElementById('editDualApprovalSamplingRate');
+        const requireApproverInput = document.getElementById('editRequireApprover');
 
         function openModal(btn) {
             const d = btn.dataset;
@@ -600,6 +615,7 @@
             if (keywordsInput) keywordsInput.value = (d.classifiedKeywords && d.classifiedKeywords !== 'null')
                     ? d.classifiedKeywords : '';
             if (samplingRateInput) samplingRateInput.value = numericOr(d.dualApprovalSamplingRate, '0.0');
+            if (requireApproverInput) requireApproverInput.checked = d.requireApprover === 'true';
             modal.classList.remove('hidden');
         }
         function closeModal() { modal.classList.add('hidden'); }

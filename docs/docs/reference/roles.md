@@ -10,7 +10,9 @@ Philter Workspace has three roles. Every user has exactly one of them.
 
 In addition, any `USER` can be designated a **team lead** for one or more
 groups. Team leadership is a per-group attribute of the group itself — not a
-fourth role. See [Team leads](#team-leads) below.
+fourth role. See [Team leads](#team-leads) below. A `USER` can likewise be
+designated an **approver** of a group, which is not a role either; see
+[Approvers](#approvers).
 
 ## Why AUDITOR exists
 
@@ -103,7 +105,7 @@ groups, a team lead has the same permissions as the **USER** column.
 | Finalize a document | ✓ (own group) | ✓ (own group) | — | ✓ |
 | Add a manual span | ✓ (own group) | ✓ (own group) | — | ✓ |
 | Reopen (unapprove / unreject) a document | ✓ (own group) | ✓ (own group) | — | ✓ |
-| Break someone else's review lock | — | — | — | ✓ |
+| Break someone else's review lock | Approvers of the group only | Approvers of the group only | No | ✓ |
 | Add a comment to a document | ✓ (own group) | ✓ (own group) | — | ✓ |
 | Request an LLM second opinion | ✓ (own group) | ✓ (own group) | — | ✓ |
 | Make or propose a [detection rule](../user-guide/detection-rules.md) | ✓ (own group) | ✓ (own group) | No | ✓ |
@@ -138,7 +140,7 @@ groups, a team lead has the same permissions as the **USER** column.
 | View the Admin → Users page | — | — | ✓ | ✓ |
 | Invite, edit, delete users | — | — | — | ✓ |
 | Promote / demote a user's role | — | — | — | ✓ |
-| Manage groups (including assigning leads) | — | — | — | ✓ |
+| Manage groups (including assigning leads and approvers) | No | No | No | ✓ |
 | Test the connection to Philter (Admin → Philter) | — | — | — | ✓ |
 | Configure approval rules / weight sets / compliance profiles | — | — | — | ✓ |
 | Change global security settings (Require MFA, etc.) | — | — | — | ✓ |
@@ -226,6 +228,52 @@ batches assigned to that group.
 
 To remove a team lead, edit the group and untick the **Lead** checkbox for
 that user. Untick **Member** as well to remove them from the group entirely.
+
+## Approvers
+
+An approver is a `USER` whom an administrator has designated as an approver of
+a specific group: the supervisor who gives a second sign-off, settles disputed
+decisions, and frees up work. Like leadership, it is per-group and not a role:
+it applies to the documents of batches in that group and nowhere else.
+Administrators can do everything an approver can, in every group. Leadership and
+approval are separate; a team lead is not an approver unless designated one.
+
+### What an approver can do (in groups they approve for)
+
+- **Give the second approval an approval rule set reserves for an approver.**
+  See [Second approval from an approver](../admin/rules.md#second-approval-from-an-approver).
+- **Adjudicate a span**: make the final decision to accept or refuse it,
+  including a span awaiting a second opinion. The decision is recorded as the
+  approver's, and only an approver of the group can change the span afterwards.
+  See [Adjudicating a span](../user-guide/reviewing.md#adjudicating-a-span).
+- **Release a document** another reviewer holds (**Break Lock** on the review
+  page), so someone else in the group can take it.
+
+| Feature | Approver | USER | AUDITOR | ADMIN |
+|---------|:--------:|:----:|:-------:|:-----:|
+| Give a second approval reserved for an approver | ✓ (own group) | No | No | ✓ |
+| Adjudicate a span | ✓ (own group) | No | No | ✓ |
+| Change a span an approver adjudicated | ✓ (own group) | No | No | ✓ |
+| Release a document another reviewer holds | ✓ (own group) | No | No | ✓ |
+
+### What an approver cannot do
+
+An approver has no administrator permissions: they cannot manage users,
+groups, approval rules, or any configuration, and approving for one group
+gives nothing in another. Work is shared by group: an approver releases a
+document for anyone in the group to take, rather than assigning it to a
+named reviewer.
+
+### Designating an approver
+
+1. Sign in as an admin.
+2. Go to **Admin → Groups** and create a group or edit one.
+3. Tick **Approver** beside each member who should approve for the group. An
+   approver must also be a member; **Approver** without **Member** is ignored.
+4. Save.
+
+The change applies on the approver's next request. The audit log records the
+group's approver count on `GROUP_CREATE` and `GROUP_UPDATE`.
 
 ## Auditing the auditors
 

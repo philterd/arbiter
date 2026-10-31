@@ -671,4 +671,89 @@ class ReviewViewControllerTest {
         verify(auditLogService).log(eq(action), eq("Document"), eq(entityId), captor.capture());
         return captor;
     }
+
+    // ---- approvers (#5) ----
+
+    /** d1 in batch b1 of group g1, needing two approvals, the second reserved for an approver. */
+    private Document approverDoc() {
+        final Document d = reviewableDoc("d1");
+        final Batch b = new Batch();
+        b.setId("b1");
+        b.setGroupId("g1");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
+        when(approvalRuleEvaluator.dualApprovalRequired(any(), any(), any(), any())).thenReturn(true);
+        when(approvalRuleEvaluator.approverRequired(any(), any(), any(), any())).thenReturn(true);
+        when(userGroupsService.groupIdsForEmail(anyString())).thenReturn(Set.of("g1"));
+        when(userGroupsService.approverGroupIdsForEmail("ann@x.com")).thenReturn(Set.of("g1"));
+        when(documentLockService.acquire(eq("d1"), anyString())).thenReturn(d);
+        when(userSettingsService.loadForEmail(anyString())).thenReturn(new ai.philterd.workspace.model.UserSettings());
+        return d;
+    }
+
+    @Test
+    void theSecondApprovalReservedForAnApproverIsRefusedFromAnyoneElse() {
+        final Document d = approverDoc();
+        controller.approve("d1", userIn("rob@x.com"), flash());
+        assertEquals(List.of("rob@x.com"), d.getApprovedBy(), "the first approval may come from anyone");
+        assertEquals("REVIEW_REQUIRED", d.getStatus());
+
+        final RedirectAttributes ra = flash();
+        controller.approve("d1", userIn("cal@x.com"), ra);
+        assertEquals("This document's second approval must come from an approver of its group.", error(ra));
+        assertEquals(List.of("rob@x.com"), d.getApprovedBy());
+        assertEquals("REVIEW_REQUIRED", d.getStatus());
+
+        controller.approve("d1", userIn("ann@x.com"), flash());
+        assertEquals(List.of("rob@x.com", "ann@x.com"), d.getApprovedBy());
+        assertEquals("APPROVED", d.getStatus());
+        final ArgumentCaptor<Map<String, Object>> details = ArgumentCaptor.forClass(Map.class);
+        verify(auditLogService, times(2)).log(eq("DOCUMENT_APPROVAL"), eq("Document"), eq("d1"), details.capture());
+        assertEquals(true, details.getValue().get("approverRequired"));
+    }
+
+    @Test
+    void anApproverWhoGaveTheFirstApprovalStillNeedsAnotherApprover() {
+        final Document d = approverDoc();
+        controller.approve("d1", userIn("ann@x.com"), flash());
+        final RedirectAttributes ra = flash();
+        controller.approve("d1", userIn("rob@x.com"), ra);
+        assertEquals("This document's second approval must come from an approver of its group.", error(ra));
+        assertEquals("REVIEW_REQUIRED", d.getStatus());
+    }
+
+    @Test
+    void withoutTheOptionAnyOtherReviewerGivesTheSecondApproval() {
+        final Document d = approverDoc();
+        when(approvalRuleEvaluator.approverRequired(any(), any(), any(), any())).thenReturn(false);
+        controller.approve("d1", userIn("rob@x.com"), flash());
+        controller.approve("d1", userIn("cal@x.com"), flash());
+        assertEquals("APPROVED", d.getStatus());
+    }
+
+    @Test
+    void anApproverOfTheGroupReleasesADocumentAnotherReviewerHolds() {
+        final Document d = approverDoc();
+        d.setLockedBy("rob@x.com");
+
+        final RedirectAttributes ra = flash();
+        controller.breakLock("d1", userIn("ann@x.com"), ra);
+        verify(documentLockService).breakLock("d1");
+        assertEquals("Lock previously held by rob@x.com has been cleared.", ra.getFlashAttributes().get("success"));
+        final ArgumentCaptor<Map<String, Object>> details = capturingDetails("DOCUMENT_LOCK_BROKEN", "d1");
+        assertEquals(true, details.getValue().get("asApprover"));
+    }
+
+    @Test
+    void aReviewerWhoIsNotAnApproverCannotReleaseADocumentAndAnOutsiderCannotSeeIt() {
+        approverDoc();
+        final RedirectAttributes ra = flash();
+        controller.breakLock("d1", userIn("cal@x.com"), ra);
+        assertEquals("Only an administrator or an approver of this document's group can release it.", error(ra));
+
+        when(userGroupsService.groupIdsForEmail("oz@x.com")).thenReturn(Set.of("g2"));
+        when(userGroupsService.approverGroupIdsForEmail("oz@x.com")).thenReturn(Set.of("g2"));
+        assertThrows(org.springframework.web.server.ResponseStatusException.class,
+                () -> controller.breakLock("d1", userIn("oz@x.com"), flash()));
+        verify(documentLockService, never()).breakLock(anyString());
+    }
 }

@@ -63,4 +63,15 @@ public class UserGroupsService {
         return ids;
     }
 
+    /** IDs of groups this user is an approver of (#5). Approvers are also members, as leads are. */
+    public Set<String> approverGroupIdsForEmail(final String email) {
+        if (email == null || email.isBlank()) return Set.of();
+        final User user = userRepository.findByEmail(email).orElse(null);
+        if (user == null || user.getId() == null) return Set.of();
+        final Set<String> ids = new HashSet<>();
+        for (Group g : groupRepository.findByApproverUserIdsContaining(user.getId())) {
+            if (g.getId() != null) ids.add(g.getId());
+        }
+        return ids;
+    }
 }

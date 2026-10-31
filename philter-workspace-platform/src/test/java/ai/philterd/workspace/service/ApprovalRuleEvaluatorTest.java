@@ -647,4 +647,33 @@ class ApprovalRuleEvaluatorTest {
         assertFalse(evaluator.dualApprovalRequired(batch, calm,
                 List.of(span("ssn", 0.9, "APPROVED")), reviewer(0)));
     }
+
+    @Nested
+    class ApproverRequired {
+        @Test
+        void onlyAMatchingRuleSetThatAsksForAnApproverRequiresOne() {
+            final ApprovalRuleSet plain = setOf(ApprovalRule.SENSITIVE_PII);
+            final ApprovalRuleSet approver = setOf(ApprovalRule.SENSITIVE_PII);
+            approver.setRequireApprover(true);
+            final List<Span> ssn = List.of(span("ssn", 0.5, "APPROVED"));
+            final List<Span> email = List.of(span("email-address", 0.5, "APPROVED"));
+
+            assertFalse(evaluator.approverRequired(batchWith(plain), doc(), ssn, reviewer(0)));
+            assertTrue(evaluator.approverRequired(batchWith(plain, approver), doc(), ssn, reviewer(0)));
+            assertFalse(evaluator.approverRequired(batchWith(approver), doc(), email, reviewer(0)), "set does not match");
+            assertFalse(evaluator.approverRequired(null, doc(), ssn, reviewer(0)));
+
+            assertTrue(evaluator.approverPossiblyRequired(batchWith(approver), doc(), ssn));
+            assertFalse(evaluator.approverPossiblyRequired(batchWith(plain), doc(), ssn));
+        }
+
+        @Test
+        void theReviewerExperienceRuleIsTreatedAsPossibleForDisplay() {
+            final ApprovalRuleSet set = setOf(ApprovalRule.INEXPERIENCED_REVIEWER);
+            set.setRequireApprover(true);
+            assertTrue(evaluator.approverPossiblyRequired(batchWith(set), doc(), List.of()));
+            assertFalse(evaluator.approverRequired(batchWith(set), doc(), List.of(), reviewer(1000)),
+                    "an experienced reviewer does not trigger it");
+        }
+    }
 }

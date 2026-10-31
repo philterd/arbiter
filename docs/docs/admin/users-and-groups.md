@@ -32,7 +32,8 @@ control characters, and cannot be reused, even after the user is deactivated.
   administrator is always a Philter Workspace `ADMIN`.
 - **Groups** sets the person's groups. A group needs at least one member, so you
   cannot remove a group's only member here. Removing someone from a group also
-  removes them as its team lead. Team leads are chosen on the Groups page.
+  removes them as its team lead and approver. Team leads and approvers are chosen
+  on the Groups page.
 
 Saving creates the person's Philter Workspace record if they have not signed in yet. A user
 added in Philter directly appears in the list, marked "Not signed in yet", and gets
@@ -72,7 +73,7 @@ person from Philter Workspace's removed local sign-in who has no Philter user wi
 address as username (see
 [Upgrading from local sign-in](../security.md#upgrading-from-local-sign-in)). Nobody can sign in as
 one, but it still counts as a group member and team lead. **Delete record**
-removes it, and removes it from its groups, after Philter confirms there is no
+removes it, and removes it from its groups (as a member, team lead, and approver), after Philter confirms there is no
 such user, and after you confirm. A record that is a group's only member is not deleted until
 someone else joins the group. Finding these records reads every Philter user, so they have their
 own page; nothing is listed when Philter's user list cannot be read.
@@ -96,9 +97,14 @@ documents.
 Set the **Name** and check at least one user under **Members**. Names must be
 unique. A group must always have at least one member.
 
+Beside each user, **Lead** makes them a [team lead](../reference/roles.md#team-leads)
+and **Approver** makes them an [approver](../reference/roles.md#approvers) of the
+group. Both require **Member**.
+
 ### Edit a group
 
-Each group row has an inline form to rename the group and update its members.
+Each group row has an inline form to rename the group and update its members,
+team leads, and approvers.
 Removing the last member is rejected with an error.
 
 ### Delete a group

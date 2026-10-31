@@ -32,6 +32,11 @@ public class ApprovalRuleSet {
             new java.util.ArrayList<>(ApprovalRule.DEFAULT_CLASSIFIED_KEYWORDS);
     /** Probability (0–1) that a document is randomly sampled for dual approval. */
     private double dualApprovalSamplingRate = ApprovalRule.DEFAULT_DUAL_APPROVAL_SAMPLING_RATE;
+    /**
+     * When this set requires dual approval, whether the second approval must come from an approver of the batch's
+     * group (#5), rather than from any other reviewer.
+     */
+    private boolean requireApprover;
 
     public ApprovalRuleSet() {
     }
@@ -80,4 +85,7 @@ public class ApprovalRuleSet {
     public void setDualApprovalSamplingRate(final double dualApprovalSamplingRate) {
         this.dualApprovalSamplingRate = dualApprovalSamplingRate;
     }
+
+    public boolean isRequireApprover() { return requireApprover; }
+    public void setRequireApprover(final boolean requireApprover) { this.requireApprover = requireApprover; }
 }

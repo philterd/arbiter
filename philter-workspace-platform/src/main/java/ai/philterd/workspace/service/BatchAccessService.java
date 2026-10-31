@@ -106,4 +106,17 @@ public class BatchAccessService {
                 auth == null ? null : auth.getName());
         return myLedGroupIds.contains(groupId);
     }
+
+    /**
+     * Whether the caller is an approver for {@code batch} (#5): an administrator, or an approver of the batch's
+     * group. Auditors are excluded, as for {@link #canLeadBatch(Authentication, Batch)}. Gates the second approval
+     * an approval rule set reserves for an approver, adjudicating a span, and releasing a document another
+     * reviewer holds.
+     */
+    public boolean canApproveBatch(final Authentication auth, final Batch batch) {
+        if (AuthUtils.isAdmin(auth)) return true;
+        if (AuthUtils.isAuditor(auth) || batch == null || batch.getGroupId() == null) return false;
+        return userGroupsService.approverGroupIdsForEmail(auth == null ? null : auth.getName())
+                .contains(batch.getGroupId());
+    }
 }

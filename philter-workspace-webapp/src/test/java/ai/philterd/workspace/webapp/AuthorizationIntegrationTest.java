@@ -529,6 +529,26 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
                 .andExpect(status().isForbidden());
     }
 
+    /**
+     * An approver (#5) is a reviewer with a per-group designation, not a role, so configuration and users stay
+     * with administrators; and auditors cannot adjudicate, release, or approve.
+     */
+    @Test
+    void approversStayOutOfConfigurationAndAuditorsCannotActAsApprovers() throws Exception {
+        for (String path : List.of("/admin/groups", "/admin/rules", "/admin/general/detection-rules")) {
+            mockMvc.perform(post(path).with(signedIn("ann", "USER")).with(csrf()))
+                    .andExpect(status().isForbidden());
+        }
+        mockMvc.perform(post("/review/d1/break-lock").with(signedIn("a", "AUDITOR")).with(csrf()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(post("/review/d1/approve").with(signedIn("a", "AUDITOR")).with(csrf()))
+                .andExpect(status().isForbidden());
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch("/api/v1/spans/s1")
+                        .with(signedIn("a", "AUDITOR")).with(csrf())
+                        .contentType("application/json").content("{\"status\":\"APPROVED\",\"adjudicate\":true}"))
+                .andExpect(status().isForbidden());
+    }
+
     @Test
     void auditorRoleForbiddenFromRdbWatermarkWrites() throws Exception {
         // Auditors can READ admin pages (the watermark value is visible on the

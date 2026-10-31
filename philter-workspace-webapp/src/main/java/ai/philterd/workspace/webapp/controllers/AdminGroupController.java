@@ -97,6 +97,14 @@ public class AdminGroupController {
             }
             leaderNames.sort(String::compareToIgnoreCase);
             row.put("leaderNames", leaderNames);
+            row.put("approverUserIds", g.getApproverUserIds());
+            final List<String> approverNames = new ArrayList<>();
+            for (String uid : g.getApproverUserIds()) {
+                final String email = emailsById.get(uid);
+                if (email != null) approverNames.add(email);
+            }
+            approverNames.sort(String::compareToIgnoreCase);
+            row.put("approverNames", approverNames);
             rows.add(row);
         }
 
@@ -109,6 +117,7 @@ public class AdminGroupController {
     public String create(@RequestParam("name") final String name,
                          @RequestParam(value = "userIds", required = false) final List<String> userIds,
                          @RequestParam(value = "leaderIds", required = false) final List<String> leaderIds,
+                         @RequestParam(value = "approverIds", required = false) final List<String> approverIds,
                          final RedirectAttributes redirectAttributes) {
         final String trimmed = name == null ? "" : name.trim();
         if (trimmed.isEmpty()) {
@@ -125,6 +134,7 @@ public class AdminGroupController {
             return "redirect:/admin/groups";
         }
         final Set<String> validLeaderIds = filterLeadersToMembers(leaderIds, validUserIds);
+        final Set<String> validApproverIds = filterLeadersToMembers(approverIds, validUserIds);
 
         final Group group = new Group();
         group.setCreatedAt(LocalDateTime.now());
@@ -132,11 +142,13 @@ public class AdminGroupController {
         group.setName(trimmed);
         group.setUserIds(validUserIds);
         group.setLeaderUserIds(validLeaderIds);
+        group.setApproverUserIds(validApproverIds);
         groupRepository.save(group);
         auditLogService.log("GROUP_CREATE", "Group", group.getId(),
                 Map.of("name", trimmed,
                         "memberCount", validUserIds.size(),
-                        "leaderCount", validLeaderIds.size()));
+                        "leaderCount", validLeaderIds.size(),
+                        "approverCount", validApproverIds.size()));
         redirectAttributes.addFlashAttribute("success", "Group \"" + trimmed + "\" created.");
         return "redirect:/admin/groups";
     }
@@ -146,6 +158,7 @@ public class AdminGroupController {
                        @RequestParam("name") final String name,
                        @RequestParam(value = "userIds", required = false) final List<String> userIds,
                        @RequestParam(value = "leaderIds", required = false) final List<String> leaderIds,
+                       @RequestParam(value = "approverIds", required = false) final List<String> approverIds,
                        final RedirectAttributes redirectAttributes) {
         final Group group = groupRepository.findById(groupId).orElse(null);
         if (group == null) {
@@ -170,29 +183,35 @@ public class AdminGroupController {
             return "redirect:/admin/groups";
         }
         final Set<String> validLeaderIds = filterLeadersToMembers(leaderIds, validUserIds);
+        final Set<String> validApproverIds = filterLeadersToMembers(approverIds, validUserIds);
 
         final String previousName = group.getName();
         final int previousCount = group.getUserIds() == null ? 0 : group.getUserIds().size();
         final int previousLeaderCount = group.getLeaderUserIds() == null
                 ? 0 : group.getLeaderUserIds().size();
+        final int previousApproverCount = group.getApproverUserIds().size();
         group.setName(trimmed);
         group.setUserIds(validUserIds);
         group.setLeaderUserIds(validLeaderIds);
+        group.setApproverUserIds(validApproverIds);
         groupRepository.save(group);
-        auditLogService.log("GROUP_UPDATE", "Group", group.getId(),
-                Map.of("previousName", previousName == null ? "" : previousName,
-                        "name", trimmed,
-                        "previousMemberCount", previousCount,
-                        "memberCount", validUserIds.size(),
-                        "previousLeaderCount", previousLeaderCount,
-                        "leaderCount", validLeaderIds.size()));
+        final Map<String, Object> details = new java.util.LinkedHashMap<>();
+        details.put("previousName", previousName == null ? "" : previousName);
+        details.put("name", trimmed);
+        details.put("previousMemberCount", previousCount);
+        details.put("memberCount", validUserIds.size());
+        details.put("previousLeaderCount", previousLeaderCount);
+        details.put("leaderCount", validLeaderIds.size());
+        details.put("previousApproverCount", previousApproverCount);
+        details.put("approverCount", validApproverIds.size());
+        auditLogService.log("GROUP_UPDATE", "Group", group.getId(), details);
         redirectAttributes.addFlashAttribute("success", "Group \"" + trimmed + "\" updated.");
         return "redirect:/admin/groups";
     }
 
     /**
-     * Enforces the invariant that team leads must also be members. Filters the requested
-     * leader-id list down to entries that are both (a) in {@code memberIds} and (b)
+     * Enforces the invariant that team leads, and approvers, must also be members. Filters the requested
+     * leader-id (or approver-id) list down to entries that are both (a) in {@code memberIds} and (b)
      * actually existing users. Submitting a leader id that isn't a member is silently
      * dropped — the form sources the checkboxes from the same membership pool, so this
      * only fires for tampered POSTs.

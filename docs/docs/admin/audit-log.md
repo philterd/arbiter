@@ -38,7 +38,7 @@ and export them:
 | `DATA_IMPORT_COMPLETED`             | BackgroundJob | Terminal SUCCESS row for a data-import job. Details include `processed`, `failed`, `skipped` counters. |
 | `DATA_IMPORT_FAILED`                | BackgroundJob | Terminal FAILURE row for a data-import job (validation failure at queue time, or runtime error during the run). Carries the same counters plus an `error` string. |
 | `DOCUMENT_STATUS_CHANGE`            | Document    | Generic status transition; also fires on Approve / Unapprove / Unreject |
-| `DOCUMENT_APPROVAL`                 | Document    | Reviewer approved a document; payload includes `approvedBy`, `acquired`, and `required` approval counts |
+| `DOCUMENT_APPROVAL`                 | Document    | Reviewer approved a document; payload includes `approvedBy`, `acquired`, and `required` approval counts, and `approverRequired` when a rule set reserves the second approval for an approver |
 | `DOCUMENT_REJECT`                   | Document    | Reviewer rejected a document; payload includes `previous` status and `rejectedBy` |
 | `DOCUMENT_UNAPPROVE`                | Document    | Approval rescinded and document returned to review  |
 | `DOCUMENT_UNREJECT`                 | Document    | Rejection rescinded and document returned to review |
@@ -46,14 +46,15 @@ and export them:
 | `DOCUMENT_DOWNLOAD`                 | Document    | Reviewer downloaded a finalized redacted document   |
 | `DOCUMENT_AUDIT_EXPORT`             | Document    | Admin downloaded the per-document audit log as CSV  |
 | `DOCUMENT_PII_SENT_TO_LLM`          | Document    | Fired **before** each outbound Ollama LLM call (Explain or Second Opinion). Records the Ollama instance, model, and span count. Written before the HTTP request so the entry exists even if Ollama is unreachable or returns an error. See [LLM-as-a-Judge](#llm-as-a-judge-events). |
-| `DOCUMENT_LOCK_BROKEN`              | Document    | Admin forcibly cleared a review lock held by another user |
+| `DOCUMENT_LOCK_BROKEN`              | Document    | An administrator, or an approver of the document's group (`asApprover`), released a document another user held |
 | `FINALIZATION_POLICY_APPLIED`       | Document    | A finalization policy ran after document finalize; payload includes `policyId`, `policyName`, `option`, and `action` |
 | `SPAN_UPDATE`                       | Span        | Status and/or type change                           |
+| `SPAN_ADJUDICATE`                   | Span        | An approver's final decision on a span, or their change to a span an approver adjudicated; includes `previousAdjudicatedBy` when it replaces another adjudication |
 | `DETECTION_RULE_CREATE`, `DETECTION_RULE_PROPOSE`, `DETECTION_RULE_CONFIRM`, `DETECTION_RULE_DISMISS`, `DETECTION_RULE_REMOVE` | DetectionRule | A [detection rule](../user-guide/detection-rules.md) made by a reviewer, proposed after repeated refusals, confirmed (and whether its value was added to Philter's list), dismissed, or removed. The rule's kind, status, PII type, document, and batch, and a keyed hash and the length of its value, never the value. |
 | `SPAN_REDACT_LIKE`                  | Span        | Counts of new-and-approved spans                    |
 | `USER_UPDATE`                       | User        | A person's Philter Workspace role (User or Auditor) or groups changed under Admin → Users |
 | `USER_DELETE`                       | User        | A Philter Workspace user record deleted under Admin → Users → Records |
-| `GROUP_CREATE` / `_UPDATE` / `_DELETE` | Group    | Admin group management                              |
+| `GROUP_CREATE` / `_UPDATE` / `_DELETE` | Group    | Admin group management, with member, team lead, and approver counts |
 | `NOTIFICATION_SETTINGS_CHANGE`      | Settings    | SMTP settings save (excluding the password value)   |
 | `PHILTER_TEST`                      | Philter     | Admin → Philter's Test: Philter's URL, whether it passed, and the HTTP status and reason. Never the API key. |
 | `PHILTER_WEBHOOK_REGISTER`, `PHILTER_WEBHOOK_TEST` | Philter | Admin → Philter's Register with Philter (the webhook URL, whether it succeeded, and Philter's status) and Send a test event (whether it was delivered, and the status the webhook answered). Never the secret. Philter records both too, naming only the API key. |
@@ -70,7 +71,7 @@ and export them:
 | `RDB_WATERMARK_ADVANCE` / `_RESET` / `_SET_MANUAL` | RelationalDbDataSource | The incremental-import watermark moved after an import, was reset, or was set by an admin |
 | `LOCAL_DESTINATION_CREATE` / `_UPDATE` / `_DELETE` | LocalDirectoryDestination | Local directory destination added, edited, or removed |
 | `BATCH_DOMAIN_CHANGE`               | Batch       | Old → new domain                                    |
-| `BATCH_RULES_ADD` / `_UPDATE` / `_REMOVE` | Batch | An approval rule set attached to, changed on, or removed from a batch |
+| `BATCH_RULES_ADD` / `_UPDATE` / `_REMOVE` | Batch | An approval rule set attached to, changed on, or removed from a batch, including whether it reserves the second approval for an approver (`requireApprover`) |
 | `BATCH_EXPORT`                      | Batch       | A batch export written to a destination, or failing to be; with the format, destination, document count, whether documents with redactions no person decided were left out, and how many |
 | `DOCUMENT_QUEUED`                   | Document    | A web upload queued for redaction; the filename is recorded as a hash |
 | `DOCUMENT_COMMENT_ADD`              | Document    | A comment added to a document; its length, not its text |

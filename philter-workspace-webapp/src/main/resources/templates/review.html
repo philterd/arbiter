@@ -327,7 +327,8 @@
                 <span class="font-semibold" th:text="${approvalsGiven}">0</span>
                 <span>of</span>
                 <span class="font-semibold" th:text="${approvalsRequired}">1</span>
-                <span th:if="${approvalsRequired > 1}" class="text-xs font-normal ml-1">(dual approval required)</span>
+                <span th:if="${approvalsRequired > 1 and !approverRequired}" class="text-xs font-normal ml-1">(dual approval required)</span>
+                <span th:if="${approvalsRequired > 1 and approverRequired}" class="text-xs font-normal ml-1">(dual approval required, the second from an approver)</span>
             </div>
 
             <div th:if="${lockedByOther}"
@@ -345,7 +346,7 @@
                         It is read-only until they finish or the lock expires.
                     </span>
                 </div>
-                <form sec:authorize="hasAnyRole('ADMIN','AUDITOR')"
+                <form th:if="${canReleaseLock}"
                       th:action="@{/review/{id}/break-lock(id=${document.id})}" method="post" class="inline">
                     <button type="submit"
                             class="px-3 py-1.5 border border-amber-700 text-amber-900 hover:bg-amber-100 font-medium rounded-lg text-sm">
@@ -596,6 +597,9 @@
         const exemptionCodes = /*[[${exemptionCodes}]]*/ [];
         const exemptionCodeRequired = /*[[${exemptionCodeRequired}]]*/ false;
         const complianceProfileName = /*[[${complianceProfileName}]]*/ null;
+        // An approver of the document's group (#5) can adjudicate spans; only an approver can change an
+        // adjudicated span, which the server enforces too.
+        const isApprover = /*[[${isApprover}]]*/ false;
 
         function escapeHtml(unsafe) {
             return String(unsafe)
@@ -767,8 +771,12 @@
                     ? ''
                     : `<option value="${escapeHtml(item.type)}" selected>${escapeHtml(item.type)}</option>`;
                 const manual = !!item.manuallyCreated;
-                const lockedAttr = documentLocked ? ' disabled' : '';
-                const lockedTitle = documentLocked ? ` title="${lockedReason}"` : '';
+                const adjudicatedBy = item.adjudicatedBy || null;
+                const spanLocked = documentLocked || (!!adjudicatedBy && !isApprover);
+                const spanLockedReason = documentLocked ? lockedReason
+                    : 'An approver made the final decision on this span. Only an approver can change it.';
+                const lockedAttr = spanLocked ? ' disabled' : '';
+                const lockedTitle = spanLocked ? ` title="${spanLockedReason}"` : '';
 
                 const isApproved = status === 'APPROVED';
                 const isRejected = status === 'REJECTED';
@@ -777,18 +785,18 @@
                 // a redaction candidate — i.e. APPROVED or PENDING/no decision yet. Rejected
                 // and second-opinion-pending spans disable it.
                 const redactLikeEligible = isApproved || (!isRejected && !isSecondOpinion);
-                const redactLikeDisabled = documentLocked || !redactLikeEligible;
-                const redactLikeTitle = documentLocked
-                    ? lockedReason
+                const redactLikeDisabled = spanLocked || !redactLikeEligible;
+                const redactLikeTitle = spanLocked
+                    ? spanLockedReason
                     : (isRejected
                         ? 'This span is refused — Redact All Like This is disabled'
                         : (isSecondOpinion
                             ? 'This span is awaiting a second opinion — Redact All Like This is disabled'
                             : 'Apply this same decision to every other matching occurrence'));
                 const isPending = item.status == null || item.status === 'PENDING';
-                const resetDisabled = documentLocked || isPending;
+                const resetDisabled = spanLocked || isPending;
                 const resetAttr = resetDisabled ? ' disabled' : '';
-                const resetTitle = documentLocked ? lockedReason : (isPending ? 'Already unreviewed' : 'Mark as unreviewed (PENDING)');
+                const resetTitle = spanLocked ? spanLockedReason : (isPending ? 'Already unreviewed' : 'Mark as unreviewed (PENDING)');
                 const triState = manual
                     ? `<button type="button"
                                 class="toggle-btn refused"
@@ -828,6 +836,21 @@
                 const manualBadge = manual
                     ? `<span class="ml-1 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-blue-100 text-blue-800 uppercase tracking-wide">Manual</span>`
                     : '';
+                const adjudicatedBanner = adjudicatedBy
+                    ? `<div class="text-[11px] mb-2 px-2 py-1 rounded bg-brand-50 border border-brand-200 text-brand-800">
+                            Adjudicated by ${escapeHtml(adjudicatedBy)}: the final decision.
+                        </div>`
+                    : '';
+                // An approver's final decision: Accept or Refuse, recorded as theirs.
+                const adjudicateControls = isApprover && !manual
+                    ? `<div class="mt-1.5 flex items-center gap-1.5 text-[11px] text-gray-600">
+                            <span class="font-medium">Final decision:</span>
+                            <button type="button" data-adjudicate="APPROVED" data-span-id="${escapeHtml(item.id)}"
+                                    class="px-2 py-0.5 rounded border border-brand-200 text-brand-700 hover:bg-brand-50 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed"${documentLocked ? ` disabled title="${lockedReason}"` : ' title="Accept this span as an approver; only an approver can change it afterwards"'}>Accept</button>
+                            <button type="button" data-adjudicate="REJECTED" data-span-id="${escapeHtml(item.id)}"
+                                    class="px-2 py-0.5 rounded border border-brand-200 text-brand-700 hover:bg-brand-50 disabled:text-gray-400 disabled:border-gray-200 disabled:cursor-not-allowed"${documentLocked ? ` disabled title="${lockedReason}"` : ' title="Refuse this span as an approver; only an approver can change it afterwards"'}>Refuse</button>
+                        </div>`
+                    : '';
                 const secondOpinionBanner = isSecondOpinion
                     ? `<div class="text-[11px] mb-2 px-2 py-1 rounded bg-amber-50 border border-amber-200 text-amber-800">
                             Awaiting a second opinion${item.statusChangedBy ? ` (requested by ${escapeHtml(item.statusChangedBy)})` : ''}.
@@ -836,7 +859,7 @@
                 return `
                 <div class="nav-item px-3 py-2.5 ${isRejected ? 'is-refused' : ''} ${isSecondOpinion ? 'is-second-opinion' : ''}" data-id="${escapeHtml(item.id)}">
                     <div class="flex items-center justify-between mb-1 gap-2">
-                        <select class="type-select" data-type-for="${escapeHtml(item.id)}" ${documentLocked ? `disabled title="${lockedReason}"` : 'title="Change PII type"'}>
+                        <select class="type-select" data-type-for="${escapeHtml(item.id)}" ${spanLocked ? `disabled title="${spanLockedReason}"` : 'title="Change PII type"'}>
                             ${fallbackOption}${options}
                         </select>
                         <span class="text-xs text-gray-500">#${idx + 1}${manualBadge}</span>
@@ -844,8 +867,10 @@
                     <div class="nav-text text-sm text-gray-900 truncate mb-1" title="${escapeHtml(item.text)}">${escapeHtml(item.text)}</div>
                     <div class="text-xs text-gray-500 mb-2">${(item.confidence * 100).toFixed(0)}% confidence</div>
                     ${secondOpinionBanner}
+                    ${adjudicatedBanner}
                     <div class="mb-2">
                         ${triState}
+                        ${adjudicateControls}
                     </div>
                     <div class="grid grid-cols-3 gap-1.5">
                         <button type="button"
@@ -1057,6 +1082,33 @@
                     await doResetSpan(id);
                     return;
                 }
+                const adjudicate = e.target.closest('[data-adjudicate]');
+                if (adjudicate) {
+                    e.stopPropagation();
+                    if (documentLocked || adjudicate.disabled) return;
+                    const id = adjudicate.getAttribute('data-span-id');
+                    const newStatus = adjudicate.getAttribute('data-adjudicate');
+                    const item = originalRedactions.find(r => r.id === id);
+                    const previousStatus = item ? (item.status || (acceptedById.get(id) ? 'APPROVED' : 'REJECTED')) : null;
+                    const verb = newStatus === 'APPROVED' ? 'Accept' : 'Refuse';
+                    if (!confirm(`${verb} this span as the final decision? It is recorded as your adjudication, and only an approver can change it afterwards.`)) return;
+                    const priorActor = item ? item.statusChangedBy : null;
+                    const isOverturn = previousStatus === 'APPROVED' && newStatus !== 'APPROVED'
+                            && priorActor && currentUserEmail
+                            && priorActor.toLowerCase() !== currentUserEmail.toLowerCase();
+                    let reason = null;
+                    if (isOverturn) {
+                        reason = await promptOverturnReason(item);
+                        if (reason === null) return;
+                    }
+                    let exemptionCode = null;
+                    if (newStatus === 'APPROVED' && exemptionCodeRequired && exemptionCodes.length > 0) {
+                        exemptionCode = await promptExemptionCode(item);
+                        if (exemptionCode === null) return;
+                    }
+                    await applySpanStatus(id, newStatus, previousStatus, reason, exemptionCode, true);
+                    return;
+                }
                 const setStatus = e.target.closest('[data-set-status]');
                 if (setStatus) {
                     e.stopPropagation();
@@ -1166,7 +1218,7 @@
             }
         }
 
-        async function applySpanStatus(id, newStatus, previousStatus, reason, exemptionCode) {
+        async function applySpanStatus(id, newStatus, previousStatus, reason, exemptionCode, adjudicate) {
             const item = originalRedactions.find(r => r.id === id);
             if (item) item.status = newStatus;
             // Redacted preview keeps NEEDS_SECOND_OPINION visible (treated as accepted).
@@ -1177,6 +1229,7 @@
                 const body = { status: newStatus };
                 if (reason) body.reason = reason;
                 if (exemptionCode) body.exemptionCode = exemptionCode;
+                if (adjudicate) body.adjudicate = true;
                 const response = await fetch(`/api/v1/spans/${encodeURIComponent(id)}`, {
                     method: 'PATCH',
                     headers: { 'Content-Type': 'application/json' },
@@ -1190,7 +1243,7 @@
                             rollbackSpanStatus(id, previousStatus);
                             const fresh = await promptOverturnReason(item);
                             if (fresh === null) return;
-                            await applySpanStatus(id, newStatus, previousStatus, fresh, exemptionCode);
+                            await applySpanStatus(id, newStatus, previousStatus, fresh, exemptionCode, adjudicate);
                             return;
                         }
                     }
@@ -1200,6 +1253,9 @@
                 if (item && updated) {
                     if (updated.statusChangedBy !== undefined) item.statusChangedBy = updated.statusChangedBy;
                     if (updated.status !== undefined) item.status = updated.status;
+                    if (updated.adjudicatedBy !== undefined) item.adjudicatedBy = updated.adjudicatedBy;
+                    rerender();
+                    focusRedaction(id);
                 }
             } catch (err) {
                 rollbackSpanStatus(id, previousStatus);
@@ -1236,6 +1292,7 @@
                 if (item && updated) {
                     if (updated.statusChangedBy !== undefined) item.statusChangedBy = updated.statusChangedBy;
                     if (updated.status !== undefined) item.status = updated.status;
+                    if (updated.adjudicatedBy !== undefined) item.adjudicatedBy = updated.adjudicatedBy;
                 }
                 rerender();
                 focusRedaction(id);

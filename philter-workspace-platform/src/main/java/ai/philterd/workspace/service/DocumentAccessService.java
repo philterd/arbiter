@@ -88,4 +88,14 @@ public class DocumentAccessService {
         }
         return document;
     }
+
+    /**
+     * Whether the caller is an approver for the document's batch (#5): an administrator, or an approver of the
+     * batch's group. The caller has already been checked for access to the document.
+     */
+    public boolean canApproveDocument(final Authentication auth, final Document document) {
+        final Batch batch = document == null || document.getBatchId() == null ? null
+                : batchRepository.findById(document.getBatchId()).orElse(null);
+        return batchAccessService.canApproveBatch(auth, batch);
+    }
 }

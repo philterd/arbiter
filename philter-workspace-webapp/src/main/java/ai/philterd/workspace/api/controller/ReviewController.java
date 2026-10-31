@@ -90,6 +90,26 @@ public class ReviewController {
         }
     }
 
+    /**
+     * The adjudication rules (#5). Only an approver of the document's group may adjudicate, and only an approver
+     * may change a span an approver adjudicated; an approver's change to such a span is a new adjudication.
+     * Returns whether the change is recorded as an adjudication.
+     */
+    private boolean requireMayChange(final Span span, final Document document, final Authentication authentication,
+                                     final boolean adjudicate) {
+        final boolean adjudicated = span.getAdjudicatedBy() != null;
+        if (!adjudicate && !adjudicated) {
+            return false;
+        }
+        if (!documentAccessService.canApproveDocument(authentication, document)) {
+            throw new ResponseStatusException(org.springframework.http.HttpStatus.FORBIDDEN, adjudicate
+                    ? "Only an approver of this document's group can adjudicate a span."
+                    : "An approver made the final decision on this span. Only an approver of this document's "
+                            + "group can change it.");
+        }
+        return true;
+    }
+
     @GetMapping("/documents/{id}/spans")
     public List<Span> getSpans(@PathVariable final String id, final Authentication authentication) {
         final Document document = documentRepository.findById(id)
@@ -173,6 +193,12 @@ public class ReviewController {
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found."));
         final Document document = documentAccessService.loadAccessibleParentForSpan(span, authentication);
         requireEditable(document);
+        final boolean adjudicating = requireMayChange(span, document, authentication,
+                Boolean.TRUE.equals(request.adjudicate()));
+        if (Boolean.TRUE.equals(request.adjudicate())
+                && !"APPROVED".equals(request.status()) && !"REJECTED".equals(request.status())) {
+            throw new ResponseStatusException(BAD_REQUEST, "An adjudication accepts or refuses the span.");
+        }
 
         final String actor = authentication == null ? null : authentication.getName();
         final Map<String, Object> changes = new LinkedHashMap<>();
@@ -225,10 +251,17 @@ public class ReviewController {
             span.setType(normalized);
         }
         final String previousStatus = (String) changes.get("previousStatus");
+        if (adjudicating) {
+            if (span.getAdjudicatedBy() != null) {
+                changes.put("previousAdjudicatedBy", span.getAdjudicatedBy());
+            }
+            span.setAdjudicatedBy(actor);
+            span.setAdjudicatedAt(LocalDateTime.now());
+        }
         final Span saved = spanRepository.save(span);
         changes.put("spanId", saved.getId());
         changes.put("documentId", saved.getDocumentId() == null ? "" : saved.getDocumentId());
-        auditLogService.log("SPAN_UPDATE", "Span", saved.getId(), changes);
+        auditLogService.log(adjudicating ? "SPAN_ADJUDICATE" : "SPAN_UPDATE", "Span", saved.getId(), changes);
         if ("REJECTED".equals(request.status()) && !"REJECTED".equals(previousStatus)) {
             detectionRuleService.noteRefusal(saved, document);
         }
@@ -273,6 +306,7 @@ public class ReviewController {
                     "Only manually-created spans can be deleted. "
                             + "Use the Refused toggle to ignore a detected span.");
         }
+        requireMayChange(span, document, authentication, false);
 
         spanRepository.deleteById(id);
         auditLogService.log("SPAN_DELETE", "Span", id,
@@ -315,9 +349,10 @@ public class ReviewController {
             throw new ResponseStatusException(BAD_REQUEST,
                     "Redact All Like This is only available for approved or pending spans.");
         }
+        requireMayChange(source, document, authentication, false);
         final String haystack = document.getOriginalText();
         if (haystack == null || haystack.isEmpty()) {
-            return Map.of("created", 0, "approved", 0);
+            return Map.of("created", 0, "approved", 0, "adjudicatedSkipped", 0);
         }
 
         final List<Span> existing = spanRepository.findByDocumentId(source.getDocumentId());
@@ -333,11 +368,16 @@ public class ReviewController {
 
         final String actor = authentication == null ? null : authentication.getName();
         source.changeStatus("APPROVED", actor);
+        if (source.getAdjudicatedBy() != null) {
+            source.setAdjudicatedBy(actor);
+            source.setAdjudicatedAt(LocalDateTime.now());
+        }
         spanRepository.save(source);
 
         final List<Span> toSave = new ArrayList<>();
         int created = 0;
         int approved = 0;
+        int adjudicatedSkipped = 0;
         int cursor = 0;
         while (true) {
             final int idx = haystack.indexOf(needle, cursor);
@@ -350,6 +390,11 @@ public class ReviewController {
             }
 
             final Span exact = byRange.get(((long) idx << 32) | (end & 0xFFFFFFFFL));
+            if (exact != null && exact.getAdjudicatedBy() != null) {
+                // An approver's final decision is changed one span at a time, never in bulk.
+                adjudicatedSkipped++;
+                continue;
+            }
             if (exact != null) {
                 exact.changeStatus("APPROVED", actor);
                 exact.setType(source.getType());
@@ -384,6 +429,7 @@ public class ReviewController {
         final Map<String, Object> result = new LinkedHashMap<>();
         result.put("created", created);
         result.put("approved", approved);
+        result.put("adjudicatedSkipped", adjudicatedSkipped);
 
         final Map<String, Object> auditDetails = new LinkedHashMap<>();
         auditDetails.put("spanId", source.getId());
@@ -391,6 +437,7 @@ public class ReviewController {
         auditDetails.put("type", source.getType() == null ? "" : source.getType());
         auditDetails.put("created", created);
         auditDetails.put("approved", approved);
+        auditDetails.put("adjudicatedSkipped", adjudicatedSkipped);
         auditLogService.log("SPAN_REDACT_LIKE", "Span", source.getId(), auditDetails);
         return result;
     }
@@ -406,6 +453,7 @@ public class ReviewController {
                 .orElseThrow(() -> new ResponseStatusException(NOT_FOUND, "Span not found."));
         final Document document = documentAccessService.loadAccessibleParentForSpan(span, authentication);
         requireEditable(document);
+        requireMayChange(span, document, authentication, false);
 
         final String actor = authentication == null ? null : authentication.getName();
         final String previousStatus = span.getStatus() == null ? "" : span.getStatus();
@@ -415,9 +463,16 @@ public class ReviewController {
             throw new ResponseStatusException(BAD_REQUEST, "Invalid status: " + originalStatus);
         }
         span.changeStatus(originalStatus, actor);
+        // Back to unreviewed: an approver resetting an adjudicated span withdraws the adjudication.
+        final String withdrawn = span.getAdjudicatedBy();
+        span.setAdjudicatedBy(null);
+        span.setAdjudicatedAt(null);
         final Span saved = spanRepository.save(span);
 
         final Map<String, Object> details = new LinkedHashMap<>();
+        if (withdrawn != null) {
+            details.put("previousAdjudicatedBy", withdrawn);
+        }
         details.put("spanId", saved.getId());
         details.put("documentId", saved.getDocumentId() == null ? "" : saved.getDocumentId());
         details.put("previousStatus", previousStatus);

@@ -113,6 +113,7 @@ class PhilterUsersControllerTest {
         group.setName("Group " + id);
         group.setUserIds(new HashSet<>(Set.of(members)));
         group.setLeaderUserIds(new HashSet<>(Set.of(members)));
+        group.setApproverUserIds(new HashSet<>(Set.of(members)));
         return group;
     }
 
@@ -302,6 +303,8 @@ class PhilterUsersControllerTest {
         verify(userRepository).deleteById("old");
         assertFalse(shared.getUserIds().contains("old"));
         assertFalse(shared.getLeaderUserIds().contains("old"));
+        assertFalse(shared.getApproverUserIds().contains("old"));
+        assertTrue(shared.getApproverUserIds().contains("other"));
     }
 
     @Test
@@ -363,6 +366,7 @@ class PhilterUsersControllerTest {
         assertTrue(joining.getUserIds().contains("r1"));
         assertFalse(leaving.getUserIds().contains("r1"));
         assertFalse(leaving.getLeaderUserIds().contains("r1"), "no longer its team lead");
+        assertFalse(leaving.getApproverUserIds().contains("r1"), "no longer its approver");
         assertTrue(reviewerSession.isExpired(), "the role changed from User to Auditor");
     }
 

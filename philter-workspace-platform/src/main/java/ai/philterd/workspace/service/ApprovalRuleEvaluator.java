@@ -41,6 +41,32 @@ public class ApprovalRuleEvaluator {
     }
 
     /**
+     * Whether the document's second approval must come from an approver of the batch's group (#5): a rule set
+     * that requires dual approval for it, with {@link ApprovalRuleSet#isRequireApprover()} on, matches.
+     * {@code reviewer} is the first reviewer, as for {@link #dualApprovalRequired}.
+     */
+    public boolean approverRequired(final Batch batch, final Document document,
+                                    final List<Span> spans, final User reviewer) {
+        if (batch == null) return false;
+        for (ApprovalRuleSet set : batch.effectiveRuleSets()) {
+            if (set.isRequireApprover() && allRulesMatch(set, document, spans, reviewer)) return true;
+        }
+        return false;
+    }
+
+    /**
+     * Whether the second approval may be reserved for an approver, for display where the reviewer is not yet known,
+     * with the same worst-case treatment of the reviewer-experience rule as {@link #approvalsRequired}.
+     */
+    public boolean approverPossiblyRequired(final Batch batch, final Document document, final List<Span> spans) {
+        if (batch == null) return false;
+        for (ApprovalRuleSet set : batch.effectiveRuleSets()) {
+            if (set.isRequireApprover() && allRulesPossiblyMatch(set, document, spans)) return true;
+        }
+        return false;
+    }
+
+    /**
      * Returns the number of approvals this document needs in its current state. Used by the
      * queue display, where the eventual reviewer is unknown — the reviewer-experience rule is
      * therefore treated as potentially-true (worst case), so the count surfaces 2 whenever any

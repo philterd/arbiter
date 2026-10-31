@@ -22,4 +22,6 @@ public interface GroupRepository extends WorkspaceRepository<Group, String> {
 
     /** Groups the user leads — i.e. their id appears in {@code leaderUserIds}. */
     java.util.List<Group> findByLeaderUserIdsContaining(String userId);
+
+    java.util.List<Group> findByApproverUserIdsContaining(String userId);
 }

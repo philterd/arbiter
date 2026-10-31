@@ -234,7 +234,7 @@ public class PhilterUsersController {
     private static Confirmation recordDeletion(final ai.philterd.workspace.model.User record) {
         final String base = PATH + "/records/" + UriUtils.encodePathSegment(record.getId(), StandardCharsets.UTF_8);
         return new Confirmation("Delete the record for " + record.getEmail() + "?",
-                "The record is removed from its groups and as a team lead. Nobody can sign in as it.",
+                "The record is removed from its groups, as a team lead, and as an approver. Nobody can sign in as it.",
                 base + "/delete", "Delete record", base + "/confirm-delete", PATH + "/records");
     }
 
@@ -500,6 +500,9 @@ public class PhilterUsersController {
                 final Set<String> leaders = new HashSet<>(group.getLeaderUserIds());
                 leaders.remove(record.getId());
                 group.setLeaderUserIds(leaders);
+                final Set<String> approvers = new HashSet<>(group.getApproverUserIds());
+                approvers.remove(record.getId());
+                group.setApproverUserIds(approvers);
                 groupRepository.save(group);
             }
         }
@@ -557,6 +560,9 @@ public class PhilterUsersController {
                 final Set<String> leaders = new HashSet<>(group.getLeaderUserIds());
                 leaders.remove(record.getId());
                 group.setLeaderUserIds(leaders);
+                final Set<String> approvers = new HashSet<>(group.getApproverUserIds());
+                approvers.remove(record.getId());
+                group.setApproverUserIds(approvers);
                 groupRepository.save(group);
             }
         }

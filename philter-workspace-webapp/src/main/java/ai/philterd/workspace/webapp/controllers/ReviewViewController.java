@@ -282,6 +282,8 @@ public class ReviewViewController {
         final int approvalsRequired = approvalRuleEvaluator.approvalsRequired(approvalBatch, document, spans);
         final int approvalsGiven = document.getApprovedBy().size();
         model.addAttribute("approvalsRequired", approvalsRequired);
+        model.addAttribute("approverRequired", approvalsRequired > 1
+                && approvalRuleEvaluator.approverPossiblyRequired(approvalBatch, document, spans));
         model.addAttribute("approvalsGiven", approvalsGiven);
         // As the approve action checks it: a reviewer cannot approve the same document twice.
         model.addAttribute("approvedByCurrentUser", authentication != null
@@ -289,6 +291,10 @@ public class ReviewViewController {
         model.addAttribute("lockedByOther", lockedByOther);
         model.addAttribute("lockHolder", lockHolder == null ? "" : lockHolder);
         model.addAttribute("lockExpiresAt", lockExpiresAt);
+        // An approver of the document's group (#5) adjudicates spans and releases a document another reviewer holds.
+        final boolean approver = documentAccessService.canApproveDocument(authentication, document);
+        model.addAttribute("isApprover", approver);
+        model.addAttribute("canReleaseLock", approver);
 
         final ai.philterd.workspace.model.ComplianceProfile complianceProfile =
                 (approvalBatch == null || approvalBatch.getComplianceProfileId() == null) ? null
@@ -581,20 +587,25 @@ public class ReviewViewController {
     public String breakLock(@PathVariable final String documentId,
                             final Authentication authentication,
                             final org.springframework.web.servlet.mvc.support.RedirectAttributes redirectAttributes) {
-        if (!AuthUtils.isAdmin(authentication)) {
-            redirectAttributes.addFlashAttribute("error", "Only admins can break a review lock.");
-            return "redirect:/review/" + documentId;
-        }
         final Document doc = documentRepository.findById(documentId).orElse(null);
         if (doc == null) {
             redirectAttributes.addFlashAttribute("error", "Document not found.");
             return "redirect:/";
         }
+        // Administrators, and approvers of the document's group (#5), who release a document another reviewer
+        // holds so someone else in the group can take it.
+        documentAccessService.requireDocumentAccess(authentication, doc);
+        if (!documentAccessService.canApproveDocument(authentication, doc)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "Only an administrator or an approver of this document's group can release it.");
+            return "redirect:/review/" + documentId;
+        }
         final String previousHolder = doc.getLockedBy();
         documentLockService.breakLock(documentId);
         auditLogService.log("DOCUMENT_LOCK_BROKEN", "Document", documentId,
                 Map.of("actor", authentication == null ? "" : authentication.getName(),
-                        "previousHolder", previousHolder == null ? "" : previousHolder));
+                        "previousHolder", previousHolder == null ? "" : previousHolder,
+                        "asApprover", !AuthUtils.isAdmin(authentication)));
         redirectAttributes.addFlashAttribute("success",
                 previousHolder == null
                         ? "Lock cleared."
@@ -671,6 +682,16 @@ public class ReviewViewController {
 
         final int required = approvalRuleEvaluator.dualApprovalRequired(batch, document, spans, reviewer)
                 ? 2 : 1;
+        // An approval rule set can reserve the approval that completes the document for an approver of the batch's
+        // group (#5). The first approval may come from anyone in the group.
+        final boolean approverRequired = required > 1
+                && approvalRuleEvaluator.approverRequired(batch, document, spans, reviewer);
+        final boolean completes = document.getApprovedBy().size() + 1 >= required;
+        if (approverRequired && completes && !documentAccessService.canApproveDocument(authentication, document)) {
+            redirectAttributes.addFlashAttribute("error",
+                    "This document's second approval must come from an approver of its group.");
+            return "redirect:/review/" + documentId;
+        }
 
         // Record this approval.
         document.getApprovedBy().add(email);
@@ -715,7 +736,8 @@ public class ReviewViewController {
                         "current", document.getStatus() == null ? "" : document.getStatus(),
                         "approvedBy", email == null ? "" : email,
                         "acquired", acquired,
-                        "required", required));
+                        "required", required,
+                        "approverRequired", approverRequired));
 
         if (acquired < required) {
             redirectAttributes.addFlashAttribute("success",
@@ -953,6 +975,7 @@ public class ReviewViewController {
         entry.put("end", end);
         entry.put("manuallyCreated", span.isManuallyCreated());
         entry.put("statusChangedBy", span.getStatusChangedBy());
+        entry.put("adjudicatedBy", span.getAdjudicatedBy());
         return entry;
     }
 }

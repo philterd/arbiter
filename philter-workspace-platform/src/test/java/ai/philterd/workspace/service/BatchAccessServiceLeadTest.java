@@ -146,4 +146,21 @@ class BatchAccessServiceLeadTest {
         assertFalse(service.canLeadGroup(user("alice@x.com"), ""));
         assertFalse(service.canLeadGroup(user("alice@x.com"), null));
     }
+
+    // ---- approvers (#5)
+
+    @Test
+    void canApproveBatchForAdministratorsAndTheGroupsApproversOnly() {
+        when(userGroupsService.approverGroupIdsForEmail("ann@x.com")).thenReturn(Set.of("g1"));
+        when(userGroupsService.leadGroupIdsForEmail("lee@x.com")).thenReturn(Set.of("g1"));
+
+        assertTrue(service.canApproveBatch(admin("admin@x.com"), batch("b1", "g1")));
+        assertTrue(service.canApproveBatch(user("ann@x.com"), batch("b1", "g1")), "approver of the group");
+        assertFalse(service.canApproveBatch(user("ann@x.com"), batch("b2", "g2")), "approver of another group");
+        assertFalse(service.canApproveBatch(user("lee@x.com"), batch("b1", "g1")), "a team lead is not an approver");
+        assertFalse(service.canApproveBatch(user("bob@x.com"), batch("b1", "g1")), "a member");
+        assertFalse(service.canApproveBatch(auditor("aud@x.com"), batch("b1", "g1")));
+        assertFalse(service.canApproveBatch(user("ann@x.com"), batch("b3", null)), "no group");
+        assertFalse(service.canApproveBatch(user("ann@x.com"), null));
+    }
 }

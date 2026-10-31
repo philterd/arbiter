@@ -398,7 +398,8 @@ Session-allowed. Update a span's status, type, or both.
   "status":        "APPROVED|REJECTED|PENDING|NEEDS_SECOND_OPINION",
   "type":          "ssn",
   "reason":        "...",
-  "exemptionCode": "..."
+  "exemptionCode": "...",
+  "adjudicate":    true
 }
 ```
 
@@ -408,11 +409,18 @@ Session-allowed. Update a span's status, type, or both.
 | `type`          | optional | New PII type; validated against the [PII types list](pii-types.md).                        |
 | `reason`        | optional | Required when **overturning** another reviewer's prior `APPROVED` decision (changing status away from `APPROVED` while the prior approval was recorded by a different actor). Returns `409 OVERTURN_REASON_REQUIRED` otherwise. Recorded in the audit trail. |
 | `exemptionCode` | optional | Free-form string applied only when the new `status` is `APPROVED`. Cleared automatically when the span moves out of `APPROVED`. |
+| `adjudicate`    | optional | `true` makes the change an approver's final decision on the span ([adjudication](../user-guide/reviewing.md#adjudicating-a-span)). Requires an approver of the document's group or an administrator, and a `status` of `APPROVED` or `REJECTED`. Sets `adjudicatedBy` and `adjudicatedAt`, and is audited as `SPAN_ADJUDICATE`. |
 
 Returns the updated `Span` object.
 
 `409` if the parent document is in a terminal state, or if an overturn is
-attempted without a `reason`.
+attempted without a `reason`. `400` if `adjudicate` is sent without a `status`
+of `APPROVED` or `REJECTED`. `403` if `adjudicate` is sent by someone who is
+not an approver of the document's group, or if anyone other than such an
+approver changes a span that has `adjudicatedBy` set; an approver's change to
+such a span is a new adjudication. The same `403` applies to `reset`,
+`DELETE`, and `redact-like` on an adjudicated span, and `redact-like` leaves
+other adjudicated spans unchanged and counts them in `adjudicatedSkipped`.
 
 ### `DELETE /api/v1/spans/{id}`
 
@@ -442,11 +450,12 @@ form posts can't trigger this endpoint).
 Response:
 
 ```json
-{ "created": 0, "approved": 0 }
+{ "created": 0, "approved": 0, "adjudicatedSkipped": 0 }
 ```
 
 `created` is the number of new spans inserted. `approved` is the number of
-existing spans flipped to approved.
+existing spans flipped to approved. `adjudicatedSkipped` is the number of
+matching spans an approver adjudicated, which are left unchanged.
 
 `400` if the source span has empty text. `404` if the span or its document is
 missing.

@@ -86,6 +86,7 @@ public class AdminRulesController {
                 row.put("manualSpansThreshold", set.getManualSpansThreshold());
                 row.put("classifiedKeywords", String.join(", ", set.getClassifiedKeywords()));
                 row.put("dualApprovalSamplingRate", set.getDualApprovalSamplingRate());
+                row.put("requireApprover", set.isRequireApprover());
                 existing.add(row);
             }
         }
@@ -127,6 +128,7 @@ public class AdminRulesController {
                          @RequestParam(value = "manualSpansThreshold", required = false) final Long manualSpansThreshold,
                          @RequestParam(value = "classifiedKeywords", required = false) final String classifiedKeywords,
                          @RequestParam(value = "dualApprovalSamplingRate", required = false) final Double dualApprovalSamplingRate,
+                         @RequestParam(value = "requireApprover", defaultValue = "false") final boolean requireApprover,
                          final Authentication authentication,
                          final RedirectAttributes redirectAttributes) {
         final Batch batch = batchRepository.findById(batchId).orElse(null);
@@ -140,6 +142,7 @@ public class AdminRulesController {
             set = buildRuleSet(null, selected, riskScoreThreshold,
                     rejectedConfidenceThreshold, experiencedReviewerThreshold,
                     manualSpansThreshold, classifiedKeywords, dualApprovalSamplingRate);
+            set.setRequireApprover(requireApprover);
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/admin/rules";
@@ -161,6 +164,7 @@ public class AdminRulesController {
                         "riskScoreThreshold", set.getRiskScoreThreshold(),
                         "rejectedConfidenceThreshold", set.getRejectedConfidenceThreshold(),
                         "experiencedReviewerThreshold", set.getExperiencedReviewerThreshold(),
+                        "requireApprover", set.isRequireApprover(),
                         "addedBy", authentication == null ? "unknown" : authentication.getName()));
         redirectAttributes.addFlashAttribute("success",
                 "Rule set added to \"" + batch.getName() + "\".");
@@ -177,6 +181,7 @@ public class AdminRulesController {
                          @RequestParam(value = "manualSpansThreshold", required = false) final Long manualSpansThreshold,
                          @RequestParam(value = "classifiedKeywords", required = false) final String classifiedKeywords,
                          @RequestParam(value = "dualApprovalSamplingRate", required = false) final Double dualApprovalSamplingRate,
+                         @RequestParam(value = "requireApprover", defaultValue = "false") final boolean requireApprover,
                          final Authentication authentication,
                          final RedirectAttributes redirectAttributes) {
         final Batch batch = batchRepository.findById(batchId).orElse(null);
@@ -196,6 +201,7 @@ public class AdminRulesController {
             updated = buildRuleSet(ruleSetId, selected, riskScoreThreshold,
                     rejectedConfidenceThreshold, experiencedReviewerThreshold,
                     manualSpansThreshold, classifiedKeywords, dualApprovalSamplingRate);
+            updated.setRequireApprover(requireApprover);
         } catch (IllegalArgumentException e) {
             redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/admin/rules";
@@ -213,6 +219,7 @@ public class AdminRulesController {
                         "riskScoreThreshold", updated.getRiskScoreThreshold(),
                         "rejectedConfidenceThreshold", updated.getRejectedConfidenceThreshold(),
                         "experiencedReviewerThreshold", updated.getExperiencedReviewerThreshold(),
+                        "requireApprover", updated.isRequireApprover(),
                         "changedBy", authentication == null ? "unknown" : authentication.getName()));
         redirectAttributes.addFlashAttribute("success",
                 "Rule set updated for \"" + batch.getName() + "\".");

@@ -226,11 +226,13 @@
                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                     </div>
                     <div>
-                        <span class="block text-xs font-medium text-gray-600 mb-1">Members and team leads</span>
+                        <span class="block text-xs font-medium text-gray-600 mb-1">Members, team leads, and approvers</span>
                         <p class="text-[11px] text-gray-500 mb-2">
                             Tick <strong>Member</strong> for each user in the group; tick <strong>Lead</strong>
-                            for users who can manage the group's batches (create, edit, close).
-                            A team lead must also be a member.
+                            for users who can manage the group's batches (create, edit, close); tick
+                            <strong>Approver</strong> for users who can give a second approval an approval rule set
+                            reserves for an approver, adjudicate spans, and release documents other reviewers hold.
+                            Team leads and approvers must also be members.
                         </p>
                         <div th:if="${#lists.isEmpty(allUsers)}" class="text-sm text-gray-500">
                             No users exist yet. Create users first under the Users tab.
@@ -238,7 +240,7 @@
                         <div th:unless="${#lists.isEmpty(allUsers)}"
                              class="grid grid-cols-1 gap-1 max-h-56 overflow-y-auto border border-gray-200 rounded-md p-2">
                             <div th:each="u : ${allUsers}"
-                                 class="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-3 items-center text-sm py-0.5">
+                                 class="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-3 items-center text-sm py-0.5">
                                 <span th:text="${u.email}" class="truncate">user</span>
                                 <label class="inline-flex items-center text-xs text-gray-700">
                                     <input type="checkbox" name="userIds" th:value="${u.id}" class="mr-1">
@@ -247,6 +249,10 @@
                                 <label class="inline-flex items-center text-xs text-gray-700">
                                     <input type="checkbox" name="leaderIds" th:value="${u.id}" class="mr-1">
                                     Lead
+                                </label>
+                                <label class="inline-flex items-center text-xs text-gray-700">
+                                    <input type="checkbox" name="approverIds" th:value="${u.id}" class="mr-1">
+                                    Approver
                                 </label>
                             </div>
                         </div>
@@ -264,7 +270,7 @@
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Group</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Members and leads</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Members, leads, and approvers</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider w-1">Actions</th>
                         </tr>
                     </thead>
@@ -281,7 +287,7 @@
                                     </div>
                                     <div class="grid grid-cols-1 gap-1 max-h-56 overflow-y-auto border border-gray-200 rounded-md p-2">
                                         <div th:each="u : ${allUsers}"
-                                             class="grid grid-cols-[minmax(0,1fr)_auto_auto] gap-3 items-center text-xs py-0.5">
+                                             class="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] gap-3 items-center text-xs py-0.5">
                                             <span th:text="${u.email}" class="truncate">user</span>
                                             <label class="inline-flex items-center text-[11px] text-gray-700">
                                                 <input type="checkbox" name="userIds" th:value="${u.id}"
@@ -293,11 +299,18 @@
                                                        th:checked="${g.leaderUserIds.contains(u.id)}" class="mr-1">
                                                 Lead
                                             </label>
+                                            <label class="inline-flex items-center text-[11px] text-gray-700">
+                                                <input type="checkbox" name="approverIds" th:value="${u.id}"
+                                                       th:checked="${g.approverUserIds.contains(u.id)}" class="mr-1">
+                                                Approver
+                                            </label>
                                         </div>
                                     </div>
                                     <p class="text-[11px] text-gray-500">
-                                        Team leads can create, edit, and close batches in this group. Leads must
-                                        also be members; ticking <strong>Lead</strong> without <strong>Member</strong>
+                                        Team leads can create, edit, and close batches in this group. Approvers can
+                                        give a second approval reserved for an approver, adjudicate spans, and release
+                                        documents other reviewers hold. Both must also be members; ticking
+                                        <strong>Lead</strong> or <strong>Approver</strong> without <strong>Member</strong>
                                         is silently ignored on save.
                                     </p>
                                     <button type="submit"
@@ -318,6 +331,12 @@
                                     <span th:each="name : ${g.leaderNames}"
                                           class="inline-block bg-blue-50 text-blue-700 text-xs font-medium rounded px-2 py-0.5 mr-1 mb-1"
                                           th:text="${name}">lead</span>
+                                </div>
+                                <div th:unless="${#lists.isEmpty(g.approverNames)}" class="mt-2">
+                                    <span class="text-[10px] uppercase tracking-wider text-gray-500 mr-1">Approvers:</span>
+                                    <span th:each="name : ${g.approverNames}"
+                                          class="inline-block bg-brand-50 text-brand-700 text-xs font-medium rounded px-2 py-0.5 mr-1 mb-1"
+                                          th:text="${name}">approver</span>
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">

@@ -75,6 +75,26 @@ table — the underlying `/admin/rules` and
 `/admin/rules/{batchId}/{ruleSetId}` POST endpoints are unchanged, so any
 external automation that drives them keeps working without modification.
 
+## Second approval from an approver
+
+By default the second approval can come from any other reviewer in the batch's
+group. Tick **The second approval must come from an approver of the batch's
+group** on a rule set to reserve it for an
+[approver](../reference/roles.md#approvers), the group's supervisor, whom an
+administrator designates under **Admin → Groups**. Administrators also count.
+
+When a rule set with this option requires dual approval for a document, the
+first approval can come from anyone in the group, and the approval that
+completes the document must come from an approver other than the first
+reviewer. Anyone else who tries to give it is told the second approval must
+come from an approver of the group, and the document stays in
+`REVIEW_REQUIRED`. The review page's approvals banner shows "the second from
+an approver" when the option applies, and the `DOCUMENT_APPROVAL` audit entry
+records `approverRequired`.
+
+Approval rule sets hold no group of their own: the approvers are those of the
+group the batch belongs to.
+
 ## Example configurations
 
 ### 1. Audit sample of every batch

@@ -42,6 +42,13 @@ public class Group {
      * which is correct — no leaders until an admin designates one.
      */
     private Set<String> leaderUserIds = new HashSet<>();
+    /**
+     * Subset of {@link #userIds} who are this group's approvers (#5). An approval rule set can require that a
+     * document's second approval come from one; an approver can also adjudicate a span, making the final decision
+     * on it, and release a document another reviewer in the group holds. Approval is per-group, like leadership,
+     * and grants nothing outside the group's documents.
+     */
+    private Set<String> approverUserIds = new HashSet<>();
 
     private LocalDateTime createdAt;
 
@@ -82,5 +89,14 @@ public class Group {
 
     public void setLeaderUserIds(final Set<String> leaderUserIds) {
         this.leaderUserIds = leaderUserIds == null ? new HashSet<>() : leaderUserIds;
+    }
+
+    public Set<String> getApproverUserIds() {
+        if (approverUserIds == null) approverUserIds = new HashSet<>();
+        return approverUserIds;
+    }
+
+    public void setApproverUserIds(final Set<String> approverUserIds) {
+        this.approverUserIds = approverUserIds == null ? new HashSet<>() : approverUserIds;
     }
 }

@@ -57,6 +57,30 @@ Each navigator entry shows:
   span added by hand, make a [detection rule](detection-rules.md) that changes
   what Philter flags in documents redacted from then on, in every batch.
 
+## Adjudicating a span
+
+An [approver](../reference/roles.md#approvers) of the document's group, or an
+administrator, sees **Final decision: Accept / Refuse** on each detected span.
+Use it to settle a disputed decision, or to resolve a span awaiting a second
+opinion. After you confirm, the span is accepted or refused and shows
+**Adjudicated by** your email. The audit log records it as `SPAN_ADJUDICATE`.
+Overturning another reviewer's approval still asks for a reason.
+
+Once a span is adjudicated, only an approver of the group can change it:
+reviewers see its Accept, Refuse, 2nd Opinion, Reset, type, and Redact All Like
+This controls disabled, and the server refuses those changes. An approver's
+change to an adjudicated span is a new adjudication by that approver, and
+**Reset** withdraws the adjudication. **Redact All Like This** never changes an
+adjudicated span.
+
+## Releasing a document
+
+While another reviewer has a document open, it is read-only to everyone else
+until they finish or the lock expires. An approver of the document's group, or
+an administrator, can click **Break Lock** to release it so someone else in the
+group can take it. The audit log records `DOCUMENT_LOCK_BROKEN` with the
+previous holder.
+
 ## Document-level actions
 
 The header has **Previous** / **Next** buttons that step through the
@@ -92,7 +116,9 @@ status:
   reject" preference is on). Whether the document moves to `APPROVED`
   immediately depends on the batch's [approval rule sets](../admin/rules.md):
   if dual approval is required and you're the first approver, the document
-  stays in `REVIEW_REQUIRED` until a second different reviewer approves.
+  stays in `REVIEW_REQUIRED` until a second different reviewer approves. A rule
+  set can reserve that second approval for an
+  [approver](../reference/roles.md#approvers) of the group.
 - **Reject** — moves the document to `REJECTED`. Like Approve, it returns
   to the queue by default and jumps to the next document if your
   advance-to-next preference is on.

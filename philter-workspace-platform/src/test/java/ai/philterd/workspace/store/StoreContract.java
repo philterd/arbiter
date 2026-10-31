@@ -186,9 +186,14 @@ public abstract class StoreContract {
         final Group g = new Group();
         g.setName("g");
         g.setUserIds(Set.of("u1", "u2"));
+        g.setLeaderUserIds(Set.of("u1"));
+        g.setApproverUserIds(Set.of("u2"));
         groups.save(g);
         assertEquals(1, groups.findByUserIdsContaining("u2").size());
         assertEquals(0, groups.findByUserIdsContaining("u3").size());
+        assertEquals(1, groups.findByLeaderUserIdsContaining("u1").size());
+        assertEquals(1, groups.findByApproverUserIdsContaining("u2").size());
+        assertEquals(0, groups.findByApproverUserIdsContaining("u1").size(), "a lead is not an approver");
 
         final UserRepository users = repository(UserRepository.class);
         final User admin = new User();

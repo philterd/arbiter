@@ -67,6 +67,22 @@ final class TestDoubles {
             return this;
         }
 
+        private final Map<String, Set<String>> approverByEmail = new HashMap<>();
+
+        /** Makes {@code email} an approver of {@code groupIds} (#5), and a member of them. */
+        FakeUserGroups withApprover(final String email, final Set<String> groupIds) {
+            approverByEmail.put(email, groupIds);
+            final Set<String> member = new java.util.HashSet<>(byEmail.getOrDefault(email, Set.of()));
+            member.addAll(groupIds);
+            byEmail.put(email, member);
+            return this;
+        }
+
+        @Override
+        public Set<String> approverGroupIdsForEmail(final String email) {
+            return email == null ? Set.of() : approverByEmail.getOrDefault(email, Set.of());
+        }
+
         @Override
         public Set<String> groupIdsForEmail(final String email) {
             return email == null ? Set.of() : byEmail.getOrDefault(email, Set.of());
