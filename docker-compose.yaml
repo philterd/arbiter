@@ -29,10 +29,9 @@ services:
       # PHILTER_WORKSPACE_SEARCH_BACKEND=opensearch docker compose --profile opensearch up
       - PHILTER_WORKSPACE_SEARCH_BACKEND=${PHILTER_WORKSPACE_SEARCH_BACKEND:-embedded}
       - PHILTER_WORKSPACE_SEARCH_INDEX_DIR=/app/data/search-index
-      - SPRING_DATA_MONGODB_URI=mongodb://mongodb:27017/philter-workspace
+      - SPRING_MONGODB_URI=mongodb://mongodb:27017/philter-workspace
       - SPRING_DATA_REDIS_HOST=valkey
       - SPRING_DATA_REDIS_PORT=6379
-      - SPRING_SESSION_STORE_TYPE=redis
       # AES-256 key for at-rest credential encryption — base64 of exactly 32
       # random bytes. The application refuses to start without it. Generate one
       # and place it in .env (next to this file):

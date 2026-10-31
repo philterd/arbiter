@@ -11,9 +11,9 @@ package ai.philterd.workspace.service;
 
 import ai.philterd.workspace.model.Document;
 import ai.philterd.workspace.model.Span;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationFeature;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -60,8 +60,9 @@ public class JsonlExportRenderer {
         // A dedicated mapper so a globally-customised Jackson config can't change
         // the on-the-wire shape — exports are a stable contract for downstream
         // consumers.
-        this.objectMapper = new ObjectMapper();
-        this.objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        this.objectMapper = tools.jackson.databind.json.JsonMapper.builderWithJackson2Defaults()
+                .disable(tools.jackson.databind.cfg.DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
+                .build();
     }
 
     /**
@@ -75,7 +76,7 @@ public class JsonlExportRenderer {
      *                 filtered out by this method, callers don't have to pre-filter.
      * @return a single-line UTF-8 JSON string, no embedded {@code '\n'}.
      */
-    public String render(final Document document, final List<Span> spans) throws JsonProcessingException {
+    public String render(final Document document, final List<Span> spans) throws JacksonException {
         final List<Map<String, Object>> entities = new ArrayList<>();
         double confidenceSum = 0.0;
         int confidenceCount = 0;

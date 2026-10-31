@@ -11,9 +11,9 @@ package ai.philterd.workspace.api.controller;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.support.DefaultListableBeanFactory;
-import org.springframework.boot.actuate.health.Health;
-import org.springframework.boot.actuate.health.HealthEndpoint;
-import org.springframework.boot.actuate.health.HealthComponent;
+import org.springframework.boot.health.actuate.endpoint.HealthDescriptor;
+import org.springframework.boot.health.actuate.endpoint.HealthEndpoint;
+import org.springframework.boot.health.contributor.Status;
 import org.springframework.boot.info.BuildProperties;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -27,13 +27,14 @@ import static org.mockito.Mockito.when;
 
 class HealthControllerTest {
 
-    private static HealthEndpoint endpointReporting(final HealthComponent health) {
+    private static HealthEndpoint endpointReporting(final Status status) {
+        final HealthDescriptor health = ai.philterd.workspace.webapp.TestHealth.reporting(status);
         final HealthEndpoint endpoint = mock(HealthEndpoint.class);
         when(endpoint.health()).thenReturn(health);
         return endpoint;
     }
 
-    private static HealthController controller(final HealthComponent health, final String buildVersion) {
+    private static HealthController controller(final Status health, final String buildVersion) {
         final DefaultListableBeanFactory beans = new DefaultListableBeanFactory();
         if (buildVersion != null) {
             final Properties properties = new Properties();
@@ -45,7 +46,7 @@ class HealthControllerTest {
 
     @Test
     void reportsTheBuildVersion() {
-        final ResponseEntity<Map<String, String>> response = controller(Health.up().build(), "1.2.3").health();
+        final ResponseEntity<Map<String, String>> response = controller(Status.UP, "1.2.3").health();
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("UP", response.getBody().get("status"));
@@ -55,7 +56,7 @@ class HealthControllerTest {
     /** Without build-info.properties there is no BuildProperties bean, and health still answers. */
     @Test
     void reportsUnknownWithoutBuildInfo() {
-        final ResponseEntity<Map<String, String>> response = controller(Health.up().build(), null).health();
+        final ResponseEntity<Map<String, String>> response = controller(Status.UP, null).health();
 
         assertEquals(HttpStatus.OK, response.getStatusCode());
         assertEquals("UP", response.getBody().get("status"));
@@ -65,7 +66,7 @@ class HealthControllerTest {
     /** A monitor reading only the status code must not see a broken dependency as healthy. */
     @Test
     void reportsServiceUnavailableWhenTheAggregateIsDown() {
-        final ResponseEntity<Map<String, String>> response = controller(Health.down().build(), "1.2.3").health();
+        final ResponseEntity<Map<String, String>> response = controller(Status.DOWN, "1.2.3").health();
 
         assertEquals(HttpStatus.SERVICE_UNAVAILABLE, response.getStatusCode());
         assertEquals("DOWN", response.getBody().get("status"));
@@ -75,9 +76,7 @@ class HealthControllerTest {
     /** The body carries the status and the version, and nothing that names a component. */
     @Test
     void bodyCarriesOnlyStatusAndVersion() {
-        final ResponseEntity<Map<String, String>> response = controller(
-                Health.down().withDetail("mongo", "connection refused to db.internal:27017").build(),
-                "1.2.3").health();
+        final ResponseEntity<Map<String, String>> response = controller(Status.DOWN, "1.2.3").health();
 
         assertEquals(Map.of("status", "DOWN", "applicationVersion", "1.2.3"), response.getBody());
     }

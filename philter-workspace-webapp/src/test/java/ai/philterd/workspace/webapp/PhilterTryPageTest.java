@@ -19,8 +19,8 @@ import com.google.gson.Gson;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
@@ -57,8 +57,8 @@ class PhilterTryPageTest extends WebMvcSliceMocks {
     private static final byte[] PDF = "%PDF-1.7\n...".getBytes(StandardCharsets.US_ASCII);
 
     @Autowired private MockMvc mockMvc;
-    @MockBean private PhilterTryService philter;
-    @MockBean private AuditLogService auditLogService;
+    @MockitoBean private PhilterTryService philter;
+    @MockitoBean private AuditLogService auditLogService;
 
     @BeforeEach
     void setUp() throws Exception {

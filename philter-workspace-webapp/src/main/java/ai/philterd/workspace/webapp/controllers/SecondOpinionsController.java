@@ -25,8 +25,8 @@ import ai.philterd.workspace.util.Csv;
 import ai.philterd.workspace.service.AuditLogService;
 import ai.philterd.workspace.service.AuthUtils;
 import ai.philterd.workspace.service.UserGroupsService;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -310,7 +310,7 @@ public class SecondOpinionsController {
         if (details == null || details.isEmpty()) return "";
         try {
             return objectMapper.writeValueAsString(details);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             return "";
         }
     }

@@ -11,23 +11,22 @@ package ai.philterd.workspace.store.sqlite;
 
 import com.fasterxml.jackson.annotation.JsonAutoDetect;
 import com.fasterxml.jackson.annotation.PropertyAccessor;
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonDeserializer;
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import com.fasterxml.jackson.databind.SerializerProvider;
-import com.fasterxml.jackson.databind.introspect.AnnotatedMember;
-import com.fasterxml.jackson.databind.introspect.NopAnnotationIntrospector;
-import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import tools.jackson.core.JsonGenerator;
+import tools.jackson.core.JsonParser;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationContext;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.SerializationContext;
+import tools.jackson.databind.ValueDeserializer;
+import tools.jackson.databind.ValueSerializer;
+import tools.jackson.databind.cfg.DateTimeFeature;
+import tools.jackson.databind.cfg.MapperConfig;
+import tools.jackson.databind.introspect.AnnotatedMember;
+import tools.jackson.databind.introspect.NopAnnotationIntrospector;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.module.SimpleModule;
 
-import java.io.IOException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -52,57 +51,58 @@ final class SqliteJson {
 
     SqliteJson() {
         final SimpleModule times = new SimpleModule("philter-workspace-sqlite-times");
-        times.addSerializer(Instant.class, new JsonSerializer<>() {
+        times.addSerializer(Instant.class, new ValueSerializer<>() {
             @Override
-            public void serialize(final Instant v, final JsonGenerator g, final SerializerProvider p) throws IOException {
+            public void serialize(final Instant v, final JsonGenerator g, final SerializationContext p) {
                 g.writeString(INSTANT.format(v));
             }
         });
-        times.addDeserializer(Instant.class, new JsonDeserializer<>() {
+        times.addDeserializer(Instant.class, new ValueDeserializer<>() {
             @Override
-            public Instant deserialize(final JsonParser p, final DeserializationContext c) throws IOException {
+            public Instant deserialize(final JsonParser p, final DeserializationContext c) {
                 return Instant.parse(p.getValueAsString());
             }
         });
-        times.addSerializer(LocalDateTime.class, new JsonSerializer<>() {
+        times.addSerializer(LocalDateTime.class, new ValueSerializer<>() {
             @Override
-            public void serialize(final LocalDateTime v, final JsonGenerator g, final SerializerProvider p) throws IOException {
+            public void serialize(final LocalDateTime v, final JsonGenerator g, final SerializationContext p) {
                 g.writeString(LOCAL_DATE_TIME.format(v));
             }
         });
-        times.addDeserializer(LocalDateTime.class, new JsonDeserializer<>() {
+        times.addDeserializer(LocalDateTime.class, new ValueDeserializer<>() {
             @Override
-            public LocalDateTime deserialize(final JsonParser p, final DeserializationContext c) throws IOException {
+            public LocalDateTime deserialize(final JsonParser p, final DeserializationContext c) {
                 return LocalDateTime.parse(p.getValueAsString());
             }
         });
-        times.addSerializer(Date.class, new JsonSerializer<>() {
+        times.addSerializer(Date.class, new ValueSerializer<>() {
             @Override
-            public void serialize(final Date v, final JsonGenerator g, final SerializerProvider p) throws IOException {
+            public void serialize(final Date v, final JsonGenerator g, final SerializationContext p) {
                 g.writeString(INSTANT.format(v.toInstant()));
             }
         });
-        times.addDeserializer(Date.class, new JsonDeserializer<>() {
+        times.addDeserializer(Date.class, new ValueDeserializer<>() {
             @Override
-            public Date deserialize(final JsonParser p, final DeserializationContext c) throws IOException {
+            public Date deserialize(final JsonParser p, final DeserializationContext c) {
                 return Date.from(Instant.parse(p.getValueAsString()));
             }
         });
 
-        mapper = JsonMapper.builder()
-                .addModule(new JavaTimeModule())
+        // Jackson 2's defaults, so stored records keep the form they were written in before Jackson 3.
+        mapper = JsonMapper.builderWithJackson2Defaults()
                 .addModule(times)
-                .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+                .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS)
                 .disable(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES)
-                .visibility(PropertyAccessor.GETTER, JsonAutoDetect.Visibility.NONE)
-                .visibility(PropertyAccessor.IS_GETTER, JsonAutoDetect.Visibility.NONE)
-                .visibility(PropertyAccessor.SETTER, JsonAutoDetect.Visibility.NONE)
-                .visibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY)
+                .changeDefaultVisibility(v -> v
+                        .withVisibility(PropertyAccessor.GETTER, JsonAutoDetect.Visibility.NONE)
+                        .withVisibility(PropertyAccessor.IS_GETTER, JsonAutoDetect.Visibility.NONE)
+                        .withVisibility(PropertyAccessor.SETTER, JsonAutoDetect.Visibility.NONE)
+                        .withVisibility(PropertyAccessor.FIELD, JsonAutoDetect.Visibility.ANY))
                 // Jackson annotations on the models shape the REST API, not storage, so they are
                 // ignored here; only Spring Data's @Transient keeps a field out, as with MongoDB.
                 .annotationIntrospector(new NopAnnotationIntrospector() {
                     @Override
-                    public boolean hasIgnoreMarker(final AnnotatedMember m) {
+                    public boolean hasIgnoreMarker(final MapperConfig<?> config, final AnnotatedMember m) {
                         return m.hasAnnotation(org.springframework.data.annotation.Transient.class);
                     }
                 })
@@ -112,7 +112,7 @@ final class SqliteJson {
     String write(final Object value) {
         try {
             return mapper.writeValueAsString(value);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             // The message can quote field values, so only the type is reported.
             throw new IllegalStateException("Could not serialize " + value.getClass().getSimpleName());
         }
@@ -121,7 +121,7 @@ final class SqliteJson {
     <T> T read(final String json, final Class<T> type) {
         try {
             return mapper.readValue(json, type);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             throw new IllegalStateException("Could not deserialize " + type.getSimpleName());
         }
     }

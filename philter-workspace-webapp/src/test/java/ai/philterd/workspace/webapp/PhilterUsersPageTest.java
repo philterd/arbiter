@@ -19,8 +19,8 @@ import ai.philterd.workspace.webapp.security.SecurityConfig;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -45,8 +45,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class PhilterUsersPageTest extends WebMvcSliceMocks {
 
     @Autowired private MockMvc mockMvc;
-    @MockBean private PhilterUsersService usersService;
-    @MockBean private PhilterUserProvisioner provisioner;
+    @MockitoBean private PhilterUsersService usersService;
+    @MockitoBean private PhilterUserProvisioner provisioner;
 
     private static GetUsersResponse page(final long total, final int from, final int count) {
         final List<User> users = new ArrayList<>();

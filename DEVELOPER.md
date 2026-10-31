@@ -69,7 +69,7 @@ docker compose -f docker-compose.yaml --profile mongodb up -d mongodb valkey
 
 Defaults in `philter-workspace-webapp/src/main/resources/application.properties`
 point at `localhost`; the only env vars worth knowing about are
-`PHILTER_WORKSPACE_STORE`, `SPRING_DATA_MONGODB_URI`, `SPRING_DATA_REDIS_HOST`/`_PORT`, and
+`PHILTER_WORKSPACE_STORE`, `SPRING_MONGODB_URI`, `SPRING_DATA_REDIS_HOST`/`_PORT`, and
 **`philter-workspace.crypto.secret`** (now required: base64 of 32 random bytes,
 e.g. `openssl rand -base64 32`; Philter Workspace refuses to start if it isn't
 set or has the wrong shape). The OpenSearch endpoint used for
@@ -84,7 +84,7 @@ security/filter integration cases (`AuthorizationIntegrationTest`,
 
 A few patterns that bite:
 
-- **`@WebMvcTest` slices must `@MockBean` every Mongo repository in
+- **`@WebMvcTest` slices must `@MockitoBean` every Mongo repository in
   the app**, not just the ones the controller calls. With
   `auto-index-creation=true`, Spring tries to create every repo's
   indexes on context load and fails if one is unmocked. Copy the list
@@ -115,8 +115,42 @@ A few patterns that bite:
   `@Indexed` and `@CompoundIndex`, and the SQLite store creates indexes with
   `CREATE INDEX IF NOT EXISTS`, so an existing index keeps its old
   definition until it is renamed (or dropped by hand).
+- **Tests read the real `application.properties`.** Test-only overrides live in
+  `philter-workspace-webapp/src/test/resources/config/application.properties`,
+  which Spring Boot reads on top of `src/main/resources/application.properties`.
+  Do not add a test `application.properties` at the classpath root: it would
+  replace the main file, and the tests would stop exercising production settings.
+- **Spring Boot 4 specifics.** Slice tests mock beans with `@MockitoBean`
+  (`@MockBean` is gone), and `@WebMvcTest` comes from `spring-boot-webmvc-test`;
+  security and Thymeleaf join the slice through their own test starters. Boot's
+  `HealthDescriptor` is sealed, so tests build a real one with `TestHealth`.
+  Auto-configuration classes moved into per-technology modules, so a name spelled
+  out as a string (`StoreEnvironmentPostProcessor`, `spring.autoconfigure.exclude`)
+  must use the Boot 4 name, or Boot either ignores it or refuses to start.
+- **Jackson 3.** JSON code uses `tools.jackson` (annotations stay in
+  `com.fasterxml.jackson.annotation`), and its exceptions are unchecked
+  (`JacksonException`). Mappers whose output is stored or exported (the SQLite
+  store, the exports, sidecars, the search index) are built with
+  `JsonMapper.builderWithJackson2Defaults()`, and the REST API sets
+  `spring.jackson.use-jackson2-defaults=true`, so their JSON did not change in the
+  move to Jackson 3.
 - For executor-driven verifications, prefer
   `verify(mock, timeout(2000)).method(...)` over `Thread.sleep`.
+
+## Vulnerability scan
+
+`.github/workflows/security.yml` builds the image and scans it with Trivy on every
+push and pull request, and weekly. It fails on a high or critical vulnerability
+that has an upstream fix, in the operating system packages or in any library in the
+application jar. To run the same scan locally:
+
+```sh
+docker build -t philter-workspace:scan .
+trivy image --scanners vuln --ignore-unfixed --severity HIGH,CRITICAL philter-workspace:scan
+```
+
+Suppress a finding that cannot be acted on in `.trivyignore`, with a reason and a
+date to revisit.
 
 ## Architectural patterns to match
 

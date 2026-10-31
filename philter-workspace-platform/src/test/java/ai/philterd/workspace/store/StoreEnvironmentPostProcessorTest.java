@@ -29,14 +29,14 @@ class StoreEnvironmentPostProcessorTest {
                 .withProperty("philter-workspace.store", "sqlite")
                 .withProperty("spring.autoconfigure.exclude", "com.example.Other"));
         assertTrue(excluded.contains("com.example.Other"));
-        assertTrue(excluded.contains("org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration"));
+        assertTrue(excluded.contains("org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration"));
         assertFalse(excluded.contains("DataSourceAutoConfiguration"));
     }
 
     @Test
     void mongodbIsTheDefaultAndTurnsOffJdbc() {
         final String excluded = excludes(new MockEnvironment());
-        assertTrue(excluded.contains("org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration"));
+        assertTrue(excluded.contains("org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration"));
         assertFalse(excluded.contains("Mongo"));
     }
 

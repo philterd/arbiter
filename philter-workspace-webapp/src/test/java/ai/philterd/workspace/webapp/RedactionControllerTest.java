@@ -49,8 +49,8 @@ import org.springframework.data.mongodb.core.MongoOperations;
 import ai.philterd.workspace.webapp.security.SecurityConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.test.web.servlet.MockMvc;
@@ -79,126 +79,126 @@ public class RedactionControllerTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @MockBean
+    @MockitoBean
     private ai.philterd.workspace.webapp.security.PhilterApiKeys philterApiKeys;
 
-    @MockBean
+    @MockitoBean
     private ai.philterd.workspace.webapp.security.PhilterSignInService philterSignInService;
 
-    @MockBean
+    @MockitoBean
     private ai.philterd.workspace.webapp.security.PhilterSignInFlow philterSignInFlow;
 
     /** HealthController lands in this slice and needs an endpoint @WebMvcTest does not provide. */
-    @MockBean
-    private org.springframework.boot.actuate.health.HealthEndpoint healthEndpoint;
+    @MockitoBean
+    private org.springframework.boot.health.actuate.endpoint.HealthEndpoint healthEndpoint;
 
-    @MockBean
+    @MockitoBean
     private RedactionService redactionService;
 
-    @MockBean
+    @MockitoBean
     private SpanRepository spanRepository;
 
-    @MockBean
+    @MockitoBean
     private DocumentRepository documentRepository;
 
-    @MockBean
+    @MockitoBean
     private BatchRepository batchRepository;
 
-    @MockBean
+    @MockitoBean
     private UserRepository userRepository;
 
-    @MockBean
+    @MockitoBean
     private GroupRepository groupRepository;
 
-    @MockBean
+    @MockitoBean
     private AuditLogRepository auditLogRepository;
 
-    @MockBean
+    @MockitoBean
     private NotificationSettingsRepository notificationSettingsRepository;
 
-    @MockBean
+    @MockitoBean
     private GeneralSettingsRepository generalSettingsRepository;
 
-    @MockBean
+    @MockitoBean
     private OllamaInstanceRepository ollamaInstanceRepository;
 
-    @MockBean
+    @MockitoBean
     private OpenSearchDataSourceRepository openSearchDataSourceRepository;
 
-    @MockBean
+    @MockitoBean
     private ai.philterd.workspace.repository.BackgroundJobRepository backgroundJobRepository;
 
-    @MockBean
+    @MockitoBean
     private ai.philterd.workspace.repository.DataImportLogEntryRepository dataImportLogEntryRepository;
 
-    @MockBean
+    @MockitoBean
     private ai.philterd.workspace.repository.ElasticsearchDataSourceRepository elasticsearchDataSourceRepository;
 
-    @MockBean
+    @MockitoBean
     private S3DataSourceRepository s3DataSourceRepository;
 
-    @MockBean
+    @MockitoBean
     private RelationalDbDataSourceRepository relationalDbDataSourceRepository;
 
-    @MockBean
+    @MockitoBean
     private LocalDirectoryDataSourceRepository localDirectoryDataSourceRepository;
 
-    @MockBean
+    @MockitoBean
     private LocalDirectoryDestinationRepository localDirectoryDestinationRepository;
 
-    @MockBean
+    @MockitoBean
     private S3DestinationRepository s3DestinationRepository;
 
-    @MockBean
+    @MockitoBean
     private DestinationTester destinationTester;
 
-    @MockBean
+    @MockitoBean
     private ai.philterd.workspace.service.PhilterSettings philterSettings;
 
 
-    @MockBean
+    @MockitoBean
     private DocumentCommentRepository documentCommentRepository;
 
-    @MockBean
+    @MockitoBean
     private WeightSetRepository weightSetRepository;
 
-    @MockBean
+    @MockitoBean
     private LlmJudgeDefaultsRepository llmJudgeDefaultsRepository;
 
-    @MockBean
+    @MockitoBean
     private UserSettingsRepository userSettingsRepository;
 
-    @MockBean
+    @MockitoBean
     private InboxMessageRepository inboxMessageRepository;
 
-    @MockBean
+    @MockitoBean
     private PendingUploadRepository pendingUploadRepository;
 
-    @MockBean
+    @MockitoBean
     private RedactionCertificateRepository redactionCertificateRepository;
 
-    @MockBean
+    @MockitoBean
     private ai.philterd.workspace.repository.FinalizationPolicyRepository finalizationPolicyRepository;
 
-    @MockBean
+    @MockitoBean
     private ai.philterd.workspace.repository.ComplianceProfileRepository complianceProfileRepository;
 
-    @MockBean
+    @MockitoBean
     private MongoOperations mongoOperations;
 
-    @MockBean
+    @MockitoBean
     private ai.philterd.workspace.repository.PhilterWebhookDeliveryRepository philterWebhookDeliveryRepository;
 
-    @MockBean
+    @MockitoBean
     private ai.philterd.workspace.repository.DetectionRuleRepository detectionRuleRepository;
 
-    @MockBean
+    @MockitoBean
     private ai.philterd.workspace.service.DetectionRuleService detectionRuleService;
 
-    @MockBean
+    @MockitoBean
     private ai.philterd.workspace.service.CaseMetadataService caseMetadataService;
 
-    @MockBean
+    @MockitoBean
     private GeneralSettingsService generalSettingsService;
 
     @org.junit.jupiter.api.BeforeEach
@@ -221,22 +221,22 @@ public class RedactionControllerTest {
                 .andExpect(view().name("index"));
     }
 
-    @MockBean
+    @MockitoBean
     private ai.philterd.workspace.service.UserGroupsService userGroupsService;
 
-    @MockBean
+    @MockitoBean
     private ai.philterd.workspace.service.OpenSearchIngestJobService openSearchIngestJobService;
 
-    @MockBean
+    @MockitoBean
     private ai.philterd.workspace.service.ElasticsearchIngestJobService elasticsearchIngestJobService;
 
-    @MockBean
+    @MockitoBean
     private ai.philterd.workspace.service.LocalDirectoryIngestJobService localDirectoryIngestJobService;
 
-    @MockBean
+    @MockitoBean
     private ai.philterd.workspace.service.S3IngestJobService s3IngestJobService;
 
-    @MockBean
+    @MockitoBean
     private ai.philterd.workspace.service.RdbIngestJobService rdbIngestJobService;
 
     /**

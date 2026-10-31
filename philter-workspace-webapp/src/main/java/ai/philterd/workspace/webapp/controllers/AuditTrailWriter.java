@@ -13,8 +13,8 @@ import ai.philterd.workspace.model.AuditLog;
 import ai.philterd.workspace.service.AuditTrailService;
 import ai.philterd.workspace.service.DocumentLedgerService;
 import ai.philterd.workspace.util.Csv;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 
@@ -196,7 +196,7 @@ public class AuditTrailWriter {
     private String json(final Object value) {
         try {
             return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             return "";
         }
     }

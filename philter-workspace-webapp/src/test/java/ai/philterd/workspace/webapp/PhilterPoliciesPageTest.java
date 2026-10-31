@@ -31,8 +31,8 @@ import com.google.gson.JsonPrimitive;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -66,9 +66,9 @@ class PhilterPoliciesPageTest extends WebMvcSliceMocks {
     private static final String KEY = "enc-session-key";
 
     @Autowired private MockMvc mockMvc;
-    @MockBean private PhilterPoliciesService policies;
-    @MockBean private GeneralSettingsService generalSettingsService;
-    @MockBean private ai.philterd.workspace.service.AuditLogService auditLogService;
+    @MockitoBean private PhilterPoliciesService policies;
+    @MockitoBean private GeneralSettingsService generalSettingsService;
+    @MockitoBean private ai.philterd.workspace.service.AuditLogService auditLogService;
 
     @BeforeEach
     void setUp() {

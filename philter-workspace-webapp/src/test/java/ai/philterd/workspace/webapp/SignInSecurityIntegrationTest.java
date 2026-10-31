@@ -20,8 +20,8 @@ import ai.philterd.workspace.webapp.security.PhilterSessionAuthentication;
 import ai.philterd.workspace.webapp.security.SecurityConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
@@ -36,7 +36,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrl;
-import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.redirectedUrlPattern;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /** The sign-in and API key wiring, built from the real {@link SecurityConfig}. */
@@ -46,8 +45,8 @@ class SignInSecurityIntegrationTest extends WebMvcSliceMocks {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ApplicationContext context;
-    @MockBean private PhilterUsersService philterUsersService;
-    @MockBean private PhilterUserProvisioner philterUserProvisioner;
+    @MockitoBean private PhilterUsersService philterUsersService;
+    @MockitoBean private PhilterUserProvisioner philterUserProvisioner;
 
     @Test
     void philterApiKeyAuthenticatesTheApi() throws Exception {
@@ -78,8 +77,29 @@ class SignInSecurityIntegrationTest extends WebMvcSliceMocks {
     @Test
     void bearerKeysAreNotCheckedOutsideTheApi() throws Exception {
         mockMvc.perform(get("/admin/users").accept("text/html").header("Authorization", "Bearer sk_valid"))
-                .andExpect(redirectedUrlPattern("**/login"));
+                .andExpect(redirectedUrl("/login"));
         org.mockito.Mockito.verifyNoInteractions(philterApiKeys);
+    }
+
+    /** Each outcome of a sign-in redirects to /login with a parameter, and the page names it. */
+    @Test
+    void theLoginPageExplainsEachOutcomeFromItsParameter() throws Exception {
+        final java.util.Map<String, String> messages = java.util.Map.of(
+                "error", "Invalid username or password.",
+                "locked", "Sign-in is locked after repeated failed attempts.",
+                "unavailable", "Sign-in is unavailable.",
+                "code", "The code was not accepted.",
+                "expired", "Your session has ended.",
+                "cookie", "did not keep Philter Workspace's session cookie",
+                "passwordChanged", "Your password is changed.",
+                "mfaEnrolled", "Two-factor authentication is set up.",
+                "logout", "You have been signed out.",
+                "unsupported", "does not support this Philter's version");
+        for (java.util.Map.Entry<String, String> m : messages.entrySet()) {
+            mockMvc.perform(get("/login").param(m.getKey(), ""))
+                    .andExpect(status().isOk())
+                    .andExpect(content().string(org.hamcrest.Matchers.containsString(m.getValue())));
+        }
     }
 
     @Test
@@ -108,9 +128,9 @@ class SignInSecurityIntegrationTest extends WebMvcSliceMocks {
         assertEquals(1, context.getBeanNamesForType(PhilterSignInController.class).length);
         mockMvc.perform(get("/sign-in/mfa")).andExpect(redirectedUrl("/login"));
         // The local MFA and invitation pages are gone; unauthenticated callers are sent to sign in.
-        mockMvc.perform(get("/mfa").accept("text/html")).andExpect(redirectedUrlPattern("**/login"));
+        mockMvc.perform(get("/mfa").accept("text/html")).andExpect(redirectedUrl("/login"));
         mockMvc.perform(get("/invitations/some-token").accept("text/html"))
-                .andExpect(redirectedUrlPattern("**/login"));
+                .andExpect(redirectedUrl("/login"));
     }
 
     @Test

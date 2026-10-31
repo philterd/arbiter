@@ -22,8 +22,8 @@ import ai.philterd.workspace.service.BatchAccessService;
 import ai.philterd.workspace.service.GeneralSettingsService;
 import ai.philterd.workspace.service.OpenSearchIndexService;
 import ai.philterd.workspace.service.UserGroupsService;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.junit.jupiter.api.AfterEach;
@@ -271,7 +271,7 @@ class FullTextSearchAccessIntegrationTest {
                         + "on the wire so OpenSearch itself enforces group scope. Body: " + body);
         // The terms array must list ONLY the caller's allowed batch.
         final List<String> batchIds = new ArrayList<>();
-        for (JsonNode n : terms) batchIds.add(n.asText());
+        for (JsonNode n : terms) batchIds.add(n.asString());
         assertEquals(List.of(g1Batch.getId()), batchIds,
                 "The terms filter must list exactly the caller's accessible batches — never any other.");
     }

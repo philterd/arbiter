@@ -22,7 +22,7 @@ import ai.philterd.workspace.repository.SpanRepository;
 import ai.philterd.workspace.service.AuditLogQueryService;
 import ai.philterd.workspace.service.AuditLogService;
 import ai.philterd.workspace.service.UserGroupsService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;

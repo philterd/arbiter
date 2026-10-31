@@ -20,7 +20,7 @@ import ai.philterd.workspace.repository.RelationalDbDataSourceRepository;
 import ai.philterd.workspace.repository.S3DataSourceRepository;
 import ai.philterd.workspace.service.AuditLogService;
 import ai.philterd.workspace.service.SymmetricCipher;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

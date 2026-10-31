@@ -30,8 +30,8 @@ import ai.philterd.workspace.repository.S3DataSourceRepository;
 import ai.philterd.workspace.service.AuditLogService;
 import ai.philterd.workspace.service.RdbPreviewService;
 import ai.philterd.workspace.service.SymmetricCipher;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
@@ -433,8 +433,8 @@ public class AdminDataSourceController {
                 for (int i = 0; i < hitsArr.size() && i < 10; i++) {
                     final JsonNode hit = hitsArr.get(i);
                     final Map<String, Object> entry = new LinkedHashMap<>();
-                    entry.put("_index", hit.path("_index").asText(""));
-                    entry.put("_id", hit.path("_id").asText(""));
+                    entry.put("_index", hit.path("_index").asString(""));
+                    entry.put("_id", hit.path("_id").asString(""));
                     final JsonNode source = hit.path("_source");
                     entry.put("_source", source.isMissingNode() ? new LinkedHashMap<>()
                             : objectMapper.convertValue(source, Map.class));

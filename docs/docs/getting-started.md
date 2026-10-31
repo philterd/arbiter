@@ -20,7 +20,7 @@ full reference. The settings most operators need to set are:
 | ----------------------------------------- | ------------------------------------------------------ |
 | `philter-workspace.store`                           | `mongodb` (default) or `sqlite`. See [Database](reference/database.md). |
 | `philter-workspace.sqlite.path`                     | The SQLite database file, with `philter-workspace.store=sqlite` (default `./data/philter-workspace.db`) |
-| `spring.data.mongodb.uri`                 | Connection URI for MongoDB                             |
+| `spring.mongodb.uri`                      | Connection URI for MongoDB                             |
 | `spring.data.mongodb.database`            | Database name (default: `philter-workspace`)                     |
 | `philter-workspace.philter.url`                     | **Required.** The URL of Philter Workspace's Philter (`PHILTER_WORKSPACE_PHILTER_URL`), such as `http://philter:8080` |
 | `philter-workspace.philter.api-key`                 | **Required.** The Philter API key for background work such as ingest (`PHILTER_WORKSPACE_PHILTER_API_KEY`), for a Philter user who is not an administrator. Set it through the environment. |
@@ -94,7 +94,7 @@ following. The old names are not read.
   `/app/data/philter-workspace.db` and the MongoDB database is `philter-workspace`. To keep existing
   data, stop Arbiter, then copy its SQLite files (the database and any `-wal` and `-shm` files
   beside it) into the new volume under the new name (`docker volume ls` shows both volumes' names),
-  or for MongoDB set `SPRING_DATA_MONGODB_URI` to the old database
+  or for MongoDB set `SPRING_MONGODB_URI` to the old database
   (`mongodb://mongodb:27017/arbiter`):
 
     ```sh

@@ -23,7 +23,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.system.CapturedOutput;
 import org.springframework.boot.test.system.OutputCaptureExtension;
@@ -80,7 +80,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "philter-workspace.demo-data.enabled=false",
         "philter-workspace.delivery.poll-millis=500",
         "philter-workspace.data-sources.allowed-hosts=localhost,127.0.0.1",
-        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.session.SessionAutoConfiguration"})
+        "spring.autoconfigure.exclude=org.springframework.boot.session.autoconfigure.SessionAutoConfiguration,"
+                + "org.springframework.boot.session.data.redis.autoconfigure.SessionDataRedisAutoConfiguration"})
 @AutoConfigureMockMvc
 @ExtendWith(OutputCaptureExtension.class)
 class PhilterSignInIT {
@@ -311,7 +312,7 @@ class PhilterSignInIT {
 
         assertEquals("/sign-in/password", signIn(session, address, user, first).getResponse().getRedirectedUrl());
         mockMvc.perform(get("/settings").session(session).with(from(address)).accept("text/html"))
-                .andExpect(redirectedUrl("http://localhost/login"));
+                .andExpect(redirectedUrl("/login"));
 
         final String chosen = password();
         mockMvc.perform(post("/sign-in/password").session(session).with(csrf()).with(from(address))
@@ -804,13 +805,13 @@ class PhilterSignInIT {
         final String address = newAddress();
         assertEquals("/", signIn(session, address, "admin", ADMIN_PASSWORD).getResponse().getRedirectedUrl());
         final String name = "it-" + HexFormat.of().formatHex(bytes(3));
-        final com.fasterxml.jackson.databind.ObjectMapper json = new com.fasterxml.jackson.databind.ObjectMapper();
+        final tools.jackson.databind.ObjectMapper json = new tools.jackson.databind.ObjectMapper();
         final String template = bootstrap().getPolicyTemplate("default");
-        final com.fasterxml.jackson.databind.node.ObjectNode smaller =
-                (com.fasterxml.jackson.databind.node.ObjectNode) json.readTree(template);
-        final com.fasterxml.jackson.databind.node.ObjectNode identifiers =
-                (com.fasterxml.jackson.databind.node.ObjectNode) smaller.get("identifiers");
-        final String first = identifiers.fieldNames().next();
+        final tools.jackson.databind.node.ObjectNode smaller =
+                (tools.jackson.databind.node.ObjectNode) json.readTree(template);
+        final tools.jackson.databind.node.ObjectNode identifiers =
+                (tools.jackson.databind.node.ObjectNode) smaller.get("identifiers");
+        final String first = identifiers.propertyNames().iterator().next();
         identifiers.retain(first);
 
         // A new policy starts from Philter's template, and Philter explains an invalid one.
@@ -1187,24 +1188,24 @@ class PhilterSignInIT {
         final String ledger = mockMvc.perform(get("/api/v1/documents/" + queued.getId() + "/ledger")
                 .session(session).with(from(address))).andExpect(status().isOk()).andReturn().getResponse()
                 .getContentAsString();
-        final com.fasterxml.jackson.databind.JsonNode ledgerJson = new com.fasterxml.jackson.databind.ObjectMapper()
+        final tools.jackson.databind.JsonNode ledgerJson = new tools.jackson.databind.ObjectMapper()
                 .readTree(ledger);
-        assertEquals(redacted.getPhilterDocumentId(), ledgerJson.at("/chains/0/philterDocumentId").asText());
+        assertEquals(redacted.getPhilterDocumentId(), ledgerJson.at("/chains/0/philterDocumentId").asString());
         assertTrue(ledgerJson.at("/chains/0/verified").asBoolean(), ledger);
-        assertEquals("[genesis]", ledgerJson.at("/entries/0/previousHash").asText(), "Philter opens the chain");
-        assertEquals("email-address", ledgerJson.at("/entries/1/type").asText(), ledger);
+        assertEquals("[genesis]", ledgerJson.at("/entries/0/previousHash").asString(), "Philter opens the chain");
+        assertEquals("email-address", ledgerJson.at("/entries/1/type").asString(), ledger);
 
         final String trail = mockMvc.perform(get("/api/v1/documents/" + queued.getId() + "/audit-trail")
                 .param("format", "json").session(session).with(from(address))).andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
-        final com.fasterxml.jackson.databind.JsonNode json = new com.fasterxml.jackson.databind.ObjectMapper()
+        final tools.jackson.databind.JsonNode json = new tools.jackson.databind.ObjectMapper()
                 .readTree(trail);
         assertTrue(json.at("/chains/0/verified").asBoolean(), trail);
         final java.util.List<String> sources = new java.util.ArrayList<>();
         final java.util.List<String> actions = new java.util.ArrayList<>();
         json.get("events").forEach(e -> {
-            sources.add(e.get("source").asText());
-            actions.add(e.path("action").asText(""));
+            sources.add(e.get("source").asString());
+            actions.add(e.path("action").asString(""));
         });
         assertTrue(sources.contains("PHILTER_LEDGER") && sources.contains("PHILTER_WORKSPACE"), trail);
         assertTrue(actions.contains("AUDIT_TRAIL_EXPORT"), "the export is in its own trail");
@@ -1272,6 +1273,37 @@ class PhilterSignInIT {
         assertEquals(end, reset.getLocation().characterEnd());
         assertFalse(reset.isAdjusted());
         assertEquals("PENDING", reset.getStatus());
+    }
+
+    @Test
+    void tomcatRefusesAnUploadWithTooManyParts() throws Exception {
+        // Through the real server: MockMvc does not parse multipart bodies with Tomcat (#79, CVE-2025-48988).
+        final java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient();
+        final java.util.function.IntFunction<Integer> postWithParts = parts -> {
+            final String boundary = "b" + HexFormat.of().formatHex(bytes(8));
+            final StringBuilder body = new StringBuilder();
+            for (int i = 0; i < parts; i++) {
+                body.append("--").append(boundary).append("\r\n")
+                        .append("Content-Disposition: form-data; name=\"file\"; filename=\"f").append(i)
+                        .append(".txt\"\r\nContent-Type: text/plain\r\n\r\nx\r\n");
+            }
+            body.append("--").append(boundary).append("--\r\n");
+            try {
+                return client.send(java.net.http.HttpRequest.newBuilder(
+                                java.net.URI.create("http://localhost:" + PORT + "/upload"))
+                        .header("Content-Type", "multipart/form-data; boundary=" + boundary)
+                        .POST(java.net.http.HttpRequest.BodyPublishers.ofString(body.toString())).build(),
+                        java.net.http.HttpResponse.BodyHandlers.discarding()).statusCode();
+            } catch (Exception e) {
+                throw new IllegalStateException(e);
+            }
+        };
+        final int few = postWithParts.apply(5);
+        final int tooMany = postWithParts.apply(150);
+        // Over Spring Boot's default of 50 parts, within the configured 110.
+        assertEquals(few, postWithParts.apply(60), "60 parts are allowed");
+        assertTrue(few == 403 || (few >= 300 && few < 400), "a small upload reaches the security checks: " + few);
+        assertTrue(tooMany != few && tooMany >= 400, "150 parts are refused by Tomcat: " + tooMany);
     }
 
     @Test

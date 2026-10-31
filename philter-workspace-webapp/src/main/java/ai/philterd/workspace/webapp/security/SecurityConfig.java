@@ -31,7 +31,7 @@ import org.springframework.security.web.csrf.CsrfTokenRepository;
 import org.springframework.security.web.csrf.HttpSessionCsrfTokenRepository;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter;
 import org.springframework.security.web.session.HttpSessionEventPublisher;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -181,7 +181,7 @@ public class SecurityConfig {
                         .permitAll())
                 .exceptionHandling(ex -> ex.defaultAuthenticationEntryPointFor(
                         new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
-                        new AntPathRequestMatcher("/api/**"))
+                        PathPatternRequestMatcher.pathPattern("/api/**"))
                         .accessDeniedHandler(new ExpiredFormAccessDeniedHandler()))
                 .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 // After the session's SecurityContext is loaded, before authorization: a person whose

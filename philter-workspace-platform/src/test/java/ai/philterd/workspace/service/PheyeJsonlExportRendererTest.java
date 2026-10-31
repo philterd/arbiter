@@ -12,8 +12,8 @@ package ai.philterd.workspace.service;
 import ai.philterd.workspace.model.Document;
 import ai.philterd.workspace.model.Location;
 import ai.philterd.workspace.model.Span;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -52,12 +52,12 @@ class PheyeJsonlExportRendererTest {
         final String line = renderer.render(doc, List.of(span("APPROVED", "name", start, end)));
         final JsonNode root = mapper.readTree(line);
 
-        assertEquals(text, root.get("text").asText());
+        assertEquals(text, root.get("text").asString());
         assertEquals(1, root.get("spans").size());
         final JsonNode s = root.get("spans").get(0);
         assertEquals(start, s.get("start").asInt());
         assertEquals(end, s.get("end").asInt());
-        assertEquals("name", s.get("label").asText());
+        assertEquals("name", s.get("label").asString());
         // The span object carries exactly start, end, and label (no extra fields).
         assertEquals(3, s.size());
         assertFalse(s.has("text"));
@@ -70,7 +70,7 @@ class PheyeJsonlExportRendererTest {
         final String line = renderer.render(document("nothing sensitive here"), List.of());
         final JsonNode root = mapper.readTree(line);
 
-        assertEquals("nothing sensitive here", root.get("text").asText());
+        assertEquals("nothing sensitive here", root.get("text").asString());
         assertTrue(root.get("spans").isArray());
         assertEquals(0, root.get("spans").size());
     }
@@ -110,12 +110,12 @@ class PheyeJsonlExportRendererTest {
         // A JSONL line must not contain a raw newline; the newline in the source text is escaped.
         assertFalse(line.contains("\n"), "the rendered line must not contain a raw newline");
         // The escaped newline round-trips through a standard JSON parser.
-        assertEquals(text, mapper.readTree(line).get("text").asText());
+        assertEquals(text, mapper.readTree(line).get("text").asString());
     }
 
     @Test
     void nullOriginalTextRendersAsEmptyString() throws Exception {
         final JsonNode root = mapper.readTree(renderer.render(document(null), List.of()));
-        assertEquals("", root.get("text").asText());
+        assertEquals("", root.get("text").asString());
     }
 }

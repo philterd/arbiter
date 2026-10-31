@@ -12,8 +12,8 @@ package ai.philterd.workspace.service;
 import ai.philterd.workspace.model.Document;
 import ai.philterd.workspace.model.Location;
 import ai.philterd.workspace.model.Span;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
@@ -71,18 +71,18 @@ class JsonlExportRendererTest {
         final JsonNode root = mapper.readTree(line);
 
         assertEquals("The patient, John Doe, was admitted on 2023-10-12 to Mayo Clinic.",
-                root.get("text").asText());
+                root.get("text").asString());
 
         final JsonNode entities = root.get("entities");
         assertEquals(3, entities.size());
         assertEquals(13, entities.get(0).get("start").asInt());
         assertEquals(21, entities.get(0).get("end").asInt());
-        assertEquals("PERSON", entities.get(0).get("label").asText());
-        assertEquals("John Doe", entities.get(0).get("text").asText());
+        assertEquals("PERSON", entities.get(0).get("label").asString());
+        assertEquals("John Doe", entities.get(0).get("text").asString());
 
         final JsonNode metadata = root.get("metadata");
-        assertEquals("DOC-001", metadata.get("doc_id").asText());
-        assertEquals("alice@example.com", metadata.get("annotator").asText());
+        assertEquals("DOC-001", metadata.get("doc_id").asString());
+        assertEquals("alice@example.com", metadata.get("annotator").asString());
         // Average of 0.96, 1.00, 0.98 = 0.98
         assertEquals(0.98, metadata.get("confidence").asDouble(), 1e-9);
     }
@@ -100,9 +100,9 @@ class JsonlExportRendererTest {
                 List.of(threshold, accepted, added));
         final JsonNode entities = mapper.readTree(line).get("entities");
 
-        assertEquals("threshold", entities.get(0).get("decidedBy").asText());
-        assertEquals("person", entities.get(1).get("decidedBy").asText());
-        assertEquals("person", entities.get(2).get("decidedBy").asText());
+        assertEquals("threshold", entities.get(0).get("decidedBy").asString());
+        assertEquals("person", entities.get(1).get("decidedBy").asString());
+        assertEquals("person", entities.get(2).get("decidedBy").asString());
         assertFalse(line.contains("bob@example.com"));
     }
 
@@ -120,7 +120,7 @@ class JsonlExportRendererTest {
         final JsonNode root = mapper.readTree(line);
         assertEquals(1, root.get("entities").size(),
                 "only APPROVED spans must show up in the entities array");
-        assertEquals("PERSON", root.get("entities").get(0).get("label").asText());
+        assertEquals("PERSON", root.get("entities").get(0).get("label").asString());
         assertEquals(0.9, root.get("metadata").get("confidence").asDouble(), 1e-9);
     }
 
@@ -137,7 +137,7 @@ class JsonlExportRendererTest {
         assertEquals(0, root.get("entities").size());
         assertFalse(root.get("metadata").has("confidence"),
                 "confidence must be omitted when there are no approved spans");
-        assertEquals("bob@x.com", root.get("metadata").get("annotator").asText());
+        assertEquals("bob@x.com", root.get("metadata").get("annotator").asString());
     }
 
     @Test
@@ -148,7 +148,7 @@ class JsonlExportRendererTest {
 
         final String line = renderer.render(d, List.of());
         final JsonNode root = mapper.readTree(line);
-        assertEquals("first@x.com", root.get("metadata").get("annotator").asText());
+        assertEquals("first@x.com", root.get("metadata").get("annotator").asString());
     }
 
     @Test
@@ -161,7 +161,7 @@ class JsonlExportRendererTest {
         final String line = renderer.render(d, List.of());
         assertFalse(line.contains("\n"), "embedded newlines must be JSON-escaped, not raw");
         final JsonNode root = mapper.readTree(line);
-        assertEquals("Line 1\nLine \"2\"", root.get("text").asText());
+        assertEquals("Line 1\nLine \"2\"", root.get("text").asString());
     }
 
     @Test
@@ -179,7 +179,7 @@ class JsonlExportRendererTest {
         final String line = renderer.render(d, List.of(bad, good));
         final JsonNode root = mapper.readTree(line);
         assertEquals(1, root.get("entities").size());
-        assertEquals("ORG", root.get("entities").get(0).get("label").asText());
+        assertEquals("ORG", root.get("entities").get(0).get("label").asString());
     }
 
     @Test
@@ -193,8 +193,8 @@ class JsonlExportRendererTest {
 
         final String[] lines = jsonl.split("\n");
         assertEquals(2, lines.length);
-        assertEquals("a", mapper.readTree(lines[0]).get("metadata").get("doc_id").asText());
-        assertEquals("b", mapper.readTree(lines[1]).get("metadata").get("doc_id").asText());
+        assertEquals("a", mapper.readTree(lines[0]).get("metadata").get("doc_id").asString());
+        assertEquals("b", mapper.readTree(lines[1]).get("metadata").get("doc_id").asString());
         assertTrue(mapper.readTree(lines[0]).get("entities").isArray());
     }
 }

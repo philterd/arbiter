@@ -10,7 +10,7 @@
 package ai.philterd.workspace.service;
 
 import ai.philterd.workspace.model.BackgroundJob;
-import com.fasterxml.jackson.core.JsonProcessingException;
+import tools.jackson.core.JacksonException;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -21,7 +21,7 @@ import static org.mockito.Mockito.mock;
 /**
  * Focused test for {@link BatchExportService#recordFailureSample} (R2-F9).
  *
- * <p>Jackson's {@code JsonProcessingException} message typically quotes the
+ * <p>Jackson's {@code JacksonException} message typically quotes the
  * offending field value in the failing JSON — for an export of a PII-bearing
  * document, that's raw PII landing in {@code BackgroundJob.failureMessages},
  * which the Jobs page renders to operators with no encryption. The fix
@@ -78,14 +78,14 @@ class BatchExportServiceFailureSampleTest {
         final BatchExportService svc = newService();
         final BackgroundJob job = new BackgroundJob();
 
-        final JsonProcessingException e = new JsonProcessingException(
+        final JacksonException e = new JacksonException(
                 "Document field 'body' contains invalid value: \"555-12-3456\"") {};
 
         svc.recordFailureSample(job, "doc-1", e);
 
         final String recorded = job.getFailureMessages().get(0);
         assertTrue(recorded.startsWith("Document doc-1: "));
-        assertTrue(recorded.endsWith("JsonProcessingException")
+        assertTrue(recorded.endsWith("JacksonException")
                         || recorded.endsWith(e.getClass().getSimpleName()),
                 "expected class-name suffix, got: " + recorded);
         assertFalse(recorded.contains("555-12-3456"),

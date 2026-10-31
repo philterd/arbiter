@@ -18,8 +18,8 @@ import ai.philterd.workspace.repository.DocumentRepository;
 import ai.philterd.workspace.repository.ElasticsearchDataSourceRepository;
 import ai.philterd.workspace.service.InboxService;
 import ai.philterd.workspace.service.SymmetricCipher;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -189,7 +189,7 @@ public class ElasticsearchIngestJobService {
                 jobRepository.save(job);
             }
 
-            scrollId = firstPage.path("_scroll_id").asText(null);
+            scrollId = firstPage.path("_scroll_id").asString(null);
             JsonNode hits = firstPage.path("hits").path("hits");
             int pageNumber = 1;
             int hitsThisPage = hits.isArray() ? hits.size() : 0;
@@ -200,7 +200,7 @@ public class ElasticsearchIngestJobService {
             while (scrollId != null && hitsThisPage > 0 && pageNumber < MAX_PAGES) {
                 final JsonNode page = executeScroll(endpoint, authHeader, scrollId);
                 if (page == null) break;
-                scrollId = page.path("_scroll_id").asText(scrollId);
+                scrollId = page.path("_scroll_id").asString(scrollId);
                 hits = page.path("hits").path("hits");
                 hitsThisPage = hits.isArray() ? hits.size() : 0;
                 pageNumber++;
@@ -235,11 +235,11 @@ public class ElasticsearchIngestJobService {
                              final String textField, final String defaultIndex, final String sourceUrl) {
         if (!hits.isArray()) return;
         int index = 0;
-        for (Iterator<JsonNode> it = hits.elements(); it.hasNext(); index++) {
+        for (Iterator<JsonNode> it = hits.values().iterator(); it.hasNext(); index++) {
             final JsonNode hit = it.next();
             final JsonNode sourceNode = hit.path("_source");
             final JsonNode textNode = sourceNode.path(textField);
-            final String hitId = hit.path("_id").asText("hit-" + index);
+            final String hitId = hit.path("_id").asString("hit-" + index);
             if (textNode.isMissingNode() || textNode.isNull()) {
                 final String reason = "Hit " + hitId + " has no '" + textField + "' field in _source.";
                 log.warn("Job {}: {}", job.getId(), reason);
@@ -247,12 +247,12 @@ public class ElasticsearchIngestJobService {
                 importLogService.failed(job.getId(), hitId, hitId, reason);
                 continue;
             }
-            final String text = textNode.isTextual() ? textNode.asText() : textNode.toString();
+            final String text = textNode.isString() ? textNode.asString() : textNode.toString();
             final String filename = resolveFilename(sourceNode, source.getFilenameField(), hitId);
             final String hitIndex = hit.path("_index").isMissingNode()
                     ? defaultIndex
-                    : hit.path("_index").asText(defaultIndex);
-            final String sourceDocIdValue = hit.path("_id").asText("");
+                    : hit.path("_index").asString(defaultIndex);
+            final String sourceDocIdValue = hit.path("_id").asString("");
 
             // Dedup: if a Document with the same (sourceIndex, sourceDocId) already exists,
             // record a SKIPPED placeholder so the import attempt is auditable but don't
@@ -387,7 +387,7 @@ public class ElasticsearchIngestJobService {
             final JsonNode parsed = (rawBody == null || rawBody.isBlank())
                     ? objectMapper.createObjectNode()
                     : objectMapper.readTree(rawBody);
-            if (parsed instanceof com.fasterxml.jackson.databind.node.ObjectNode obj) {
+            if (parsed instanceof tools.jackson.databind.node.ObjectNode obj) {
                 obj.put("size", pageSize);
                 return objectMapper.writeValueAsString(obj);
             }
@@ -485,7 +485,7 @@ public class ElasticsearchIngestJobService {
         if (filenameField != null && !filenameField.isBlank() && sourceNode != null) {
             final JsonNode node = sourceNode.path(filenameField);
             if (!node.isMissingNode() && !node.isNull()) {
-                final String value = node.isTextual() ? node.asText() : node.toString();
+                final String value = node.isString() ? node.asString() : node.toString();
                 if (value != null && !value.isBlank()) {
                     return value;
                 }

@@ -21,7 +21,7 @@ import ai.philterd.workspace.repository.DocumentRepository;
 import ai.philterd.workspace.repository.LocalDirectoryDestinationRepository;
 import ai.philterd.workspace.repository.S3DestinationRepository;
 import ai.philterd.workspace.repository.SpanRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
+import tools.jackson.core.JacksonException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
@@ -226,7 +226,7 @@ public class BatchExportService {
      * single-file exports that differ only in this per-line shape. */
     @FunctionalInterface
     interface LineRenderer {
-        String render(Document document, List<Span> spans) throws JsonProcessingException;
+        String render(Document document, List<Span> spans) throws JacksonException;
     }
 
     /**
@@ -425,7 +425,7 @@ public class BatchExportService {
                     final String line;
                     try {
                         line = lineRenderer.render(doc, spans);
-                    } catch (JsonProcessingException e) {
+                    } catch (JacksonException e) {
                         // Skip the bad row but keep going. One corrupt document
                         // shouldn't sink the whole export. Counters bumped + a
                         // sample failure message attached so the operator can
@@ -477,7 +477,7 @@ public class BatchExportService {
         }
         if (job.getFailureMessages().size() < BackgroundJob.MAX_FAILURE_MESSAGES) {
             // R2-F9: persist only the document id and the exception class. The
-            // exception MESSAGE on a JsonProcessingException (or similar value-
+            // exception MESSAGE on a JacksonException (or similar value-
             // conversion error) often quotes the offending field value, which
             // for an export job means raw PII from the source document. That
             // message would end up in BackgroundJob.failureMessages — which is

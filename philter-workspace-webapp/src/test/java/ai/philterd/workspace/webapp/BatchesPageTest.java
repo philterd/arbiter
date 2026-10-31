@@ -20,8 +20,8 @@ import ai.philterd.workspace.webapp.controllers.BatchController;
 import ai.philterd.workspace.webapp.security.SecurityConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -48,9 +48,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class BatchesPageTest extends WebMvcSliceMocks {
 
     @Autowired private MockMvc mockMvc;
-    @MockBean private UserGroupsService userGroupsService;
-    @MockBean private AuditLogService auditLogService;
-    @MockBean private BatchExportService batchExportService;
+    @MockitoBean private UserGroupsService userGroupsService;
+    @MockitoBean private AuditLogService auditLogService;
+    @MockitoBean private BatchExportService batchExportService;
 
     @Test
     void theFormsArePrefilledFromTheDefaultsAndStateTheMinimum() throws Exception {

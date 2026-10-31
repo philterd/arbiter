@@ -311,9 +311,9 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <button type="button"
                                         class="job-details-btn text-brand-600 hover:text-brand-800 font-medium"
-                                        th:attr="data-started=${j.startedAt == null ? '—' : @timestampFormatter.format(j.startedAt)},
-                                                 data-finished=${j.finishedAt == null ? '—' : @timestampFormatter.format(j.finishedAt)},
-                                                 data-started-by=${#strings.isEmpty(j.createdBy) ? '—' : j.createdBy},
+                                        th:data-started="${startedLabels[j.id]}"
+                                        th:data-finished="${finishedLabels[j.id]}"
+                                        th:attr="data-started-by=${#strings.isEmpty(j.createdBy) ? '—' : j.createdBy},
                                                  data-job-type=${j.type == 'OPENSEARCH_INGEST' ? 'OpenSearch Ingest'
                                                                   : (j.type == 'ELASTICSEARCH_INGEST' ? 'Elasticsearch Ingest'
                                                                   : (j.type == 'LOCAL_DIRECTORY_INGEST' ? 'Local Directory Ingest'

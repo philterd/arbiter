@@ -11,7 +11,7 @@ package ai.philterd.workspace.webapp.controllers;
 
 import ai.philterd.workspace.model.AuditLog;
 import ai.philterd.workspace.service.AuditLogQueryService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;

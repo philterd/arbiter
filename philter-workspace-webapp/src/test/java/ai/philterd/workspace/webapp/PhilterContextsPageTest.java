@@ -19,8 +19,8 @@ import ai.philterd.workspace.webapp.security.PhilterContextsService;
 import ai.philterd.workspace.webapp.security.SecurityConfig;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -56,7 +56,7 @@ class PhilterContextsPageTest extends WebMvcSliceMocks {
     private static final String KEY = "enc-session-key";
 
     @Autowired private MockMvc mockMvc;
-    @MockBean private PhilterContextsService contexts;
+    @MockitoBean private PhilterContextsService contexts;
 
     private static ContextSummary summary(final String name, final String owner) {
         final ContextSummary context = new ContextSummary();

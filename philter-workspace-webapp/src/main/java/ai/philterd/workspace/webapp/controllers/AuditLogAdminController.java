@@ -18,8 +18,8 @@ package ai.philterd.workspace.webapp.controllers;
 import ai.philterd.workspace.model.AuditLog;
 import ai.philterd.workspace.service.AuditLogQueryService;
 import ai.philterd.workspace.util.Csv;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -195,7 +195,7 @@ public class AuditLogAdminController {
         if (details == null) return "";
         try {
             return objectMapper.writeValueAsString(details);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             return "";
         }
     }

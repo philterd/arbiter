@@ -1,0 +1,41 @@
+name: Security
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  schedule:
+    # Weekly, so a vulnerability disclosed after the last commit still surfaces on a
+    # repository that goes quiet between releases.
+    - cron: '0 7 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # GATES the build. Scans the image, which holds the application jar and every library
+  # bundled in it as well as the operating system packages. ignore-unfixed means only a
+  # finding with an upstream fix can fail it. Suppress a specific finding in .trivyignore.
+  image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build image
+        run: docker build -t philter-workspace:scan .
+
+      - name: Scan image
+        uses: aquasecurity/trivy-action@v0.36.0
+        env:
+          # Pull the database from the mirror first. Anonymous ghcr.io pulls from shared CI
+          # address ranges get rate limited.
+          TRIVY_DB_REPOSITORY: mirror.gcr.io/aquasec/trivy-db:2,ghcr.io/aquasecurity/trivy-db:2
+        with:
+          image-ref: philter-workspace:scan
+          scanners: vuln
+          ignore-unfixed: true
+          severity: HIGH,CRITICAL
+          exit-code: '1'
+          format: table

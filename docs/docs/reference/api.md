@@ -88,7 +88,7 @@ answer `503` only after the MongoDB driver's server-selection timeout (30
 seconds by default), because that is how long the driver waits before it
 declares the server unusable. Monitors with a shorter timeout see the request
 time out, which they should also treat as unhealthy. Add
-`?serverSelectionTimeoutMS=5000` to `spring.data.mongodb.uri` if you want a
+`?serverSelectionTimeoutMS=5000` to `spring.mongodb.uri` if you want a
 faster answer, keeping in mind it applies to every Philter Workspace query, not just
 health.
 

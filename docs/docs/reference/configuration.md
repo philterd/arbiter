@@ -76,12 +76,20 @@ philter-workspace.search.index-dir=data/search-index
 ```
 spring.servlet.multipart.max-file-size=100MB
 spring.servlet.multipart.max-request-size=110MB
+server.tomcat.max-part-count=110
+server.tomcat.max-part-header-size=2KB
 ```
 
 These are the hard ceilings enforced before a request reaches Philter Workspace's
 business logic. The runtime per-request upload limit lives under
 **Admin → General**; that limit is the one operators normally adjust. The
 ceiling here only kicks in if an admin raises the runtime limit above 100 MB.
+
+`server.tomcat.max-part-count` limits how many parts one upload request can
+carry: each file is one part, and the upload form adds a few more, so 110
+allows up to 100 files in one upload. `server.tomcat.max-part-header-size`
+limits each part's headers, which carry the file's name. A request over
+either limit is refused before it reaches Philter Workspace.
 
 ## Database
 
@@ -92,9 +100,13 @@ settings (`philter-workspace.sqlite.path`, `philter-workspace.sqlite.pool-size`,
 `philter-workspace.sqlite.busy-timeout-ms`, `philter-workspace.sqlite.synchronous`) are described
 in [Database](database.md#sqlite). The settings below apply to MongoDB.
 
-### `spring.data.mongodb.uri`
+### `spring.mongodb.uri`
 
 The connection URI to MongoDB. Default: `mongodb://localhost:27017/philter-workspace`.
+Set it with the `SPRING_MONGODB_URI` environment variable. Before Philter Workspace moved to
+Spring Boot 4 it was `spring.data.mongodb.uri` (`SPRING_DATA_MONGODB_URI`); Spring Boot 4 no
+longer reads that name, so Philter Workspace reads `SPRING_DATA_MONGODB_URI` itself when
+`SPRING_MONGODB_URI` is not set.
 
 ### `spring.data.mongodb.auto-index-creation=true`
 
@@ -107,7 +119,6 @@ the import dispatcher won't behave correctly.
 ## Sessions and Valkey
 
 ```
-spring.session.store-type=redis
 spring.session.timeout=30m
 spring.data.redis.host=localhost
 spring.data.redis.port=6379
@@ -119,10 +130,8 @@ replicas. The bundled `docker-compose.yaml` overrides
 `spring.data.redis.host` via environment variable so the app talks to the
 Valkey container.
 
-When Valkey is not reachable on local non-Docker runs, comment out
-`spring.session.store-type` to fall back to in-memory sessions. That is fine
-for single-instance development, but sessions are lost on restart and won't
-work in a multi-replica deployment.
+Sessions always use Valkey, so a local run outside Docker needs a Valkey (or
+Redis) server, for example `docker compose up valkey`.
 
 `spring.session.timeout` controls how long an idle session stays valid
 before the user is logged out.

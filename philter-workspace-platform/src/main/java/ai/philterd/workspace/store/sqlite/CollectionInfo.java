@@ -9,9 +9,9 @@
  */
 package ai.philterd.workspace.store.sqlite;
 
-import com.fasterxml.jackson.core.json.JsonReadFeature;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.json.JsonMapper;
+import tools.jackson.core.json.JsonReadFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.Version;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
@@ -36,7 +36,7 @@ final class CollectionInfo {
     private static final Pattern NAME = Pattern.compile("[A-Za-z0-9_]+");
     private static final JsonMapper LENIENT = JsonMapper.builder()
             .enable(JsonReadFeature.ALLOW_SINGLE_QUOTES)
-            .enable(JsonReadFeature.ALLOW_UNQUOTED_FIELD_NAMES)
+            .enable(JsonReadFeature.ALLOW_UNQUOTED_PROPERTY_NAMES)
             .build();
 
     record IndexDef(String name, List<String> paths, boolean unique, Where partialFilter) {
@@ -97,7 +97,7 @@ final class CollectionInfo {
         }
         for (CompoundIndex ci : compounds) {
             final List<String> paths = new ArrayList<>();
-            parse(ci.def()).fieldNames().forEachRemaining(paths::add);
+            paths.addAll(parse(ci.def()).propertyNames());
             final String name = ci.name().isBlank() ? String.join("_", paths) : ci.name();
             if (!NAME.matcher(name).matches()) {
                 throw new IllegalStateException("Unsupported index name on " + type.getSimpleName());
@@ -172,7 +172,7 @@ final class CollectionInfo {
     /** Supports the subset of MongoDB filters used in partial indexes: equality and {@code $in}. */
     private static Where partialFilter(final JsonNode filter) {
         final List<Where> parts = new ArrayList<>();
-        final Iterator<Map.Entry<String, JsonNode>> it = filter.fields();
+        final Iterator<Map.Entry<String, JsonNode>> it = filter.properties().iterator();
         while (it.hasNext()) {
             final Map.Entry<String, JsonNode> e = it.next();
             final JsonNode v = e.getValue();
@@ -191,14 +191,14 @@ final class CollectionInfo {
 
     /** Index definitions can't take bind parameters, so values are inlined; only plain strings, numbers, and booleans. */
     private static String literal(final JsonNode n) {
-        if (n.isTextual()) {
-            if (!NAME.matcher(n.asText()).matches()) {
-                throw new IllegalStateException("Unsupported partial index value: " + n.asText());
+        if (n.isString()) {
+            if (!NAME.matcher(n.asString()).matches()) {
+                throw new IllegalStateException("Unsupported partial index value: " + n.asString());
             }
-            return "'" + n.asText() + "'";
+            return "'" + n.asString() + "'";
         }
         if (n.isNumber()) {
-            return n.asText();
+            return n.asString();
         }
         if (n.isBoolean()) {
             return n.asBoolean() ? "1" : "0";

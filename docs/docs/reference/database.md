@@ -29,7 +29,7 @@ Valkey is still required for sessions with either store. See
 
 ## MongoDB
 
-Set `spring.data.mongodb.uri` to the server's connection URI. Philter Workspace creates
+Set `spring.mongodb.uri` (`SPRING_MONGODB_URI`) to the server's connection URI. Philter Workspace creates
 its collections and indexes on startup. See
 [Configuration](configuration.md#database) for the related settings.
 

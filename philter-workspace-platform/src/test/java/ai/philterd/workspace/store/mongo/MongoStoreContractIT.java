@@ -21,7 +21,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.SpringBootConfiguration;
 import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
-import org.springframework.boot.autoconfigure.domain.EntityScan;
+import org.springframework.boot.persistence.autoconfigure.EntityScan;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Import;
@@ -69,7 +69,7 @@ class MongoStoreContractIT extends StoreContract {
 
     @DynamicPropertySource
     static void properties(final DynamicPropertyRegistry registry) {
-        registry.add("spring.data.mongodb.uri",
+        registry.add("spring.mongodb.uri",
                 () -> "mongodb://" + mongo.getHost() + ":" + mongo.getMappedPort(27017) + "/philter-workspace-test");
         registry.add("philter-workspace.crypto.secret", () -> Base64.getEncoder().encodeToString(new byte[32]));
     }

@@ -9,11 +9,11 @@
  */
 package ai.philterd.workspace.webapp.ui;
 
-import com.fasterxml.jackson.core.JsonLocation;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.TokenStreamLocation;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DeserializationFeature;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * Checks the text of a {@code fragments/forms :: json-editor} field before it is sent to Philter. The
@@ -23,8 +23,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 public final class JsonInput {
 
     /** Refuses text after the object, as Philter and the browser's JSON.parse do. */
-    private static final ObjectMapper MAPPER = new ObjectMapper()
-            .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS);
+    private static final ObjectMapper MAPPER = tools.jackson.databind.json.JsonMapper.builderWithJackson2Defaults()
+            .enable(DeserializationFeature.FAIL_ON_TRAILING_TOKENS)
+            .build();
 
     private JsonInput() {
     }
@@ -37,8 +38,8 @@ public final class JsonInput {
         final JsonNode node;
         try {
             node = MAPPER.readTree(text);
-        } catch (JsonProcessingException e) {
-            final JsonLocation at = e.getLocation();
+        } catch (JacksonException e) {
+            final TokenStreamLocation at = e.getLocation();
             return at == null || at.getLineNr() < 1
                     ? "This is not valid JSON."
                     : "This is not valid JSON: check line " + at.getLineNr() + ", column " + at.getColumnNr() + ".";
@@ -53,7 +54,7 @@ public final class JsonInput {
         }
         try {
             return MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(MAPPER.readTree(text));
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             return text;
         }
     }
@@ -62,7 +63,7 @@ public final class JsonInput {
     public static boolean same(final String a, final String b) {
         try {
             return a != null && b != null && MAPPER.readTree(a).equals(MAPPER.readTree(b));
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             return false;
         }
     }

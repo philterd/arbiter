@@ -19,8 +19,8 @@ import ai.philterd.workspace.webapp.security.SecurityConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -50,7 +50,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class DetectionRulesPageTest extends WebMvcSliceMocks {
 
     @Autowired private MockMvc mockMvc;
-    @MockBean private GeneralSettingsService generalSettingsService;
+    @MockitoBean private GeneralSettingsService generalSettingsService;
 
     private final DetectionRule proposed = rule("r1", DetectionRule.STATUS_PROPOSED, DetectionRule.ORIGIN_REFUSALS,
             "Acme Dental");

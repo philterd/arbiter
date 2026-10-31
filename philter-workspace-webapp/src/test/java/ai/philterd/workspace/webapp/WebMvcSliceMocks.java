@@ -50,10 +50,9 @@ import ai.philterd.workspace.webapp.security.SecurityConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.actuate.health.Health;
-import org.springframework.boot.actuate.health.HealthEndpoint;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.health.actuate.endpoint.HealthEndpoint;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.mongodb.core.MongoOperations;
 import org.springframework.test.web.servlet.MockMvc;
@@ -68,57 +67,57 @@ import static org.mockito.Mockito.when;
  */
 abstract class WebMvcSliceMocks {
 
-    @MockBean protected ai.philterd.workspace.webapp.security.PhilterApiKeys philterApiKeys;
-    @MockBean protected ai.philterd.workspace.webapp.security.PhilterSignInService philterSignInService;
-    @MockBean protected ai.philterd.workspace.webapp.security.PhilterSignInFlow philterSignInFlow;
-    @MockBean protected ai.philterd.workspace.webapp.security.BootstrapKeyWarning bootstrapKeyWarning;
+    @MockitoBean protected ai.philterd.workspace.webapp.security.PhilterApiKeys philterApiKeys;
+    @MockitoBean protected ai.philterd.workspace.webapp.security.PhilterSignInService philterSignInService;
+    @MockitoBean protected ai.philterd.workspace.webapp.security.PhilterSignInFlow philterSignInFlow;
+    @MockitoBean protected ai.philterd.workspace.webapp.security.BootstrapKeyWarning bootstrapKeyWarning;
 
     /** The slice does not auto-configure Actuator, so the aggregate HealthController reads is mocked. */
-    @MockBean protected HealthEndpoint healthEndpoint;
+    @MockitoBean protected HealthEndpoint healthEndpoint;
 
     @BeforeEach
     void healthIsUp() {
-        when(healthEndpoint.health()).thenReturn(Health.up().build());
+        when(healthEndpoint.health()).thenReturn(TestHealth.reporting(org.springframework.boot.health.contributor.Status.UP));
     }
 
     // Repositories — Spring Data interfaces, all mockable.
-    @MockBean protected RedactionService redactionService;
-    @MockBean protected SpanRepository spanRepository;
-    @MockBean protected DocumentRepository documentRepository;
-    @MockBean protected BatchRepository batchRepository;
-    @MockBean protected UserRepository userRepository;
-    @MockBean protected GroupRepository groupRepository;
-    @MockBean protected AuditLogRepository auditLogRepository;
-    @MockBean protected NotificationSettingsRepository notificationSettingsRepository;
-    @MockBean protected GeneralSettingsRepository generalSettingsRepository;
-    @MockBean protected OllamaInstanceRepository ollamaInstanceRepository;
-    @MockBean protected OpenSearchDataSourceRepository openSearchDataSourceRepository;
-    @MockBean protected ai.philterd.workspace.repository.BackgroundJobRepository backgroundJobRepository;
-    @MockBean protected ai.philterd.workspace.repository.DataImportLogEntryRepository dataImportLogEntryRepository;
-    @MockBean protected ai.philterd.workspace.repository.ElasticsearchDataSourceRepository elasticsearchDataSourceRepository;
-    @MockBean protected S3DataSourceRepository s3DataSourceRepository;
-    @MockBean protected RelationalDbDataSourceRepository relationalDbDataSourceRepository;
-    @MockBean protected LocalDirectoryDataSourceRepository localDirectoryDataSourceRepository;
-    @MockBean protected LocalDirectoryDestinationRepository localDirectoryDestinationRepository;
-    @MockBean protected S3DestinationRepository s3DestinationRepository;
-    @MockBean protected DestinationTester destinationTester;
-    @MockBean protected ai.philterd.workspace.service.PhilterSettings philterSettings;
-    @MockBean protected DocumentCommentRepository documentCommentRepository;
-    @MockBean protected WeightSetRepository weightSetRepository;
-    @MockBean protected LlmJudgeDefaultsRepository llmJudgeDefaultsRepository;
-    @MockBean protected UserSettingsRepository userSettingsRepository;
-    @MockBean protected InboxMessageRepository inboxMessageRepository;
-    @MockBean protected PendingUploadRepository pendingUploadRepository;
-    @MockBean protected ai.philterd.workspace.repository.PhilterWebhookDeliveryRepository philterWebhookDeliveryRepository;
-    @MockBean protected ai.philterd.workspace.repository.DetectionRuleRepository detectionRuleRepository;
-    @MockBean protected ai.philterd.workspace.service.DetectionRuleService detectionRuleService;
-    @MockBean protected ai.philterd.workspace.service.CaseMetadataService caseMetadataService;
-    @MockBean protected ai.philterd.workspace.service.DocumentDeliveryService documentDeliveryService;
-    @MockBean protected ai.philterd.workspace.service.DocumentChangeGuard documentChangeGuard;
-    @MockBean protected ai.philterd.workspace.webapp.security.PhilterWebhookSettings philterWebhookSettings;
-    @MockBean protected ai.philterd.workspace.webapp.security.PhilterWebhookReceiver philterWebhookReceiver;
-    @MockBean protected RedactionCertificateRepository redactionCertificateRepository;
-    @MockBean protected ai.philterd.workspace.repository.FinalizationPolicyRepository finalizationPolicyRepository;
-    @MockBean protected ai.philterd.workspace.repository.ComplianceProfileRepository complianceProfileRepository;
-    @MockBean protected MongoOperations mongoOperations;
+    @MockitoBean protected RedactionService redactionService;
+    @MockitoBean protected SpanRepository spanRepository;
+    @MockitoBean protected DocumentRepository documentRepository;
+    @MockitoBean protected BatchRepository batchRepository;
+    @MockitoBean protected UserRepository userRepository;
+    @MockitoBean protected GroupRepository groupRepository;
+    @MockitoBean protected AuditLogRepository auditLogRepository;
+    @MockitoBean protected NotificationSettingsRepository notificationSettingsRepository;
+    @MockitoBean protected GeneralSettingsRepository generalSettingsRepository;
+    @MockitoBean protected OllamaInstanceRepository ollamaInstanceRepository;
+    @MockitoBean protected OpenSearchDataSourceRepository openSearchDataSourceRepository;
+    @MockitoBean protected ai.philterd.workspace.repository.BackgroundJobRepository backgroundJobRepository;
+    @MockitoBean protected ai.philterd.workspace.repository.DataImportLogEntryRepository dataImportLogEntryRepository;
+    @MockitoBean protected ai.philterd.workspace.repository.ElasticsearchDataSourceRepository elasticsearchDataSourceRepository;
+    @MockitoBean protected S3DataSourceRepository s3DataSourceRepository;
+    @MockitoBean protected RelationalDbDataSourceRepository relationalDbDataSourceRepository;
+    @MockitoBean protected LocalDirectoryDataSourceRepository localDirectoryDataSourceRepository;
+    @MockitoBean protected LocalDirectoryDestinationRepository localDirectoryDestinationRepository;
+    @MockitoBean protected S3DestinationRepository s3DestinationRepository;
+    @MockitoBean protected DestinationTester destinationTester;
+    @MockitoBean protected ai.philterd.workspace.service.PhilterSettings philterSettings;
+    @MockitoBean protected DocumentCommentRepository documentCommentRepository;
+    @MockitoBean protected WeightSetRepository weightSetRepository;
+    @MockitoBean protected LlmJudgeDefaultsRepository llmJudgeDefaultsRepository;
+    @MockitoBean protected UserSettingsRepository userSettingsRepository;
+    @MockitoBean protected InboxMessageRepository inboxMessageRepository;
+    @MockitoBean protected PendingUploadRepository pendingUploadRepository;
+    @MockitoBean protected ai.philterd.workspace.repository.PhilterWebhookDeliveryRepository philterWebhookDeliveryRepository;
+    @MockitoBean protected ai.philterd.workspace.repository.DetectionRuleRepository detectionRuleRepository;
+    @MockitoBean protected ai.philterd.workspace.service.DetectionRuleService detectionRuleService;
+    @MockitoBean protected ai.philterd.workspace.service.CaseMetadataService caseMetadataService;
+    @MockitoBean protected ai.philterd.workspace.service.DocumentDeliveryService documentDeliveryService;
+    @MockitoBean protected ai.philterd.workspace.service.DocumentChangeGuard documentChangeGuard;
+    @MockitoBean protected ai.philterd.workspace.webapp.security.PhilterWebhookSettings philterWebhookSettings;
+    @MockitoBean protected ai.philterd.workspace.webapp.security.PhilterWebhookReceiver philterWebhookReceiver;
+    @MockitoBean protected RedactionCertificateRepository redactionCertificateRepository;
+    @MockitoBean protected ai.philterd.workspace.repository.FinalizationPolicyRepository finalizationPolicyRepository;
+    @MockitoBean protected ai.philterd.workspace.repository.ComplianceProfileRepository complianceProfileRepository;
+    @MockitoBean protected MongoOperations mongoOperations;
 }

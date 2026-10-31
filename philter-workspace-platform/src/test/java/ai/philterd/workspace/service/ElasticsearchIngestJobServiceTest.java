@@ -18,8 +18,8 @@ import ai.philterd.workspace.repository.DocumentRepository;
 import ai.philterd.workspace.repository.ElasticsearchDataSourceRepository;
 import ai.philterd.workspace.service.InboxService;
 import ai.philterd.workspace.service.SymmetricCipher;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 

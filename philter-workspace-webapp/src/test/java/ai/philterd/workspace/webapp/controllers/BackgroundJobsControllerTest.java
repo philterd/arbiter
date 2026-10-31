@@ -49,7 +49,8 @@ class BackgroundJobsControllerTest {
         userGroupsService = mock(UserGroupsService.class);
         controller = new BackgroundJobsController(jobRepository, batchRepository, userGroupsService,
                 mock(ai.philterd.workspace.service.BatchAccessService.class),
-                mock(ai.philterd.workspace.service.DataImportLogService.class));
+                mock(ai.philterd.workspace.service.DataImportLogService.class),
+                mock(ai.philterd.workspace.webapp.TimestampFormatter.class));
     }
 
     private static Authentication admin() {

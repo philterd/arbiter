@@ -32,8 +32,8 @@ import ai.philterd.workspace.webapp.security.SecurityConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -59,15 +59,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class ReviewPageReadOnlyTest extends WebMvcSliceMocks {
 
     @Autowired private MockMvc mockMvc;
-    @MockBean private UserGroupsService userGroupsService;
-    @MockBean private AuditLogService auditLogService;
-    @MockBean private LlmJudgeDefaultsService llmJudgeDefaultsService;
-    @MockBean private UserSettingsService userSettingsService;
-    @MockBean private ApprovalRuleEvaluator approvalRuleEvaluator;
-    @MockBean private DocumentSearchService documentSearchService;
-    @MockBean private DocumentLockService documentLockService;
-    @MockBean private RedactionCertificateService redactionCertificateService;
-    @MockBean private GeneralSettingsService generalSettingsService;
+    @MockitoBean private UserGroupsService userGroupsService;
+    @MockitoBean private AuditLogService auditLogService;
+    @MockitoBean private LlmJudgeDefaultsService llmJudgeDefaultsService;
+    @MockitoBean private UserSettingsService userSettingsService;
+    @MockitoBean private ApprovalRuleEvaluator approvalRuleEvaluator;
+    @MockitoBean private DocumentSearchService documentSearchService;
+    @MockitoBean private DocumentLockService documentLockService;
+    @MockitoBean private RedactionCertificateService redactionCertificateService;
+    @MockitoBean private GeneralSettingsService generalSettingsService;
 
     private Document document;
 

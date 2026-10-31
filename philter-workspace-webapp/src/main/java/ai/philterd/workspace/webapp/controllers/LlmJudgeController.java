@@ -28,9 +28,9 @@ import ai.philterd.workspace.service.DataSourceHostAllowList;
 import ai.philterd.workspace.service.DocumentAccessService;
 import ai.philterd.workspace.service.LlmJudgeDefaultsService;
 import ai.philterd.workspace.service.UserGroupsService;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.security.core.Authentication;
@@ -131,8 +131,8 @@ public class LlmJudgeController {
             if (models != null && models.isArray()) {
                 for (JsonNode m : models) {
                     final JsonNode name = m.get("name");
-                    if (name != null && !name.asText().isBlank()) {
-                        names.add(name.asText());
+                    if (name != null && !name.asString("").isBlank()) {
+                        names.add(name.asString(""));
                     }
                 }
             }
@@ -210,7 +210,7 @@ public class LlmJudgeController {
                         "Ollama instance unavailable.");
             }
             final JsonNode root = objectMapper.readTree(resp.body());
-            final String response = root.path("response").asText("");
+            final String response = root.path("response").asString("");
 
             final Map<String, Object> out = new LinkedHashMap<>();
             out.put("instanceName", instance.getName());
@@ -285,7 +285,7 @@ public class LlmJudgeController {
                         "Ollama instance unavailable.");
             }
             final JsonNode root = objectMapper.readTree(resp.body());
-            final String response = root.path("response").asText("");
+            final String response = root.path("response").asString("");
 
             final Map<String, Object> out = new LinkedHashMap<>();
             out.put("instanceName", instance.getName());
@@ -323,7 +323,7 @@ public class LlmJudgeController {
             final List<String> names = new ArrayList<>();
             for (JsonNode m : models) {
                 final JsonNode name = m.get("name");
-                if (name != null && !name.asText().isBlank()) names.add(name.asText());
+                if (name != null && !name.asString("").isBlank()) names.add(name.asString(""));
             }
             if (names.isEmpty()) {
                 throw new ResponseStatusException(BAD_GATEWAY,

@@ -10,10 +10,9 @@
 package ai.philterd.workspace.service;
 
 import ai.philterd.workspace.model.CaseMetadata;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
-import java.io.IOException;
 import java.util.Iterator;
 import java.util.Set;
 
@@ -30,7 +29,7 @@ public final class CaseMetadataSidecar {
     /** A sidecar is small; anything larger is not one. */
     static final int MAX_BYTES = 16 * 1024;
     private static final Set<String> FIELDS = Set.of("caseNumber", "caseType", "filer", "feeStatus", "ifp");
-    private static final ObjectMapper JSON = new ObjectMapper();
+    private static final ObjectMapper JSON = tools.jackson.databind.json.JsonMapper.builderWithJackson2Defaults().build();
 
     private CaseMetadataSidecar() {
     }
@@ -58,13 +57,13 @@ public final class CaseMetadataSidecar {
         final JsonNode root;
         try {
             root = JSON.readTree(bytes);
-        } catch (IOException e) {
+        } catch (tools.jackson.core.JacksonException e) {
             throw new InvalidSidecarException("Its case sidecar is not valid JSON.");
         }
         if (root == null || !root.isObject()) {
             throw new InvalidSidecarException("Its case sidecar is not a JSON object.");
         }
-        for (Iterator<String> names = root.fieldNames(); names.hasNext(); ) {
+        for (Iterator<String> names = root.propertyNames().iterator(); names.hasNext(); ) {
             final String name = names.next();
             if (!FIELDS.contains(name)) {
                 throw new InvalidSidecarException("Its case sidecar has an unknown field \"" + name + "\".");
@@ -87,10 +86,10 @@ public final class CaseMetadataSidecar {
         if (node == null || node.isNull()) {
             return null;
         }
-        if (!node.isTextual()) {
+        if (!node.isString()) {
             throw new InvalidSidecarException("Its case sidecar's " + field + " must be a string.");
         }
-        return node.asText();
+        return node.asString();
     }
 
     /** A sidecar that cannot be used; the document is not imported. */

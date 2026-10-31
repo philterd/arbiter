@@ -9,9 +9,9 @@
  */
 package ai.philterd.workspace.service;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ObjectNode;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -42,7 +42,7 @@ public class FullTextSearchIndexManager {
     private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
     private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(15);
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = tools.jackson.databind.json.JsonMapper.builderWithJackson2Defaults().build();
     private final HttpClient httpClient = HttpClient.newBuilder()
             .connectTimeout(CONNECT_TIMEOUT)
             .build();
@@ -234,7 +234,7 @@ public class FullTextSearchIndexManager {
         final JsonNode existingProps = existing.path("properties");
         final JsonNode expectedProps = expected.path("properties");
         if (!expectedProps.isObject() || !existingProps.isObject()) return false;
-        final java.util.Iterator<String> names = expectedProps.fieldNames();
+        final java.util.Iterator<String> names = expectedProps.propertyNames().iterator();
         while (names.hasNext()) {
             final String field = names.next();
             final JsonNode expectedField = expectedProps.get(field);
@@ -242,8 +242,8 @@ public class FullTextSearchIndexManager {
             if (existingField == null || existingField.isMissingNode()) {
                 return false;
             }
-            final String expectedType = expectedField.path("type").asText("");
-            final String existingType = existingField.path("type").asText("");
+            final String expectedType = expectedField.path("type").asString("");
+            final String existingType = existingField.path("type").asString("");
             if (!expectedType.equals(existingType)) {
                 return false;
             }

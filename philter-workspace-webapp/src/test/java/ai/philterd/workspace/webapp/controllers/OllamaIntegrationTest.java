@@ -23,8 +23,8 @@ import ai.philterd.workspace.service.DataSourceHostAllowList;
 import ai.philterd.workspace.service.DocumentAccessService;
 import ai.philterd.workspace.service.LlmJudgeDefaultsService;
 import ai.philterd.workspace.service.UserGroupsService;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpHandler;
 import com.sun.net.httpserver.HttpServer;
@@ -227,10 +227,10 @@ class OllamaIntegrationTest {
                 "Generate calls must declare JSON content type so a server with strict body parsing accepts them.");
 
         final JsonNode body = new ObjectMapper().readTree(sent.body);
-        assertEquals("llama3", body.get("model").asText());
+        assertEquals("llama3", body.get("model").asString());
         assertFalse(body.get("stream").asBoolean(),
                 "Streaming must be disabled — the controller reads the full response body in one shot.");
-        final String prompt = body.get("prompt").asText();
+        final String prompt = body.get("prompt").asString();
         assertTrue(prompt.contains("personally identifiable information"),
                 "Prompt must include the PII review preamble; got: " + prompt);
         assertTrue(prompt.contains("alice@example.com"),
@@ -370,7 +370,7 @@ class OllamaIntegrationTest {
 
         // Verify the generate request actually used that picked model.
         final JsonNode body = new ObjectMapper().readTree(server.lastGenerateCall().body);
-        assertEquals("Llama3:8b", body.get("model").asText());
+        assertEquals("Llama3:8b", body.get("model").asString());
     }
 
     @Test
@@ -419,7 +419,7 @@ class OllamaIntegrationTest {
         controller.secondOpinion("span-1", admin());
 
         final String prompt = new ObjectMapper().readTree(server.lastGenerateCall().body)
-                .get("prompt").asText();
+                .get("prompt").asString();
         assertTrue(prompt.contains("\"alice\""), "Prompt must quote the candidate PII text.");
         assertTrue(prompt.contains("person"), "Prompt must include the span type.");
         assertTrue(prompt.contains("Hi alice, your acct is 1234"),

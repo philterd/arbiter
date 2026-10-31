@@ -16,7 +16,7 @@ import ai.philterd.workspace.store.mongo.MongoDocumentLockService;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ApplicationContext;
 import org.springframework.data.mongodb.core.MongoOperations;
@@ -53,7 +53,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "philter-workspace.store=mongodb",
         "philter-workspace.demo-data.enabled=false",
         "management.health.redis.enabled=false",
-        "spring.autoconfigure.exclude=org.springframework.boot.autoconfigure.session.SessionAutoConfiguration"})
+        "spring.autoconfigure.exclude=org.springframework.boot.session.autoconfigure.SessionAutoConfiguration,"
+                + "org.springframework.boot.session.data.redis.autoconfigure.SessionDataRedisAutoConfiguration"})
 @AutoConfigureMockMvc
 class MongoStoreStartupIT {
 
@@ -76,7 +77,7 @@ class MongoStoreStartupIT {
 
     @DynamicPropertySource
     static void properties(final DynamicPropertyRegistry registry) {
-        registry.add("spring.data.mongodb.uri",
+        registry.add("spring.mongodb.uri",
                 () -> "mongodb://" + mongo.getHost() + ":" + mongo.getMappedPort(27017) + "/philter-workspace");
         registry.add("philter-workspace.philter.url", () -> "http://localhost:1");
         registry.add("philter-workspace.philter.api-key", () -> "sk_startup_test");

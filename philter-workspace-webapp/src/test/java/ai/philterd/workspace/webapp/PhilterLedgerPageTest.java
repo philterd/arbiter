@@ -20,8 +20,8 @@ import ai.philterd.workspace.webapp.security.SecurityConfig;
 import com.google.gson.Gson;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -55,8 +55,8 @@ class PhilterLedgerPageTest extends WebMvcSliceMocks {
     private static final Gson GSON = new Gson();
 
     @Autowired private MockMvc mockMvc;
-    @MockBean private PhilterLedgerService ledger;
-    @MockBean private AuditLogService auditLogService;
+    @MockitoBean private PhilterLedgerService ledger;
+    @MockitoBean private AuditLogService auditLogService;
 
     private static GetLedgerResponse chains(final String json) {
         return GSON.fromJson("{'chains':[" + json + "],'total':1}", GetLedgerResponse.class);

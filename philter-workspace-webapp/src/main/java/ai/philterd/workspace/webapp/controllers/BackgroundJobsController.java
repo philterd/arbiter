@@ -51,17 +51,20 @@ public class BackgroundJobsController {
     private final UserGroupsService userGroupsService;
     private final BatchAccessService batchAccessService;
     private final DataImportLogService importLogService;
+    private final ai.philterd.workspace.webapp.TimestampFormatter timestampFormatter;
 
     public BackgroundJobsController(final BackgroundJobRepository repository,
                                     final BatchRepository batchRepository,
                                     final UserGroupsService userGroupsService,
                                     final BatchAccessService batchAccessService,
-                                    final DataImportLogService importLogService) {
+                                    final DataImportLogService importLogService,
+                                    final ai.philterd.workspace.webapp.TimestampFormatter timestampFormatter) {
         this.repository = repository;
         this.batchRepository = batchRepository;
         this.userGroupsService = userGroupsService;
         this.batchAccessService = batchAccessService;
         this.importLogService = importLogService;
+        this.timestampFormatter = timestampFormatter;
     }
 
     /**
@@ -169,6 +172,15 @@ public class BackgroundJobsController {
             section.put("jobs", e.getValue());
             sections.add(section);
         }
+        // Formatted here rather than in the template: Thymeleaf 3.1.5 refuses a bean call in a data attribute.
+        final Map<String, String> started = new HashMap<>();
+        final Map<String, String> finished = new HashMap<>();
+        for (BackgroundJob job : visible) {
+            started.put(job.getId(), job.getStartedAt() == null ? "—" : timestampFormatter.format(job.getStartedAt()));
+            finished.put(job.getId(), job.getFinishedAt() == null ? "—" : timestampFormatter.format(job.getFinishedAt()));
+        }
+        model.addAttribute("startedLabels", started);
+        model.addAttribute("finishedLabels", finished);
         model.addAttribute("sections", sections);
         model.addAttribute("maxVisibleAgeDays", MAX_VISIBLE_AGE_DAYS);
         return "jobs";

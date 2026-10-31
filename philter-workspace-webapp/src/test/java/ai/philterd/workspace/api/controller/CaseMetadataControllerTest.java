@@ -98,10 +98,10 @@ class CaseMetadataControllerTest {
 
     @Test
     void theApiSerializesOnlyTheSchemasFields() throws Exception {
-        final String json = new com.fasterxml.jackson.databind.ObjectMapper()
+        final String json = new tools.jackson.databind.ObjectMapper()
                 .writeValueAsString(CaseMetadata.of("1:26-cv-01234", "civil", "Acme Dental LLC", "paid", false));
         final java.util.Set<String> fields = new java.util.TreeSet<>();
-        new com.fasterxml.jackson.databind.ObjectMapper().readTree(json).fieldNames().forEachRemaining(fields::add);
+        fields.addAll(new tools.jackson.databind.ObjectMapper().readTree(json).propertyNames());
         assertEquals(java.util.Set.of("caseNumber", "caseType", "feeStatus", "filer", "ifp"), fields);
     }
 }

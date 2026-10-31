@@ -17,14 +17,14 @@ import ai.philterd.workspace.service.DocumentLedgerService;
 import ai.philterd.workspace.webapp.controllers.AuditTrailController;
 import ai.philterd.workspace.webapp.controllers.AuditTrailWriter;
 import ai.philterd.workspace.webapp.security.SecurityConfig;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InOrder;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -56,9 +56,9 @@ class AuditTrailControllerTest extends WebMvcSliceMocks {
     private static final Instant T0 = Instant.parse("2026-10-31T12:00:00Z");
 
     @Autowired private MockMvc mockMvc;
-    @MockBean private DocumentLedgerService ledgerService;
-    @MockBean private AuditTrailService trailService;
-    @MockBean private AuditLogService auditLogService;
+    @MockitoBean private DocumentLedgerService ledgerService;
+    @MockitoBean private AuditTrailService trailService;
+    @MockitoBean private AuditLogService auditLogService;
 
     private Document document;
     private AuditTrailService.Trail trail;
@@ -131,13 +131,13 @@ class AuditTrailControllerTest extends WebMvcSliceMocks {
                 .with(signedIn("boss", "ADMIN"))).andExpect(status().isOk()).andReturn().getResponse()
                 .getContentAsString();
         final JsonNode json = new ObjectMapper().readTree(body);
-        assertEquals("d1", json.at("/scope/documentId").asText());
+        assertEquals("d1", json.at("/scope/documentId").asString());
         assertTrue(json.at("/chains/0/verified").asBoolean());
-        assertEquals("Verified: the hash chain and every signature check.", json.at("/chains/0/summary").asText());
-        assertEquals("PHILTER_LEDGER", json.at("/events/0/source").asText());
-        assertEquals("ssn", json.at("/events/0/piiType").asText());
+        assertEquals("Verified: the hash chain and every signature check.", json.at("/chains/0/summary").asString());
+        assertEquals("PHILTER_LEDGER", json.at("/events/0/source").asString());
+        assertEquals("ssn", json.at("/events/0/piiType").asString());
         assertTrue(json.at("/events/0/replacement").isMissingNode(), "no replacement");
-        assertEquals("DOCUMENT_APPROVAL", json.at("/events/1/action").asText());
+        assertEquals("DOCUMENT_APPROVAL", json.at("/events/1/action").asString());
         assertFalse(json.at("/eventsTruncated").asBoolean());
     }
 
@@ -174,9 +174,9 @@ class AuditTrailControllerTest extends WebMvcSliceMocks {
         final String body = mockMvc.perform(get("/api/v1/documents/d1/ledger").with(signedIn("auditor", "AUDITOR")))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         final JsonNode json = new ObjectMapper().readTree(body);
-        assertEquals("p1", json.at("/chains/0/philterDocumentId").asText());
+        assertEquals("p1", json.at("/chains/0/philterDocumentId").asString());
         assertTrue(json.at("/chains/0/verified").asBoolean());
-        assertEquals("ssn", json.at("/entries/0/type").asText());
+        assertEquals("ssn", json.at("/entries/0/type").asString());
         verify(auditLogService).log("PHILTER_LEDGER_READ", "Document", "d1", Map.of("chains", 1, "entries", 1));
     }
 }

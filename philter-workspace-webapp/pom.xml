@@ -31,7 +31,7 @@
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-web</artifactId>
+            <artifactId>spring-boot-starter-webmvc</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -63,18 +63,14 @@
             <artifactId>spring-boot-starter-mail</artifactId>
         </dependency>
         <!--
-            Session state in Valkey (Redis-protocol compatible). The starter brings the
-            Lettuce client; spring-session-data-redis is auto-detected by Spring Boot and
-            replaces the in-memory HttpSession with a Redis-backed one so multiple replicas
-            share login/MFA/CSRF state.
+            Session state in Valkey (Redis-protocol compatible). The session starter brings the
+            Lettuce client and Spring Session's auto-configuration (its own module since Spring
+            Boot 4), which replaces the in-memory HttpSession with a Redis-backed one so multiple
+            replicas share login/MFA/CSRF state.
         -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-data-redis</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework.session</groupId>
-            <artifactId>spring-session-data-redis</artifactId>
+            <artifactId>spring-boot-starter-session-data-redis</artifactId>
         </dependency>
         <dependency>
             <groupId>org.thymeleaf.extras</groupId>
@@ -83,16 +79,28 @@
         <dependency>
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
-            <version>2.3.0</version>
+            <version>3.2.0</version>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- @WebMvcTest and @AutoConfigureMockMvc live in their own test module since Spring Boot 4. -->
         <dependency>
-            <groupId>org.springframework.security</groupId>
-            <artifactId>spring-security-test</artifactId>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-webmvc-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!-- Security and Thymeleaf join the @WebMvcTest slices through their own test starters since Spring Boot 4. -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-thymeleaf-test</artifactId>
             <scope>test</scope>
         </dependency>
         <!-- Runs Philter in a container for the *IT integration tests (mvn verify). -->

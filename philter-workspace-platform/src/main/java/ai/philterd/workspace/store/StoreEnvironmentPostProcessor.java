@@ -32,18 +32,18 @@ public class StoreEnvironmentPostProcessor implements EnvironmentPostProcessor {
     static final String PROPERTY = "philter-workspace.store";
 
     private static final List<String> MONGODB_AUTO_CONFIGURATION = List.of(
-            "org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration",
-            "org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfiguration",
-            "org.springframework.boot.autoconfigure.data.mongo.MongoDataAutoConfiguration",
-            "org.springframework.boot.autoconfigure.data.mongo.MongoReactiveDataAutoConfiguration",
-            "org.springframework.boot.autoconfigure.data.mongo.MongoRepositoriesAutoConfiguration",
-            "org.springframework.boot.autoconfigure.data.mongo.MongoReactiveRepositoriesAutoConfiguration",
-            "org.springframework.boot.actuate.autoconfigure.data.mongo.MongoHealthContributorAutoConfiguration",
-            "org.springframework.boot.actuate.autoconfigure.data.mongo.MongoReactiveHealthContributorAutoConfiguration",
-            "org.springframework.boot.actuate.autoconfigure.metrics.mongo.MongoMetricsAutoConfiguration");
+            "org.springframework.boot.mongodb.autoconfigure.MongoAutoConfiguration",
+            "org.springframework.boot.mongodb.autoconfigure.MongoReactiveAutoConfiguration",
+            "org.springframework.boot.data.mongodb.autoconfigure.DataMongoAutoConfiguration",
+            "org.springframework.boot.data.mongodb.autoconfigure.DataMongoReactiveAutoConfiguration",
+            "org.springframework.boot.data.mongodb.autoconfigure.DataMongoRepositoriesAutoConfiguration",
+            "org.springframework.boot.data.mongodb.autoconfigure.DataMongoReactiveRepositoriesAutoConfiguration",
+            "org.springframework.boot.mongodb.autoconfigure.health.MongoHealthContributorAutoConfiguration",
+            "org.springframework.boot.mongodb.autoconfigure.health.MongoReactiveHealthContributorAutoConfiguration",
+            "org.springframework.boot.mongodb.autoconfigure.metrics.MongoMetricsAutoConfiguration");
 
     private static final List<String> JDBC_AUTO_CONFIGURATION = List.of(
-            "org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration");
+            "org.springframework.boot.jdbc.autoconfigure.DataSourceAutoConfiguration");
 
     @Override
     public void postProcessEnvironment(final ConfigurableEnvironment environment, final SpringApplication application) {

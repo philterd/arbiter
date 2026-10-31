@@ -15,7 +15,7 @@ import org.springframework.data.repository.core.RepositoryMetadata;
 import org.springframework.data.repository.core.support.RepositoryFactorySupport;
 import org.springframework.data.repository.query.QueryLookupStrategy;
 import org.springframework.data.repository.query.QueryMethod;
-import org.springframework.data.repository.query.QueryMethodEvaluationContextProvider;
+import org.springframework.data.repository.query.ValueExpressionDelegate;
 
 import java.util.Optional;
 
@@ -47,7 +47,7 @@ public class SqliteRepositoryFactory extends RepositoryFactorySupport {
 
     @Override
     protected Optional<QueryLookupStrategy> getQueryLookupStrategy(final QueryLookupStrategy.Key key,
-                                                                   final QueryMethodEvaluationContextProvider provider) {
+                                                                   final ValueExpressionDelegate valueExpressions) {
         return Optional.of((method, metadata, projections, namedQueries) -> {
             if (method.isAnnotationPresent(org.springframework.data.mongodb.repository.Query.class)) {
                 throw new IllegalStateException(metadata.getRepositoryInterface().getSimpleName() + "." + method.getName()

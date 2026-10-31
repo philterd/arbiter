@@ -24,8 +24,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
@@ -64,8 +64,8 @@ class PhilterAdminPageTest extends WebMvcSliceMocks {
     private static final Gson GSON = new Gson();
 
     @Autowired private MockMvc mockMvc;
-    @MockBean private PhilterAdminService philter;
-    @MockBean private AuditLogService auditLogService;
+    @MockitoBean private PhilterAdminService philter;
+    @MockitoBean private AuditLogService auditLogService;
 
     private static AdminSettings settings() {
         final AdminSettings settings = new AdminSettings();

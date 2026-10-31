@@ -11,8 +11,8 @@ package ai.philterd.workspace.service;
 
 import ai.philterd.workspace.model.Document;
 import ai.philterd.workspace.model.Span;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -45,7 +45,7 @@ public class PheyeJsonlExportRenderer {
     public PheyeJsonlExportRenderer() {
         // A dedicated mapper so a globally-customised Jackson config can't change the on-the-wire
         // shape; the export is a stable contract for the training pipeline.
-        this.objectMapper = new ObjectMapper();
+        this.objectMapper = tools.jackson.databind.json.JsonMapper.builderWithJackson2Defaults().build();
     }
 
     /**
@@ -56,7 +56,7 @@ public class PheyeJsonlExportRenderer {
      * @param spans    every span attached to the document.
      * @return a single-line UTF-8 JSON string with no embedded {@code '\n'}.
      */
-    public String render(final Document document, final List<Span> spans) throws JsonProcessingException {
+    public String render(final Document document, final List<Span> spans) throws JacksonException {
         final List<Map<String, Object>> spanObjects = new ArrayList<>();
         if (spans != null) {
             for (final Span s : spans) {
