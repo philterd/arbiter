@@ -400,6 +400,24 @@ caller. The CSV deliberately omits PII text — span entries include
 column contains the actor's email address (the CSV is admin/auditor-only, so
 email exposure is appropriate).
 
+### `GET /api/v1/documents/{id}/ledger`
+
+Session-allowed. The document's chains in Philter's ledger, read with
+Philter Workspace's API key: `chains` (each with `philterDocumentId`, `state`,
+`verified`, `hashChainValid`, `signaturesValid`, `signedEntries`,
+`unsignedEntries`, `validationError`, `entries`, `entriesTruncated`, and
+`summary`) and `entries` (without original values, replacements, or
+filenames). Restricted to `ROLE_ADMIN` or `ROLE_AUDITOR`; `403` otherwise.
+Audited as `PHILTER_LEDGER_READ`. See
+[Audit trail with Philter's ledger](../admin/audit-log.md#audit-trail-with-philters-ledger).
+
+### `GET /api/v1/documents/{id}/audit-trail`
+
+Session-allowed. The document's audit trail: its Philter Workspace events and
+its ledger entries, oldest first, with how each chain verified. `format` is
+`csv` (the default) or `json`. Restricted to `ROLE_ADMIN` or `ROLE_AUDITOR`;
+`403` otherwise. Audited as `AUDIT_TRAIL_EXPORT`.
+
 ### `GET /api/v1/documents/{id}/certificate`
 
 Session-allowed. Return the redaction certificate for a finalized document —

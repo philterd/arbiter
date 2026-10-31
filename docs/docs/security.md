@@ -247,7 +247,8 @@ it (`GET /api/limits`) at startup and on **Test** under **Admin → Philter**,
 fails the Test for an administrator's key, and flags the key there and in the
 log until its user is no longer an administrator. Give Philter Workspace a key with only
 the `redact` and `policies:read` scopes, plus `lists:read` and `lists:write` for
-[detection rules](user-guide/detection-rules.md). For a deployment already using an
+[detection rules](user-guide/detection-rules.md) and `ledger:read` for Philter's ledger in the
+[audit trail](admin/audit-log.md#audit-trail-with-philters-ledger). For a deployment already using an
 administrator's key, remove that user's administrator role rather than switching
 users, since Philter's policies and contexts belong to the key's user; see
 [Philter API key for Philter Workspace](workflow.md#philter-api-key-for-philter-workspace).

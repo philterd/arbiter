@@ -48,6 +48,8 @@ and export them:
 | `DOCUMENT_DELIVER`                  | Document    | One attempt to write a finalized document's redacted text to its batch's [destination](destinations.md#delivering-finalized-documents), as the person who finalized it (or retried the delivery). Outcome `SUCCESS` with the destination's type, id, and name, the attempt number, the file name as a keyed hash, and the SHA-256 and size of what was written; or `FAILURE` with the destination, the attempt number, and `finalAttempt` when no more attempts follow |
 | `DOCUMENT_DELIVERY_RETRY`           | Document    | An administrator or the batch's team lead queued a failed delivery again, with the destination |
 | `DOCUMENT_AUDIT_EXPORT`             | Document    | Admin downloaded the per-document audit log as CSV  |
+| `AUDIT_TRAIL_EXPORT`                | Document / AuditLog | An [audit trail with Philter's ledger](#audit-trail-with-philters-ledger) exported: for one document, with the format; for a time range, with the range, the number of events and chains, how many chains verified, and whether it was truncated |
+| `PHILTER_LEDGER_READ`               | Document    | The Review page read a document's chains from Philter's ledger, with the number of chains and entries |
 | `DOCUMENT_PII_SENT_TO_LLM`          | Document    | Fired **before** each outbound Ollama LLM call (Explain or Second Opinion). Records the Ollama instance, model, and span count. Written before the HTTP request so the entry exists even if Ollama is unreachable or returns an error. See [LLM-as-a-Judge](#llm-as-a-judge-events). |
 | `DOCUMENT_LOCK_BROKEN`              | Document    | An administrator, or an approver of the document's group (`asApprover`), released a document another user held |
 | `FINALIZATION_POLICY_APPLIED`       | Document    | A finalization policy ran after document finalize; payload includes `policyId`, `policyName`, `option`, and `action` |
@@ -214,6 +216,61 @@ Columns:
 `spanText` is **never** present in the CSV. If you need to correlate an
 entry back to the actual PII value, do so against your secured copy of the
 original document using the character offsets and page number.
+
+## Audit trail with Philter's ledger
+
+The audit trail joins Philter Workspace's audit events with the entries of
+Philter's redaction ledger for the same documents, oldest first, as CSV or
+JSON. It is for administrators and auditors.
+
+- **One document**: **Audit trail: CSV / JSON** on the Document Queue's audit
+  log popup (`GET /api/v1/documents/{id}/audit-trail?format=csv|json`). It
+  holds every event about the document or its spans, and the entries of the
+  chain of each time Philter redacted it.
+- **A time range**: the **Audit trail with Philter's ledger** buttons under
+  **Admin → Audit Log → Export** (`GET /admin/audit/trail?startTime=&endTime=&format=`).
+  It holds every Philter Workspace event in the range, and the ledger entries
+  in the range of the documents those events concern. The actor and resource
+  filters do not apply. It reads the ledger of at most 500 documents, and at
+  most 10,000 events; when either limit is reached, the JSON's
+  `documentsTruncated` or `eventsTruncated` is `true` and the CSV ends with a
+  `TRAIL_TRUNCATED` row.
+
+Philter Workspace reads the ledger with `PHILTER_WORKSPACE_PHILTER_API_KEY`,
+whose Philter user owns the chains of the documents it redacted, so no
+cross-user access is needed. The key needs the `ledger:read` scope. Philter's
+own audit log therefore names that key's user, and Philter Workspace records
+who asked: `PHILTER_LEDGER_READ` when the Review page shows a document's
+ledger, and `AUDIT_TRAIL_EXPORT` for each trail exported. A one-document export
+is recorded before the trail is read, so it appears in its own trail.
+
+**Verification.** For each chain, the trail states whether Philter verified
+it: the hash chain and every entry's signature (`verified`, with
+`hashChainValid`, `signaturesValid`, and the signed and unsigned entry counts).
+The CSV gives each chain a `PHILTER_LEDGER_CHAIN` row first, with the outcome
+`VERIFIED` or `NOT_VERIFIED`, and each ledger row carries `chainVerified`. A
+chain that could not be read says why instead: `NO_CHAIN` (the batch's context
+does not keep the ledger, or the chain was deleted), `KEY_LACKS_SCOPE` (the
+key has no `ledger:read`), `KEY_REJECTED`, or `UNREACHABLE`. At most 5,000
+entries are read from one chain; `entriesTruncated` says when there were more.
+
+**What a ledger entry carries.** Its time, PII type, position, hashes
+(`hash`, `previousHash`, `documentHash`, and `effectiveHash` when present),
+policy name, version, and content hash, whether it is signed and by which key,
+and a read error when Philter could not read it. It never carries the original
+value (Philter returns that only in a ledger export, which needs
+`ledger:export`), the replacement, which can be reversible (an encryption) or
+guessable (a hash of an ID number), or the filename. Philter Workspace's events
+are as the audit log stores them, so the trail holds no personal information
+the audit log does not already hold.
+
+CSV columns: `timestamp`, `source` (`PHILTER_WORKSPACE`, `PHILTER_LEDGER`, or
+`PHILTER_LEDGER_CHAIN`), `documentId`, `actor`, `action` (`REDACTION` for a
+ledger entry, or `CHAIN_START` for the entry Philter opens each chain with),
+`outcome`, `resourceType`, `resourceId`, `details` (JSON),
+`philterDocumentId`, `piiType`, `startPosition`, `hash`, `previousHash`,
+`documentHash`, `policyName`, `policyVersion`, `signed`, `signingKeyId`,
+`readError`, `chainVerified`.
 
 ## LLM-as-a-Judge events
 

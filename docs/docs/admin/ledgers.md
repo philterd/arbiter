@@ -16,7 +16,9 @@ read is marked.
 **Owner** (administrators only) shows another user's chains, by username, or **Every user's**,
 which needs `ADMIN_CROSS_USER_ACCESS_ENABLED=true` in Philter; search does not apply to every
 user's chains. Batches are redacted with `PHILTER_WORKSPACE_PHILTER_API_KEY`, so their chains belong
-to the Philter user that owns that key, and only when the batch's context has the ledger on.
+to the Philter user that owns that key, and only when the batch's context has the ledger on. A
+document's own chains are also shown on its Review page and included in its
+[audit trail](audit-log.md#audit-trail-with-philters-ledger), read with that key.
 
 ## A chain
 

@@ -421,6 +421,23 @@
                             Download CSV
                         </button>
                     </div>
+                    <!-- The audit trail with Philter's ledger (#18): the same time range, every event in it, and the
+                         ledger entries of the documents those events concern. -->
+                    <div class="flex items-center gap-3 pt-2 border-t border-gray-100">
+                        <span class="text-sm text-gray-600">Audit trail with Philter's ledger, for the time range above:</span>
+                        <button type="submit" name="format" value="csv" th:formaction="@{/admin/audit/trail}"
+                                class="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 text-sm font-medium rounded-lg">
+                            CSV
+                        </button>
+                        <button type="submit" name="format" value="json" th:formaction="@{/admin/audit/trail}"
+                                class="px-4 py-2 bg-white border border-gray-300 hover:bg-gray-100 text-gray-800 text-sm font-medium rounded-lg">
+                            JSON
+                        </button>
+                    </div>
+                    <p class="text-xs text-gray-500">
+                        The trail ignores the actor and resource filters. It reads the ledger of up to 500 documents
+                        and says when there were more.
+                    </p>
                 </form>
 
                 <div id="previewPanel" class="hidden mt-6 pt-5 border-t border-gray-200">

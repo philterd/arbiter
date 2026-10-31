@@ -83,8 +83,10 @@ named `philter-workspace`. Set `PHILTER_ADMIN_KEY` to an administrator's key, su
 `PHILTER_BOOTSTRAP_API_KEY`.
 
 **For a new deployment**, create a Philter user for Philter Workspace and a key with only
-the `redact`, `policies:read`, `lists:read`, and `lists:write` scopes. The two `lists`
-scopes are needed only for [detection rules](user-guide/detection-rules.md):
+the `redact`, `policies:read`, `lists:read`, `lists:write`, and `ledger:read` scopes. The two
+`lists` scopes are needed only for [detection rules](user-guide/detection-rules.md), and
+`ledger:read` only to show Philter's ledger in a document's
+[audit trail](admin/audit-log.md#audit-trail-with-philters-ledger):
 
 ```sh
 docker run --rm --network philter-workspace_philter-workspace curlimages/curl:8.10.1 -s -X POST "http://philter:8080/api/users" \
@@ -92,7 +94,7 @@ docker run --rm --network philter-workspace_philter-workspace curlimages/curl:8.
   --data '{"username":"philter-workspace","role":"user"}'
 docker run --rm --network philter-workspace_philter-workspace curlimages/curl:8.10.1 -s -X POST "http://philter:8080/api/users/philter-workspace/api-keys" \
   -H "Authorization: Bearer $PHILTER_ADMIN_KEY" -H "Content-Type: application/json" \
-  --data '{"scopes":["redact","policies:read","lists:read","lists:write"]}'
+  --data '{"scopes":["redact","policies:read","lists:read","lists:write","ledger:read"]}'
 ```
 
 The second response holds the key in `apiKey`, shown only once. Set it as

@@ -200,7 +200,7 @@ public class AuditLogAdminController {
         }
     }
 
-    private static Instant parseInstant(final String raw, final String fieldName) {
+    static Instant parseInstant(final String raw, final String fieldName) {
         if (raw == null || raw.isBlank()) return null;
         final String trimmed = raw.trim();
         try {

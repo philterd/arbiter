@@ -2462,18 +2462,18 @@
             <div th:if="${document.philterDocumentId != null}" sec:authorize="hasAnyRole('ADMIN','AUDITOR')">
                 <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Philter document ID</p>
                 <p class="text-sm text-gray-900 font-mono break-all" th:text="${document.philterDocumentId}">id</p>
-                <p class="text-xs text-gray-500 mt-1">
-                    <a th:href="@{/admin/ledgers/view(document=${document.philterDocumentId})}"
-                       class="text-brand-600 hover:text-brand-800 font-medium">Open its ledger chain</a>.
-                    The chain exists when the batch's context keeps Philter's ledger, and belongs to the Philter
-                    user of Philter Workspace's API key; another user's chain is reached from Admin &rarr; Ledgers, when
-                    Philter allows cross-user access (<code>ADMIN_CROSS_USER_ACCESS_ENABLED=true</code>).
-                </p>
                 <div th:if="${!#lists.isEmpty(document.previousPhilterDocumentIds)}" class="mt-1">
                     <p class="text-xs text-gray-500">Earlier redactions of this document:</p>
                     <p th:each="previous : ${document.previousPhilterDocumentIds}"
                        class="text-xs text-gray-700 font-mono break-all" th:text="${previous}">id</p>
                 </div>
+            </div>
+            <!-- Philter's ledger for this document (#18), read when the dialog opens. -->
+            <div th:if="${document.philterDocumentId != null}" sec:authorize="hasAnyRole('ADMIN','AUDITOR')"
+                 id="ledgerSection" th:data-document-id="${document.id}">
+                <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Philter ledger</p>
+                <p id="ledgerStatus" class="text-xs text-gray-500">Loading&hellip;</p>
+                <div id="ledgerChains" class="space-y-3"></div>
             </div>
             <div th:if="${document.contentSha512 != null and !#strings.isEmpty(document.contentSha512)}">
                 <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Content SHA-512</p>
@@ -2528,7 +2528,68 @@
         const btn = document.getElementById('documentInfoBtn');
         const modal = document.getElementById('documentInfoModal');
         if (!btn || !modal) return;
-        btn.addEventListener('click', () => modal.classList.remove('hidden'));
+        btn.addEventListener('click', () => {
+            modal.classList.remove('hidden');
+            loadLedger();
+        });
+
+        // Philter's ledger (#18): each redaction's chain, whether it verifies, and its entries, which carry no
+        // original value. Loaded once, on first open.
+        const section = document.getElementById('ledgerSection');
+        let ledgerLoaded = false;
+        const SHOWN = 100;
+        function el(tag, cls, text) {
+            const e = document.createElement(tag);
+            if (cls) e.className = cls;
+            if (text != null) e.textContent = text;
+            return e;
+        }
+        async function loadLedger() {
+            if (!section || ledgerLoaded) return;
+            ledgerLoaded = true;
+            const status = document.getElementById('ledgerStatus');
+            const holder = document.getElementById('ledgerChains');
+            try {
+                const resp = await fetch(`/api/v1/documents/${encodeURIComponent(section.dataset.documentId)}/ledger`);
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const data = await resp.json();
+                status.textContent = data.chains.length === 1 ? '' : `${data.chains.length} redactions, oldest first.`;
+                for (const chain of data.chains) {
+                    const box = el('div', 'rounded-lg border p-2 ' + (chain.verified ? 'border-green-200 bg-green-50'
+                        : 'border-amber-200 bg-amber-50'));
+                    box.appendChild(el('p', 'text-xs font-mono text-gray-600 break-all', chain.philterDocumentId));
+                    box.appendChild(el('p', 'text-sm ' + (chain.verified ? 'text-green-800' : 'text-amber-800'),
+                        chain.summary));
+                    const entries = data.entries.filter(e => e.philterDocumentId === chain.philterDocumentId);
+                    if (entries.length > 0) {
+                        const table = el('table', 'mt-2 w-full text-xs');
+                        const head = el('tr', 'text-left text-gray-500');
+                        for (const h of ['Time (UTC)', 'Type', 'Position', 'Policy', 'Signed']) head.appendChild(el('th', 'pr-2 font-medium', h));
+                        table.appendChild(head);
+                        for (const e of entries.slice(0, SHOWN)) {
+                            const row = el('tr', 'text-gray-800');
+                            row.appendChild(el('td', 'pr-2 whitespace-nowrap', e.timestamp ? e.timestamp.replace('T', ' ').replace(/\.\d+Z$|Z$/, '') : ''));
+                            // Philter opens each chain with an entry that records no redaction.
+                            const start = e.previousHash === '[genesis]';
+                            row.appendChild(el('td', 'pr-2', e.readError ? 'unreadable' : (start ? 'Start of chain' : (e.type || ''))));
+                            row.appendChild(el('td', 'pr-2', start ? '' : String(e.startPosition)));
+                            row.appendChild(el('td', 'pr-2', e.policyName ? `${e.policyName} v${e.policyVersion}` : ''));
+                            row.appendChild(el('td', '', e.signed ? 'yes' : 'no'));
+                            table.appendChild(row);
+                        }
+                        box.appendChild(table);
+                        const more = chain.entries - Math.min(entries.length, SHOWN);
+                        if (more > 0) {
+                            box.appendChild(el('p', 'text-xs text-gray-500 mt-1',
+                                `${more} more in the audit trail export, from the Document Queue's audit log.`));
+                        }
+                    }
+                    holder.appendChild(box);
+                }
+            } catch (err) {
+                status.textContent = `Could not load Philter's ledger: ${err.message}`;
+            }
+        }
     })();
 </script>
 

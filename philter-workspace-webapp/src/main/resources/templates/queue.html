@@ -337,6 +337,13 @@
                                 : 'Only administrators can download the audit log.'">
                         Download
                     </button>
+                    <!-- The document's audit trail with Philter's ledger entries (#18). -->
+                    <span th:if="${canExportTrail}" class="inline-flex items-center gap-2"
+                          title="This document's audit trail with Philter's ledger entries and whether each chain verifies">
+                        <span class="text-sm text-gray-600">Audit trail:</span>
+                        <a id="auditTrailCsv" href="#" class="text-sm font-medium text-brand-600 hover:text-brand-800">CSV</a>
+                        <a id="auditTrailJson" href="#" class="text-sm font-medium text-brand-600 hover:text-brand-800">JSON</a>
+                    </span>
                     <button type="button" id="auditClose"
                             class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
                         Close
@@ -754,6 +761,15 @@
                 if (!auditDocumentId) return;
                 window.location.href = `/api/v1/documents/${encodeURIComponent(auditDocumentId)}/history.csv`;
             });
+            for (const [id, format] of [['auditTrailCsv', 'csv'], ['auditTrailJson', 'json']]) {
+                const link = document.getElementById(id);
+                if (!link) continue;
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    if (!auditDocumentId) return;
+                    window.location.href = `/api/v1/documents/${encodeURIComponent(auditDocumentId)}/audit-trail?format=${format}`;
+                });
+            }
             document.getElementById('auditPrev').addEventListener('click', () => {
                 if (auditPage > 0) { auditPage--; renderAuditPage(); }
             });

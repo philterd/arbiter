@@ -41,7 +41,10 @@ write affordances disabled. Specifically, they can:
   a document takes no review lock, so an auditor never locks a reviewer out.
 - **Search** across every document body in the system.
 - **Read every audit-log entry**, including actor emails, and **export** the
-  per-document audit history as CSV.
+  per-document audit history as CSV, and the
+  [audit trail with Philter's ledger](../admin/audit-log.md#audit-trail-with-philters-ledger)
+  for a document or a time range. They also see a document's ledger chains on
+  its Review page.
 - **Read every reviewer action history** on any span, including which actor
   approved/rejected and any overturn reasons.
 - **View the Reports page** — risk-score distribution, throughput, reviewer

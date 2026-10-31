@@ -203,6 +203,8 @@ public class RedactionController {
     @GetMapping("/queue")
     public String queue(final Authentication authentication, final Model model) {
         model.addAttribute("isAdmin", AuthUtils.isAdmin(authentication));
+        // The audit trail with Philter's ledger (#18) is for administrators and auditors.
+        model.addAttribute("canExportTrail", AuthUtils.isAdminOrAuditor(authentication));
         return "queue";
     }
 

@@ -1160,6 +1160,74 @@ class PhilterSignInIT {
     }
 
     @Test
+    void aDocumentsAuditTrailJoinsItsEventsWithPhiltersLedger() throws Exception {
+        final MockHttpSession session = new MockHttpSession();
+        final String address = newAddress();
+        signIn(session, address, "admin", ADMIN_PASSWORD);
+        final String suffix = HexFormat.of().formatHex(bytes(3));
+        final String context = "it-trail-" + suffix;
+        bootstrap().createContext(context, false, "document", true, null);
+        final ai.philterd.workspace.model.Batch batch = new ai.philterd.workspace.model.Batch();
+        batch.setId(java.util.UUID.randomUUID().toString());
+        batch.setName("Trail " + suffix);
+        batch.setContext(context);
+        batchRepository.save(batch);
+        final ai.philterd.workspace.model.Document queued = ingestQueueService.enqueueText(batch,
+                "Jane Roe letter " + suffix + ".txt", "Write to jdoe@example.com about the claim.", 2);
+        final long deadline = System.currentTimeMillis() + 120_000;
+        while (System.currentTimeMillis() < deadline && java.util.Set.of("PENDING", "PROCESSING")
+                .contains(documentRepository.findById(queued.getId()).orElseThrow().getStatus())) {
+            ingestQueueService.drain();
+            Thread.sleep(250);
+        }
+        final ai.philterd.workspace.model.Document redacted = documentRepository.findById(queued.getId()).orElseThrow();
+        assertTrue(redacted.getPhilterDocumentId() != null, redacted.getStatus());
+
+        // The Review page's ledger: read with Philter Workspace's key, which owns the chain.
+        final String ledger = mockMvc.perform(get("/api/v1/documents/" + queued.getId() + "/ledger")
+                .session(session).with(from(address))).andExpect(status().isOk()).andReturn().getResponse()
+                .getContentAsString();
+        final com.fasterxml.jackson.databind.JsonNode ledgerJson = new com.fasterxml.jackson.databind.ObjectMapper()
+                .readTree(ledger);
+        assertEquals(redacted.getPhilterDocumentId(), ledgerJson.at("/chains/0/philterDocumentId").asText());
+        assertTrue(ledgerJson.at("/chains/0/verified").asBoolean(), ledger);
+        assertEquals("[genesis]", ledgerJson.at("/entries/0/previousHash").asText(), "Philter opens the chain");
+        assertEquals("email-address", ledgerJson.at("/entries/1/type").asText(), ledger);
+
+        final String trail = mockMvc.perform(get("/api/v1/documents/" + queued.getId() + "/audit-trail")
+                .param("format", "json").session(session).with(from(address))).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        final com.fasterxml.jackson.databind.JsonNode json = new com.fasterxml.jackson.databind.ObjectMapper()
+                .readTree(trail);
+        assertTrue(json.at("/chains/0/verified").asBoolean(), trail);
+        final java.util.List<String> sources = new java.util.ArrayList<>();
+        final java.util.List<String> actions = new java.util.ArrayList<>();
+        json.get("events").forEach(e -> {
+            sources.add(e.get("source").asText());
+            actions.add(e.path("action").asText(""));
+        });
+        assertTrue(sources.contains("PHILTER_LEDGER") && sources.contains("PHILTER_WORKSPACE"), trail);
+        assertTrue(actions.contains("AUDIT_TRAIL_EXPORT"), "the export is in its own trail");
+        assertFalse(trail.contains("jdoe@example.com"), "no original value");
+        assertFalse(trail.contains("{{{REDACTED"), "no replacement");
+        assertFalse(trail.contains("Jane Roe"), "no filename from Philter's ledger");
+
+        final String csv = mockMvc.perform(get("/admin/audit/trail").param("format", "csv")
+                .param("startTime", java.time.Instant.now().minusSeconds(3600).toString())
+                .session(session).with(from(address))).andExpect(status().isOk()).andReturn().getResponse()
+                .getContentAsString();
+        assertTrue(csv.contains(",PHILTER_LEDGER_CHAIN," + queued.getId() + ",,CHAIN_VERIFICATION,VERIFIED,"), csv);
+        assertFalse(csv.contains("jdoe@example.com"));
+
+        // A key without ledger:read is told so, not shown an empty ledger.
+        final String limited = bootstrap().createApiKey(java.util.List.of("redact")).getApiKey();
+        final ai.philterd.workspace.service.DocumentLedgerService withoutScope =
+                new ai.philterd.workspace.service.DocumentLedgerService(new ai.philterd.workspace.service.PhilterSettings(
+                        philterUrl(), limited, ai.philterd.workspace.philter.PhilterTlsConfig.none()));
+        assertEquals("KEY_LACKS_SCOPE", withoutScope.forDocument(redacted).chains().get(0).state());
+    }
+
+    @Test
     void aBatchRedactsEachDocumentWithThePolicyMappedToItsCaseType() throws Exception {
         final String suffix = HexFormat.of().formatHex(bytes(3));
         final String policy = "it-email-only-" + suffix;
@@ -1398,16 +1466,16 @@ class PhilterSignInIT {
         assertTrue(done.getPhilterDocumentId().matches("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"),
                 done.getPhilterDocumentId());
 
-        // The review page shows administrators the ID, linked to its ledger chain.
+        // The review page shows administrators the ID, and a section that reads its ledger chain (#18).
         final String page = mockMvc.perform(get("/review/" + doc.getId()).session(session).with(from(address)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
         assertTrue(page.contains(done.getPhilterDocumentId()), "the ID is shown");
-        assertTrue(page.contains("/admin/ledgers/view?document=" + done.getPhilterDocumentId()), "linked to its chain");
-        // Philter Workspace's key is the signed-in administrator's here, so the link opens the chain.
-        final String chain = mockMvc.perform(get("/admin/ledgers/view").param("document", done.getPhilterDocumentId())
+        assertTrue(page.contains("id=\"ledgerSection\" data-document-id=\"" + doc.getId() + "\""), "the ledger section");
+        final String chain = mockMvc.perform(get("/api/v1/documents/" + doc.getId() + "/ledger")
                         .session(session).with(from(address)))
                 .andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-        assertTrue(chain.contains(done.getPhilterDocumentId()), "the chain for this document");
+        assertTrue(chain.contains("\"philterDocumentId\":\"" + done.getPhilterDocumentId() + "\"")
+                && chain.contains("\"verified\":true"), chain);
     }
 
     /** Drains the queue until the document leaves PENDING and PROCESSING, and returns it. */

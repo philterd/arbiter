@@ -94,12 +94,11 @@ has to be uploaded again.
 
 When Philter redacts a document, the document ID Philter recorded it under is
 shown to administrators and auditors on the **Document Information** popup of
-the Review page, with a link to its chain under **Admin → Ledgers**. The chain
-exists when the batch's context keeps Philter's ledger. It belongs to the
-Philter user of Philter Workspace's API key, so the link opens it only for that
-user; others find it under Admin → Ledgers with the owner filter, which Philter
-allows only with `ADMIN_CROSS_USER_ACCESS_ENABLED=true`. A document
-redacted again shows the new ID and lists the earlier ones.
+the Review page. A document redacted again shows the new ID and lists the
+earlier ones. The popup also shows each redaction's chain in Philter's ledger,
+when the batch's context keeps the ledger: whether it verifies, and its entries
+(time, PII type, position, policy, and whether it is signed). See
+[Audit trail with Philter's ledger](../admin/audit-log.md#audit-trail-with-philters-ledger).
 
 ## Adding from a data source
 
