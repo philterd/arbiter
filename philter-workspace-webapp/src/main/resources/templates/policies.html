@@ -19,6 +19,7 @@
     <meta charset="UTF-8">
     <title>Philter Workspace - Policies</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -28,7 +29,7 @@
         <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8">
             <div class="flex items-center justify-between mb-6">
-                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Policies</h2><a href="/docs/concepts/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
+                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Policies</h2><a href="/docs/concepts/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-brand-600 hover:underline self-baseline">Help</a></span>
             </div>
 
             <div th:if="${error}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
@@ -45,21 +46,21 @@
                     <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
                         <nav class="flex flex-wrap gap-2 text-sm" aria-label="Policy lists">
                             <a th:href="@{/policies}" th:attr="aria-current=${view == 'mine'} ? 'page' : null"
-                               th:classappend="${view == 'mine'} ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'"
+                               th:classappend="${view == 'mine'} ? 'bg-brand-50 text-brand-700' : 'text-gray-600 hover:bg-gray-100'"
                                class="px-3 py-1.5 rounded-md font-medium">Policies</a>
                             <a th:href="@{/policies/managed}" th:attr="aria-current=${view == 'managed'} ? 'page' : null"
-                               th:classappend="${view == 'managed'} ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'"
+                               th:classappend="${view == 'managed'} ? 'bg-brand-50 text-brand-700' : 'text-gray-600 hover:bg-gray-100'"
                                class="px-3 py-1.5 rounded-md font-medium">Managed</a>
                             <a th:href="@{/policies/deleted}" th:attr="aria-current=${view == 'deleted'} ? 'page' : null"
-                               th:classappend="${view == 'deleted'} ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'"
+                               th:classappend="${view == 'deleted'} ? 'bg-brand-50 text-brand-700' : 'text-gray-600 hover:bg-gray-100'"
                                class="px-3 py-1.5 rounded-md font-medium">Deleted</a>
                             <a th:href="@{/policies/batches}" th:attr="aria-current=${view == 'batches'} ? 'page' : null"
-                               th:classappend="${view == 'batches'} ? 'bg-blue-50 text-blue-700' : 'text-gray-600 hover:bg-gray-100'"
+                               th:classappend="${view == 'batches'} ? 'bg-brand-50 text-brand-700' : 'text-gray-600 hover:bg-gray-100'"
                                class="px-3 py-1.5 rounded-md font-medium">Used by batches</a>
                         </nav>
                         <a th:if="${canWrite and view == 'mine' and !list.owner().everyone()}"
                            th:href="@{${newUrl}}"
-                           class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">New policy</a>
+                           class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg">New policy</a>
                     </div>
 
                     <p class="text-sm text-gray-600 mb-4 max-w-3xl" th:switch="${view}">
@@ -106,9 +107,9 @@
                                 <td class="px-6 py-4 text-sm text-gray-700" th:text="${d.policy().deletedAtText}">when</td>
                                 <td class="px-6 py-4 text-sm text-gray-700" th:text="${d.policy().deletedBy}">who</td>
                                 <td class="px-6 py-4 text-sm whitespace-nowrap space-x-3">
-                                    <a th:href="@{${d.historyUrl()}}" class="font-medium text-blue-600 hover:text-blue-800">History</a>
+                                    <a th:href="@{${d.historyUrl()}}" class="font-medium text-brand-600 hover:text-brand-800">History</a>
                                     <th:block th:if="${canWrite}">
-                                        <th:block th:replace="~{fragments/confirm :: confirm(|restore-${ds.index}|, ${d.restore()}, 'Restore', 'font-medium text-blue-600 hover:text-blue-800')}"></th:block>
+                                        <th:block th:replace="~{fragments/confirm :: confirm(|restore-${ds.index}|, ${d.restore()}, 'Restore', 'font-medium text-brand-600 hover:text-brand-800')}"></th:block>
                                     </th:block>
                                 </td>
                             </tr>
@@ -123,21 +124,21 @@
                                 <td class="px-6 py-4 text-sm whitespace-nowrap space-x-3">
                                     <th:block th:if="${view == 'batches'}">
                                         <a th:href="@{/policies/view(name=${r.policy().name},batches=true)}"
-                                           class="font-medium text-blue-600 hover:text-blue-800">View</a>
+                                           class="font-medium text-brand-600 hover:text-brand-800">View</a>
                                     </th:block>
                                     <th:block th:if="${view == 'managed'}">
                                         <a th:href="@{/policies/view(name=${r.policy().name})}"
-                                           class="font-medium text-blue-600 hover:text-blue-800">View</a>
+                                           class="font-medium text-brand-600 hover:text-brand-800">View</a>
                                         <a th:if="${canWrite}" th:href="@{/policies/copy(name=${r.policy().name})}"
-                                           class="font-medium text-blue-600 hover:text-blue-800">Create a policy from it</a>
+                                           class="font-medium text-brand-600 hover:text-brand-800">Create a policy from it</a>
                                     </th:block>
                                     <th:block th:if="${view == 'mine'}">
-                                        <a th:href="@{${r.viewUrl()}}" class="font-medium text-blue-600 hover:text-blue-800">View</a>
+                                        <a th:href="@{${r.viewUrl()}}" class="font-medium text-brand-600 hover:text-brand-800">View</a>
                                         <a th:if="${canWrite}" th:href="@{${r.editUrl()}}"
-                                           class="font-medium text-blue-600 hover:text-blue-800">Edit</a>
+                                           class="font-medium text-brand-600 hover:text-brand-800">Edit</a>
                                         <a th:if="${canWrite}" th:href="@{${r.copyUrl()}}"
-                                           class="font-medium text-blue-600 hover:text-blue-800">Duplicate</a>
-                                        <a th:href="@{${r.historyUrl()}}" class="font-medium text-blue-600 hover:text-blue-800">History</a>
+                                           class="font-medium text-brand-600 hover:text-brand-800">Duplicate</a>
+                                        <a th:href="@{${r.historyUrl()}}" class="font-medium text-brand-600 hover:text-brand-800">History</a>
                                         <th:block th:if="${canWrite}">
                                             <th:block th:replace="~{fragments/confirm :: confirm(|delete-${rs.index}|, ${r.deletion()}, 'Delete', 'font-medium text-red-600 hover:text-red-800')}"></th:block>
                                         </th:block>
@@ -156,19 +157,19 @@
                             original document files when documents in the batch are finalized.
                             <span class="font-medium">Keep original documents</span> is not a Philter legal hold,
                             which protects Philter's ledger evidence; those are under
-                            <a th:href="@{/admin/holds}" class="text-blue-600 hover:text-blue-800">Admin, Legal Holds</a>.
+                            <a th:href="@{/admin/holds}" class="text-brand-600 hover:text-brand-800">Admin, Legal Holds</a>.
                         </p>
                         <form th:action="@{/policies/finalization}" method="post" class="space-y-3">
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Name</label>
                                 <input name="name" type="text" required placeholder="my-finalization-policy"
-                                       class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                       class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                             </div>
                             <div>
                                 <label class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Option</label>
                                 <select name="option" required
                                         onchange="document.getElementById('newDeleteAfterDays').classList.toggle('hidden', this.value !== 'DELETE_AFTER_X_DAYS')"
-                                        class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                                     <option value="">Select an option…</option>
                                     <option th:each="entry : ${finalizationOptions}"
                                             th:value="${entry.key}" th:text="${entry.value}">Label</option>
@@ -177,11 +178,11 @@
                             <div id="newDeleteAfterDays" class="hidden">
                                 <label class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Days</label>
                                 <input name="deleteAfterDays" type="number" min="1" placeholder="30"
-                                       class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                       class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                             </div>
                             <div class="flex justify-end">
                                 <button type="submit"
-                                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                                        class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition duration-200">
                                     Add
                                 </button>
                             </div>
@@ -225,7 +226,7 @@
                                     <td class="px-6 py-3 text-sm text-right whitespace-nowrap">
                                         <button type="button"
                                                 th:attr="data-edit-id=${p.id},data-edit-name=${p.name},data-edit-option=${p.option},data-edit-days=${p.deleteAfterDays}"
-                                                class="finalization-edit text-blue-600 hover:text-blue-800 font-medium mr-4">
+                                                class="finalization-edit text-brand-600 hover:text-brand-800 font-medium mr-4">
                                             Edit
                                         </button>
                                         <form th:action="@{/policies/finalization/{id}/delete(id=${p.id})}" method="post" class="inline"
@@ -257,12 +258,12 @@
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Name</label>
                     <input id="finalizationEditName" name="name" type="text" required
-                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Option</label>
                     <select id="finalizationEditOption" name="option" required
-                            class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         <option th:each="entry : ${finalizationOptions}"
                                 th:value="${entry.key}" th:text="${entry.value}">Label</option>
                     </select>
@@ -270,13 +271,13 @@
                 <div id="finalizationEditDaysWrap">
                     <label class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Days</label>
                     <input id="finalizationEditDays" name="deleteAfterDays" type="number" min="1"
-                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                 </div>
                 <div class="flex justify-end gap-2">
                     <button type="button" id="finalizationEditCancel"
                             class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
                     <button type="submit"
-                            class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">Save</button>
+                            class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg">Save</button>
                 </div>
             </form>
         </div>

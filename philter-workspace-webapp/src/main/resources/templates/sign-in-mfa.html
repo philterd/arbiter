@@ -13,12 +13,13 @@
     <meta charset="UTF-8">
     <title>Philter Workspace - Two-Factor Authentication</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50 min-h-screen flex flex-col">
     <div th:replace="~{fragments/topbar :: topbar}"></div>
     <div class="flex-1 flex items-center justify-center p-4">
     <div class="w-full max-w-sm bg-white p-8 rounded-xl shadow-md border border-gray-100">
-        <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd.png}" alt="Philterd" class="h-8 mx-auto mb-3"></a>
+        <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd-wordmark.svg}" alt="Philterd" class="h-8 mx-auto mb-3"></a>
         <h1 class="text-3xl font-bold text-gray-900 text-center mb-2">Philter Workspace</h1>
         <p class="text-sm text-gray-600 text-center mb-6">Enter the 6-digit code from your authenticator app.</p>
 
@@ -31,10 +32,10 @@
                 <input id="code" name="code" type="text" inputmode="numeric" pattern="[0-9]{6}"
                        maxlength="6" required autofocus autocomplete="one-time-code"
                        placeholder="000000"
-                       class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm text-center tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                       class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm text-center tracking-widest font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
             </div>
             <button type="submit"
-                    class="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition duration-200">
+                    class="w-full px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-lg transition duration-200">
                 Verify
             </button>
         </form>

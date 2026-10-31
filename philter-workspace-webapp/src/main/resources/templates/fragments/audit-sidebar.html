@@ -151,7 +151,7 @@
                     Reports
                 </a>
                 <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/audit}"
-                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700">
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-brand-50 text-brand-700">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2M9 11h6M9 14h6M9 17h6"></path>
                     </svg>
@@ -167,7 +167,7 @@
                 </div>
             </nav>
             <div class="px-3 py-4 border-t border-gray-200 text-sm text-gray-600">
-                <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd.png}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
+                <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd-wordmark.svg}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
                 <div class="px-3 mb-2">
                     Signed in as <span class="font-medium" sec:authentication="name">user</span>
                     <span sec:authorize="hasAnyRole('ADMIN','AUDITOR')" class="ml-1 text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Admin</span>

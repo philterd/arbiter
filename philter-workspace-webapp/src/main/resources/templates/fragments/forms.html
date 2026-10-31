@@ -35,7 +35,7 @@
                   autocomplete="off" data-json-editor th:attr="data-json-message=|${id}-message|,
                   aria-describedby=(${error != null} ? |${id}-error ${id}-message| : |${id}-message|),
                   aria-invalid=${error != null}"
-                  class="block w-full rounded-lg border border-gray-300 p-3 font-mono text-xs leading-5 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  class="block w-full rounded-lg border border-gray-300 p-3 font-mono text-xs leading-5 focus:outline-none focus:ring-2 focus:ring-brand-500"
                   th:text="${value}">{}</textarea>
         <p th:id="|${id}-error|" th:if="${error != null}" class="mt-1 text-xs text-red-700" th:text="${error}">
             This is not valid JSON.</p>

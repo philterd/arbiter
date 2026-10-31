@@ -13,6 +13,7 @@
     <meta charset="UTF-8">
     <title>Philter Workspace - Legal Holds</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -21,7 +22,7 @@
         <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8">
             <div class="flex items-center justify-between mb-2">
-                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Admin</h2><a href="/docs/admin/legal-holds/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
+                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Admin</h2><a href="/docs/admin/legal-holds/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-brand-600 hover:underline self-baseline">Help</a></span>
             </div>
             <nav class="flex border-b border-gray-200 mb-6 text-sm">
                 <a th:href="@{/admin/general}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">General</a>
@@ -30,7 +31,7 @@
                 <a th:href="@{/admin/notifications}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Notifications</a>
                 <a th:href="@{/admin/llm-judge}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">LLM-as-a-Judge</a>
                 <a th:href="@{/admin/philter}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Philter</a>
-                <a th:href="@{/admin/holds}" aria-current="page" class="px-4 py-2 text-blue-700 font-medium border-b-2 border-blue-600">Legal Holds</a>
+                <a th:href="@{/admin/holds}" aria-current="page" class="px-4 py-2 text-brand-700 font-medium border-b-2 border-brand-600">Legal Holds</a>
                 <a th:href="@{/admin/ledgers}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Ledgers</a>
                 <a th:href="@{/admin/security}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Security</a>
                 <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/tools}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Tools</a>
@@ -56,7 +57,7 @@
                             <code>ADMIN_CROSS_USER_ACCESS_ENABLED=true</code> in Philter.</span></p>
                 </div>
                 <a th:if="${canWrite and !list.owner().everyone()}" th:href="@{${newUrl}}"
-                   class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg whitespace-nowrap">Place hold</a>
+                   class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg whitespace-nowrap">Place hold</a>
             </div>
 
             <form th:replace="~{fragments/list :: filter-bar(${list}, ~{})}"></form>

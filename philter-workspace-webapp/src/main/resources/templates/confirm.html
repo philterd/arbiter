@@ -14,6 +14,7 @@
     <meta charset="UTF-8">
     <title th:text="|Philter Workspace - ${confirmation.title()}|">Philter Workspace - Confirm</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50 min-h-screen flex flex-col">
     <div th:replace="~{fragments/topbar :: topbar}"></div>
@@ -21,7 +22,7 @@
         <div class="w-full max-w-md bg-white p-6 rounded-xl shadow-md border border-gray-100">
             <div th:replace="~{fragments/confirm :: confirm-body('confirm', ${confirmation})}"></div>
             <div class="mt-6 flex justify-end items-center gap-4">
-                <a th:href="@{${confirmation.backUrl()}}" class="text-sm text-blue-600 hover:text-blue-800">Cancel</a>
+                <a th:href="@{${confirmation.backUrl()}}" class="text-sm text-brand-600 hover:text-brand-800">Cancel</a>
                 <form th:replace="~{fragments/confirm :: confirm-form(${confirmation})}"></form>
             </div>
         </div>

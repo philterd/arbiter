@@ -13,6 +13,7 @@
     <meta charset="UTF-8">
     <title th:text="|Philter Workspace - Copy policy|">Philter Workspace - Policies</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -20,7 +21,7 @@
         <div class="flex-1 flex flex-col min-w-0">
         <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8 max-w-5xl">
-            <a th:href="@{/policies}" class="text-sm text-blue-600 hover:text-blue-800">Back to policies</a>
+            <a th:href="@{/policies}" class="text-sm text-brand-600 hover:text-brand-800">Back to policies</a>
             <h2 class="mt-2 text-3xl font-bold text-gray-900" th:text="|Copy ${source}|">Copy</h2>
             <p th:if="${owner != null}" class="mt-1 text-sm text-gray-600">Owner: <span class="font-medium" th:text="${owner}">jdoe</span></p>
 
@@ -35,13 +36,13 @@
                     <input id="name" name="name" type="text" required maxlength="200" autocomplete="off"
                            autocapitalize="none" spellcheck="false" th:value="${newName}"
                            th:attr="aria-describedby=${errors != null and errors.has('name')} ? 'name-error' : null"
-                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                     <p th:replace="~{fragments/forms :: field-error(${errors}, 'name')}"></p>
                 </div>
                 <div class="flex items-center gap-4">
                     <button type="submit"
-                            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Create policy</button>
-                    <a th:href="@{/policies}" class="text-sm text-blue-600 hover:text-blue-800">Cancel</a>
+                            class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg">Create policy</button>
+                    <a th:href="@{/policies}" class="text-sm text-brand-600 hover:text-brand-800">Cancel</a>
                 </div>
             </form>
         </main>

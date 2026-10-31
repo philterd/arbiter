@@ -19,6 +19,7 @@
     <meta charset="UTF-8">
     <title>Philter Workspace - Upload Documents</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -178,7 +179,7 @@
                 </div>
             </nav>
             <div class="px-3 py-4 border-t border-gray-200 text-sm text-gray-600">
-                <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd.png}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
+                <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd-wordmark.svg}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
                 <div class="px-3 mb-2">
                     Signed in as <span class="font-medium" sec:authentication="name">user</span>
                     <span sec:authorize="hasAnyRole('ADMIN','AUDITOR')" class="ml-1 text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Admin</span>
@@ -194,7 +195,7 @@
         <div class="flex-1 flex flex-col min-w-0">
         <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8">
-            <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900 mb-6">Add Documents</h2><a href="/docs/user-guide/uploading/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
+            <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900 mb-6">Add Documents</h2><a href="/docs/user-guide/uploading/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-brand-600 hover:underline self-baseline">Help</a></span>
 
             <div th:if="${error}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
                  th:text="${error}">Error</div>
@@ -249,15 +250,15 @@
                         <div>
                             <label for="batchId" class="block text-sm font-medium text-gray-700 mb-1">Batch</label>
                             <select id="batchId" name="batchId" required
-                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 p-2.5">
+                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 p-2.5">
                                 <option th:each="b : ${batches}" th:value="${b.id}" th:text="${b.name}">name</option>
                             </select>
-                            <a th:if="${seesBatchesNav}" th:href="@{/batches}" class="mt-1 inline-block text-sm text-blue-600 hover:text-blue-800">Create a new batch.</a>
+                            <a th:if="${seesBatchesNav}" th:href="@{/batches}" class="mt-1 inline-block text-sm text-brand-600 hover:text-brand-800">Create a new batch.</a>
                         </div>
                         <div>
                             <label for="priority" class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
                             <select id="priority" name="priority"
-                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 p-2.5">
+                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 p-2.5">
                                 <option value="1">1 - Low</option>
                                 <option value="2" selected>2 - Normal</option>
                                 <option value="3">3 - High</option>
@@ -265,11 +266,11 @@
                         </div>
                         <div>
                             <label for="fileInput" class="block text-sm font-medium text-gray-700 mb-1">Documents</label>
-                            <input class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 p-2.5"
+                            <input class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg cursor-pointer bg-gray-50 focus:outline-none focus:ring-2 focus:ring-brand-500 p-2.5"
                                    type="file" name="file" id="fileInput" multiple required>
                             <p class="mt-1 text-xs text-gray-500">Hold Shift or Ctrl/Cmd to pick multiple files. Each file becomes its own document in the chosen batch.</p>
                         </div>
-                        <button type="submit" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition duration-200">
+                        <button type="submit" class="px-8 py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-lg transition duration-200">
                             Upload Documents
                         </button>
                     </form>
@@ -303,14 +304,14 @@
                         <div>
                             <label for="osBatchId" class="block text-sm font-medium text-gray-700 mb-1">Batch</label>
                             <select id="osBatchId" name="batchId" required
-                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 p-2.5">
+                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 p-2.5">
                                 <option th:each="b : ${batches}" th:value="${b.id}" th:text="${b.name}">name</option>
                             </select>
                         </div>
                         <div>
                             <label for="osPriority" class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
                             <select id="osPriority" name="priority"
-                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 p-2.5">
+                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 p-2.5">
                                 <option value="1">1 - Low</option>
                                 <option value="2" selected>2 - Normal</option>
                                 <option value="3">3 - High</option>
@@ -319,18 +320,18 @@
                         <div>
                             <label for="dataSourceId" class="block text-sm font-medium text-gray-700 mb-1">OpenSearch source</label>
                             <select id="dataSourceId" name="dataSourceId" required
-                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 p-2.5">
+                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 p-2.5">
                                 <option th:each="d : ${dataSources}" th:value="${d.id}"
                                         th:text="${d.name + ' — ' + d.endpoint}">
                                     name
                                 </option>
                             </select>
                             <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/data-sources}"
-                               class="mt-1 inline-block text-sm text-blue-600 hover:text-blue-800">
+                               class="mt-1 inline-block text-sm text-brand-600 hover:text-brand-800">
                                 Manage data sources.
                             </a>
                         </div>
-                        <button type="submit" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition duration-200">
+                        <button type="submit" class="px-8 py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-lg transition duration-200">
                             Ingest from OpenSearch
                         </button>
                     </form>
@@ -356,14 +357,14 @@
                         <div>
                             <label for="esBatchId" class="block text-sm font-medium text-gray-700 mb-1">Batch</label>
                             <select id="esBatchId" name="batchId" required
-                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 p-2.5">
+                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 p-2.5">
                                 <option th:each="b : ${batches}" th:value="${b.id}" th:text="${b.name}">name</option>
                             </select>
                         </div>
                         <div>
                             <label for="esPriority" class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
                             <select id="esPriority" name="priority"
-                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 p-2.5">
+                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 p-2.5">
                                 <option value="1">1 - Low</option>
                                 <option value="2" selected>2 - Normal</option>
                                 <option value="3">3 - High</option>
@@ -372,18 +373,18 @@
                         <div>
                             <label for="esDataSourceId" class="block text-sm font-medium text-gray-700 mb-1">Elasticsearch source</label>
                             <select id="esDataSourceId" name="dataSourceId" required
-                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 p-2.5">
+                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 p-2.5">
                                 <option th:each="d : ${esDataSources}" th:value="${d.id}"
                                         th:text="${d.name + ' — ' + d.endpoint}">
                                     name
                                 </option>
                             </select>
                             <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/data-sources}"
-                               class="mt-1 inline-block text-sm text-blue-600 hover:text-blue-800">
+                               class="mt-1 inline-block text-sm text-brand-600 hover:text-brand-800">
                                 Manage data sources.
                             </a>
                         </div>
-                        <button type="submit" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition duration-200">
+                        <button type="submit" class="px-8 py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-lg transition duration-200">
                             Ingest from Elasticsearch
                         </button>
                     </form>
@@ -409,14 +410,14 @@
                         <div>
                             <label for="s3BatchId" class="block text-sm font-medium text-gray-700 mb-1">Batch</label>
                             <select id="s3BatchId" name="batchId" required
-                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 p-2.5">
+                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 p-2.5">
                                 <option th:each="b : ${batches}" th:value="${b.id}" th:text="${b.name}">name</option>
                             </select>
                         </div>
                         <div>
                             <label for="s3Priority" class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
                             <select id="s3Priority" name="priority"
-                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 p-2.5">
+                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 p-2.5">
                                 <option value="1">1 - Low</option>
                                 <option value="2" selected>2 - Normal</option>
                                 <option value="3">3 - High</option>
@@ -425,18 +426,18 @@
                         <div>
                             <label for="s3DataSourceId" class="block text-sm font-medium text-gray-700 mb-1">S3 source</label>
                             <select id="s3DataSourceId" name="dataSourceId" required
-                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 p-2.5">
+                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 p-2.5">
                                 <option th:each="s : ${s3DataSources}" th:value="${s.id}"
                                         th:text="${s.name + ' — s3://' + s.bucketName + '/' + s.bucketKey + ' (' + s.filenameGlob + ')'}">
                                     name
                                 </option>
                             </select>
                             <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/data-sources}"
-                               class="mt-1 inline-block text-sm text-blue-600 hover:text-blue-800">
+                               class="mt-1 inline-block text-sm text-brand-600 hover:text-brand-800">
                                 Manage data sources.
                             </a>
                         </div>
-                        <button type="submit" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition duration-200">
+                        <button type="submit" class="px-8 py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-lg transition duration-200">
                             Ingest from S3
                         </button>
                     </form>
@@ -462,14 +463,14 @@
                         <div>
                             <label for="rdbBatchId" class="block text-sm font-medium text-gray-700 mb-1">Batch</label>
                             <select id="rdbBatchId" name="batchId" required
-                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 p-2.5">
+                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 p-2.5">
                                 <option th:each="b : ${batches}" th:value="${b.id}" th:text="${b.name}">name</option>
                             </select>
                         </div>
                         <div>
                             <label for="rdbPriority" class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
                             <select id="rdbPriority" name="priority"
-                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 p-2.5">
+                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 p-2.5">
                                 <option value="1">1 - Low</option>
                                 <option value="2" selected>2 - Normal</option>
                                 <option value="3">3 - High</option>
@@ -478,18 +479,18 @@
                         <div>
                             <label for="rdbDataSourceId" class="block text-sm font-medium text-gray-700 mb-1">Database source</label>
                             <select id="rdbDataSourceId" name="dataSourceId" required
-                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 p-2.5">
+                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 p-2.5">
                                 <option th:each="r : ${rdbDataSources}" th:value="${r.id}"
                                         th:text="${r.name}">
                                     name
                                 </option>
                             </select>
                             <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/data-sources}"
-                               class="mt-1 inline-block text-sm text-blue-600 hover:text-blue-800">
+                               class="mt-1 inline-block text-sm text-brand-600 hover:text-brand-800">
                                 Manage data sources.
                             </a>
                         </div>
-                        <button type="submit" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition duration-200">
+                        <button type="submit" class="px-8 py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-lg transition duration-200">
                             Ingest from database
                         </button>
                     </form>
@@ -515,14 +516,14 @@
                         <div>
                             <label for="localBatchId" class="block text-sm font-medium text-gray-700 mb-1">Batch</label>
                             <select id="localBatchId" name="batchId" required
-                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 p-2.5">
+                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 p-2.5">
                                 <option th:each="b : ${batches}" th:value="${b.id}" th:text="${b.name}">name</option>
                             </select>
                         </div>
                         <div>
                             <label for="localPriority" class="block text-sm font-medium text-gray-700 mb-1">Priority</label>
                             <select id="localPriority" name="priority"
-                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 p-2.5">
+                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 p-2.5">
                                 <option value="1">1 - Low</option>
                                 <option value="2" selected>2 - Normal</option>
                                 <option value="3">3 - High</option>
@@ -531,18 +532,18 @@
                         <div>
                             <label for="localDataSourceId" class="block text-sm font-medium text-gray-700 mb-1">Local directory source</label>
                             <select id="localDataSourceId" name="dataSourceId" required
-                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 p-2.5">
+                                    class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-brand-500 p-2.5">
                                 <option th:each="l : ${localDataSources}" th:value="${l.id}"
                                         th:text="${l.name + ' — ' + l.directoryPath + ' (' + l.filenameGlob + ')'}">
                                     name
                                 </option>
                             </select>
                             <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/data-sources}"
-                               class="mt-1 inline-block text-sm text-blue-600 hover:text-blue-800">
+                               class="mt-1 inline-block text-sm text-brand-600 hover:text-brand-800">
                                 Manage data sources.
                             </a>
                         </div>
-                        <button type="submit" class="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition duration-200">
+                        <button type="submit" class="px-8 py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-lg transition duration-200">
                             Ingest from local directory
                         </button>
                     </form>

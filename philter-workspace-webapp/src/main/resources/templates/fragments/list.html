@@ -36,12 +36,12 @@
         </div>
         <div th:if="${list.total() == 0}" class="px-6 py-8 text-center text-sm text-gray-500">
             <span th:if="${list.filtered()}">Nothing matches the search and filters.
-                <a th:href="@{${list.clearUrl()}}" class="text-blue-600 hover:text-blue-800">Clear them</a>.</span>
+                <a th:href="@{${list.clearUrl()}}" class="text-brand-600 hover:text-brand-800">Clear them</a>.</span>
             <span th:unless="${list.filtered()}" th:text="${emptyText}">Nothing yet.</span>
         </div>
         <div th:if="${list.pastEnd()}" class="px-6 py-8 text-center text-sm text-gray-500">
             This page is past the end of the list.
-            <a th:href="@{${list.firstUrl()}}" class="text-blue-600 hover:text-blue-800">Go to the first page</a>.
+            <a th:href="@{${list.firstUrl()}}" class="text-brand-600 hover:text-brand-800">Go to the first page</a>.
         </div>
         <div th:replace="~{fragments/list :: pager(${list})}"></div>
     </div>
@@ -68,10 +68,10 @@
         <span th:if="${list.pastEnd()}" th:text="|${list.total()} in all|">40 in all</span>
         <span class="flex gap-4">
             <a th:if="${list.hasPrevious()}" th:href="@{${list.previousUrl()}}" rel="prev"
-               class="text-blue-600 hover:text-blue-800">Previous</a>
+               class="text-brand-600 hover:text-brand-800">Previous</a>
             <span th:unless="${list.hasPrevious()}" class="text-gray-300">Previous</span>
             <a th:if="${list.hasNext()}" th:href="@{${list.nextUrl()}}" rel="next"
-               class="text-blue-600 hover:text-blue-800">Next</a>
+               class="text-brand-600 hover:text-brand-800">Next</a>
             <span th:unless="${list.hasNext()}" class="text-gray-300">Next</span>
         </span>
     </nav>
@@ -87,7 +87,7 @@
         <div>
             <label for="list-search" class="block text-xs font-medium text-gray-600 mb-1">Search</label>
             <input id="list-search" type="search" name="q" maxlength="200" th:value="${list.search()}"
-                   class="rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                   class="rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
         </div>
         <th:block th:replace="${filterControls}"></th:block>
         <th:block th:replace="~{fragments/list :: owner-filter(${list})}"></th:block>
@@ -95,9 +95,9 @@
         <input th:if="${list.sort() != null}" type="hidden" name="order" th:value="${list.ascending()} ? 'asc' : 'desc'">
         <input th:if="${list.customLimit()}" type="hidden" name="limit" th:value="${list.limit()}">
         <button type="submit"
-                class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">Filter</button>
+                class="px-4 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg">Filter</button>
         <a th:if="${list.filtered()}" th:href="@{${list.clearUrl()}}"
-           class="py-1.5 text-sm text-blue-600 hover:text-blue-800">Clear</a>
+           class="py-1.5 text-sm text-brand-600 hover:text-brand-800">Clear</a>
     </form>
 
     <!--
@@ -110,7 +110,7 @@
             <label for="list-owner" class="block text-xs font-medium text-gray-600 mb-1">Owner</label>
             <input id="list-owner" type="text" name="owner" maxlength="200" placeholder="You"
                    autocapitalize="none" spellcheck="false" th:value="${list.owner().username()}"
-                   class="rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                   class="rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
         </div>
         <label th:if="${list.owner().everyoneOffered()}" class="inline-flex items-center text-sm py-1.5">
             <input type="checkbox" name="all" value="true" class="mr-1.5" th:checked="${list.owner().everyone()}">

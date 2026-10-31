@@ -13,6 +13,7 @@
     <meta charset="UTF-8">
     <title>Philter Workspace - Always and Never Redact</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -22,7 +23,7 @@
         <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8">
             <div class="flex items-center justify-between mb-6">
-                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Policies</h2><a href="/docs/workflow/#always-and-never-redact-lists" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
+                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Policies</h2><a href="/docs/workflow/#always-and-never-redact-lists" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-brand-600 hover:underline self-baseline">Help</a></span>
             </div>
 
             <div th:if="${error}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
@@ -44,12 +45,12 @@
                     <label for="list-owner" class="block text-xs font-medium text-gray-600 mb-1">Owner</label>
                     <input id="list-owner" type="text" name="owner" maxlength="200" placeholder="You"
                            autocapitalize="none" spellcheck="false" th:value="${ownerFilter.username()}"
-                           class="rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="rounded-lg border border-gray-300 px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                 </div>
                 <button type="submit"
-                        class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">Show</button>
+                        class="px-4 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg">Show</button>
                 <a th:if="${ownerFilter.username() != null}" th:href="@{/policies/redact-lists}"
-                   class="py-1.5 text-sm text-blue-600 hover:text-blue-800">Clear</a>
+                   class="py-1.5 text-sm text-brand-600 hover:text-brand-800">Clear</a>
             </form>
 
             <div class="grid gap-6 xl:grid-cols-2">
@@ -70,11 +71,11 @@
                         <textarea th:id="|${r.list()}-terms|" name="terms" rows="14" spellcheck="false"
                                   th:readonly="${!canWrite}" th:text="${r.terms()}"
                                   th:attr="aria-describedby=|${r.list()}-help|"
-                                  class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                                  class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
                         <p th:id="|${r.list()}-help|" class="text-xs text-gray-500"
                            th:text="|One term per line, up to ${maximumTerms} terms of up to ${maximumTermLength} characters each. Saving an empty list clears it.|">help</p>
                         <button th:if="${canWrite}" type="submit"
-                                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg"
+                                class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg"
                                 th:text="|Save ${r.title()}|">Save</button>
                     </form>
 

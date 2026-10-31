@@ -181,7 +181,8 @@ public class SecurityConfig {
                         .permitAll())
                 .exceptionHandling(ex -> ex.defaultAuthenticationEntryPointFor(
                         new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED),
-                        new AntPathRequestMatcher("/api/**")))
+                        new AntPathRequestMatcher("/api/**"))
+                        .accessDeniedHandler(new ExpiredFormAccessDeniedHandler()))
                 .addFilterBefore(apiKeyAuthFilter, UsernamePasswordAuthenticationFilter.class)
                 // After the session's SecurityContext is loaded, before authorization: a person whose
                 // Philter session key was rejected is signed out of Philter Workspace rather than served.

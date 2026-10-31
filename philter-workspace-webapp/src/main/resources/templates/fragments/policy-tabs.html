@@ -14,32 +14,32 @@
     <div th:fragment="tabs(activeTab)" class="border-b border-gray-200 mb-6">
         <nav class="-mb-px flex flex-wrap gap-x-6">
             <a th:href="@{/policies}" th:attr="aria-current=${activeTab == 'redaction'} ? 'page' : null"
-               th:classappend="${activeTab == 'redaction'} ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+               th:classappend="${activeTab == 'redaction'} ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                class="whitespace-nowrap px-1 py-3 border-b-2 text-sm font-medium">
                 Redaction Policies
             </a>
             <a th:href="@{/policies/lists}" th:attr="aria-current=${activeTab == 'lists'} ? 'page' : null"
-               th:classappend="${activeTab == 'lists'} ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+               th:classappend="${activeTab == 'lists'} ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                class="whitespace-nowrap px-1 py-3 border-b-2 text-sm font-medium">
                 Custom Lists
             </a>
             <a th:href="@{/policies/redact-lists}" th:attr="aria-current=${activeTab == 'redact-lists'} ? 'page' : null"
-               th:classappend="${activeTab == 'redact-lists'} ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+               th:classappend="${activeTab == 'redact-lists'} ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                class="whitespace-nowrap px-1 py-3 border-b-2 text-sm font-medium">
                 Always and Never Redact
             </a>
             <a th:href="@{/policies/contexts}" th:attr="aria-current=${activeTab == 'contexts'} ? 'page' : null"
-               th:classappend="${activeTab == 'contexts'} ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+               th:classappend="${activeTab == 'contexts'} ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                class="whitespace-nowrap px-1 py-3 border-b-2 text-sm font-medium">
                 Contexts
             </a>
             <a th:href="@{/policies/models}" th:attr="aria-current=${activeTab == 'models'} ? 'page' : null"
-               th:classappend="${activeTab == 'models'} ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+               th:classappend="${activeTab == 'models'} ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                class="whitespace-nowrap px-1 py-3 border-b-2 text-sm font-medium">
                 Models
             </a>
             <a th:href="@{/policies/finalization}" th:attr="aria-current=${activeTab == 'finalization'} ? 'page' : null"
-               th:classappend="${activeTab == 'finalization'} ? 'border-blue-600 text-blue-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
+               th:classappend="${activeTab == 'finalization'} ? 'border-brand-600 text-brand-700' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'"
                class="whitespace-nowrap px-1 py-3 border-b-2 text-sm font-medium">
                 Batch Finalization Policies
             </a>

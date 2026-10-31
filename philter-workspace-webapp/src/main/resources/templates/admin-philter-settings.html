@@ -13,6 +13,7 @@
     <meta charset="UTF-8">
     <title>Philter Workspace - Philter Settings</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -21,7 +22,7 @@
         <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8">
             <div class="flex items-center justify-between mb-2">
-                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Admin</h2><a href="/docs/admin/philter-settings/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
+                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Admin</h2><a href="/docs/admin/philter-settings/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-brand-600 hover:underline self-baseline">Help</a></span>
             </div>
             <nav class="flex border-b border-gray-200 mb-6 text-sm">
                 <a th:href="@{/admin/general}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">General</a>
@@ -29,7 +30,7 @@
                 <a th:href="@{/admin/groups}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Groups</a>
                 <a th:href="@{/admin/notifications}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Notifications</a>
                 <a th:href="@{/admin/llm-judge}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">LLM-as-a-Judge</a>
-                <a th:href="@{/admin/philter}" aria-current="page" class="px-4 py-2 text-blue-700 font-medium border-b-2 border-blue-600">Philter</a>
+                <a th:href="@{/admin/philter}" aria-current="page" class="px-4 py-2 text-brand-700 font-medium border-b-2 border-brand-600">Philter</a>
                 <a th:href="@{/admin/holds}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Legal Holds</a>
                 <a th:href="@{/admin/ledgers}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Ledgers</a>
                 <a th:href="@{/admin/security}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Security</a>
@@ -38,7 +39,7 @@
 
             <nav class="flex gap-2 mb-4 text-sm" aria-label="Philter">
                 <a th:href="@{/admin/philter}" class="px-3 py-1.5 rounded-md font-medium text-gray-600 hover:bg-gray-100">Connection</a>
-                <a th:href="@{/admin/philter/settings}" aria-current="page" class="px-3 py-1.5 rounded-md font-medium bg-blue-50 text-blue-700">Settings</a>
+                <a th:href="@{/admin/philter/settings}" aria-current="page" class="px-3 py-1.5 rounded-md font-medium bg-brand-50 text-brand-700">Settings</a>
             </nav>
 
             <div th:if="${error}" role="alert" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
@@ -93,7 +94,7 @@
                     <label for="webhookAllowlist" class="block text-sm text-gray-700">Hosts people's webhooks may call</label>
                     <textarea id="webhookAllowlist" name="webhookAllowlist" rows="3" spellcheck="false" aria-describedby="allowlist-help"
                               th:text="${form.webhookAllowlist()}"
-                              class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                              class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
                     <p id="allowlist-help" class="text-xs text-gray-500">Hostnames, IP addresses, or CIDR ranges, separated by
                         commas or lines. Empty allows any host except private, loopback, and other special-purpose
                         addresses.</p>
@@ -109,22 +110,22 @@
                         <div class="sm:col-span-2">
                             <label for="phieldUrl" class="block text-xs font-medium text-gray-600 mb-1">Phield URL</label>
                             <input id="phieldUrl" name="phieldUrl" type="url" th:value="${form.phieldUrl()}" placeholder="https://phield.example.com"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <div>
                             <label for="phieldOrganization" class="block text-xs font-medium text-gray-600 mb-1">Organization</label>
                             <input id="phieldOrganization" name="phieldOrganization" type="text" th:value="${form.phieldOrganization()}"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <div>
                             <label for="phieldSourceId" class="block text-xs font-medium text-gray-600 mb-1">Source</label>
                             <input id="phieldSourceId" name="phieldSourceId" type="text" th:value="${form.phieldSourceId()}"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <div class="sm:col-span-2">
                             <label for="phieldApiKey" class="block text-xs font-medium text-gray-600 mb-1">Phield API key</label>
                             <input id="phieldApiKey" name="phieldApiKey" type="password" autocomplete="new-password" aria-describedby="phield-key-help"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                             <p id="phield-key-help" class="mt-1 text-xs text-gray-500"
                                th:text="${settings != null and settings.phieldApiKeySet} ? 'Set. Philter never shows it; leave this blank to keep it.' : 'Not set.'">Not set.</p>
                             <label th:if="${settings != null and settings.phieldApiKeySet}" class="mt-1 flex items-center gap-2 text-sm">
@@ -144,7 +145,7 @@
                 </section>
 
                 <button th:if="${canWrite}" type="submit"
-                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Save settings</button>
+                        class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg">Save settings</button>
             </form>
         </main>
         <div th:replace="~{fragments/footer :: footer}"></div>

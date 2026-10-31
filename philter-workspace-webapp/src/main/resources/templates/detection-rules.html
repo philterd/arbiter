@@ -13,6 +13,7 @@
     <meta charset="UTF-8">
     <title>Philter Workspace - Detection Rules</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -22,7 +23,7 @@
         <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8">
             <div class="flex items-center justify-between mb-6">
-                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Detection Rules</h2><a href="/docs/user-guide/detection-rules/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
+                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Detection Rules</h2><a href="/docs/user-guide/detection-rules/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-brand-600 hover:underline self-baseline">Help</a></span>
             </div>
 
             <div th:if="${error}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
@@ -40,7 +41,7 @@
                 <span th:if="${ruleProposalRefusals > 0}"
                       th:text="|A value refused ${ruleProposalRefusals} times in one batch, and accepted in none of its documents, is proposed here.|">proposals</span>
                 <span th:if="${ruleProposalRefusals <= 0}">Proposals from repeated refusals are off.</span>
-                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/general#detection-rules}" class="text-blue-600 hover:underline">Change these settings</a>
+                <a sec:authorize="hasRole('ADMIN')" th:href="@{/admin/general#detection-rules}" class="text-brand-600 hover:underline">Change these settings</a>
             </p>
 
             <section class="mb-8" aria-labelledby="proposed-title">
@@ -68,7 +69,7 @@
                                           th:data-confirm="${r.kind == 'Always flag'
                                               ? 'Philter will always flag this value in every batch, ignoring case, and report it as a custom dictionary match. Confirm?'
                                               : 'Philter will stop flagging this value in every batch, as any PII type, ignoring case. Confirm?'}">
-                                        <button type="submit" class="px-3 py-1 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded">Confirm</button>
+                                        <button type="submit" class="px-3 py-1 text-xs font-medium bg-brand-600 hover:bg-brand-700 text-white rounded">Confirm</button>
                                     </form>
                                     <form th:action="@{/detection-rules/{id}/dismiss(id=${r.id})}" method="post" class="inline">
                                         <button type="submit" class="px-3 py-1 text-xs font-medium border border-gray-300 text-gray-700 hover:bg-gray-50 rounded">Dismiss</button>
@@ -166,7 +167,7 @@
                     </td>
                     <td class="px-4 py-3 text-sm">
                         <a th:if="${r.documentId != null}" th:href="@{/review/{id}(id=${r.documentId})}"
-                           class="text-blue-600 hover:underline" th:text="${r.documentName}">letter.pdf</a>
+                           class="text-brand-600 hover:underline" th:text="${r.documentName}">letter.pdf</a>
                         <span th:if="${r.documentId == null}" class="text-gray-500" th:text="${r.documentName}">Removed document</span>
                     </td>
                 </th:block>

@@ -19,6 +19,7 @@
     <meta charset="UTF-8">
     <title>Philter Workspace - Batches</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -115,7 +116,7 @@
                 </a>
 
                 <a th:if="${seesBatchesNav}" th:href="@{/batches}"
-                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700">
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-brand-50 text-brand-700">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
                     </svg>
@@ -178,7 +179,7 @@
                 </div>
             </nav>
             <div class="px-3 py-4 border-t border-gray-200 text-sm text-gray-600">
-                <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd.png}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
+                <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd-wordmark.svg}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
                 <div class="px-3 mb-2">
                     Signed in as <span class="font-medium" sec:authentication="name">user</span>
                     <span sec:authorize="hasAnyRole('ADMIN','AUDITOR')" class="ml-1 text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Admin</span>
@@ -195,7 +196,7 @@
         <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8">
             <div class="flex items-center justify-between mb-6">
-                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Batches</h2><a href="/docs/admin/batches/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
+                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Batches</h2><a href="/docs/admin/batches/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-brand-600 hover:underline self-baseline">Help</a></span>
             </div>
 
             <div th:if="${error}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
@@ -210,7 +211,7 @@
                  there are no groups to create against. -->
             <div th:if="${isAdmin}" class="mb-6 flex items-center gap-3">
                 <button th:if="${!#lists.isEmpty(groups)}" type="button" id="createBatchBtn"
-                        class="inline-flex items-center px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                        class="inline-flex items-center px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition duration-200">
                     <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                     </svg>
@@ -296,7 +297,7 @@
                                 <span th:text="${b.queuedCount}">0</span>
                                 <a th:if="${b.firstUnreviewedDocumentId != null}"
                                    th:href="@{/review/{id}(id=${b.firstUnreviewedDocumentId})}"
-                                   class="ml-3 text-blue-600 hover:text-blue-800 font-medium">Review</a>
+                                   class="ml-3 text-brand-600 hover:text-brand-800 font-medium">Review</a>
                                 <span th:if="${b.firstUnreviewedDocumentId == null}"
                                       class="ml-3 text-gray-400 cursor-not-allowed">Review</span>
                             </td>
@@ -304,7 +305,7 @@
                                 <form th:action="@{/batches/{id}/group(id=${b.id})}" method="post" class="flex items-center gap-1">
                                     <select name="groupId"
                                             th:disabled="${#lists.isEmpty(groups)}"
-                                            class="rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400">
+                                            class="rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:bg-gray-50 disabled:text-gray-400">
                                         <option value="" disabled th:selected="${b.groupId == null}">— none —</option>
                                         <option th:each="g : ${groups}"
                                                 th:value="${g.id}"
@@ -313,7 +314,7 @@
                                     </select>
                                     <button type="submit"
                                             th:disabled="${#lists.isEmpty(groups)}"
-                                            class="text-xs font-medium text-blue-600 hover:text-blue-800 px-2 py-1 disabled:text-gray-400 disabled:cursor-not-allowed">
+                                            class="text-xs font-medium text-brand-600 hover:text-brand-800 px-2 py-1 disabled:text-gray-400 disabled:cursor-not-allowed">
                                         Save
                                     </button>
                                 </form>
@@ -324,7 +325,7 @@
                                     <span th:if="${b.policyName == null}" class="italic text-gray-500">Default policy</span>
                                 </div>
                                 <button type="button"
-                                        class="batch-philter-btn text-xs font-medium text-blue-600 hover:text-blue-800 mt-1"
+                                        class="batch-philter-btn text-xs font-medium text-brand-600 hover:text-brand-800 mt-1"
                                         th:attr="data-batch-id=${b.id},
                                                  data-batch-name=${b.name},
                                                  data-policy-name=${b.policyName == null ? '' : b.policyName}">
@@ -333,7 +334,7 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <button type="button"
-                                        class="info-btn text-blue-600 hover:text-blue-800 font-medium mr-3"
+                                        class="info-btn text-brand-600 hover:text-brand-800 font-medium mr-3"
                                         title="Show compliance profile and finalization policy"
                                         th:attr="data-batch-name=${b.name},
                                                  data-compliance-profile=${b.complianceProfileName == null ? '' : b.complianceProfileName},
@@ -343,7 +344,7 @@
                                     Info
                                 </button>
                                 <button type="button"
-                                        class="thresholds-btn text-blue-600 hover:text-blue-800 font-medium mr-3"
+                                        class="thresholds-btn text-brand-600 hover:text-brand-800 font-medium mr-3"
                                         th:attr="data-batch-id=${b.id},
                                                  data-batch-name=${b.name},
                                                  data-pii=${#numbers.formatDecimal(b.confidenceThreshold, 1, 2)},
@@ -355,9 +356,9 @@
                                     Settings
                                 </button>
                                 <a th:href="@{/batches/{id}/weights(id=${b.id})}"
-                                   class="text-blue-600 hover:text-blue-800 font-medium mr-3">Weights</a>
+                                   class="text-brand-600 hover:text-brand-800 font-medium mr-3">Weights</a>
                                 <button type="button"
-                                        class="export-btn text-blue-600 hover:text-blue-800 font-medium mr-3"
+                                        class="export-btn text-brand-600 hover:text-brand-800 font-medium mr-3"
                                         th:attr="data-batch-id=${b.id},
                                                  data-batch-name=${b.name}">
                                     Export
@@ -390,7 +391,7 @@
                 <div>
                     <label for="batchPhilterPolicy" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Policy</label>
                     <select id="batchPhilterPolicy" name="policyName"
-                            class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400">
+                            class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:bg-gray-50 disabled:text-gray-400">
                         <option value="">Default policy</option>
                     </select>
                     <p id="batchPhilterPolicyStatus" class="text-xs text-gray-500 mt-1"></p>
@@ -402,7 +403,7 @@
                     Cancel
                 </button>
                 <button type="submit"
-                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                        class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition duration-200">
                     Save
                 </button>
             </div>
@@ -466,7 +467,7 @@
                 <div>
                     <label for="exportDestination" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Destination</label>
                     <select id="exportDestination" name="destination" required
-                            class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         <option value="" disabled selected>— select a destination —</option>
                         <option th:each="d : ${exportDestinations}"
                                 th:value="${d.kind} + ':' + ${d.id}"
@@ -482,7 +483,7 @@
                 <div>
                     <label for="exportFormat" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Data Format</label>
                     <select id="exportFormat" name="format" required
-                            class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         <option value="JSONL" selected>JSONL — one JSON object per document, all documents in a single file</option>
                         <option value="BIO">BIO — token-per-line NER format, one .bio file per document</option>
                         <option value="PHEYE">PhEye training: text plus spans (start, end, label), all documents in a single JSONL file</option>
@@ -491,7 +492,7 @@
                 <div>
                     <label for="exportThresholdAccepted" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Redactions No Person Decided</label>
                     <select id="exportThresholdAccepted" name="thresholdAccepted"
-                            class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         <option value="exclude" selected>Leave out documents that have any</option>
                         <option value="include">Include them</option>
                     </select>
@@ -509,7 +510,7 @@
                 </button>
                 <button type="submit"
                         th:disabled="${#lists.isEmpty(exportDestinations)}"
-                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                        class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
                     Export
                 </button>
             </div>
@@ -542,12 +543,12 @@
                     <div>
                         <label for="newBatchName" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Name</label>
                         <input id="newBatchName" type="text" name="name" required placeholder="Batch name"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                     </div>
                     <div>
                         <label for="newBatchGroup" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Group</label>
                         <select id="newBatchGroup" name="groupId" required
-                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                             <option value="" disabled selected>Select group…</option>
                             <option th:each="g : ${groups}" th:value="${g.id}" th:text="${g.name}">Group</option>
                         </select>
@@ -555,7 +556,7 @@
                     <div>
                         <label for="newBatchDomain" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Domain</label>
                         <select id="newBatchDomain" name="domain" required
-                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                             <option value="" disabled selected>Select domain…</option>
                             <option th:each="d : ${domains}" th:value="${d}" th:text="${d}">Domain</option>
                         </select>
@@ -563,7 +564,7 @@
                     <div>
                         <label for="newBatchPolicy" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Policy</label>
                         <select id="newBatchPolicy" name="policyName"
-                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-50 disabled:text-gray-400">
+                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:bg-gray-50 disabled:text-gray-400">
                             <option value="">Default policy</option>
                         </select>
                         <p id="newBatchPolicyStatus" class="text-xs text-gray-500 mt-1"></p>
@@ -571,7 +572,7 @@
                     <div>
                         <label for="newBatchFinalization" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Batch Finalization Policy</label>
                         <select id="newBatchFinalization" name="finalizationPolicyId" required
-                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                             <option value="" disabled selected>Select policy…</option>
                             <option th:each="fp : ${finalizationPolicies}"
                                     th:value="${fp.id}" th:text="${fp.name}">policy</option>
@@ -585,7 +586,7 @@
                     <div>
                         <label for="newBatchComplianceProfile" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Compliance Profile</label>
                         <select id="newBatchComplianceProfile" name="complianceProfileId" required
-                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                             <option value="" disabled selected>Select profile…</option>
                             <option th:each="cp : ${complianceProfiles}"
                                     th:value="${cp.id}" th:text="${cp.name}">profile</option>
@@ -604,7 +605,7 @@
                         <label class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Exemption Code</label>
                         <label class="inline-flex items-start gap-2 text-sm text-gray-700">
                             <input type="checkbox" name="exemptionCodeRequired" value="true"
-                                   class="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                   class="mt-0.5 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
                                    checked>
                             <span>Require an exemption code when accepting a redaction.</span>
                         </label>
@@ -617,7 +618,7 @@
                         <label class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Blind Double Review</label>
                         <label class="inline-flex items-start gap-2 text-sm text-gray-700">
                             <input id="newBatchBlindDoubleReview" type="checkbox" name="blindDoubleReviewEnabled" value="true"
-                                   class="mt-0.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                   class="mt-0.5 rounded border-gray-300 text-brand-600 focus:ring-brand-500"
                                    onchange="document.getElementById('newBatchBlindDoubleReviewPct').disabled = !this.checked;">
                             <span>Randomly select a percentage of documents for an independent second review.</span>
                         </label>
@@ -625,7 +626,7 @@
                             <label for="newBatchBlindDoubleReviewPct" class="text-xs text-gray-600">Percentage of documents:</label>
                             <input id="newBatchBlindDoubleReviewPct" type="number" name="blindDoubleReviewPercentage"
                                    min="1" max="100" step="1" value="10" disabled
-                                   class="w-20 rounded-lg border border-gray-300 p-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 disabled:text-gray-400">
+                                   class="w-20 rounded-lg border border-gray-300 p-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 disabled:bg-gray-100 disabled:text-gray-400">
                             <span class="text-xs text-gray-500">%</span>
                         </div>
                         <p class="text-xs text-gray-500 mt-1">
@@ -637,20 +638,20 @@
                         <input id="newBatchPiiThreshold" type="number" name="confidenceThreshold" step="0.01" min="0" max="1"
                                th:value="${batchDefaults.piiThreshold()}"
                                title="PII threshold (0.0–1.0)"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                     </div>
                     <div class="sm:col-span-2 lg:col-span-2">
                         <label for="newBatchContext" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Context</label>
                         <input id="newBatchContext" type="text" name="context" value=""
                                placeholder="Optional - used for referential integrity"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                     </div>
                     <div>
                         <label for="newBatchDocumentThreshold" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Document Threshold</label>
                         <input id="newBatchDocumentThreshold" type="number" name="documentThreshold" step="0.01" min="0" max="1"
                                th:value="${batchDefaults.documentThreshold()}"
                                title="Document threshold (0.0–1.0): documents at or below it are marked Low risk"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                     </div>
                     <div>
                         <label for="newBatchAuditSamplingRate" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Audit Sampling Rate</label>
@@ -658,7 +659,7 @@
                                th:min="${batchDefaults.minimumAuditSamplingRate()}"
                                th:value="${batchDefaults.auditSamplingRate()}"
                                title="Fraction of documents with nothing left to decide that still go to a person (0.0–1.0)"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         <p th:if="${batchDefaults.minimumAuditSamplingRate() > 0}" class="text-xs text-gray-500 mt-1"
                            th:text="|At least ${batchDefaults.minimumAuditSamplingRate()} in this deployment.|">At least 1.0.</p>
                     </div>
@@ -667,7 +668,7 @@
                     <label for="newBatchDescription" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Description <span class="font-normal normal-case text-gray-400">(optional — instructions for reviewers or other notes)</span></label>
                     <textarea id="newBatchDescription" name="description" rows="3"
                               placeholder="e.g. Review all highlighted names carefully. When in doubt, redact."
-                              class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                              class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
                 </div>
                 <div class="flex items-center justify-end gap-2 pt-2 border-t border-gray-100">
                     <button type="button" id="createBatchCancelBtn"
@@ -675,7 +676,7 @@
                         Cancel
                     </button>
                     <button type="submit"
-                            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                            class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition duration-200">
                         Create
                     </button>
                 </div>
@@ -693,20 +694,20 @@
                 <div>
                     <label for="thresholdsPii" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">PII Threshold</label>
                     <input id="thresholdsPii" type="number" name="confidenceThreshold" step="0.01" min="0" max="1" required
-                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                     <p class="text-xs text-gray-500 mt-1">Spans with confidence ≥ threshold are auto-accepted.</p>
                 </div>
                 <div>
                     <label for="thresholdsDoc" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Document Threshold</label>
                     <input id="thresholdsDoc" type="number" name="documentThreshold" step="0.01" min="0" max="1" required
-                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                     <p class="text-xs text-gray-500 mt-1">Documents with risk score ≤ threshold are marked Low risk in the Documents list. It approves nothing.</p>
                 </div>
                 <div>
                     <label for="thresholdsAudit" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Audit Sampling Rate</label>
                     <input id="thresholdsAudit" type="number" name="auditSamplingRate" step="0.01" max="1" required
                            th:min="${batchDefaults.minimumAuditSamplingRate()}"
-                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                     <p class="text-xs text-gray-500 mt-1">Fraction of would-be Auto-Approved documents randomly sent to human review.
                         <span th:if="${batchDefaults.minimumAuditSamplingRate() > 0}"
                               th:text="|At least ${batchDefaults.minimumAuditSamplingRate()} in this deployment.|"></span></p>
@@ -714,7 +715,7 @@
                 <div>
                     <label for="thresholdsDomain" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Domain</label>
                     <select id="thresholdsDomain" name="domain" required
-                            class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         <option value="" disabled>— select —</option>
                         <option th:each="d : ${domains}" th:value="${d}" th:text="${d}">Domain</option>
                     </select>
@@ -722,13 +723,13 @@
                 <div>
                     <label for="thresholdsContext" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Context</label>
                     <input id="thresholdsContext" type="text" name="context"
-                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                     <p class="text-xs text-gray-500 mt-1">Used for referential integrity.</p>
                 </div>
                 <div>
                     <label for="thresholdsDescription" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Description</label>
                     <textarea id="thresholdsDescription" name="description" rows="3"
-                              class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                              class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
                               placeholder="Instructions for reviewers or other notes"></textarea>
                 </div>
             </div>
@@ -738,7 +739,7 @@
                     Cancel
                 </button>
                 <button type="submit"
-                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                        class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition duration-200">
                     Save
                 </button>
             </div>

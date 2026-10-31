@@ -13,6 +13,7 @@
     <meta charset="UTF-8">
     <title th:text="|Philter Workspace - Policy history|">Philter Workspace - Policies</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -20,7 +21,7 @@
         <div class="flex-1 flex flex-col min-w-0">
         <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8 max-w-5xl">
-            <a th:href="@{/policies}" class="text-sm text-blue-600 hover:text-blue-800">Back to policies</a>
+            <a th:href="@{/policies}" class="text-sm text-brand-600 hover:text-brand-800">Back to policies</a>
             <h2 class="mt-2 text-3xl font-bold text-gray-900" th:text="|History of ${name}${deleted ? ' (deleted)' : ''}|">History</h2>
             <p th:if="${owner != null}" class="mt-1 text-sm text-gray-600">Owner: <span class="font-medium" th:text="${owner}">jdoe</span></p>
 
@@ -47,7 +48,7 @@
                             <td class="px-6 py-3 text-sm text-gray-700" th:text="${v.author}">who</td>
                             <td class="px-6 py-3 text-sm whitespace-nowrap space-x-3">
                                 <a th:href="@{${revisionUrls[v.revision]}}"
-                                   class="font-medium text-blue-600 hover:text-blue-800">View</a>
+                                   class="font-medium text-brand-600 hover:text-brand-800">View</a>
                                 <th:block th:if="${canWrite and actions[v.revision] != null}">
                                     <th:block th:replace="~{fragments/confirm :: confirm(|revision-${v.revision}|, ${actions[v.revision]}, ${deleted} ? 'Restore' : 'Roll back', 'font-medium text-red-600 hover:text-red-800')}"></th:block>
                                 </th:block>
@@ -75,7 +76,7 @@
                             <option th:each="v : ${versions}" th:value="${v.revision}" th:text="${v.revision}" th:selected="${v.revision == to}">2</option>
                         </select>
                     </div>
-                    <button type="submit" class="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">Compare</button>
+                    <button type="submit" class="px-4 py-1.5 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg">Compare</button>
                 </form>
                 <th:block th:if="${diff != null}">
                     <p th:if="${#lists.isEmpty(changes)}" class="mt-4 text-sm text-gray-600"

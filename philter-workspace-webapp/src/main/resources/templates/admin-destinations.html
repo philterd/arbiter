@@ -19,6 +19,7 @@
     <meta charset="UTF-8">
     <title>Philter Workspace - Destinations</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -107,7 +108,7 @@
                     Data Sources
                 </a>
                 <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/destinations}"
-                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700">
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-brand-50 text-brand-700">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3M3 17V7a2 2 0 012-2h6l2 2h6a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path>
                     </svg>
@@ -177,7 +178,7 @@
                 </div>
             </nav>
             <div class="px-3 py-4 border-t border-gray-200 text-sm text-gray-600">
-                <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd.png}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
+                <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd-wordmark.svg}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
                 <div class="px-3 mb-2">
                     Signed in as <span class="font-medium" sec:authentication="name">user</span>
                     <span sec:authorize="hasAnyRole('ADMIN','AUDITOR')" class="ml-1 text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Admin</span>
@@ -194,7 +195,7 @@
         <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8">
             <div class="flex items-center justify-between mb-2">
-                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Destinations</h2><a href="/docs/admin/destinations/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
+                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Destinations</h2><a href="/docs/admin/destinations/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-brand-600 hover:underline self-baseline">Help</a></span>
             </div>
             <p class="text-sm text-gray-600 mb-6 max-w-3xl">
                 Destinations are locations where finalized redacted documents can be written to.
@@ -214,7 +215,7 @@
                  class="flex flex-wrap gap-1 mb-6 border-b border-gray-200 max-w-4xl">
                 <button type="button" role="tab" data-tab="local" aria-selected="true"
                         class="dest-tab px-4 py-2 -mb-px border-b-2 text-sm font-medium
-                               border-blue-600 text-blue-700">
+                               border-brand-600 text-brand-700">
                     Local Directory
                 </button>
                 <button type="button" role="tab" data-tab="s3" aria-selected="false"
@@ -239,13 +240,13 @@
                         <div>
                             <label for="localName" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Name</label>
                             <input id="localName" name="name" type="text" required placeholder="archive-output"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <div>
                             <label for="localPath" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Directory path</label>
                             <input id="localPath" name="directoryPath" type="text" required
                                    placeholder="/var/lib/philter-workspace/redacted"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <div class="flex items-center gap-2">
                             <button type="button" id="localTestBtn"
@@ -253,7 +254,7 @@
                                 Test
                             </button>
                             <button type="submit"
-                                    class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                                    class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition duration-200">
                                 Add
                             </button>
                         </div>
@@ -283,7 +284,7 @@
                                 th:text="${l.directoryPath}">/var/lib/philter-workspace/redacted</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <button type="button"
-                                        class="edit-local-btn text-blue-600 hover:text-blue-800 font-medium mr-3"
+                                        class="edit-local-btn text-brand-600 hover:text-brand-800 font-medium mr-3"
                                         th:attr="data-dest-id=${l.id},
                                                  data-dest-name=${l.name},
                                                  data-dest-path=${l.directoryPath}">
@@ -339,17 +340,17 @@
                         <div>
                             <label for="s3Name" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Name</label>
                             <input id="s3Name" name="name" type="text" required placeholder="s3-archive"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <div>
                             <label for="s3Bucket" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Bucket name</label>
                             <input id="s3Bucket" name="bucketName" type="text" required placeholder="my-redacted-bucket"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <div>
                             <label for="s3Key" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Bucket key</label>
                             <input id="s3Key" name="bucketKey" type="text" required placeholder="finalized/"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 items-end">
@@ -358,14 +359,14 @@
                                 Access key <span class="text-gray-400 normal-case font-normal">(optional)</span>
                             </label>
                             <input id="s3AccessKey" name="accessKey" type="text" autocomplete="off"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <div>
                             <label for="s3SecretKey" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
                                 Secret key <span class="text-gray-400 normal-case font-normal">(optional)</span>
                             </label>
                             <input id="s3SecretKey" name="secretKey" type="password" autocomplete="new-password"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <div class="flex items-center gap-2">
                             <button type="button" id="s3TestBtn"
@@ -373,7 +374,7 @@
                                 Test
                             </button>
                             <button type="submit"
-                                    class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                                    class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition duration-200">
                                 Add
                             </button>
                         </div>
@@ -421,7 +422,7 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <button type="button"
-                                        class="edit-s3-btn text-blue-600 hover:text-blue-800 font-medium mr-3"
+                                        class="edit-s3-btn text-brand-600 hover:text-brand-800 font-medium mr-3"
                                         th:attr="data-dest-id=${s.id},
                                                  data-dest-name=${s.name},
                                                  data-dest-bucket=${s.bucketName},
@@ -464,14 +465,14 @@
                 <div>
                     <label for="localEditPath" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Directory path</label>
                     <input id="localEditPath" name="directoryPath" type="text" required
-                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                 </div>
             </div>
             <div class="flex items-center justify-end gap-2 px-5 py-4 border-t border-gray-200">
                 <button type="button" id="localEditCancel"
                         class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
                 <button type="submit"
-                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Save</button>
+                        class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg">Save</button>
             </div>
         </form>
     </div>
@@ -514,12 +515,12 @@
                     <div>
                         <label for="s3EditBucket" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Bucket name</label>
                         <input id="s3EditBucket" name="bucketName" type="text" required
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                     </div>
                     <div>
                         <label for="s3EditKey" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Bucket key</label>
                         <input id="s3EditKey" name="bucketKey" type="text" required
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                     </div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -528,14 +529,14 @@
                             Access key <span class="text-gray-400 normal-case font-normal">(optional)</span>
                         </label>
                         <input id="s3EditAccessKey" name="accessKey" type="text" autocomplete="off"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                     </div>
                     <div>
                         <label for="s3EditSecretKey" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
                             Secret key <span class="text-gray-400 normal-case font-normal">(optional)</span>
                         </label>
                         <input id="s3EditSecretKey" name="secretKey" type="password" autocomplete="new-password"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                     </div>
                 </div>
                 <label class="flex items-center text-xs text-gray-700">
@@ -548,7 +549,7 @@
                 <button type="button" id="s3EditCancel"
                         class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
                 <button type="submit"
-                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Save</button>
+                        class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg">Save</button>
             </div>
         </form>
     </div>
@@ -766,7 +767,7 @@
             const buttons = Array.from(tabBar.querySelectorAll('button.dest-tab'));
             const panels = Array.from(document.querySelectorAll('section[data-panel]'));
 
-            const ACTIVE_CLASSES = ['border-blue-600', 'text-blue-700'];
+            const ACTIVE_CLASSES = ['border-brand-600', 'text-brand-700'];
             const INACTIVE_CLASSES = ['border-transparent', 'text-gray-600',
                 'hover:text-gray-900', 'hover:border-gray-300'];
 

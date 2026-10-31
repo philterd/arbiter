@@ -21,6 +21,7 @@
     <meta name="_csrf_header" th:content="${_csrf != null ? _csrf.headerName : 'X-CSRF-TOKEN'}"/>
     <title>Philter Workspace - Documents to Review</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -52,7 +53,7 @@
                     </svg>
                     Add Documents
                 </a>
-                <a th:href="@{/queue}" class="nav-link flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700">
+                <a th:href="@{/queue}" class="nav-link flex items-center px-3 py-2 text-sm font-medium rounded-md bg-brand-50 text-brand-700">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path>
                     </svg>
@@ -180,7 +181,7 @@
                 </div>
             </nav>
             <div class="px-3 py-4 border-t border-gray-200 text-sm text-gray-600">
-                <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd.png}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
+                <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd-wordmark.svg}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
                 <div class="px-3 mb-2">
                     Signed in as <span class="font-medium" sec:authentication="name">user</span>
                     <span sec:authorize="hasAnyRole('ADMIN','AUDITOR')" class="ml-1 text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Admin</span>
@@ -198,7 +199,7 @@
         <main class="flex-1 p-8">
             <div id="queue-view">
                 <div class="flex justify-between items-center mb-6">
-                    <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Documents to Review</h2><a href="/docs/user-guide/queue/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
+                    <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Documents to Review</h2><a href="/docs/user-guide/queue/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-brand-600 hover:underline self-baseline">Help</a></span>
                     <div class="flex items-center gap-4">
                         <label sec:authorize="hasAnyRole('ADMIN','AUDITOR')" class="inline-flex items-center cursor-pointer text-sm text-gray-700">
                             <input id="myGroupsOnlyCb" type="checkbox" class="mr-2">
@@ -213,13 +214,13 @@
                 <div class="flex flex-wrap items-end gap-3 mb-4">
                     <div>
                         <label for="batchFilter" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Batch</label>
-                        <select id="batchFilter" class="rounded-lg border border-gray-300 bg-white text-sm p-2 min-w-[12rem] focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <select id="batchFilter" class="rounded-lg border border-gray-300 bg-white text-sm p-2 min-w-[12rem] focus:outline-none focus:ring-2 focus:ring-brand-500">
                             <option value="">All batches</option>
                         </select>
                     </div>
                     <div>
                         <label for="statusFilter" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Status</label>
-                        <select id="statusFilter" class="rounded-lg border border-gray-300 bg-white text-sm p-2 min-w-[12rem] focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <select id="statusFilter" class="rounded-lg border border-gray-300 bg-white text-sm p-2 min-w-[12rem] focus:outline-none focus:ring-2 focus:ring-brand-500">
                             <option value="">All statuses</option>
                             <option value="REVIEW_REQUIRED">REVIEW_REQUIRED</option>
                             <option value="AUDIT_REQUIRED">AUDIT_REQUIRED</option>
@@ -233,7 +234,7 @@
                     <div>
                         <label for="filenameFilter" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Filename</label>
                         <input id="filenameFilter" type="search" placeholder="Search by filename"
-                               class="rounded-lg border border-gray-300 bg-white text-sm p-2 min-w-[16rem] focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="rounded-lg border border-gray-300 bg-white text-sm p-2 min-w-[16rem] focus:outline-none focus:ring-2 focus:ring-brand-500">
                     </div>
                     <button id="clearFiltersBtn" type="button" class="px-3 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">
                         Clear
@@ -474,7 +475,7 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm">
                             ${doc.sourceAvailable === false
                                 ? ''
-                                : `<a href="/review/${encodeURIComponent(doc.id)}" class="text-blue-600 hover:text-blue-800 font-medium">Review</a>`}
+                                : `<a href="/review/${encodeURIComponent(doc.id)}" class="text-brand-600 hover:text-brand-800 font-medium">Review</a>`}
                             ${(doc.status === 'APPROVED' && acquired >= required && required > 0)
                                 ? `<form action="/review/${encodeURIComponent(doc.id)}/finalize" method="post" class="inline ml-3">
                                     <input type="hidden" name="_csrf" value="${escapeHtml(csrfToken)}">
@@ -494,7 +495,7 @@
                                    </button>
                                    <a href="/review/${encodeURIComponent(doc.id)}/download"
                                       title="Download the redacted file"
-                                      class="ml-3 inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-md border border-blue-600 text-blue-700 hover:bg-blue-50">
+                                      class="ml-3 inline-flex items-center px-2.5 py-1 text-xs font-semibold rounded-md border border-brand-600 text-brand-700 hover:bg-brand-50">
                                         Download
                                    </a>`
                                 : ''}

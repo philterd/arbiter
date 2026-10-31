@@ -13,6 +13,7 @@
     <meta charset="UTF-8">
     <title>Philter Workspace - Context</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -20,7 +21,7 @@
         <div class="flex-1 flex flex-col min-w-0">
         <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8 max-w-3xl">
-            <a th:href="@{${backUrl}}" class="text-sm text-blue-600 hover:text-blue-800">Back to contexts</a>
+            <a th:href="@{${backUrl}}" class="text-sm text-brand-600 hover:text-brand-800">Back to contexts</a>
             <h2 class="mt-2 text-3xl font-bold text-gray-900"
                 th:text="${form.existing()} ? |Edit ${form.name()}| : 'New context'">New context</h2>
             <p th:if="${form.owner() != null}" class="mt-1 text-sm text-gray-600">Owner: <span class="font-medium" th:text="${form.owner()}">jdoe</span></p>
@@ -40,7 +41,7 @@
                     <input id="name" name="name" type="text" required maxlength="200" autocomplete="off"
                            autocapitalize="none" spellcheck="false" th:value="${form.name()}"
                            th:attr="aria-describedby=${errors != null and errors.has('name')} ? 'name-error' : 'name-help'"
-                           class="block w-full max-w-md rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="block w-full max-w-md rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                     <p id="name-help" class="mt-1 text-xs text-gray-500">A context cannot be renamed. A name cannot
                         contain /, \, ;, or %. Philter's audit log records context names.</p>
                     <p th:replace="~{fragments/forms :: field-error(${errors}, 'name')}"></p>
@@ -57,7 +58,7 @@
                 <div class="ml-6">
                     <label for="scope" class="block text-xs font-medium text-gray-600 mb-1">Disambiguation learns from</label>
                     <select id="scope" name="scope"
-                            class="rounded-lg border border-gray-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            class="rounded-lg border border-gray-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         <option th:each="s : ${scopes}" th:value="${s.key}" th:text="${s.value}"
                                 th:selected="${s.key == form.scope()}">Each document</option>
                     </select>
@@ -73,8 +74,8 @@
                 </div>
                 <div class="flex items-center gap-4">
                     <button type="submit"
-                            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Save</button>
-                    <a th:href="@{${backUrl}}" class="text-sm text-blue-600 hover:text-blue-800">Cancel</a>
+                            class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg">Save</button>
+                    <a th:href="@{${backUrl}}" class="text-sm text-brand-600 hover:text-brand-800">Cancel</a>
                 </div>
             </form>
         </main>

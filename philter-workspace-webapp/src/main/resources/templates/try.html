@@ -13,6 +13,7 @@
     <meta charset="UTF-8">
     <title>Philter Workspace - Try a Policy</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -20,7 +21,7 @@
         <div class="flex-1 flex flex-col min-w-0">
         <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8">
-            <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900 mb-2">Try a Policy</h2><a href="/docs/user-guide/try-a-policy/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
+            <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900 mb-2">Try a Policy</h2><a href="/docs/user-guide/try-a-policy/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-brand-600 hover:underline self-baseline">Help</a></span>
             <p class="text-sm text-gray-600 mb-6 max-w-3xl">Redact text or a PDF with one of your Philter policies to see
                 what it finds, before using it on a batch. Nothing you try here is kept: Philter Workspace stores
                 neither what you send nor the result, and adds nothing to a batch. Philter is sent no context, so it
@@ -40,15 +41,15 @@
                             <label for="text-policy" class="block text-xs font-medium text-gray-600 mb-1">Policy</label>
                             <input id="text-policy" name="policy" type="text" list="policy-names" required maxlength="200"
                                    autocomplete="off" spellcheck="false" th:value="${policy}"
-                                   class="block w-full max-w-sm rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full max-w-sm rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <div>
                             <label for="text" class="block text-xs font-medium text-gray-600 mb-1">Text</label>
                             <textarea id="text" name="text" rows="10" required th:text="${text}"
-                                      class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                                      class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
                         </div>
                         <p class="text-xs text-gray-500">Up to 2 MB of text.</p>
-                        <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Redact</button>
+                        <button type="submit" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg">Redact</button>
                     </form>
                     <div th:if="${redacted != null}" class="mt-4">
                         <label for="redacted" class="block text-xs font-medium text-gray-600 mb-1">Redacted text</label>
@@ -66,7 +67,7 @@
                             <label for="pdf-policy" class="block text-xs font-medium text-gray-600 mb-1">Policy</label>
                             <input id="pdf-policy" name="policy" type="text" list="policy-names" required maxlength="200"
                                    autocomplete="off" spellcheck="false" th:value="${policy}"
-                                   class="block w-full max-w-sm rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full max-w-sm rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <div>
                             <label for="file" class="block text-xs font-medium text-gray-600 mb-1">PDF</label>
@@ -75,7 +76,7 @@
                         </div>
                         <p class="text-xs text-gray-500">Philter returns the redacted PDF, which downloads. Philter refuses a
                             PDF larger than its limit.</p>
-                        <button type="submit" class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Redact and download</button>
+                        <button type="submit" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg">Redact and download</button>
                     </form>
                 </section>
             </div>

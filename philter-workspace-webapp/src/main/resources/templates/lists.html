@@ -13,6 +13,7 @@
     <meta charset="UTF-8">
     <title>Philter Workspace - Custom Lists</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -22,7 +23,7 @@
         <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8">
             <div class="flex items-center justify-between mb-6">
-                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Policies</h2><a href="/docs/workflow/#custom-lists" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
+                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Policies</h2><a href="/docs/workflow/#custom-lists" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-brand-600 hover:underline self-baseline">Help</a></span>
             </div>
 
             <div th:if="${error}" class="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
@@ -41,7 +42,7 @@
                         user's, with the Owner filter, which needs <code>ADMIN_CROSS_USER_ACCESS_ENABLED=true</code> in
                         Philter.</span></p>
                 <a th:if="${canWrite and !list.owner().everyone()}" th:href="@{${newUrl}}"
-                   class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg whitespace-nowrap">New list</a>
+                   class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg whitespace-nowrap">New list</a>
             </div>
 
             <form th:replace="~{fragments/list :: filter-bar(${list}, ~{})}"></form>
@@ -63,7 +64,7 @@
                         <td class="px-6 py-4 text-sm text-gray-700" th:text="${r.list().description}">description</td>
                         <td class="px-6 py-4 text-sm text-gray-700" th:text="${r.list().size}">3</td>
                         <td class="px-6 py-4 text-sm whitespace-nowrap space-x-3">
-                            <a th:href="@{${r.editUrl()}}" class="font-medium text-blue-600 hover:text-blue-800"
+                            <a th:href="@{${r.editUrl()}}" class="font-medium text-brand-600 hover:text-brand-800"
                                th:text="${canWrite} ? 'Edit' : 'View'">Edit</a>
                             <th:block th:if="${canWrite}">
                                 <th:block th:replace="~{fragments/confirm :: confirm(|delete-${rs.index}|, ${r.deletion()}, 'Delete', 'font-medium text-red-600 hover:text-red-800')}"></th:block>

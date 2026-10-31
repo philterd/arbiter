@@ -19,6 +19,7 @@
     <meta charset="UTF-8">
     <title>Philter Workspace - Settings</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -27,7 +28,7 @@
         <div class="flex-1 flex flex-col min-w-0">
         <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8">
-            <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900 mb-6">Settings</h2><a href="/docs/user-guide/settings/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
+            <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900 mb-6">Settings</h2><a href="/docs/user-guide/settings/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-brand-600 hover:underline self-baseline">Help</a></span>
 
             <div th:if="${error}" class="mb-6 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700"
                  th:text="${error}">Error message</div>
@@ -67,20 +68,20 @@
                             <div>
                                 <label for="currentPassword" class="block text-sm font-medium text-gray-700 mb-1">Current password</label>
                                 <input id="currentPassword" name="currentPassword" type="password" required autocomplete="current-password"
-                                       class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                       class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                             </div>
                             <div>
                                 <label for="newPassword" class="block text-sm font-medium text-gray-700 mb-1">New password</label>
                                 <input id="newPassword" name="newPassword" type="password" required autocomplete="new-password" minlength="16"
-                                       class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                       class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                             </div>
                             <div>
                                 <label for="confirmPassword" class="block text-sm font-medium text-gray-700 mb-1">Confirm new password</label>
                                 <input id="confirmPassword" name="confirmPassword" type="password" required autocomplete="new-password" minlength="16"
-                                       class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                       class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                             </div>
                             <button type="submit"
-                                    class="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition duration-200">
+                                    class="px-5 py-2.5 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-lg transition duration-200">
                                 Update password
                             </button>
                         </form>
@@ -109,7 +110,7 @@
                                     Sort documents when reviewing by
                                 </label>
                                 <select id="reviewSortBy" name="reviewSortBy"
-                                        class="block w-full rounded-lg border border-gray-300 bg-white p-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        class="block w-full rounded-lg border border-gray-300 bg-white p-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                                     <option value="RISK_SCORE"
                                             th:selected="${userSettings == null or userSettings.reviewSortBy == null or userSettings.reviewSortBy == 'RISK_SCORE'}">
                                         Document Risk Score
@@ -126,7 +127,7 @@
                             </div>
                             <div>
                                 <button type="submit"
-                                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                                        class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition duration-200">
                                     Save preferences
                                 </button>
                             </div>
@@ -151,7 +152,7 @@
                                     <label for="mfa-code" class="block text-sm font-medium text-gray-700 mb-1">Code from your authenticator app</label>
                                     <input id="mfa-code" name="code" type="text" inputmode="numeric" pattern="[0-9]{6}"
                                            maxlength="6" required autocomplete="one-time-code" aria-describedby="mfa-code-help"
-                                           class="block w-40 rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                           class="block w-40 rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                                     <p id="mfa-code-help" class="mt-1 text-xs text-gray-500">A wrong code counts toward
                                         locking your MFA.</p>
                                 </div>
@@ -163,14 +164,14 @@
                             <p class="text-sm text-gray-700">Off. Turn it on to sign in with a code from an
                                 authenticator app as well as your password.</p>
                             <a th:href="@{/settings/mfa}"
-                               class="mt-4 inline-block px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg">Set up MFA</a>
+                               class="mt-4 inline-block px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-sm font-medium rounded-lg">Set up MFA</a>
                         </th:block>
                     </div>
 
                     <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
                         <h3 class="text-lg font-semibold text-gray-900 mb-1">API keys</h3>
                         <p class="text-sm text-gray-700">
-                            Your Philter API keys are under <a th:href="@{/settings/api-keys}" class="text-blue-600 hover:text-blue-800">API Keys</a>.
+                            Your Philter API keys are under <a th:href="@{/settings/api-keys}" class="text-brand-600 hover:text-brand-800">API Keys</a>.
                             To call Philter Workspace's API, use a Philter API key that holds the <code>users:read</code> scope.
                         </p>
                     </div>

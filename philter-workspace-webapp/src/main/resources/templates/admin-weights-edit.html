@@ -7,6 +7,7 @@
     <meta charset="UTF-8">
     <title>Philter Workspace - Edit Weight Set</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -157,7 +158,7 @@
                     Audit Log
                 </a>
                 <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/general}"
-                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700">
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-brand-50 text-brand-700">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
                     </svg>
@@ -166,7 +167,7 @@
                 </div>
             </nav>
             <div class="px-3 py-4 border-t border-gray-200 text-sm text-gray-600">
-                <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd.png}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
+                <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd-wordmark.svg}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
                 <div class="px-3 mb-2">
                     Signed in as <span class="font-medium" sec:authentication="name">user</span>
                     <span sec:authorize="hasAnyRole('ADMIN','AUDITOR')" class="ml-1 text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Admin</span>
@@ -180,8 +181,8 @@
         <div class="flex-1 flex flex-col min-w-0">
         <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8">
-            <div class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900 mb-1">Edit weight set</h2><a href="/docs/reference/pii-types/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></div>
-            <a th:href="@{/admin/weights}" class="text-sm text-blue-600 hover:text-blue-800 mb-2 block">&larr; Back to weight sets</a>
+            <div class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900 mb-1">Edit weight set</h2><a href="/docs/reference/pii-types/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-brand-600 hover:underline self-baseline">Help</a></div>
+            <a th:href="@{/admin/weights}" class="text-sm text-brand-600 hover:text-brand-800 mb-2 block">&larr; Back to weight sets</a>
             <p class="text-sm text-gray-600 mb-6">
                 Saved sets can be loaded into the per-batch weights editor. Set 0 to ignore a type.
             </p>
@@ -197,7 +198,7 @@
                     <label for="weightSetName" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Name</label>
                     <input id="weightSetName" type="text" name="name" required
                            th:value="${weightSet.name}"
-                           class="block w-full max-w-md rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="block w-full max-w-md rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                 </div>
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -215,14 +216,14 @@
                                 <input type="hidden" name="type" th:value="${row.type}">
                                 <input type="number" name="weight" min="0" required
                                        th:value="${row.weight}"
-                                       class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                       class="w-24 rounded-md border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                             </td>
                         </tr>
                     </tbody>
                 </table>
                 <div class="flex items-center justify-end gap-2 px-6 py-4 bg-gray-50 border-t border-gray-200">
                     <button type="submit"
-                            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                            class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition duration-200">
                         Save
                     </button>
                 </div>

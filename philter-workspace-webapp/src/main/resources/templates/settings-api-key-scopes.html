@@ -13,6 +13,7 @@
     <meta charset="UTF-8">
     <title>Philter Workspace - Key Scopes</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -20,7 +21,7 @@
         <div class="flex-1 flex flex-col min-w-0">
         <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8 max-w-3xl">
-            <a th:href="@{/settings/api-keys}" class="text-sm text-blue-600 hover:text-blue-800">Back to API keys</a>
+            <a th:href="@{/settings/api-keys}" class="text-sm text-brand-600 hover:text-brand-800">Back to API keys</a>
             <h2 class="mt-2 text-3xl font-bold text-gray-900">Scopes of <span class="font-mono" th:text="${key.prefix}">sk_1234567...</span></h2>
             <p class="mt-2 text-sm text-gray-600">Clear the scopes this key no longer needs. Philter Workspace cannot add
                 a scope: Philter does not let a sign-in session widen a key.</p>
@@ -43,8 +44,8 @@
                 </fieldset>
                 <div class="flex items-center gap-4">
                     <button type="submit"
-                            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Save</button>
-                    <a th:href="@{/settings/api-keys}" class="text-sm text-blue-600 hover:text-blue-800">Cancel</a>
+                            class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg">Save</button>
+                    <a th:href="@{/settings/api-keys}" class="text-sm text-brand-600 hover:text-brand-800">Cancel</a>
                 </div>
             </form>
         </main>

@@ -19,6 +19,7 @@
     <meta charset="UTF-8">
     <title>Philter Workspace - Review Redactions</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
     <style>
         .redacted-area, .original-area { 
             background-color: white; 
@@ -111,7 +112,7 @@
             <!-- Content will be injected by JavaScript -->
         </div>
         <div id="typeSelector">
-            <select id="piiTypeSelect" class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:ring-blue-500 focus:border-blue-500 p-1" onchange="confirmManualRedaction()">
+            <select id="piiTypeSelect" class="block w-full text-sm text-gray-900 border border-gray-300 rounded-lg bg-white focus:ring-brand-500 focus:border-brand-500 p-1" onchange="confirmManualRedaction()">
                 <option value="">Select Type...</option>
                 <option value="ssn">SSN</option>
                 <option value="person">Person</option>
@@ -125,7 +126,7 @@
         <div class="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
             <h1 class="text-3xl font-bold text-gray-900">Review Redactions</h1>
             <div class="flex items-center space-x-2">
-                <button id="toggleViewBtn" onclick="toggleView()" class="px-4 py-2 border border-blue-600 text-blue-600 hover:bg-blue-50 font-medium rounded-lg transition duration-200" style="display: none;">View PDF</button>
+                <button id="toggleViewBtn" onclick="toggleView()" class="px-4 py-2 border border-brand-600 text-brand-600 hover:bg-brand-50 font-medium rounded-lg transition duration-200" style="display: none;">View PDF</button>
                 <a th:href="@{/upload}" class="px-4 py-2 border border-gray-300 text-gray-700 hover:bg-gray-100 font-medium rounded-lg transition duration-200">Start Over</a>
                 <button onclick="downloadRedacted()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg transition duration-200">Download Redacted</button>
             </div>

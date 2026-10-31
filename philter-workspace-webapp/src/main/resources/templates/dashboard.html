@@ -19,6 +19,7 @@
     <meta charset="UTF-8">
     <title>Philter Workspace - Dashboard</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -27,7 +28,7 @@
                 <h1 class="text-2xl font-bold text-gray-900">Philter Workspace</h1>
             </div>
             <nav class="flex-1 px-3 py-4 space-y-1">
-                <a th:href="@{/}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700">
+                <a th:href="@{/}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-brand-50 text-brand-700">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
                     </svg>
@@ -178,7 +179,7 @@
                 </div>
             </nav>
             <div class="px-3 py-4 border-t border-gray-200 text-sm text-gray-600">
-                <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd.png}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
+                <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd-wordmark.svg}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
                 <div class="px-3 mb-2">
                     Signed in as <span class="font-medium" sec:authentication="name">user</span>
                     <span sec:authorize="hasAnyRole('ADMIN','AUDITOR')" class="ml-1 text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Admin</span>
@@ -195,7 +196,7 @@
         <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8">
             <div class="mb-6">
-                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Dashboard</h2><a href="/docs/concepts/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
+                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Dashboard</h2><a href="/docs/concepts/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-brand-600 hover:underline self-baseline">Help</a></span>
                 <p class="text-sm text-gray-600 mt-1">
                     Welcome to Philter Workspace, the human-in-the-loop redaction reviewer.
                 </p>
@@ -252,37 +253,37 @@
                     </p>
                     <ul class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <li>
-                            <a th:href="@{/upload}" class="block p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition">
+                            <a th:href="@{/upload}" class="block p-4 rounded-lg border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition">
                                 <div class="text-sm font-semibold text-gray-900">Upload a document</div>
                                 <div class="text-xs text-gray-500 mt-1">Send a .txt or .pdf to a batch for redaction.</div>
                             </a>
                         </li>
                         <li>
-                            <a th:href="@{/queue}" class="block p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition">
+                            <a th:href="@{/queue}" class="block p-4 rounded-lg border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition">
                                 <div class="text-sm font-semibold text-gray-900">Review the queue</div>
                                 <div class="text-xs text-gray-500 mt-1">Approve or reject pending redactions.</div>
                             </a>
                         </li>
                         <li sec:authorize="hasAnyRole('ADMIN','AUDITOR')">
-                            <a th:href="@{/batches}" class="block p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition">
+                            <a th:href="@{/batches}" class="block p-4 rounded-lg border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition">
                                 <div class="text-sm font-semibold text-gray-900">Manage batches</div>
                                 <div class="text-xs text-gray-500 mt-1">Create batches, set thresholds, change policy.</div>
                             </a>
                         </li>
                         <li sec:authorize="hasAnyRole('ADMIN','AUDITOR')">
-                            <a th:href="@{/policies}" class="block p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition">
+                            <a th:href="@{/policies}" class="block p-4 rounded-lg border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition">
                                 <div class="text-sm font-semibold text-gray-900">Manage policies</div>
                                 <div class="text-xs text-gray-500 mt-1">Edit Phileas redaction policies.</div>
                             </a>
                         </li>
                         <li sec:authorize="hasAnyRole('ADMIN','AUDITOR')">
-                            <a th:href="@{/admin/philter}" class="block p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition">
+                            <a th:href="@{/admin/philter}" class="block p-4 rounded-lg border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition">
                                 <div class="text-sm font-semibold text-gray-900">Philter</div>
                                 <div class="text-xs text-gray-500 mt-1">See and test the connection to Philter.</div>
                             </a>
                         </li>
                         <li sec:authorize="hasAnyRole('ADMIN','AUDITOR')">
-                            <a th:href="@{/reporting}" class="block p-4 rounded-lg border border-gray-200 hover:border-blue-300 hover:bg-blue-50 transition">
+                            <a th:href="@{/reporting}" class="block p-4 rounded-lg border border-gray-200 hover:border-brand-300 hover:bg-brand-50 transition">
                                 <div class="text-sm font-semibold text-gray-900">View reporting</div>
                                 <div class="text-xs text-gray-500 mt-1">Per-batch breakdowns and overall metrics.</div>
                             </a>
@@ -297,7 +298,7 @@
                     </p>
                     <div class="flex flex-col sm:flex-row gap-2">
                         <a href="https://philterd.github.io/philter-workspace" target="_blank" rel="noopener"
-                           class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition">
+                           class="inline-flex items-center px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition">
                             Open documentation
                             <svg class="ml-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>

@@ -19,6 +19,7 @@
     <meta charset="UTF-8">
     <title>Philter Workspace - Compliance Profiles</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50">
 <div class="flex min-h-screen">
@@ -135,7 +136,7 @@
                 Policies
             </a>
             <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/compliance-profiles}"
-               class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700">
+               class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-brand-50 text-brand-700">
                 <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
                 </svg>
@@ -178,7 +179,7 @@
             </div>
         </nav>
         <div class="px-3 py-4 border-t border-gray-200 text-sm text-gray-600">
-            <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd.png}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
+            <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd-wordmark.svg}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
             <div class="px-3 mb-2">
                 Signed in as <span class="font-medium" sec:authentication="name">user</span>
                 <span sec:authorize="hasAnyRole('ADMIN','AUDITOR')" class="ml-1 text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Admin</span>
@@ -193,10 +194,10 @@
     <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8">
             <div class="flex items-center justify-between mb-6">
-                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Compliance Profiles</h2><a href="/docs/concepts/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
+                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Compliance Profiles</h2><a href="/docs/concepts/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-brand-600 hover:underline self-baseline">Help</a></span>
                 <label class="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
                     <input type="checkbox" id="showArchivedToggle" th:checked="${showArchived}"
-                           class="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                           class="rounded border-gray-300 text-brand-600 focus:ring-brand-500"
                            onchange="window.location.href = this.checked ? '?showArchived=true' : '?showArchived=false'">
                     Show archived profiles
                 </label>
@@ -212,7 +213,7 @@
                  to inspect or edit existing profiles. -->
             <div class="mb-6">
                 <button type="button" id="createProfileBtn"
-                        class="inline-flex items-center px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                        class="inline-flex items-center px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition duration-200">
                     <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
                     </svg>
@@ -257,7 +258,7 @@
                                 <span th:if="${p.archived and !p.preset}" class="text-xs text-gray-400 italic">Archived</span>
                                 <span th:unless="${p.preset or p.archived}" class="flex items-center gap-3">
                                     <button type="button"
-                                            class="edit-profile-btn text-blue-600 hover:text-blue-800 font-medium"
+                                            class="edit-profile-btn text-brand-600 hover:text-brand-800 font-medium"
                                             th:attr="data-id=${p.id},data-name=${p.name}">
                                         Edit
                                     </button>
@@ -300,7 +301,7 @@
                 <label for="newProfileName" class="block text-xs font-medium text-gray-600 mb-1">Name</label>
                 <input id="newProfileName" name="name" type="text" required
                        th:value="${retainName}"
-                       class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                       class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
             </div>
             <div>
                 <div class="flex items-center gap-4 mb-2">
@@ -317,25 +318,25 @@
                         </thead>
                         <tbody id="createCodeRows">
                             <tr class="exemption-row border-b border-gray-100">
-                                <td class="px-2 py-1.5"><input name="codes" type="text" placeholder="e.g. NAME" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></td>
-                                <td class="px-2 py-1.5"><input name="descriptions" type="text" placeholder="e.g. Individual's full or partial name" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></td>
+                                <td class="px-2 py-1.5"><input name="codes" type="text" placeholder="e.g. NAME" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"></td>
+                                <td class="px-2 py-1.5"><input name="descriptions" type="text" placeholder="e.g. Individual's full or partial name" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"></td>
                                 <td class="px-1 py-1.5 text-center"><button type="button" class="remove-row text-gray-300 hover:text-red-500 text-lg leading-none" title="Remove">×</button></td>
                             </tr>
                             <tr class="exemption-row border-b border-gray-100">
-                                <td class="px-2 py-1.5"><input name="codes" type="text" placeholder="e.g. NAME" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></td>
-                                <td class="px-2 py-1.5"><input name="descriptions" type="text" placeholder="e.g. Individual's full or partial name" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></td>
+                                <td class="px-2 py-1.5"><input name="codes" type="text" placeholder="e.g. NAME" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"></td>
+                                <td class="px-2 py-1.5"><input name="descriptions" type="text" placeholder="e.g. Individual's full or partial name" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"></td>
                                 <td class="px-1 py-1.5 text-center"><button type="button" class="remove-row text-gray-300 hover:text-red-500 text-lg leading-none" title="Remove">×</button></td>
                             </tr>
                             <tr class="exemption-row">
-                                <td class="px-2 py-1.5"><input name="codes" type="text" placeholder="e.g. NAME" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></td>
-                                <td class="px-2 py-1.5"><input name="descriptions" type="text" placeholder="e.g. Individual's full or partial name" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></td>
+                                <td class="px-2 py-1.5"><input name="codes" type="text" placeholder="e.g. NAME" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"></td>
+                                <td class="px-2 py-1.5"><input name="descriptions" type="text" placeholder="e.g. Individual's full or partial name" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"></td>
                                 <td class="px-1 py-1.5 text-center"><button type="button" class="remove-row text-gray-300 hover:text-red-500 text-lg leading-none" title="Remove">×</button></td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
                 <button type="button" id="addCreateRow"
-                        class="mt-2 text-sm text-blue-600 hover:text-blue-800 font-medium">
+                        class="mt-2 text-sm text-brand-600 hover:text-brand-800 font-medium">
                     + Add exemption code
                 </button>
             </div>
@@ -345,7 +346,7 @@
                     Cancel
                 </button>
                 <button type="submit"
-                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                        class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition duration-200">
                     Create
                 </button>
             </div>
@@ -388,15 +389,15 @@
                         </thead>
                         <tbody id="editCodeRows">
                             <tr class="exemption-row">
-                                <td class="px-2 py-1.5"><input name="codes" type="text" placeholder="e.g. NAME" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></td>
-                                <td class="px-2 py-1.5"><input name="descriptions" type="text" placeholder="e.g. Individual's full or partial name" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></td>
+                                <td class="px-2 py-1.5"><input name="codes" type="text" placeholder="e.g. NAME" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"></td>
+                                <td class="px-2 py-1.5"><input name="descriptions" type="text" placeholder="e.g. Individual's full or partial name" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"></td>
                                 <td class="px-1 py-1.5 text-center"><button type="button" class="remove-row text-gray-300 hover:text-red-500 text-lg leading-none" title="Remove">×</button></td>
                             </tr>
                         </tbody>
                     </table>
                 </div>
                 <button type="button" id="addEditRow"
-                        class="mt-2 text-sm text-blue-600 hover:text-blue-800 font-medium">
+                        class="mt-2 text-sm text-brand-600 hover:text-brand-800 font-medium">
                     + Add exemption code
                 </button>
             </div>
@@ -407,7 +408,7 @@
                 Cancel
             </button>
             <button type="submit"
-                    class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                    class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition duration-200">
                 Save
             </button>
         </div>
@@ -425,8 +426,8 @@
         const tr = document.createElement('tr');
         tr.className = 'exemption-row';
         tr.innerHTML = `
-            <td class="px-2 py-1.5"><input name="codes" type="text" placeholder="e.g. NAME" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></td>
-            <td class="px-2 py-1.5"><input name="descriptions" type="text" placeholder="e.g. Individual's full or partial name" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></td>
+            <td class="px-2 py-1.5"><input name="codes" type="text" placeholder="e.g. NAME" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"></td>
+            <td class="px-2 py-1.5"><input name="descriptions" type="text" placeholder="e.g. Individual's full or partial name" class="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"></td>
             <td class="px-1 py-1.5 text-center"><button type="button" class="remove-row text-gray-300 hover:text-red-500 text-lg leading-none" title="Remove">×</button></td>`;
         tr.querySelector('.remove-row').addEventListener('click', () => removeRow(tr));
         return tr;

@@ -7,6 +7,7 @@
     <meta charset="UTF-8">
     <title>Philter Workspace - Reports</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -143,7 +144,7 @@
                     </svg>
                     Weight Sets
                 </a>
-                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/reporting}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700">
+                <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/reporting}" class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-brand-50 text-brand-700">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3v18h18M9 17v-7m4 7v-12m4 12v-4"></path>
                     </svg>
@@ -166,7 +167,7 @@
                 </div>
             </nav>
             <div class="px-3 py-4 border-t border-gray-200 text-sm text-gray-600">
-                <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd.png}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
+                <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd-wordmark.svg}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
                 <div class="px-3 mb-2">
                     Signed in as <span class="font-medium" sec:authentication="name">user</span>
                     <span sec:authorize="hasAnyRole('ADMIN','AUDITOR')" class="ml-1 text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Admin</span>
@@ -181,7 +182,7 @@
         <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8">
             <div class="flex items-center justify-between mb-6">
-                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Reports</h2><a href="/docs/admin/reports/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
+                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Reports</h2><a href="/docs/admin/reports/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-brand-600 hover:underline self-baseline">Help</a></span>
             </div>
 
             <!-- Date range filter -->
@@ -191,16 +192,16 @@
                     <label for="startDate" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Start date</label>
                     <input id="startDate" name="start" type="date" required
                            th:value="${startDate}"
-                           class="rounded-lg border border-gray-300 bg-white text-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="rounded-lg border border-gray-300 bg-white text-sm p-2 focus:outline-none focus:ring-2 focus:ring-brand-500">
                 </div>
                 <div>
                     <label for="endDate" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">End date</label>
                     <input id="endDate" name="end" type="date" required
                            th:value="${endDate}"
-                           class="rounded-lg border border-gray-300 bg-white text-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="rounded-lg border border-gray-300 bg-white text-sm p-2 focus:outline-none focus:ring-2 focus:ring-brand-500">
                 </div>
                 <button type="submit"
-                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                        class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition duration-200">
                     Apply
                 </button>
                 <a th:href="@{/reporting}"

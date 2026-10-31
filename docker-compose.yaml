@@ -6,7 +6,8 @@ services:
       dockerfile: Dockerfile
     container_name: philter-workspace-app
     ports:
-      - "8080:8080"
+      # PHILTER_WORKSPACE_PORT changes the host port, for example when 8080 is taken.
+      - "${PHILTER_WORKSPACE_PORT:-8080}:8080"
     healthcheck:
       # Ready once GET /api/health answers 200 (it answers 503 while a dependency is down). The
       # start period covers a cold start, including creating the database schema and, here,
@@ -36,6 +37,10 @@ services:
       # default in application.properties is now off — production deployments
       # should never load synthetic data, but the dev stack benefits from it.
       - PHILTER_WORKSPACE_DEMO_DATA_ENABLED=true
+      # This stack serves plain HTTP, and a browser drops a Secure cookie over HTTP except from localhost, so
+      # signing in from another address or from Safari would fail. A deployment keeps Secure cookies behind
+      # HTTPS (see docker-compose.prod.yaml).
+      - SERVER_SERVLET_SESSION_COOKIE_SECURE=false
       # Philter Workspace's one Philter, for sign-in, policies, and redaction. For development the
       # key is Philter's bootstrap key, which belongs to an administrator, so Admin → Philter
       # flags it. A deployment uses a key for a user who is not an administrator (see
@@ -115,7 +120,7 @@ services:
     container_name: philter-workspace-mongodb
     profiles: ["mongodb"]
     ports:
-      - "27017:27017"
+      - "${MONGODB_PORT:-27017}:27017"
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.runCommand({ping:1})"]
       interval: 10s
@@ -129,7 +134,7 @@ services:
     image: philterd/philterd-redaction-policy-editor:latest
     container_name: philter-workspace-policy-editor
     ports:
-      - "8081:8080"
+      - "${POLICY_EDITOR_PORT:-8081}:8080"
     networks:
       - philter-workspace
 
@@ -147,7 +152,7 @@ services:
         soft: -1
         hard: -1
     ports:
-      - "9200:9200"
+      - "${OPENSEARCH_PORT:-9200}:9200"
     healthcheck:
       test: ["CMD-SHELL", "curl -fs http://localhost:9200 >/dev/null || exit 1"]
       interval: 10s
@@ -192,8 +197,8 @@ services:
       - MINIO_ROOT_USER=minioadmin
       - MINIO_ROOT_PASSWORD=minioadmin
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
     healthcheck:
       test: ["CMD-SHELL", "mc ready local || exit 1"]
       interval: 10s
@@ -237,7 +242,7 @@ services:
       - POSTGRES_PASSWORD=philter_workspace_demo
       - POSTGRES_DB=philter_workspace_demo
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - ./init-postgres.sql:/docker-entrypoint-initdb.d/01-documents.sql:ro
     healthcheck:

@@ -46,6 +46,11 @@ first administrator is Philter's `admin`. Give it a password with `PHILTER_BOOTS
 sign in at `/login` as `admin`; see [First sign-in](security.md#first-sign-in). The shipped
 `docker-compose.yaml` runs a Philter with development-only keys.
 
+For development, `quickstart.sh` in the repository root does both: it starts the
+`docker-compose.yaml` stack, waits until Philter Workspace is healthy, and gives `admin` its
+first password, printing it when it finishes. `PHILTER_WORKSPACE_PORT` changes the host port
+from 8080, and `ADMIN_PASSWORD` sets the password instead of generating one.
+
 On the first start with **empty `batches` / `documents` / `spans` collections and demo data
 enabled**, Philter Workspace loads any files under the configured demo directory into a sample batch and runs
 them through the redactor so the queue isn't empty.

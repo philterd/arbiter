@@ -19,6 +19,7 @@
     <meta charset="UTF-8">
     <title>Philter Workspace - Admin</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -169,7 +170,7 @@
                     Audit Log
                 </a>
                 <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/general}"
-                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700">
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-brand-50 text-brand-700">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path>
                     </svg>
@@ -178,7 +179,7 @@
                 </div>
             </nav>
             <div class="px-3 py-4 border-t border-gray-200 text-sm text-gray-600">
-                <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd.png}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
+                <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd-wordmark.svg}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
                 <div class="px-3 mb-2">
                     Signed in as <span class="font-medium" sec:authentication="name">user</span>
                     <span sec:authorize="hasAnyRole('ADMIN','AUDITOR')" class="ml-1 text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Admin</span>
@@ -195,11 +196,11 @@
         <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8">
             <div class="flex items-center justify-between mb-2">
-                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Admin</h2><a href="/docs/admin/users-and-groups/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
+                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Admin</h2><a href="/docs/admin/users-and-groups/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-brand-600 hover:underline self-baseline">Help</a></span>
             </div>
             <nav class="flex border-b border-gray-200 mb-6 text-sm">
                 <a th:href="@{/admin/general}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">General</a>
-                <a th:href="@{/admin/users}" class="px-4 py-2 text-blue-700 font-medium border-b-2 border-blue-600">Users</a>
+                <a th:href="@{/admin/users}" class="px-4 py-2 text-brand-700 font-medium border-b-2 border-brand-600">Users</a>
                 <a th:href="@{/admin/groups}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Groups</a>
                 <a th:href="@{/admin/notifications}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">Notifications</a>
                 <a th:href="@{/admin/llm-judge}" class="px-4 py-2 text-gray-600 hover:text-gray-900 border-b-2 border-transparent hover:border-gray-300">LLM-as-a-Judge</a>
@@ -231,27 +232,27 @@
                         <label for="newUsername" class="block text-xs font-medium text-gray-600 mb-1">Username</label>
                         <input id="newUsername" name="username" type="text" required autocomplete="off"
                                autocapitalize="none" spellcheck="false"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                     </div>
                     <div>
                         <label for="newEmail" class="block text-xs font-medium text-gray-600 mb-1">
                             Email <span class="text-gray-400 font-normal">(optional)</span>
                         </label>
                         <input id="newEmail" name="email" type="email" autocomplete="off"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                     </div>
                     <div>
                         <label for="newPassword" class="block text-xs font-medium text-gray-600 mb-1">First password</label>
                         <input id="newPassword" name="password" type="password" required minlength="16" autocomplete="new-password"
                                placeholder="At least 16 characters"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                     </div>
                     <label class="inline-flex items-center text-sm">
                         <input type="checkbox" name="admin" value="true" class="mr-1.5"> Administrator
                     </label>
                     <div>
                         <button type="submit"
-                                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                                class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition duration-200">
                             Add user
                         </button>
                     </div>
@@ -260,7 +261,7 @@
 
             <div class="flex items-baseline justify-between mb-3">
                 <h3 class="text-lg font-semibold text-gray-900">Users</h3>
-                <a th:href="@{/admin/users/records}" class="text-sm text-blue-600 hover:text-blue-800">Records without a Philter user</a>
+                <a th:href="@{/admin/users/records}" class="text-sm text-brand-600 hover:text-brand-800">Records without a Philter user</a>
             </div>
             <form th:replace="~{fragments/list :: filter-bar(${list}, ~{::user-filters})}">
                 <th:block th:ref="user-filters">
@@ -324,14 +325,14 @@
                                     </div>
                                     <div th:if="${r.workspaceRole == null}" class="text-xs text-gray-500">Not signed in yet.</div>
                                     <button type="submit"
-                                            class="px-3 py-1 text-xs font-medium text-blue-600 hover:text-blue-800 border border-blue-600 rounded-md">
+                                            class="px-3 py-1 text-xs font-medium text-brand-600 hover:text-brand-800 border border-brand-600 rounded-md">
                                         Save
                                     </button>
                                 </form>
                             </td>
                             <td class="px-6 py-4 text-sm text-gray-700">
                                 <span th:if="${r.self}" class="text-xs text-gray-500">
-                                    <a th:href="@{/settings}" class="text-blue-600 hover:text-blue-800">Manage your own account in Settings</a>
+                                    <a th:href="@{/settings}" class="text-brand-600 hover:text-brand-800">Manage your own account in Settings</a>
                                 </span>
                                 <div th:unless="${r.self}" class="space-y-2">
                                     <div th:unless="${r.apiOnly}" class="space-y-2">
@@ -340,36 +341,36 @@
                                                 <option value="user" th:selected="${r.philter.role != 'admin'}">User</option>
                                                 <option value="admin" th:selected="${r.philter.role == 'admin'}">Administrator</option>
                                             </select>
-                                            <button type="submit" class="text-xs font-medium text-blue-600 hover:text-blue-800">Set role</button>
+                                            <button type="submit" class="text-xs font-medium text-brand-600 hover:text-brand-800">Set role</button>
                                         </form>
                                         <form th:action="@{/admin/users/{u}/password(u=${r.philter.username})}" method="post" class="flex gap-2 items-center">
                                             <input type="password" name="password" required minlength="16" autocomplete="new-password"
                                                    placeholder="New password" class="rounded-md border border-gray-300 px-2 py-1 text-sm">
-                                            <button type="submit" class="text-xs font-medium text-blue-600 hover:text-blue-800">Reset password</button>
+                                            <button type="submit" class="text-xs font-medium text-brand-600 hover:text-brand-800">Reset password</button>
                                         </form>
                                         <form th:action="@{/admin/users/{u}/email(u=${r.philter.username})}" method="post" class="flex gap-2 items-center">
                                             <input type="email" name="email" th:value="${r.philter.email}" placeholder="Email"
                                                    class="rounded-md border border-gray-300 px-2 py-1 text-sm">
-                                            <button type="submit" class="text-xs font-medium text-blue-600 hover:text-blue-800">Set email</button>
+                                            <button type="submit" class="text-xs font-medium text-brand-600 hover:text-brand-800">Set email</button>
                                         </form>
                                         <div class="flex flex-wrap gap-3 text-xs">
                                             <form th:action="@{/admin/users/{u}/unlock-sign-in(u=${r.philter.username})}" method="post">
-                                                <button type="submit" class="font-medium text-blue-600 hover:text-blue-800">Clear sign-in lock</button>
+                                                <button type="submit" class="font-medium text-brand-600 hover:text-brand-800">Clear sign-in lock</button>
                                             </form>
                                             <form th:if="${r.philter.mfaLocked}" th:action="@{/admin/users/{u}/unlock-mfa(u=${r.philter.username})}" method="post">
-                                                <button type="submit" class="font-medium text-blue-600 hover:text-blue-800">Unlock 2FA</button>
+                                                <button type="submit" class="font-medium text-brand-600 hover:text-brand-800">Unlock 2FA</button>
                                             </form>
                                             <th:block th:if="${r.philter.mfaEnabled}">
                                                 <th:block th:replace="~{fragments/confirm :: confirm(|remove-mfa-${rs.index}|, ${r.confirm['remove-mfa']}, 'Remove 2FA', 'font-medium text-red-600 hover:text-red-800')}"></th:block>
                                             </th:block>
-                                            <th:block th:replace="~{fragments/confirm :: confirm(|sign-out-${rs.index}|, ${r.confirm['sign-out']}, 'Sign out everywhere', 'font-medium text-blue-600 hover:text-blue-800')}"></th:block>
+                                            <th:block th:replace="~{fragments/confirm :: confirm(|sign-out-${rs.index}|, ${r.confirm['sign-out']}, 'Sign out everywhere', 'font-medium text-brand-600 hover:text-brand-800')}"></th:block>
                                         </div>
                                     </div>
                                     <div th:if="${r.philter.active}" class="text-xs">
                                         <th:block th:replace="~{fragments/confirm :: confirm(|deactivate-${rs.index}|, ${r.confirm['deactivate']}, 'Deactivate', 'font-medium text-red-600 hover:text-red-800')}"></th:block>
                                     </div>
                                     <form th:unless="${r.philter.active}" th:action="@{/admin/users/{u}/reactivate(u=${r.philter.username})}" method="post">
-                                        <button type="submit" class="text-xs font-medium text-blue-600 hover:text-blue-800">Reactivate</button>
+                                        <button type="submit" class="text-xs font-medium text-brand-600 hover:text-brand-800">Reactivate</button>
                                     </form>
                                 </div>
                             </td>
@@ -379,7 +380,7 @@
             </th:block>
 
             <div th:if="${orphans != null}" class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 max-w-3xl">
-                <a th:href="@{/admin/users}" class="text-sm text-blue-600 hover:text-blue-800">Back to users</a>
+                <a th:href="@{/admin/users}" class="text-sm text-brand-600 hover:text-brand-800">Back to users</a>
                 <h3 class="mt-2 text-lg font-semibold text-gray-900 mb-1">Philter Workspace records without a Philter user</h3>
                 <p class="text-sm text-gray-600 mb-3">
                     These records have no Philter user, for example accounts from before Philter Workspace was switched to

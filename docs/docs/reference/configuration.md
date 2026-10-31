@@ -44,7 +44,11 @@ server.servlet.session.cookie.same-site=strict
 - **`secure=true`** — the browser only sends the cookie over HTTPS. Works
   correctly even when Philter Workspace receives plain HTTP from a reverse proxy
   because `forward-headers-strategy=native` (above) makes Philter Workspace believe
-  the request arrived over HTTPS.
+  the request arrived over HTTPS. Served over plain HTTP, a browser drops the
+  cookie (except, in Chrome and Firefox, from `localhost`), and the sign-in page
+  says your browser did not keep the session cookie. The development
+  `docker-compose.yaml` sets `SERVER_SERVLET_SESSION_COOKIE_SECURE=false` for
+  that reason; do not do so for a deployment.
 - **`same-site=strict`** — the browser will not send the cookie on any
   cross-site request, which closes the cross-site request forgery vector
   that a missing `SameSite` attribute would otherwise leave open.

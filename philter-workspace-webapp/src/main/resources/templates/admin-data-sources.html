@@ -19,6 +19,7 @@
     <meta charset="UTF-8">
     <title>Philter Workspace - Data Sources</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50">
     <div class="flex min-h-screen">
@@ -100,7 +101,7 @@
                 <div th:if="${seesBatchesNav}" class="mt-4 pt-3 border-t border-gray-200 space-y-1">
                     <p class="px-3 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Administration</p>
                 <a sec:authorize="hasAnyRole('ADMIN','AUDITOR')" th:href="@{/admin/data-sources}"
-                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700">
+                   class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-brand-50 text-brand-700">
                     <svg class="mr-3 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"></path>
                     </svg>
@@ -178,7 +179,7 @@
                 </div>
             </nav>
             <div class="px-3 py-4 border-t border-gray-200 text-sm text-gray-600">
-                <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd.png}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
+                <a href="https://www.philterd.ai" target="_blank" rel="noopener"><img th:src="@{/images/philterd-wordmark.svg}" alt="Philterd" class="h-5 mx-auto mb-3 opacity-70"></a>
                 <div class="px-3 mb-2">
                     Signed in as <span class="font-medium" sec:authentication="name">user</span>
                     <span sec:authorize="hasAnyRole('ADMIN','AUDITOR')" class="ml-1 text-xs font-semibold uppercase tracking-wide bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded">Admin</span>
@@ -195,7 +196,7 @@
         <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8">
             <div class="flex items-center justify-between mb-2">
-                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Data Sources</h2><a href="/docs/admin/data-sources/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-blue-600 hover:underline self-baseline">Help</a></span>
+                <span class="inline-flex items-baseline gap-1"><h2 class="text-3xl font-bold text-gray-900">Data Sources</h2><a href="/docs/admin/data-sources/" target="_blank" rel="noopener noreferrer" class="ml-3 text-sm text-brand-600 hover:underline self-baseline">Help</a></span>
             </div>
             <p class="text-sm text-gray-600 mb-6 max-w-3xl">
                 Data sources are external systems Philter Workspace pulls documents from for redaction.
@@ -217,7 +218,7 @@
                  class="flex flex-wrap gap-1 mb-6 border-b border-gray-200 max-w-4xl">
                 <button type="button" role="tab" data-tab="opensearch" aria-selected="true"
                         class="ds-tab px-4 py-2 -mb-px border-b-2 text-sm font-medium
-                               border-blue-600 text-blue-700">
+                               border-brand-600 text-brand-700">
                     OpenSearch
                 </button>
                 <button type="button" role="tab" data-tab="elasticsearch" aria-selected="false"
@@ -258,25 +259,25 @@
                         <div>
                             <label for="dsName" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Name</label>
                             <input id="dsName" name="name" type="text" required placeholder="legal-archive"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <div>
                             <label for="dsEndpoint" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Endpoint</label>
                             <input id="dsEndpoint" name="endpoint" type="text" required
                                    placeholder="http://localhost:9200"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                     </div>
                     <div>
                         <label for="dsQuery" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Query</label>
                         <textarea id="dsQuery" name="query" rows="4" required
                                   placeholder='contracts/_search { "query": { "match_all": {} } }'
-                                  class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                                  class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
                     </div>
                     <div>
                         <label for="dsTextField" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Text field</label>
                         <input id="dsTextField" name="textField" type="text" required placeholder="content"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                         <p class="text-xs text-gray-500 mt-1">
                             Field name within each hit's <code>_source</code> that holds the text to import.
                         </p>
@@ -286,7 +287,7 @@
                             Filename field <span class="text-gray-400 normal-case font-normal">(optional)</span>
                         </label>
                         <input id="dsFilenameField" name="filenameField" type="text" placeholder="title"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                         <p class="text-xs text-gray-500 mt-1">
                             Optional. Field within each hit's <code>_source</code> whose value is used as the imported
                             document's filename. If blank, the OpenSearch <code>_id</code> is used.
@@ -298,14 +299,14 @@
                                 Username <span class="text-gray-400 normal-case font-normal">(optional)</span>
                             </label>
                             <input id="dsUsername" name="username" type="text" autocomplete="off"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <div>
                             <label for="dsPassword" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
                                 Password <span class="text-gray-400 normal-case font-normal">(optional)</span>
                             </label>
                             <input id="dsPassword" name="password" type="password" autocomplete="new-password"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <div class="flex items-center gap-2">
                             <button type="button" id="dsTestBtn"
@@ -313,7 +314,7 @@
                                 Test
                             </button>
                             <button type="submit"
-                                    class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                                    class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition duration-200">
                                 Add
                             </button>
                         </div>
@@ -354,12 +355,12 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <button type="button"
-                                        class="test-saved-btn text-blue-600 hover:text-blue-800 font-medium mr-3"
+                                        class="test-saved-btn text-brand-600 hover:text-brand-800 font-medium mr-3"
                                         th:attr="data-ds-id=${d.id}">
                                     Test
                                 </button>
                                 <button type="button"
-                                        class="edit-ds-btn text-blue-600 hover:text-blue-800 font-medium mr-3"
+                                        class="edit-ds-btn text-brand-600 hover:text-brand-800 font-medium mr-3"
                                         th:attr="data-ds-id=${d.id},
                                                  data-ds-name=${d.name},
                                                  data-ds-endpoint=${d.endpoint},
@@ -399,25 +400,25 @@
                         <div>
                             <label for="esName" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Name</label>
                             <input id="esName" name="name" type="text" required placeholder="legal-archive"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <div>
                             <label for="esEndpoint" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Endpoint</label>
                             <input id="esEndpoint" name="endpoint" type="text" required
                                    placeholder="http://localhost:9200"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                     </div>
                     <div>
                         <label for="esQuery" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Query</label>
                         <textarea id="esQuery" name="query" rows="4" required
                                   placeholder='contracts/_search { "query": { "match_all": {} } }'
-                                  class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                                  class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
                     </div>
                     <div>
                         <label for="esTextField" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Text field</label>
                         <input id="esTextField" name="textField" type="text" required placeholder="content"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                         <p class="text-xs text-gray-500 mt-1">
                             Field name within each hit's <code>_source</code> that holds the text to import.
                         </p>
@@ -427,7 +428,7 @@
                             Filename field <span class="text-gray-400 normal-case font-normal">(optional)</span>
                         </label>
                         <input id="esFilenameField" name="filenameField" type="text" placeholder="title"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                         <p class="text-xs text-gray-500 mt-1">
                             Optional. Field within each hit's <code>_source</code> whose value is used as the imported
                             document's filename. If blank, the Elasticsearch <code>_id</code> is used.
@@ -439,14 +440,14 @@
                                 Username <span class="text-gray-400 normal-case font-normal">(optional)</span>
                             </label>
                             <input id="esUsername" name="username" type="text" autocomplete="off"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <div>
                             <label for="esPassword" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
                                 Password <span class="text-gray-400 normal-case font-normal">(optional)</span>
                             </label>
                             <input id="esPassword" name="password" type="password" autocomplete="new-password"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <div class="flex items-center gap-2">
                             <button type="button" id="esTestBtn"
@@ -454,7 +455,7 @@
                                 Test
                             </button>
                             <button type="submit"
-                                    class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                                    class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition duration-200">
                                 Add
                             </button>
                         </div>
@@ -495,12 +496,12 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <button type="button"
-                                        class="test-saved-es-btn text-blue-600 hover:text-blue-800 font-medium mr-3"
+                                        class="test-saved-es-btn text-brand-600 hover:text-brand-800 font-medium mr-3"
                                         th:attr="data-ds-id=${d.id}">
                                     Test
                                 </button>
                                 <button type="button"
-                                        class="edit-es-btn text-blue-600 hover:text-blue-800 font-medium mr-3"
+                                        class="edit-es-btn text-brand-600 hover:text-brand-800 font-medium mr-3"
                                         th:attr="data-ds-id=${d.id},
                                                  data-ds-name=${d.name},
                                                  data-ds-endpoint=${d.endpoint},
@@ -562,31 +563,31 @@
                         <div>
                             <label for="s3Name" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Name</label>
                             <input id="s3Name" name="name" type="text" required placeholder="contracts-archive"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <div>
                             <label for="s3Endpoint" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
                                 Endpoint URL <span class="text-gray-400 normal-case font-normal">(optional)</span>
                             </label>
                             <input id="s3Endpoint" name="endpoint" type="text" placeholder="http://minio:9000"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         <div>
                             <label for="s3Bucket" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Bucket name</label>
                             <input id="s3Bucket" name="bucketName" type="text" required placeholder="my-bucket"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <div>
                             <label for="s3Key" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Bucket key</label>
                             <input id="s3Key" name="bucketKey" type="text" required placeholder="archive/2026/"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <div>
                             <label for="s3Glob" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Filename glob</label>
                             <input id="s3Glob" name="filenameGlob" type="text" required placeholder="*.txt"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto] gap-2 items-end">
@@ -595,17 +596,17 @@
                                 Access key <span class="text-gray-400 normal-case font-normal">(optional)</span>
                             </label>
                             <input id="s3AccessKey" name="accessKey" type="text" autocomplete="off"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <div>
                             <label for="s3SecretKey" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
                                 Secret key <span class="text-gray-400 normal-case font-normal">(optional)</span>
                             </label>
                             <input id="s3SecretKey" name="secretKey" type="password" autocomplete="new-password"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <button type="submit"
-                                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                                class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition duration-200">
                             Add
                         </button>
                     </div>
@@ -646,7 +647,7 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <button type="button"
-                                        class="edit-s3-btn text-blue-600 hover:text-blue-800 font-medium mr-3"
+                                        class="edit-s3-btn text-brand-600 hover:text-brand-800 font-medium mr-3"
                                         th:attr="data-s3-id=${s.id},
                                                  data-s3-name=${s.name},
                                                  data-s3-endpoint=${s.endpoint == null ? '' : s.endpoint},
@@ -708,14 +709,14 @@
                             <label for="rdbName" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Name</label>
                             <input id="rdbName" name="name" type="text" required placeholder="warehouse"
                                    th:value="${rdbFormName}"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <div>
                             <label for="rdbUrl" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">JDBC URL</label>
                             <input id="rdbUrl" name="jdbcUrl" type="text" required
                                    placeholder="jdbc:postgresql://host:5432/dbname"
                                    th:value="${rdbFormJdbcUrl}"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                     </div>
                     <div>
@@ -723,7 +724,7 @@
                         <textarea id="rdbSql" name="sqlQuery" rows="3" required
                                   placeholder="SELECT body, doc_path AS filename, id FROM documents WHERE id &gt; COALESCE(:lastKey::bigint, 0) ORDER BY id"
                                   th:text="${rdbFormSqlQuery}"
-                                  class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                                  class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
                         <p class="mt-1 text-xs text-gray-500">
                             Column&nbsp;1 holds the document text. An optional column
                             named <code>filename</code> supplies the per-row filename.
@@ -739,7 +740,7 @@
                         <input id="rdbWatermarkColumn" name="watermarkColumn" type="text"
                                placeholder="id"
                                th:value="${rdbFormWatermarkColumn}"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                         <p class="mt-1 text-xs text-gray-500">
                             Result-column name whose value is read from each row and used as the
                             watermark for the next run. Pair this with a <code>:lastKey</code>
@@ -754,7 +755,7 @@
                             </label>
                             <input id="rdbUsername" name="username" type="text" autocomplete="off"
                                    th:value="${rdbFormUsername}"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <div>
                             <label for="rdbPassword" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
@@ -762,10 +763,10 @@
                             </label>
                             <input id="rdbPassword" name="password" type="password" autocomplete="new-password"
                                    th:value="${rdbFormPassword}"
-                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                   class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                         </div>
                         <button type="submit"
-                                class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                                class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition duration-200">
                             Add
                         </button>
                     </div>
@@ -817,7 +818,7 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <button type="button"
-                                        class="edit-rdb-btn text-blue-600 hover:text-blue-800 font-medium mr-3"
+                                        class="edit-rdb-btn text-brand-600 hover:text-brand-800 font-medium mr-3"
                                         th:attr="data-rdb-id=${r.id},
                                                  data-rdb-name=${r.name},
                                                  data-rdb-jdbc-url=${r.jdbcUrl == null ? '' : r.jdbcUrl},
@@ -829,7 +830,7 @@
                                     Edit
                                 </button>
                                 <button type="button"
-                                        class="preview-rdb-btn text-blue-600 hover:text-blue-800 font-medium mr-3"
+                                        class="preview-rdb-btn text-brand-600 hover:text-brand-800 font-medium mr-3"
                                         th:attr="data-rdb-id=${r.id},
                                                  data-rdb-name=${r.name}">
                                     Preview
@@ -870,21 +871,21 @@
                     <div>
                         <label for="localName" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Name</label>
                         <input id="localName" name="name" type="text" required placeholder="incoming-drop"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                     </div>
                     <div>
                         <label for="localPath" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Directory path</label>
                         <input id="localPath" name="directoryPath" type="text" required
                                placeholder="/var/lib/philter-workspace/incoming"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                     </div>
                     <div>
                         <label for="localGlob" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Filename glob</label>
                         <input id="localGlob" name="filenameGlob" type="text" required placeholder="*.txt"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                     </div>
                     <button type="submit"
-                            class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition duration-200">
+                            class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition duration-200">
                         Add
                     </button>
                 </form>
@@ -944,17 +945,17 @@
                 <div>
                     <label for="dsEditEndpoint" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Endpoint</label>
                     <input id="dsEditEndpoint" name="endpoint" type="text" required
-                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                 </div>
                 <div>
                     <label for="dsEditQuery" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Query</label>
                     <textarea id="dsEditQuery" name="query" rows="6" required
-                              class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                              class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
                 </div>
                 <div>
                     <label for="dsEditTextField" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Text field</label>
                     <input id="dsEditTextField" name="textField" type="text" required
-                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                 </div>
                 <div>
                     <label for="dsEditFilenameField" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
@@ -962,7 +963,7 @@
                     </label>
                     <input id="dsEditFilenameField" name="filenameField" type="text"
                            placeholder="Leave blank to use the OpenSearch _id"
-                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
@@ -970,7 +971,7 @@
                             Username <span class="text-gray-400 normal-case font-normal">(optional)</span>
                         </label>
                         <input id="dsEditUsername" name="username" type="text" autocomplete="off"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                     </div>
                     <div>
                         <label for="dsEditPassword" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
@@ -978,7 +979,7 @@
                         </label>
                         <input id="dsEditPassword" name="password" type="password" autocomplete="new-password"
                                placeholder="Leave blank to keep existing password"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                     </div>
                 </div>
                 <label class="flex items-center text-xs text-gray-700">
@@ -990,7 +991,7 @@
                 <button type="button" id="dsEditCancel"
                         class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
                 <button type="submit"
-                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Save</button>
+                        class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg">Save</button>
             </div>
         </form>
     </div>
@@ -1012,22 +1013,22 @@
                     </label>
                     <input id="s3EditEndpoint" name="endpoint" type="text"
                            placeholder="Leave blank to use AWS S3 default endpoint"
-                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                 </div>
                 <div>
                     <label for="s3EditBucket" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Bucket name</label>
                     <input id="s3EditBucket" name="bucketName" type="text" required
-                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                 </div>
                 <div>
                     <label for="s3EditKey" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Bucket key</label>
                     <input id="s3EditKey" name="bucketKey" type="text" required
-                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                 </div>
                 <div>
                     <label for="s3EditGlob" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Filename glob</label>
                     <input id="s3EditGlob" name="filenameGlob" type="text" required
-                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div>
@@ -1035,7 +1036,7 @@
                             Access key <span class="text-gray-400 normal-case font-normal">(optional)</span>
                         </label>
                         <input id="s3EditAccessKey" name="accessKey" type="text" autocomplete="off"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                     </div>
                     <div>
                         <label for="s3EditSecretKey" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
@@ -1043,7 +1044,7 @@
                         </label>
                         <input id="s3EditSecretKey" name="secretKey" type="password" autocomplete="new-password"
                                placeholder="Leave blank to keep existing secret"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                     </div>
                 </div>
                 <label class="flex items-center text-xs text-gray-700">
@@ -1055,7 +1056,7 @@
                 <button type="button" id="s3EditCancel"
                         class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
                 <button type="submit"
-                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Save</button>
+                        class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg">Save</button>
             </div>
         </form>
     </div>
@@ -1075,13 +1076,13 @@
                     <label for="rdbEditJdbcUrl" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">JDBC URL</label>
                     <input id="rdbEditJdbcUrl" name="jdbcUrl" type="text" required
                            placeholder="jdbc:postgresql://host:5432/dbname"
-                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                 </div>
                 <div>
                     <label for="rdbEditSql" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">SQL query</label>
                     <textarea id="rdbEditSql" name="sqlQuery" rows="4" required
                               placeholder="SELECT body, doc_path AS filename, id FROM documents WHERE id > COALESCE(:lastKey::bigint, 0) ORDER BY id"
-                              class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                              class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
                 </div>
                 <div>
                     <label for="rdbEditWatermarkColumn" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
@@ -1089,7 +1090,7 @@
                     </label>
                     <input id="rdbEditWatermarkColumn" name="watermarkColumn" type="text"
                            placeholder="id"
-                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-blue-500">
+                           class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-brand-500">
                     <p class="mt-1 text-xs text-gray-500">
                         Pair with a <code>:lastKey</code> placeholder + <code>ORDER&nbsp;BY</code>
                         on the same column for incremental ingest. Leave blank for full-scan.
@@ -1101,7 +1102,7 @@
                             Username <span class="text-gray-400 normal-case font-normal">(optional)</span>
                         </label>
                         <input id="rdbEditUsername" name="username" type="text" autocomplete="off"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                     </div>
                     <div>
                         <label for="rdbEditPassword" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">
@@ -1109,7 +1110,7 @@
                         </label>
                         <input id="rdbEditPassword" name="password" type="password" autocomplete="new-password"
                                placeholder="Leave blank to keep existing password"
-                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                               class="block w-full rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
                     </div>
                 </div>
                 <label class="flex items-center text-xs text-gray-700">
@@ -1131,7 +1132,7 @@
                 <button type="button" id="rdbEditCancel"
                         class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
                 <button type="submit"
-                        class="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg">Save</button>
+                        class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg">Save</button>
             </div>
         </form>
     </div>
@@ -1662,7 +1663,7 @@
             const buttons = Array.from(tabBar.querySelectorAll('button.ds-tab'));
             const panels = Array.from(document.querySelectorAll('section[data-panel]'));
 
-            const ACTIVE_CLASSES = ['border-blue-600', 'text-blue-700'];
+            const ACTIVE_CLASSES = ['border-brand-600', 'text-brand-700'];
             const INACTIVE_CLASSES = ['border-transparent', 'text-gray-600',
                 'hover:text-gray-900', 'hover:border-gray-300'];
 

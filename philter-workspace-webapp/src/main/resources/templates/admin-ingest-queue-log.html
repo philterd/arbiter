@@ -7,6 +7,7 @@
     <meta charset="UTF-8">
     <title>Philter Workspace - Ingest Failure</title>
     <script th:nonce="${cspNonce}" th:src="@{/js/tailwind.js}"></script>
+    <script th:nonce="${cspNonce}" th:src="@{/js/tailwind-config.js}"></script>
 </head>
 <body class="bg-gray-50">
 <div class="flex min-h-screen">
@@ -16,7 +17,7 @@
         </div>
         <nav class="flex-1 px-3 py-4 space-y-1">
             <a th:href="@{/admin/ingest-queue}"
-               class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-blue-50 text-blue-700">
+               class="flex items-center px-3 py-2 text-sm font-medium rounded-md bg-brand-50 text-brand-700">
                 &larr; Back to Ingest Queue
             </a>
         </nav>
@@ -34,7 +35,7 @@
     <div class="flex-1 flex flex-col min-w-0">
     <div th:replace="~{fragments/topbar :: topbar}"></div>
         <main class="flex-1 p-8">
-            <a th:href="@{/admin/ingest-queue}" class="text-sm text-blue-600 hover:text-blue-800 mb-2 inline-block">&larr; Back to Ingest Queue</a>
+            <a th:href="@{/admin/ingest-queue}" class="text-sm text-brand-600 hover:text-brand-800 mb-2 inline-block">&larr; Back to Ingest Queue</a>
             <h2 class="text-3xl font-bold text-gray-900 mb-1">Ingest failure</h2>
             <p class="text-sm text-gray-600 mb-6">
                 Why redaction did not complete for this document.

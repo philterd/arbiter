@@ -762,6 +762,24 @@ public class AuthorizationIntegrationTest extends WebMvcSliceMocks {
         verify(philterSignInService, times(1)).signIn(eq("someone"), eq("wrong-password"), any(), any());
     }
 
+    /** A sign-in page left open while its session ended goes back to sign-in, not a bare 403. */
+    @Test
+    void anExpiredSignInFormIsSentBackToSignIn() throws Exception {
+        final org.springframework.mock.web.MockHttpSession session = new org.springframework.mock.web.MockHttpSession();
+        mockMvc.perform(post("/login").session(session).with(csrf().useInvalidToken())
+                        .with(r -> { r.setRequestedSessionId(session.getId()); return r; })
+                        .param("username", "someone").param("password", "a-password-0000"))
+                .andExpect(redirectedUrl("/login?expired"));
+        // No session cookie at all: the browser did not keep it.
+        mockMvc.perform(post("/login").param("username", "someone").param("password", "a-password-0000"))
+                .andExpect(redirectedUrl("/login?cookie"));
+        verify(philterSignInService, times(0)).signIn(any(), any(), any(), any());
+
+        // Someone signed in with a bad token is refused as before.
+        mockMvc.perform(post("/settings").with(signedIn("reviewer", "USER")).with(csrf().useInvalidToken()))
+                .andExpect(status().isForbidden());
+    }
+
     /** A session left from Philter Workspace's removed local sign-in is ended, not served. */
     @Test
     void sessionFromLocalSignInIsEnded() throws Exception {
