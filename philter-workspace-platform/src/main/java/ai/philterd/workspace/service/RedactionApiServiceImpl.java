@@ -11,11 +11,8 @@ package ai.philterd.workspace.service;
 
 import ai.philterd.workspace.model.Batch;
 import ai.philterd.workspace.model.Document;
-import ai.philterd.workspace.model.IngestStatus;
-import ai.philterd.workspace.model.Location;
 import ai.philterd.workspace.model.Span;
-import ai.philterd.workspace.philter.PhilterClient;
-import ai.philterd.workspace.philter.PhilterClientFactory;
+import ai.philterd.workspace.philter.ApprovedSpans;
 import ai.philterd.workspace.repository.BatchRepository;
 import ai.philterd.workspace.repository.DocumentRepository;
 import ai.philterd.workspace.repository.SpanRepository;
@@ -24,93 +21,25 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
 public class RedactionApiServiceImpl implements RedactionApiService {
 
-
-    private final PhilterClientFactory philterClientFactory;
-    private final PhilterSettings philter;
     private final DocumentRepository documentRepository;
     private final SpanRepository spanRepository;
     private final BatchRepository batchRepository;
-    private final DocumentSearchService searchService;
     private final DocumentDeliveryService deliveryService;
 
-    public RedactionApiServiceImpl(final PhilterClientFactory philterClientFactory,
-                                   final PhilterSettings philter,
-                                   final DocumentRepository documentRepository,
+    public RedactionApiServiceImpl(final DocumentRepository documentRepository,
                                    final SpanRepository spanRepository,
                                    final BatchRepository batchRepository,
-                                   final DocumentSearchService searchService,
                                    final DocumentDeliveryService deliveryService) {
-        this.philterClientFactory = philterClientFactory;
-        this.philter = philter;
         this.documentRepository = documentRepository;
         this.spanRepository = spanRepository;
         this.batchRepository = batchRepository;
-        this.searchService = searchService;
         this.deliveryService = deliveryService;
-    }
-
-    private PhilterClient philterClient(final Batch batch) {
-        return philterClientFactory.create(philter.url(), philter.apiKey(),
-                batch == null ? null : batch.getPolicyName());
-    }
-
-    @Override
-    public void processDocument(final String documentId, final String text) throws IOException {
-        final Document document = documentRepository.findById(documentId).orElseThrow();
-        final Batch batch = batchRepository.findById(document.getBatchId() == null ? "" : document.getBatchId()).orElse(null);
-        final double threshold = batch == null ? 0.8 : batch.getConfidenceThreshold();
-
-        // Use the batch's configured context if set, otherwise fall back to a unique id so that
-        // finalize-time redaction can replay the exact context.
-        final String batchContext = batch == null ? null : batch.getContext();
-        final String contextId = (batchContext != null && !batchContext.isEmpty())
-                ? batchContext
-                : UUID.randomUUID().toString();
-        final Map<String, Object> explanation = philterClient(batch).explain(text, contextId);
-
-        final List<Map<String, Object>> explanationSpans = (List<Map<String, Object>>) explanation.get("explanation");
-
-        final List<Span> persistedSpans = new ArrayList<>();
-        if (explanationSpans != null) {
-            for (Map<String, Object> exp : explanationSpans) {
-                final Span span = new Span();
-                span.setDocumentId(documentId);
-                span.setText((String) exp.get("text"));
-                span.setType((String) exp.get("type"));
-                final double confidence = (Double) exp.getOrDefault("confidence", 0.0);
-                span.setConfidence(confidence);
-                span.setCreatedAt(java.time.LocalDateTime.now());
-                span.changeStatus(confidence >= threshold ? "APPROVED" : "PENDING");
-
-                final int start = (Integer) exp.get("characterStart");
-                final int end = (Integer) exp.get("characterEnd");
-                final int page = (Integer) exp.getOrDefault("page", 0);
-
-                final Location location = new Location(start, end, page, null);
-                span.setLocation(location);
-
-                persistedSpans.add(spanRepository.save(span));
-            }
-        }
-
-        final boolean needsReview = !persistedSpans.isEmpty()
-                && persistedSpans.stream().anyMatch(s -> "PENDING".equals(s.getStatus()));
-        document.setPhilterContextId(contextId);
-        document.changeStatus(IngestStatus.pick(batch, needsReview));
-        documentRepository.save(document);
-        if (document.getOriginalText() == null) {
-            document.setOriginalText(text);
-        }
-        searchService.indexDocument(document);
     }
 
     // TODO: Reach parity with ReviewViewController.finalizeDocument by also generating a
@@ -150,8 +79,9 @@ public class RedactionApiServiceImpl implements RedactionApiService {
                 })
                 .collect(Collectors.toList());
 
-        final String finalizedText = philterClient(batch).redact(originalText,
-                document.getPhilterContextId(), approvedSpans);
+        // The reviewers have decided what to redact, so their spans are applied here rather than asking Philter
+        // to detect again.
+        final String finalizedText = ApprovedSpans.apply(originalText, approvedSpans);
 
         // Persist the rendered text on the document so the Download button keeps working
         // after a finalization policy clears originalText, and so the API and UI finalize

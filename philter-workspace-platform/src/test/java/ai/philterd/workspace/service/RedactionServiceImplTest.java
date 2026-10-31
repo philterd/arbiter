@@ -11,8 +11,6 @@ package ai.philterd.workspace.service;
 
 import ai.philterd.workspace.core.model.Redaction;
 import ai.philterd.workspace.core.model.RedactionResponse;
-import ai.philterd.workspace.philter.PhilterClient;
-import ai.philterd.workspace.philter.PhilterClientFactory;
 import ai.philterd.workspace.philter.PhilterTlsConfig;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.pdmodel.PDPage;
@@ -36,17 +34,36 @@ import static org.mockito.Mockito.when;
 
 class RedactionServiceImplTest {
 
-    private final PhilterClientFactory factory = mock(PhilterClientFactory.class);
-    private final PhilterSettings philter = new PhilterSettings("http://philter:8080", "sk_test", PhilterTlsConfig.none());
-    private final RedactionServiceImpl service = new RedactionServiceImpl(factory, philter);
+    private final PhilterSettings philter = mock(PhilterSettings.class);
+    private final RedactionServiceImpl service = new RedactionServiceImpl(philter);
 
     @Test
-    void redactsThroughTheConfiguredPhilterWithTheBatchPolicy() throws Exception {
-        final PhilterClient client = mock(PhilterClient.class);
-        when(factory.create("http://philter:8080", "sk_test", "claims")).thenReturn(client);
-        when(client.redact("text", "")).thenReturn(new RedactionResponse("text", "redacted", new ArrayList<>()));
+    void redactsWithTheSdkClientPhilterWorkspaceHoldsAndTheBatchPolicy() throws Exception {
+        final ai.philterd.philter.PhilterClient client = mock(ai.philterd.philter.PhilterClient.class);
+        when(philter.client()).thenReturn(client);
+        final ai.philterd.philter.model.Span span = new ai.philterd.philter.model.Span();
+        span.setCharacterStart(4);
+        span.setCharacterEnd(15);
+        span.setFilterType("SSN");
+        span.setText("123-45-6789");
+        final ai.philterd.philter.model.Explanation explanation = new ai.philterd.philter.model.Explanation();
+        explanation.setAppliedSpans(List.of(span));
+        final ai.philterd.philter.model.ExplainResponse explained = new ai.philterd.philter.model.ExplainResponse();
+        explained.setExplanation(explanation);
+        // No context is sent rather than an empty one.
+        when(client.explain(null, "claims", "SSN 123-45-6789 here")).thenReturn(explained);
 
-        assertEquals("redacted", service.redactText("text", "claims", null).getRedactedText());
+        final RedactionResponse response = service.redactText("SSN 123-45-6789 here", "claims", null);
+        assertEquals("SSN SSN here", response.getRedactedText());
+        assertEquals("ssn", response.getRedactions().get(0).getType());
+    }
+
+    @Test
+    void aPdfIsNotSentToPhilterUntilItCanBeReviewed() {
+        final java.io.IOException e = org.junit.jupiter.api.Assertions.assertThrows(java.io.IOException.class,
+                () -> service.redactPdf(new java.io.ByteArrayInputStream(new byte[]{1}), "claims", "ctx"));
+        assertEquals("PDF review through Philter is not yet available.", e.getMessage());
+        org.mockito.Mockito.verifyNoInteractions(philter);
     }
 
     @Test

@@ -13,8 +13,6 @@ import ai.philterd.workspace.core.model.Redaction;
 import ai.philterd.workspace.model.Document;
 import ai.philterd.workspace.model.Location;
 import ai.philterd.workspace.model.Span;
-import ai.philterd.workspace.philter.PhilterClient;
-import ai.philterd.workspace.philter.PhilterClientFactory;
 import ai.philterd.workspace.repository.BatchRepository;
 import ai.philterd.workspace.repository.DocumentRepository;
 import ai.philterd.workspace.repository.SpanRepository;
@@ -52,8 +50,6 @@ import static org.mockito.Mockito.when;
  */
 class RedactionApiServiceImplFinalizeTest {
 
-    private PhilterClient philterClient;
-    private PhilterClientFactory philterClientFactory;
     private DocumentRepository documentRepository;
     private SpanRepository spanRepository;
     private BatchRepository batchRepository;
@@ -62,16 +58,11 @@ class RedactionApiServiceImplFinalizeTest {
 
     @BeforeEach
     void setUp() {
-        philterClient = mock(PhilterClient.class);
-        philterClientFactory = mock(PhilterClientFactory.class);
         documentRepository = mock(DocumentRepository.class);
         spanRepository = mock(SpanRepository.class);
         batchRepository = mock(BatchRepository.class);
         openSearchIndexService = mock(OpenSearchIndexService.class);
-        when(philterClientFactory.create(any(), any(), any())).thenReturn(philterClient);
-        service = new RedactionApiServiceImpl(philterClientFactory,
-                new PhilterSettings("http://philter:8080", "sk_test", ai.philterd.workspace.philter.PhilterTlsConfig.none()),
-                documentRepository, spanRepository, batchRepository, openSearchIndexService,
+        service = new RedactionApiServiceImpl(documentRepository, spanRepository, batchRepository,
                 mock(DocumentDeliveryService.class));
     }
 
@@ -96,56 +87,32 @@ class RedactionApiServiceImplFinalizeTest {
     }
 
     @Test
-    void finalizeUsesActualDocumentTextNotAPlaceholder() throws Exception {
+    void finalizeAppliesTheApprovedSpansToTheDocumentsRealTextWithoutCallingPhilter() throws Exception {
         final Document doc = approvedDoc("d1", "Bob's SSN is 123-45-6789.");
         when(documentRepository.findById("d1")).thenReturn(Optional.of(doc));
         when(spanRepository.findByDocumentId("d1")).thenReturn(List.of(
                 approvedSpan("s1", "ssn", "123-45-6789", 13, 24)));
-        when(philterClient.redact(anyString(), anyString(), anyList()))
-                .thenReturn("Bob's SSN is <<SSN>>.");
 
-        final String result = service.finalizeRedaction("d1");
-
-        assertEquals("Bob's SSN is <<SSN>>.", result);
-
-        // The PhilterClient must receive the document's real originalText — not the
-        // "Original text placeholder" string the previous implementation passed.
-        final ArgumentCaptor<String> textCaptor = ArgumentCaptor.forClass(String.class);
-        verify(philterClient).redact(textCaptor.capture(), anyString(), anyList());
-        assertEquals("Bob's SSN is 123-45-6789.", textCaptor.getValue());
+        assertEquals("Bob's SSN is SSN.", service.finalizeRedaction("d1"));
     }
 
     @Test
-    void finalizePassesContextIdAndApprovedSpansToTheRedactor() throws Exception {
+    void onlyApprovedSpansAreApplied() throws Exception {
         final Document doc = approvedDoc("d1", "two SSNs: 111-11-1111 and 222-22-2222.");
         when(documentRepository.findById("d1")).thenReturn(Optional.of(doc));
         when(spanRepository.findByDocumentId("d1")).thenReturn(List.of(
                 approvedSpan("s1", "ssn", "111-11-1111", 10, 21),
-                // PENDING spans must be excluded — only APPROVED redactions should land.
-                pendingSpan("s2", "ssn", "222-22-2222", 26, 37),
-                approvedSpan("s3", "ssn", "222-22-2222", 26, 37)));
-        when(philterClient.redact(anyString(), anyString(), anyList())).thenReturn("redacted");
+                pendingSpan("s2", "ssn", "222-22-2222", 26, 37)));
 
-        service.finalizeRedaction("d1");
-
-        final ArgumentCaptor<String> contextCaptor = ArgumentCaptor.forClass(String.class);
-        @SuppressWarnings("unchecked")
-        final ArgumentCaptor<List<Redaction>> spansCaptor = ArgumentCaptor.forClass(List.class);
-        verify(philterClient).redact(anyString(), contextCaptor.capture(), spansCaptor.capture());
-
-        assertEquals("ctx-d1", contextCaptor.getValue());
-        assertEquals(2, spansCaptor.getValue().size(),
-                "PENDING spans must be excluded from the approvedSpans list");
-        assertTrue(spansCaptor.getValue().stream().allMatch(r -> "ssn".equals(r.getType())));
+        assertEquals("two SSNs: SSN and 222-22-2222.", service.finalizeRedaction("d1"));
     }
 
     @Test
     void finalizePersistsRedactedTextAndStatus() throws Exception {
         final Document doc = approvedDoc("d1", "hello SSN 123-45-6789");
         when(documentRepository.findById("d1")).thenReturn(Optional.of(doc));
-        when(spanRepository.findByDocumentId("d1")).thenReturn(List.of());
-        when(philterClient.redact(anyString(), anyString(), anyList()))
-                .thenReturn("hello SSN <<SSN>>");
+        when(spanRepository.findByDocumentId("d1")).thenReturn(List.of(
+                approvedSpan("s1", "ssn", "123-45-6789", 10, 21)));
 
         service.finalizeRedaction("d1");
 
@@ -156,7 +123,7 @@ class RedactionApiServiceImplFinalizeTest {
         assertEquals("FINALIZED", saved.getValue().getStatus());
         // redactedText is persisted so the Download button still works after a
         // finalization policy clears originalText.
-        assertEquals("hello SSN <<SSN>>", saved.getValue().getRedactedText());
+        assertEquals("hello SSN SSN", saved.getValue().getRedactedText());
     }
 
     @Test
@@ -191,9 +158,6 @@ class RedactionApiServiceImplFinalizeTest {
         final ResponseStatusException e = assertThrows(ResponseStatusException.class,
                 () -> service.finalizeRedaction("ghost"));
         assertEquals(HttpStatus.NOT_FOUND, e.getStatusCode());
-        // Same client used regardless: no-batch path picks the embedded Phileas, but with
-        // no document there's nothing to redact.
-        assertSame(philterClient, philterClient);
     }
 
     private static Span pendingSpan(final String id, final String type, final String text,

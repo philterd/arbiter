@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -34,7 +33,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-class PhilterClientImplTest {
+class PhilterRedactionsTest {
 
     private static final String TEXT = "SSN 123-45-6789 here";
 
@@ -75,31 +74,29 @@ class PhilterClientImplTest {
         server.stop(0);
     }
 
-    private PhilterClient client(final String apiKey, final String policy) {
-        return new DefaultPhilterClientFactory(PhilterTlsConfig.none())
-                .create("http://127.0.0.1:" + server.getAddress().getPort(), apiKey, policy);
+    /** Redacts TEXT through the SDK client, as Philter Workspace does. */
+    private RedactionResponse redact(final String apiKey, final String policy, final String context)
+            throws IOException {
+        return PhilterRedactions.redact(PhilterClients.build("http://127.0.0.1:" + server.getAddress().getPort(),
+                apiKey, PhilterTlsConfig.none()), TEXT, policy, context);
     }
 
     @Test
-    void explainSendsPolicyContextAndBearerKey() throws IOException {
-        final Map<String, Object> result = client("secret", "claims").explain(TEXT, "ctx");
+    void theSdkSendsPolicyContextAndBearerKey() throws IOException {
+        final RedactionResponse result = redact("secret", "claims", "ctx");
 
         assertTrue(query.get().contains("p=claims"));
         assertTrue(query.get().contains("c=ctx"));
         assertEquals("Bearer secret", authorization.get());
-
-        final List<?> explanation = (List<?>) result.get("explanation");
-        assertEquals(1, explanation.size());
-        final Map<?, ?> span = (Map<?, ?>) explanation.get(0);
-        assertEquals("ssn", span.get("type"));
-        assertEquals(4, span.get("characterStart"));
-        assertEquals(15, span.get("characterEnd"));
-        assertEquals(0.9, span.get("confidence"));
+        assertEquals(1, result.getRedactions().size());
+        final Redaction r = result.getRedactions().get(0);
+        assertEquals("ssn", r.getType());
+        assertEquals(0.9, r.getConfidence());
     }
 
     @Test
     void blankPolicyAndContextAreOmitted() throws IOException {
-        client(null, " ").explain(TEXT, "");
+        redact(null, " ", "");
 
         assertTrue(query.get() == null || !query.get().contains("p="));
         assertTrue(query.get() == null || !query.get().contains("c="));
@@ -108,7 +105,7 @@ class PhilterClientImplTest {
 
     @Test
     void redactBuildsRedactionsInFinalText() throws IOException {
-        final RedactionResponse response = client(null, null).redact(TEXT, "ctx");
+        final RedactionResponse response = redact(null, null, "ctx");
 
         assertEquals("SSN SSN here", response.getRedactedText());
         assertEquals(1, response.getRedactions().size());
@@ -123,12 +120,12 @@ class PhilterClientImplTest {
         // Philter 4.0 adds them to the explain body (#16); a Philter that does not leaves them unset.
         explainBody = EXPLAIN_BODY.trim().replaceFirst("\\}$",
                 ",\"policyName\":\"civil-filings\",\"policyVersion\":3,\"policyContentHash\":\"abc\"}");
-        final ai.philterd.workspace.core.model.RedactionResponse r = client("secret", "claims").redact(TEXT, "ctx");
+        final ai.philterd.workspace.core.model.RedactionResponse r = redact("secret", "claims", "ctx");
         assertEquals("civil-filings", r.getAppliedPolicyName());
         assertEquals(3, r.getAppliedPolicyVersion());
 
         explainBody = EXPLAIN_BODY;
-        final ai.philterd.workspace.core.model.RedactionResponse older = client("secret", "claims").redact(TEXT, "ctx");
+        final ai.philterd.workspace.core.model.RedactionResponse older = redact("secret", "claims", "ctx");
         assertEquals(null, older.getAppliedPolicyName());
         assertEquals(null, older.getAppliedPolicyVersion());
     }
@@ -136,16 +133,16 @@ class PhilterClientImplTest {
     @Test
     void redactCarriesTheDocumentIdPhilterRecordedItUnder() throws IOException {
         // Philter sends the ID in the X-Document-Id header; the body's documentId is not it.
-        assertEquals("6543210fedcba9876543210f", client("secret", "claims").redact(TEXT, "ctx").getPhilterDocumentId());
+        assertEquals("6543210fedcba9876543210f", redact("secret", "claims", "ctx").getPhilterDocumentId());
 
         documentIdHeader = null;
-        assertEquals(null, client("secret", "claims").redact(TEXT, "ctx").getPhilterDocumentId());
+        assertEquals(null, redact("secret", "claims", "ctx").getPhilterDocumentId());
     }
 
     @Test
     void failureMessageCarriesStatusButNotResponseText() {
         status = 404;
-        final IOException e = assertThrows(IOException.class, () -> client(null, "missing").explain(TEXT, "ctx"));
+        final IOException e = assertThrows(IOException.class, () -> redact(null, "missing", "ctx"));
 
         assertTrue(e.getMessage().contains("HTTP 404"));
         assertTrue(e.getMessage().contains("policy_not_found"));
@@ -155,24 +152,11 @@ class PhilterClientImplTest {
 
     @Test
     void philterEnumNamesMapToPhileasTypes() {
-        assertEquals("ip-address", PhilterClientImpl.type(span("IP_ADDRESS")));
-        assertEquals("id", PhilterClientImpl.type(span("IDENTIFIER")));
-        assertEquals("person", PhilterClientImpl.type(span("PERSON")));
-        assertEquals("new-type", PhilterClientImpl.type(span("NEW_TYPE")));
-        assertEquals("other", PhilterClientImpl.type(span(null)));
-    }
-
-    @Test
-    void factoryReusesSdkClientPerInstanceAndKey() throws IOException {
-        final DefaultPhilterClientFactory factory = new DefaultPhilterClientFactory(PhilterTlsConfig.none());
-        final String url = "http://127.0.0.1:" + server.getAddress().getPort();
-        factory.create(url, "a", "p1").explain(TEXT, "ctx");
-        assertEquals("Bearer a", authorization.get());
-        factory.create(url, "b", "p1").explain(TEXT, "ctx");
-        assertEquals("Bearer b", authorization.get());
-        factory.create(url, "a", "p2").explain(TEXT, "ctx");
-        assertEquals("Bearer a", authorization.get());
-        assertTrue(query.get().contains("p=p2"));
+        assertEquals("ip-address", PhilterRedactions.type(span("IP_ADDRESS")));
+        assertEquals("id", PhilterRedactions.type(span("IDENTIFIER")));
+        assertEquals("person", PhilterRedactions.type(span("PERSON")));
+        assertEquals("new-type", PhilterRedactions.type(span("NEW_TYPE")));
+        assertEquals("other", PhilterRedactions.type(span(null)));
     }
 
     private static ai.philterd.philter.model.Span span(final String filterType) {
@@ -182,13 +166,13 @@ class PhilterClientImplTest {
     }
 
     @Test
-    void approvedSpansAreAppliedWithoutCallingPhilter() throws IOException {
+    void approvedSpansAreAppliedWithoutCallingPhilter() {
         final Redaction r = new Redaction();
         r.setStart(4);
         r.setEnd(15);
         r.setType("ssn");
 
-        assertEquals("SSN SSN here", client(null, null).redact(TEXT, "ctx", List.of(r)));
+        assertEquals("SSN SSN here", ApprovedSpans.apply(TEXT, List.of(r)));
         assertEquals(null, query.get());
     }
 }

@@ -34,7 +34,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.security.KeyStore;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -105,28 +104,27 @@ class PhilterMutualTlsTest {
         server.stop(0);
     }
 
-    private PhilterClient client(final PhilterTlsConfig tls) {
-        return new DefaultPhilterClientFactory(tls)
-                .create("https://localhost:" + server.getAddress().getPort(), "key", null);
+    private String redactedType(final PhilterTlsConfig tls) throws IOException {
+        return PhilterRedactions.redact(PhilterClients.build("https://localhost:" + server.getAddress().getPort(), "key",
+                tls), "text", null, "ctx").getRedactions().get(0).getType();
     }
 
     @Test
     void callSucceedsWithClientCertificate() throws IOException {
         final PhilterTlsConfig tls = new PhilterTlsConfig(path("client.p12"), PASSWORD, path("client-trust.p12"), PASSWORD);
-        final List<?> spans = (List<?>) client(tls).explain("text", "ctx").get("explanation");
-        assertEquals("ssn", ((Map<?, ?>) spans.get(0)).get("type"));
+        assertEquals("ssn", redactedType(tls));
     }
 
     @Test
     void callIsRefusedWithoutClientCertificate() {
         final PhilterTlsConfig trustOnly = new PhilterTlsConfig("", "", path("client-trust.p12"), PASSWORD);
-        assertThrows(IOException.class, () -> client(trustOnly).explain("text", "ctx"));
+        assertThrows(IOException.class, () -> redactedType(trustOnly));
     }
 
     @Test
     void untrustedServerIsRefused() {
         final PhilterTlsConfig keyOnly = new PhilterTlsConfig(path("client.p12"), PASSWORD, "", "");
-        assertThrows(IOException.class, () -> client(keyOnly).explain("text", "ctx"));
+        assertThrows(IOException.class, () -> redactedType(keyOnly));
     }
 
     @Test

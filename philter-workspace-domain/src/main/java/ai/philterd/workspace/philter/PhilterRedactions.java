@@ -15,71 +15,51 @@
  */
 package ai.philterd.workspace.philter;
 
-import ai.philterd.workspace.core.model.Redaction;
-import ai.philterd.workspace.core.model.RedactionResponse;
 import ai.philterd.phileas.model.filtering.FilterType;
+import ai.philterd.philter.PhilterClient;
 import ai.philterd.philter.model.ExplainResponse;
 import ai.philterd.philter.model.Span;
+import ai.philterd.workspace.core.model.Redaction;
+import ai.philterd.workspace.core.model.RedactionResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
+import java.util.Locale;
 import java.util.UUID;
 
 /**
- * {@link PhilterClient} backed by the Philter SDK.
+ * Redacts text through Philter with the SDK's {@code explain} call, and turns Philter's answer into Philter
+ * Workspace's {@link RedactionResponse}: the spans Philter applied, the redacted text with each span's position in
+ * it, the policy and version Philter reports applying, and the document ID Philter recorded the redaction under.
+ * Holds no client of its own; the caller passes the SDK client.
  */
-public class PhilterClientImpl implements PhilterClient {
+public final class PhilterRedactions {
 
-    private static final Logger log = LoggerFactory.getLogger(PhilterClientImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(PhilterRedactions.class);
 
-    private final ai.philterd.philter.PhilterClient client;
-    private final String policyName;
-
-    public PhilterClientImpl(final ai.philterd.philter.PhilterClient client, final String policyName) {
-        this.client = client;
-        this.policyName = blankToNull(policyName);
+    private PhilterRedactions() {
     }
 
-    @Override
-    public RedactionResponse redactPdf(final byte[] pdfBytes, final String context) throws IOException {
-        // TODO: Philter's PDF endpoints return a redacted PDF but no spans, so there is nothing
-        // to review. Pairs with the TODO in RedactionServiceImpl.getRedactedPdf.
-        throw new IOException("PDF review through Philter is not yet available.");
-    }
-
-    @Override
-    public Map<String, Object> explain(final String text, final String context) throws IOException {
-        final List<Map<String, Object>> explanation = new ArrayList<>();
-        for (Span span : appliedSpans(callExplain(text, context))) {
-            final Map<String, Object> map = new HashMap<>();
-            map.put("text", span.getText());
-            map.put("type", type(span));
-            map.put("characterStart", span.getCharacterStart());
-            map.put("characterEnd", span.getCharacterEnd());
-            map.put("confidence", span.getConfidence());
-            explanation.add(map);
+    /** Redacts {@code text} with {@code policyName} in {@code context}; a blank policy or context is not sent. */
+    public static RedactionResponse redact(final PhilterClient client, final String text, final String policyName,
+                                           final String context) throws IOException {
+        final ExplainResponse explained;
+        try {
+            explained = client.explain(blankToNull(context), blankToNull(policyName), text);
+        } catch (IOException | RuntimeException e) {
+            // Philter's status and reason, never its message text, which can echo the request.
+            final String detail = PhilterClients.describe(e);
+            log.error("Philter explain call failed: {}", detail);
+            throw new IOException("Philter explain call failed: " + detail);
         }
-        final Map<String, Object> result = new HashMap<>();
-        result.put("explanation", explanation);
-        return result;
+        return toResponse(text, explained);
     }
 
-    @Override
-    public String redact(final String text, final String context, final List<Redaction> approvedSpans) {
-        // The reviewers have already decided what to redact, so apply their spans here rather
-        // than asking Philter to detect again.
-        return ApprovedSpans.apply(text, approvedSpans);
-    }
-
-    @Override
-    public RedactionResponse redact(final String text, final String context) throws IOException {
-        final ExplainResponse explained = callExplain(text, context);
+    static RedactionResponse toResponse(final String text, final ExplainResponse explained) {
         final List<Span> spans = new ArrayList<>(appliedSpans(explained));
         spans.sort(Comparator.comparingInt(Span::getCharacterStart));
 
@@ -88,7 +68,7 @@ public class PhilterClientImpl implements PhilterClient {
         int offset = 0;
         for (Span span : spans) {
             final String type = type(span);
-            final String replacement = type.toUpperCase();
+            final String replacement = type.toUpperCase(Locale.ROOT);
             final int start = span.getCharacterStart();
             final int end = span.getCharacterEnd();
 
@@ -135,16 +115,6 @@ public class PhilterClientImpl implements PhilterClient {
         }
     }
 
-    private ExplainResponse callExplain(final String text, final String context) throws IOException {
-        try {
-            return client.explain(blankToNull(context), policyName, text);
-        } catch (IOException | RuntimeException e) {
-            final String detail = PhilterClients.describe(e);
-            log.error("Philter explain call failed: {}", detail);
-            throw new IOException("Philter explain call failed: " + detail);
-        }
-    }
-
     private static List<Span> appliedSpans(final ExplainResponse response) {
         if (response == null || response.getExplanation() == null
                 || response.getExplanation().getAppliedSpans() == null) {
@@ -162,7 +132,7 @@ public class PhilterClientImpl implements PhilterClient {
         try {
             return FilterType.valueOf(name).getType();
         } catch (IllegalArgumentException e) {
-            return name.toLowerCase(java.util.Locale.ROOT).replace('_', '-');
+            return name.toLowerCase(Locale.ROOT).replace('_', '-');
         }
     }
 

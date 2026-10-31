@@ -17,8 +17,7 @@ package ai.philterd.workspace.service;
 
 import ai.philterd.workspace.core.model.Redaction;
 import ai.philterd.workspace.core.model.RedactionResponse;
-import ai.philterd.workspace.philter.PhilterClient;
-import ai.philterd.workspace.philter.PhilterClientFactory;
+import ai.philterd.workspace.philter.PhilterRedactions;
 import ai.philterd.phileas.PhileasConfiguration;
 import ai.philterd.phileas.model.filtering.MimeType;
 import ai.philterd.phileas.policy.graphical.BoundingBox;
@@ -39,30 +38,24 @@ public class RedactionServiceImpl implements RedactionService {
 
     private static final Logger log = LoggerFactory.getLogger(RedactionServiceImpl.class);
 
-    private final PhilterClientFactory philterClientFactory;
     private final PhilterSettings philter;
 
-    public RedactionServiceImpl(final PhilterClientFactory philterClientFactory,
-                                final PhilterSettings philter) {
-        this.philterClientFactory = philterClientFactory;
+    public RedactionServiceImpl(final PhilterSettings philter) {
         this.philter = philter;
     }
 
-    private PhilterClient client(final String policyName) {
-        return philterClientFactory.create(philter.url(), philter.apiKey(), policyName);
-    }
-
+    /** Through the SDK client for Philter Workspace's own key, the one every background call to Philter uses. */
     @Override
     public RedactionResponse redactText(final String text, final String policyName,
                                         final String context) throws IOException {
-        return client(policyName).redact(text, context == null ? "" : context);
+        return PhilterRedactions.redact(philter.client(), text, policyName, context);
     }
 
     @Override
     public RedactionResponse redactPdf(final InputStream inputStream, final String policyName,
                                        final String context) throws IOException {
-        final byte[] bytes = inputStream.readAllBytes();
-        return client(policyName).redactPdf(bytes, context == null ? "" : context);
+        // TODO: Philter's PDF endpoints return a redacted PDF but no spans, so there is nothing to review (#58).
+        throw new IOException("PDF review through Philter is not yet available.");
     }
 
     /**
