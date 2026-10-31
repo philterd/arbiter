@@ -48,6 +48,7 @@ class PhilterClientImplTest {
     private final AtomicReference<String> query = new AtomicReference<>();
     private final AtomicReference<String> authorization = new AtomicReference<>();
     private int status = 200;
+    private String explainBody = EXPLAIN_BODY;
     private String documentIdHeader = "6543210fedcba9876543210f";
 
     @BeforeEach
@@ -56,7 +57,7 @@ class PhilterClientImplTest {
         server.createContext("/api/explain", exchange -> {
             query.set(exchange.getRequestURI().getRawQuery());
             authorization.set(exchange.getRequestHeaders().getFirst("Authorization"));
-            final byte[] body = (status == 200 ? EXPLAIN_BODY : "{\"message\":\"no\",\"reason\":\"policy_not_found\"}")
+            final byte[] body = (status == 200 ? explainBody : "{\"message\":\"no\",\"reason\":\"policy_not_found\"}")
                     .getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json");
             if (documentIdHeader != null) {
@@ -115,6 +116,21 @@ class PhilterClientImplTest {
         assertEquals(4, r.getStart());
         assertEquals(7, r.getEnd());
         assertEquals("123-45-6789", r.getText());
+    }
+
+    @Test
+    void redactCarriesThePolicyAndVersionPhilterReportsApplying() throws IOException {
+        // Philter 4.0 adds them to the explain body (#16); a Philter that does not leaves them unset.
+        explainBody = EXPLAIN_BODY.trim().replaceFirst("\\}$",
+                ",\"policyName\":\"civil-filings\",\"policyVersion\":3,\"policyContentHash\":\"abc\"}");
+        final ai.philterd.workspace.core.model.RedactionResponse r = client("secret", "claims").redact(TEXT, "ctx");
+        assertEquals("civil-filings", r.getAppliedPolicyName());
+        assertEquals(3, r.getAppliedPolicyVersion());
+
+        explainBody = EXPLAIN_BODY;
+        final ai.philterd.workspace.core.model.RedactionResponse older = client("secret", "claims").redact(TEXT, "ctx");
+        assertEquals(null, older.getAppliedPolicyName());
+        assertEquals(null, older.getAppliedPolicyVersion());
     }
 
     @Test

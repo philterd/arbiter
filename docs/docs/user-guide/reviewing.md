@@ -57,6 +57,14 @@ Each navigator entry shows:
   span added by hand, make a [detection rule](detection-rules.md) that changes
   what Philter flags in documents redacted from then on, in every batch.
 
+## Case metadata
+
+Below the status line, the review page shows the document's
+[case metadata](../reference/case-metadata.md) and the policy and version
+Philter reported redacting it with. **Edit case** changes the metadata, unless
+the document is finalized or still waiting to be redacted; the change is audited
+and does not redact the document again.
+
 ## Adjudicating a span
 
 An [approver](../reference/roles.md#approvers) of the document's group, or an

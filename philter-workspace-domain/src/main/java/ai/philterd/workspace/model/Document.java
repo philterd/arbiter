@@ -78,6 +78,11 @@ public class Document {
     private String philterDocumentId;
     /** Philter document IDs from earlier redactions of this document, oldest first. */
     private java.util.List<String> previousPhilterDocumentIds = new java.util.ArrayList<>();
+    /** The filing's case metadata (#16), or null. Its case number and filer are encrypted at rest. */
+    private CaseMetadata caseMetadata;
+    /** The policy Philter last redacted this document with, as Philter reported it, and its version. */
+    private String appliedPolicyName;
+    private Integer appliedPolicyVersion;
     private LocalDateTime createdAt;
     private LocalDateTime statusChangedAt;
     private String failureMessage;
@@ -356,4 +361,13 @@ public class Document {
     public boolean isLocked(final Instant now) {
         return lockExpiresAt != null && lockedBy != null && lockExpiresAt.isAfter(now);
     }
+
+    public CaseMetadata getCaseMetadata() { return caseMetadata; }
+    public void setCaseMetadata(final CaseMetadata caseMetadata) { this.caseMetadata = caseMetadata; }
+
+    public String getAppliedPolicyName() { return appliedPolicyName; }
+    public void setAppliedPolicyName(final String appliedPolicyName) { this.appliedPolicyName = appliedPolicyName; }
+
+    public Integer getAppliedPolicyVersion() { return appliedPolicyVersion; }
+    public void setAppliedPolicyVersion(final Integer appliedPolicyVersion) { this.appliedPolicyVersion = appliedPolicyVersion; }
 }

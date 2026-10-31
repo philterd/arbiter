@@ -112,6 +112,7 @@ abstract class WebMvcSliceMocks {
     @MockBean protected ai.philterd.workspace.repository.PhilterWebhookDeliveryRepository philterWebhookDeliveryRepository;
     @MockBean protected ai.philterd.workspace.repository.DetectionRuleRepository detectionRuleRepository;
     @MockBean protected ai.philterd.workspace.service.DetectionRuleService detectionRuleService;
+    @MockBean protected ai.philterd.workspace.service.CaseMetadataService caseMetadataService;
     @MockBean protected ai.philterd.workspace.webapp.security.PhilterWebhookSettings philterWebhookSettings;
     @MockBean protected ai.philterd.workspace.webapp.security.PhilterWebhookReceiver philterWebhookReceiver;
     @MockBean protected RedactionCertificateRepository redactionCertificateRepository;

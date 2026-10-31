@@ -225,4 +225,40 @@ class IngestionControllerTest {
         assertEquals("Batch not found.", body(response).get("error"));
         verify(documentRepository, never()).save(any());
     }
+
+    // ---------- case metadata (#16) ----------
+
+    @Test
+    void caseMetadataIsStoredWithTheDocumentAndItsCaseTypeAudited() {
+        final Batch batch = openBatch("b1", "g1", "Batch 1");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(batch));
+        final ai.philterd.workspace.model.CaseMetadata given = new ai.philterd.workspace.model.CaseMetadata(
+                " 1:26-cv-01234 ", "Civil", "Acme Dental LLC", "Paid", false);
+
+        final ResponseEntity<?> response = controller.ingest(
+                new IngestRequest("doc.txt", "b1", "hello", null, given), TestAuth.admin("admin@example.com"));
+
+        assertEquals(HttpStatus.ACCEPTED, response.getStatusCode());
+        final org.mockito.ArgumentCaptor<ai.philterd.workspace.model.Document> saved =
+                org.mockito.ArgumentCaptor.forClass(ai.philterd.workspace.model.Document.class);
+        verify(documentRepository).save(saved.capture());
+        final ai.philterd.workspace.model.CaseMetadata stored = saved.getValue().getCaseMetadata();
+        assertEquals("1:26-cv-01234", stored.getCaseNumber());
+        assertEquals("civil", stored.getCaseType());
+        assertEquals("paid", stored.getFeeStatus());
+    }
+
+    @Test
+    void invalidCaseMetadataIsRefusedBeforeAnythingIsStored() {
+        final Batch batch = openBatch("b1", "g1", "Batch 1");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(batch));
+
+        final ResponseEntity<?> response = controller.ingest(new IngestRequest("doc.txt", "b1", "hello", null,
+                new ai.philterd.workspace.model.CaseMetadata(null, "civil", null, "sometimes", null)),
+                TestAuth.admin("admin@example.com"));
+
+        assertEquals(HttpStatus.BAD_REQUEST, response.getStatusCode());
+        assertEquals("The fee status must be paid, unpaid, or waived.", body(response).get("error"));
+        verify(documentRepository, never()).save(any());
+    }
 }

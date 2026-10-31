@@ -30,9 +30,10 @@ and export them:
 | `BATCH_WEIGHTS_CHANGE`              | Batch       | Override map                                        |
 | `BATCH_WEIGHTS_RESET`               | Batch       | All overrides cleared                               |
 | `BATCH_CLOSE`                       | Batch       | Records who closed it and when                      |
-| `BATCH_POLICY_CHANGE`               | Batch       | Old → new Philter policy name                       |
+| `BATCH_POLICY_CHANGE`               | Batch       | Old → new Philter policy name, and whether the batch chooses each document's policy by case type (`policyByCaseType`) |
 | `DOCUMENT_UPLOAD`                   | Document    | Web upload                                          |
-| `DOCUMENT_INGEST`                   | Document    | API ingest (`POST /api/v1/ingest`)                  |
+| `DOCUMENT_INGEST`                   | Document    | API ingest (`POST /api/v1/ingest`), with the case type when one was given |
+| `DOCUMENT_CASE_METADATA_UPDATE`     | Document    | A document's [case metadata](../reference/case-metadata.md) changed: previous and new case type, fee status, and IFP flag, and keyed hashes of a changed case number or filer, never their values |
 | `DOCUMENT_IMPORT`                   | Document    | One row per document pulled in by a data-import background job. Outcome is `SUCCESS` for newly-imported documents and `SKIPPED` for placeholders written when the source row already had a Document. Details include the import `jobId` and the source attribution (`sourceSystem`, `sourceUrl`, `sourceIndex`, `sourceDocId`) so the document can be traced back to the OpenSearch / Elasticsearch hit, S3 object, or local file it came from. |
 | `DATA_IMPORT_STARTED`               | BackgroundJob | Fired when a data-import job is promoted from PENDING to RUNNING by the dispatcher. Details include the job's `type`, `sourceId`, `batchId`, and friendly names. |
 | `DATA_IMPORT_COMPLETED`             | BackgroundJob | Terminal SUCCESS row for a data-import job. Details include `processed`, `failed`, `skipped` counters. |
@@ -73,7 +74,7 @@ and export them:
 | `BATCH_DOMAIN_CHANGE`               | Batch       | Old → new domain                                    |
 | `BATCH_RULES_ADD` / `_UPDATE` / `_REMOVE` | Batch | An approval rule set attached to, changed on, or removed from a batch, including whether it reserves the second approval for an approver (`requireApprover`) |
 | `BATCH_EXPORT`                      | Batch       | A batch export written to a destination, or failing to be; with the format, destination, document count, whether documents with redactions no person decided were left out, and how many |
-| `DOCUMENT_QUEUED`                   | Document    | A web upload queued for redaction; the filename is recorded as a hash |
+| `DOCUMENT_QUEUED`                   | Document    | A web upload queued for redaction; the filename is recorded as a hash, with the case type when one was given |
 | `DOCUMENT_COMMENT_ADD`              | Document    | A comment added to a document; its length, not its text |
 | `DOCUMENT_SEARCH`                   | Document    | A full-text search; the query is recorded as a hash, with its length and the result count |
 | `SPAN_CREATE` / `SPAN_DELETE` / `SPAN_RESET` | Span | A reviewer added, deleted, or reset a span      |
@@ -84,6 +85,7 @@ and export them:
 | `INGEST_QUEUE_RETRY`, `INGEST_QUEUE_RETRY_ALL` | Document / Settings | An admin put a failed document, or every failed document that can be redacted again, back in the queue; with the filename as a hash, or the number queued and the number that could not be |
 | `OLLAMA_INSTANCE_CREATE` / `_DELETE` / `_TEST` | OllamaInstance | An Ollama instance added, removed, or tested    |
 | `LLM_JUDGE_DEFAULTS_CHANGE`         | Settings    | The default Ollama instances for LLM-as-a-Judge changed |
+| `CASE_TYPE_POLICY_CHANGE`           | Settings    | A case type mapped to a policy, its policy replaced, or its mapping removed (`policyName` empty), with the previous policy |
 | `GENERAL_SETTINGS_CHANGE`           | Settings    | An Admin → General setting saved: the Philter Workspace URL, upload size limit, data-import concurrency, time zone, full-text search, or detection rule settings, with the previous value |
 | `SECURITY_SETTINGS_CHANGE`          | Settings    | The data-source host allow-list turned on or off     |
 | `NOTIFICATION_SETTINGS_TEST`        | Settings    | A test email sent from the notification settings     |

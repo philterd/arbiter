@@ -39,6 +39,9 @@ import java.util.function.UnaryOperator;
  *         is treated as sensitive.</li>
  *     <li>{@link Document#getFailureMessage() Document.failureMessage} — error messages
  *         can quote spans of the source document.</li>
+ *     <li>{@link Document#getCaseMetadata() Document.caseMetadata}'s case number and filer, which can
+ *         identify the people in a case (#16). Its case type, fee status, and IFP flag are not encrypted,
+ *         so they can be matched and shown.</li>
  *     <li>{@link Span#getText() Span.text} — the literal PII string that was detected.</li>
  *     <li>{@link DocumentComment#getText() DocumentComment.text} — reviewer-supplied free
  *         text that may reference PII while documenting a decision.</li>
@@ -97,6 +100,10 @@ public final class PiiFieldEncryption {
             d.setOriginalText(f.apply(d.getOriginalText()));
             d.setRedactedText(f.apply(d.getRedactedText()));
             d.setFailureMessage(f.apply(d.getFailureMessage()));
+            if (d.getCaseMetadata() != null) {
+                d.getCaseMetadata().setCaseNumber(f.apply(d.getCaseMetadata().getCaseNumber()));
+                d.getCaseMetadata().setFiler(f.apply(d.getCaseMetadata().getFiler()));
+            }
         } else if (entity instanceof Span sp) {
             sp.setText(f.apply(sp.getText()));
         } else if (entity instanceof GeneralSettings g) {

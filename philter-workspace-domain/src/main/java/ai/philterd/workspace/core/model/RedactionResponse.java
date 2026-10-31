@@ -23,6 +23,9 @@ public class RedactionResponse {
     private List<Redaction> redactions;
     /** The document ID Philter recorded the redaction under, when Philter did it. */
     private String philterDocumentId;
+    /** The policy Philter reported applying, and its version, when it says. */
+    private String appliedPolicyName;
+    private Integer appliedPolicyVersion;
 
     public RedactionResponse() {
     }
@@ -64,4 +67,10 @@ public class RedactionResponse {
     public void setPhilterDocumentId(final String philterDocumentId) {
         this.philterDocumentId = philterDocumentId;
     }
+
+    public String getAppliedPolicyName() { return appliedPolicyName; }
+    public void setAppliedPolicyName(final String appliedPolicyName) { this.appliedPolicyName = appliedPolicyName; }
+
+    public Integer getAppliedPolicyVersion() { return appliedPolicyVersion; }
+    public void setAppliedPolicyVersion(final Integer appliedPolicyVersion) { this.appliedPolicyVersion = appliedPolicyVersion; }
 }

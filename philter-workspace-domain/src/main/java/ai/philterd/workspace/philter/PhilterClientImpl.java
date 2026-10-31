@@ -108,7 +108,31 @@ public class PhilterClientImpl implements PhilterClient {
         }
         final RedactionResponse response = new RedactionResponse(text, sb.toString(), redactions);
         response.setPhilterDocumentId(explained == null ? null : explained.getDocumentId());
+        recordAppliedPolicy(explained, response);
         return response;
+    }
+
+    /**
+     * Copies the policy name and version Philter reports in the explain body ({@code policyName},
+     * {@code policyVersion}), which the SDK's {@code ExplainResponse} does not map. Left unset when Philter does
+     * not report them.
+     */
+    static void recordAppliedPolicy(final ExplainResponse explained, final RedactionResponse response) {
+        if (explained == null || explained.getResponseBody() == null) {
+            return;
+        }
+        try {
+            final com.google.gson.JsonObject body =
+                    com.google.gson.JsonParser.parseString(explained.getResponseBody()).getAsJsonObject();
+            if (body.has("policyName") && body.get("policyName").isJsonPrimitive()) {
+                response.setAppliedPolicyName(body.get("policyName").getAsString());
+            }
+            if (body.has("policyVersion") && body.get("policyVersion").isJsonPrimitive()) {
+                response.setAppliedPolicyVersion(body.get("policyVersion").getAsInt());
+            }
+        } catch (RuntimeException e) {
+            log.warn("Could not read the policy Philter applied from its response: {}", e.getClass().getSimpleName());
+        }
     }
 
     private ExplainResponse callExplain(final String text, final String context) throws IOException {

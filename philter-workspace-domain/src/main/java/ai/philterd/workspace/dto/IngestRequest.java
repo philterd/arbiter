@@ -18,5 +18,10 @@ public record IngestRequest(
         @NotBlank String name,
         @NotBlank String batchId,
         @NotNull String text,
-        @Min(1) @Max(3) Integer priority) {
+        @Min(1) @Max(3) Integer priority,
+        ai.philterd.workspace.model.CaseMetadata caseMetadata) {
+
+    public IngestRequest(final String name, final String batchId, final String text, final Integer priority) {
+        this(name, batchId, text, priority, null);
+    }
 }

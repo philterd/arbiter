@@ -31,6 +31,8 @@ import org.springframework.http.MediaType;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -52,6 +54,8 @@ class IngestQueueServiceTest {
     private RedactionService redactionService;
     private RedactionPersistenceService persistenceService;
     private DocumentQueueStore queueStore;
+    private GeneralSettingsService generalSettingsService;
+    private final ai.philterd.workspace.model.GeneralSettings settings = new ai.philterd.workspace.model.GeneralSettings();
     private IngestQueueService service;
 
     @BeforeEach
@@ -62,8 +66,10 @@ class IngestQueueServiceTest {
         redactionService = mock(RedactionService.class);
         persistenceService = mock(RedactionPersistenceService.class);
         queueStore = mock(DocumentQueueStore.class);
+        generalSettingsService = mock(GeneralSettingsService.class);
+        when(generalSettingsService.load()).thenReturn(settings);
         service = new IngestQueueService(documentRepository, pendingUploadRepository,
-                batchRepository, redactionService, persistenceService, queueStore);
+                batchRepository, redactionService, persistenceService, queueStore, generalSettingsService);
     }
 
     private static Batch batch(final String id) {
@@ -192,5 +198,77 @@ class IngestQueueServiceTest {
         assertTrue(rendered.contains("RuntimeException")
                         || rendered.contains("upstream Philter timed out"),
                 "the cause should still be diagnosable from the log: " + rendered);
+    }
+
+    // ---------- the policy chosen by case type (#16) ----------
+
+    private Document queued(final String caseType) {
+        final Document d = new Document();
+        d.setId("d1");
+        d.setBatchId("b1");
+        d.setOriginalText("Call Jane Roe.");
+        d.setCaseMetadata(caseType == null ? null
+                : ai.philterd.workspace.model.CaseMetadata.of("1:26-cv-01234", caseType, "Acme Dental LLC", null, null));
+        return d;
+    }
+
+    private Batch byCaseType() {
+        final Batch b = batch("b1");
+        b.setPolicyName("batch-policy");
+        b.setPolicyByCaseType(true);
+        when(batchRepository.findById("b1")).thenReturn(java.util.Optional.of(b));
+        settings.getCaseTypePolicies().add(new ai.philterd.workspace.model.CaseTypePolicy("civil", "civil-filings"));
+        return b;
+    }
+
+    @Test
+    void aBatchThatChoosesByCaseTypeRedactsWithTheMappedPolicy() throws Exception {
+        byCaseType();
+        when(redactionService.redactText(any(), any(), any())).thenReturn(
+                new ai.philterd.workspace.core.model.RedactionResponse("Call Jane Roe.", "Call PERSON.", List.of()));
+
+        service.processOne(queued("Civil"));
+
+        verify(redactionService).redactText("Call Jane Roe.", "civil-filings", "");
+    }
+
+    @Test
+    void aMissingOrUnmappedCaseTypeIsFlaggedAndNotRedacted() throws Exception {
+        byCaseType();
+        final Document unmapped = queued("criminal");
+        service.processOne(unmapped);
+        assertEquals("FAILED", unmapped.getStatus());
+        assertEquals("The batch chooses its policy by case type, and no policy is mapped to case type \"criminal\". "
+                + "Map it under Admin, General, Case types, then retry it.", unmapped.getFailureMessage(),
+                "the reason alone, with no stack trace");
+
+        final Document none = queued(null);
+        service.processOne(none);
+        assertEquals("FAILED", none.getStatus());
+        assertTrue(none.getFailureMessage().contains("has no case type"));
+
+        verify(redactionService, org.mockito.Mockito.never()).redactText(any(), any(), any());
+        verify(persistenceService, org.mockito.Mockito.never()).apply(any(), any(), any());
+        assertFalse(listAppender.list.stream().anyMatch(e -> e.getFormattedMessage().contains("Jane")
+                || e.getFormattedMessage().contains("1:26-cv")), "no metadata or text in the log");
+    }
+
+    @Test
+    void otherBatchesKeepTheirOwnPolicyWhateverTheCaseType() throws Exception {
+        final Batch b = byCaseType();
+        b.setPolicyByCaseType(false);
+        when(redactionService.redactText(any(), any(), any())).thenReturn(
+                new ai.philterd.workspace.core.model.RedactionResponse("Call Jane Roe.", "Call PERSON.", List.of()));
+        service.processOne(queued("criminal"));
+        verify(redactionService).redactText("Call Jane Roe.", "batch-policy", "");
+    }
+
+    @Test
+    void caseMetadataIsStoredWithTheQueuedDocument() {
+        final ai.philterd.workspace.model.CaseMetadata m =
+                ai.philterd.workspace.model.CaseMetadata.of(null, "civil", null, "paid", true);
+        assertEquals(m, service.enqueueText(batch("b1"), "doc.txt", "x", 2, m).getCaseMetadata());
+        assertEquals(m, service.enqueueFile(batch("b1"), "doc.pdf", new byte[]{1}, MediaType.APPLICATION_PDF_VALUE, 2, m)
+                .getCaseMetadata());
     }
 }

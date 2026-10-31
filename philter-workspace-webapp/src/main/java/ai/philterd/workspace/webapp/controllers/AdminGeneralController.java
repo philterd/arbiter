@@ -356,6 +356,62 @@ public class AdminGeneralController {
         return "redirect:/admin/general";
     }
 
+    /** Maps a case type to a Philter policy (#16), replacing the case type's mapping if it has one. */
+    @PostMapping("/case-types")
+    public String saveCaseTypePolicy(@RequestParam("caseType") final String caseType,
+                                     @RequestParam("policyName") final String policyName,
+                                     final RedirectAttributes redirectAttributes) {
+        final String normalized;
+        try {
+            final ai.philterd.workspace.model.CaseMetadata parsed =
+                    ai.philterd.workspace.model.CaseMetadata.of(null, caseType, null, null, null);
+            normalized = parsed == null ? null : parsed.getCaseType();
+        } catch (ai.philterd.workspace.model.CaseMetadata.InvalidException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
+            return "redirect:/admin/general#case-types";
+        }
+        final String policy = policyName == null ? "" : policyName.trim();
+        if (normalized == null || policy.isEmpty()) {
+            redirectAttributes.addFlashAttribute("error", "A case type and a policy are both required.");
+            return "redirect:/admin/general#case-types";
+        }
+        if (policy.length() > 255) {
+            redirectAttributes.addFlashAttribute("error", "The policy name may be up to 255 characters.");
+            return "redirect:/admin/general#case-types";
+        }
+        final GeneralSettings settings = generalSettingsService.load();
+        final String previous = settings.policyForCaseType(normalized);
+        settings.getCaseTypePolicies().removeIf(e -> normalized.equals(e.getCaseType()));
+        settings.getCaseTypePolicies().add(new ai.philterd.workspace.model.CaseTypePolicy(normalized, policy));
+        settings.getCaseTypePolicies().sort(java.util.Comparator.comparing(
+                ai.philterd.workspace.model.CaseTypePolicy::getCaseType));
+        generalSettingsService.save(settings);
+        auditLogService.log("CASE_TYPE_POLICY_CHANGE", "Settings", GeneralSettings.SINGLETON_ID,
+                Map.of("caseType", normalized, "previousPolicyName", previous == null ? "" : previous,
+                        "policyName", policy));
+        redirectAttributes.addFlashAttribute("success",
+                "Case type \"" + normalized + "\" now uses policy \"" + policy + "\".");
+        return "redirect:/admin/general#case-types";
+    }
+
+    @PostMapping("/case-types/remove")
+    public String removeCaseTypePolicy(@RequestParam("caseType") final String caseType,
+                                       final RedirectAttributes redirectAttributes) {
+        final String normalized = ai.philterd.workspace.model.CaseMetadata.normalizeCaseType(caseType);
+        final GeneralSettings settings = generalSettingsService.load();
+        final String previous = settings.policyForCaseType(normalized);
+        if (previous == null) {
+            redirectAttributes.addFlashAttribute("error", "That case type is not mapped.");
+            return "redirect:/admin/general#case-types";
+        }
+        settings.getCaseTypePolicies().removeIf(e -> normalized.equals(e.getCaseType()));
+        generalSettingsService.save(settings);
+        auditLogService.log("CASE_TYPE_POLICY_CHANGE", "Settings", GeneralSettings.SINGLETON_ID,
+                Map.of("caseType", normalized, "previousPolicyName", previous, "policyName", ""));
+        redirectAttributes.addFlashAttribute("success", "Case type \"" + normalized + "\" is no longer mapped.");
+        return "redirect:/admin/general#case-types";
+    }
+
     @PostMapping("/detection-rules")
     public String saveDetectionRules(
             @RequestParam(value = "reviewersConfirmRules", defaultValue = "false") final boolean reviewersConfirmRules,

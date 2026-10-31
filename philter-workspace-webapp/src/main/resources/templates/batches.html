@@ -321,14 +321,16 @@
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm">
                                 <div class="text-gray-900">
-                                    <span th:if="${b.policyName != null}" th:text="${b.policyName}">policy</span>
-                                    <span th:if="${b.policyName == null}" class="italic text-gray-500">Default policy</span>
+                                    <span th:if="${b.policyByCaseType}">By case type</span>
+                                    <span th:if="${!b.policyByCaseType and b.policyName != null}" th:text="${b.policyName}">policy</span>
+                                    <span th:if="${!b.policyByCaseType and b.policyName == null}" class="italic text-gray-500">Default policy</span>
                                 </div>
                                 <button type="button"
                                         class="batch-philter-btn text-xs font-medium text-brand-600 hover:text-brand-800 mt-1"
                                         th:attr="data-batch-id=${b.id},
                                                  data-batch-name=${b.name},
-                                                 data-policy-name=${b.policyName == null ? '' : b.policyName}">
+                                                 data-policy-name=${b.policyName == null ? '' : b.policyName},
+                                                 data-policy-by-case-type=${b.policyByCaseType}">
                                     Change…
                                 </button>
                             </td>
@@ -396,6 +398,11 @@
                     </select>
                     <p id="batchPhilterPolicyStatus" class="text-xs text-gray-500 mt-1"></p>
                 </div>
+                <label class="flex items-start gap-2 text-sm text-gray-700">
+                    <input id="batchPolicyByCaseType" type="checkbox" name="policyByCaseType" value="true" class="mt-0.5">
+                    <span>Choose each document's policy from its case type, as mapped under Admin, General, Case
+                        types. A document with no case type, or an unmapped one, is marked failed instead.</span>
+                </label>
             </div>
             <div class="flex items-center justify-end gap-2 mt-6">
                 <button type="button" id="batchPhilterCancelBtn"
@@ -569,6 +576,11 @@
                         </select>
                         <p id="newBatchPolicyStatus" class="text-xs text-gray-500 mt-1"></p>
                     </div>
+                <label class="flex items-start gap-2 text-sm text-gray-700">
+                    <input id="newBatchPolicyByCaseType" type="checkbox" name="policyByCaseType" value="true" class="mt-0.5">
+                    <span>Choose each document's policy from its case type, as mapped under Admin, General, Case
+                        types. A document with no case type, or an unmapped one, is marked failed instead.</span>
+                </label>
                     <div>
                         <label for="newBatchFinalization" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Batch Finalization Policy</label>
                         <select id="newBatchFinalization" name="finalizationPolicyId" required
@@ -832,9 +844,10 @@
                 }
             }
 
-            function openModal(batchId, batchName, policyName) {
+            function openModal(batchId, batchName, policyName, policyByCaseType) {
                 form.action = baseUrl + '/' + encodeURIComponent(batchId) + '/policy';
                 nameSpan.textContent = batchName;
+                document.getElementById('batchPolicyByCaseType').checked = policyByCaseType === 'true';
                 modal.classList.remove('hidden');
                 loadPolicies(policyName || '');
             }
@@ -842,7 +855,8 @@
 
             document.querySelectorAll('.batch-philter-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    openModal(btn.dataset.batchId, btn.dataset.batchName, btn.dataset.policyName);
+                    openModal(btn.dataset.batchId, btn.dataset.batchName, btn.dataset.policyName,
+                            btn.dataset.policyByCaseType);
                 });
             });
             cancelBtn.addEventListener('click', closeModal);

@@ -61,7 +61,7 @@ class LocalDirectoryIngestJobServiceTest {
         // Make save() return its argument so the worker can chain saves.
         when(jobRepository.save(any(BackgroundJob.class))).thenAnswer(inv -> inv.getArgument(0));
         // enqueueText / enqueueFile build a Document; mirror that for assertions.
-        when(ingestQueueService.enqueueText(any(Batch.class), anyString(), anyString(), anyInt()))
+        when(ingestQueueService.enqueueText(any(Batch.class), anyString(), anyString(), anyInt(), any()))
                 .thenAnswer(inv -> {
                     final Document d = new Document();
                     d.setId("doc-" + inv.<String>getArgument(1));
@@ -71,7 +71,7 @@ class LocalDirectoryIngestJobServiceTest {
                     return d;
                 });
         when(ingestQueueService.enqueueFile(any(Batch.class), anyString(), any(byte[].class),
-                anyString(), anyInt()))
+                anyString(), anyInt(), any()))
                 .thenAnswer(inv -> {
                     final Document d = new Document();
                     d.setId("doc-" + inv.<String>getArgument(1));
@@ -195,9 +195,9 @@ class LocalDirectoryIngestJobServiceTest {
 
         // Two .txt files enqueued as text; the .csv is ignored by the glob.
         verify(ingestQueueService, times(2))
-                .enqueueText(any(Batch.class), anyString(), anyString(), eq(2));
+                .enqueueText(any(Batch.class), anyString(), anyString(), eq(2), any());
         verify(ingestQueueService, never())
-                .enqueueFile(any(Batch.class), anyString(), any(byte[].class), anyString(), anyInt());
+                .enqueueFile(any(Batch.class), anyString(), any(byte[].class), anyString(), anyInt(), any());
 
         // Each saved Document carries source attribution pointing back at the file.
         final ArgumentCaptor<Document> savedDocs = ArgumentCaptor.forClass(Document.class);
@@ -231,9 +231,9 @@ class LocalDirectoryIngestJobServiceTest {
         service.run("j1");
 
         verify(ingestQueueService).enqueueFile(any(Batch.class), eq("invoice.pdf"),
-                any(byte[].class), eq("application/pdf"), eq(2));
+                any(byte[].class), eq("application/pdf"), eq(2), any());
         verify(ingestQueueService, never())
-                .enqueueText(any(Batch.class), anyString(), anyString(), anyInt());
+                .enqueueText(any(Batch.class), anyString(), anyString(), anyInt(), any());
     }
 
     @Test
@@ -257,7 +257,7 @@ class LocalDirectoryIngestJobServiceTest {
         service.run("j1");
 
         verify(ingestQueueService, times(2))
-                .enqueueFile(any(Batch.class), anyString(), any(byte[].class), anyString(), anyInt());
+                .enqueueFile(any(Batch.class), anyString(), any(byte[].class), anyString(), anyInt(), any());
     }
 
     @Test
@@ -279,7 +279,7 @@ class LocalDirectoryIngestJobServiceTest {
         service.run("j1");
 
         verify(ingestQueueService, times(1))
-                .enqueueFile(any(Batch.class), eq("top.pdf"), any(byte[].class), anyString(), anyInt());
+                .enqueueFile(any(Batch.class), eq("top.pdf"), any(byte[].class), anyString(), anyInt(), any());
     }
 
     @Test
@@ -302,9 +302,9 @@ class LocalDirectoryIngestJobServiceTest {
 
         // Only b.txt is enqueued; a.txt's content is not re-imported.
         verify(ingestQueueService, times(1))
-                .enqueueText(any(Batch.class), eq("b.txt"), anyString(), anyInt());
+                .enqueueText(any(Batch.class), eq("b.txt"), anyString(), anyInt(), any());
         verify(ingestQueueService, never())
-                .enqueueText(any(Batch.class), eq("a.txt"), anyString(), anyInt());
+                .enqueueText(any(Batch.class), eq("a.txt"), anyString(), anyInt(), any());
 
         final ArgumentCaptor<BackgroundJob> savedJob = ArgumentCaptor.forClass(BackgroundJob.class);
         verify(jobRepository, org.mockito.Mockito.atLeastOnce()).save(savedJob.capture());
@@ -367,5 +367,50 @@ class LocalDirectoryIngestJobServiceTest {
         j.setStatus(BackgroundJob.STATUS_PENDING);
         j.setCreatedBy("actor@example.com");
         return j;
+    }
+
+    // ---------- case metadata sidecars (#16) ----------
+
+    @Test
+    void aSidecarGivesItsFileCaseMetadataAndIsNotImportedItself(@TempDir final Path dir) throws Exception {
+        Files.writeString(dir.resolve("motion.txt"), "Jane Roe moves.", StandardCharsets.UTF_8);
+        Files.writeString(dir.resolve("motion.txt.case.json"),
+                "{\"caseNumber\": \"1:26-cv-01234\", \"caseType\": \"Civil\", \"ifp\": true}",
+                StandardCharsets.UTF_8);
+        Files.writeString(dir.resolve("order.txt"), "So ordered.", StandardCharsets.UTF_8);
+        final BackgroundJob pending = pendingJob("j1", "src-1", "b1");
+        when(jobRepository.findById("j1")).thenReturn(Optional.of(pending));
+        when(dataSourceRepository.findById("src-1")).thenReturn(Optional.of(source("src-1", dir, "*")));
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(batch("b1")));
+
+        service.run("j1");
+
+        final ArgumentCaptor<ai.philterd.workspace.model.CaseMetadata> motion =
+                ArgumentCaptor.forClass(ai.philterd.workspace.model.CaseMetadata.class);
+        verify(ingestQueueService).enqueueText(any(Batch.class), eq("motion.txt"), anyString(), anyInt(),
+                motion.capture());
+        assertEquals("civil", motion.getValue().getCaseType());
+        assertEquals("1:26-cv-01234", motion.getValue().getCaseNumber());
+        assertEquals(true, motion.getValue().getIfp());
+        verify(ingestQueueService).enqueueText(any(Batch.class), eq("order.txt"), anyString(), anyInt(),
+                org.mockito.ArgumentMatchers.isNull());
+        verify(ingestQueueService, never()).enqueueText(any(Batch.class), eq("motion.txt.case.json"), anyString(),
+                anyInt(), any());
+        assertEquals(2, pending.getTotalDocuments(), "the sidecar is not counted as a document");
+    }
+
+    @Test
+    void aFileWithAnInvalidSidecarIsNotImported(@TempDir final Path dir) throws Exception {
+        Files.writeString(dir.resolve("motion.txt"), "Jane Roe moves.", StandardCharsets.UTF_8);
+        Files.writeString(dir.resolve("motion.txt.case.json"), "{\"feeStatus\": \"maybe\"}", StandardCharsets.UTF_8);
+        final BackgroundJob pending = pendingJob("j1", "src-1", "b1");
+        when(jobRepository.findById("j1")).thenReturn(Optional.of(pending));
+        when(dataSourceRepository.findById("src-1")).thenReturn(Optional.of(source("src-1", dir, "*.txt")));
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(batch("b1")));
+
+        service.run("j1");
+
+        verify(ingestQueueService, never()).enqueueText(any(Batch.class), anyString(), anyString(), anyInt(), any());
+        assertEquals(1, pending.getFailedDocuments());
     }
 }

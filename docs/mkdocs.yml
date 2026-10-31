@@ -52,6 +52,7 @@ nav:
   - Reference:
       - Risk score: reference/risk-score.md
       - PII types: reference/pii-types.md
+      - Case metadata: reference/case-metadata.md
       - REST API: reference/api.md
       - Configuration: reference/configuration.md
       - Database: reference/database.md

@@ -146,6 +146,7 @@ class PhilterSignInIT {
     @Autowired private javax.sql.DataSource dataSource;
     @Autowired private ai.philterd.workspace.repository.PhilterWebhookDeliveryRepository webhookDeliveries;
     @Autowired private ai.philterd.workspace.service.DetectionRuleService detectionRuleService;
+    @Autowired private ai.philterd.workspace.service.GeneralSettingsService generalSettingsService;
 
     @DynamicPropertySource
     static void properties(final DynamicPropertyRegistry registry) throws Exception {
@@ -1024,6 +1025,59 @@ class PhilterSignInIT {
                         .anyMatch(r -> "email-address".equals(r.getType()) && "jdoe@example.com".equals(r.getText())),
                 "Philter's default policy finds the email address");
         assertFalse(response.getRedactedText().contains("jdoe@example.com"));
+    }
+
+    @Test
+    void aBatchRedactsEachDocumentWithThePolicyMappedToItsCaseType() throws Exception {
+        final String suffix = HexFormat.of().formatHex(bytes(3));
+        final String policy = "it-email-only-" + suffix;
+        final String caseType = "civil" + suffix;
+        // Finds email addresses only, so a person's name in the text shows which policy was used.
+        bootstrap().savePolicy(policy, "{\"identifiers\":{\"emailAddress\":{\"emailAddressFilterStrategies\":"
+                + "[{\"strategy\":\"REDACT\"}]}}}", "admin");
+        final ai.philterd.workspace.model.GeneralSettings settings = generalSettingsService.load();
+        settings.getCaseTypePolicies().add(new ai.philterd.workspace.model.CaseTypePolicy(caseType, policy));
+        generalSettingsService.save(settings);
+
+        final ai.philterd.workspace.model.Batch batch = new ai.philterd.workspace.model.Batch();
+        batch.setId(java.util.UUID.randomUUID().toString());
+        batch.setName("By case type " + suffix);
+        batch.setPolicyByCaseType(true);
+        batchRepository.save(batch);
+        final String text = "Jane Roe wrote to jdoe@example.com about the claim.";
+        final ai.philterd.workspace.model.Document mapped = ingestQueueService.enqueueText(batch, "mapped.txt", text, 2,
+                ai.philterd.workspace.model.CaseMetadata.of("1:26-cv-01234", caseType.toUpperCase(), "Jane Roe",
+                        "paid", false));
+        final ai.philterd.workspace.model.Document unmapped = ingestQueueService.enqueueText(batch, "unmapped.txt",
+                text, 2, ai.philterd.workspace.model.CaseMetadata.of(null, "criminal" + suffix, null, null, null));
+        try {
+            final long deadline = System.currentTimeMillis() + 120_000;
+            while (System.currentTimeMillis() < deadline && java.util.List.of(mapped, unmapped).stream()
+                    .map(d -> documentRepository.findById(d.getId()).orElseThrow().getStatus())
+                    .anyMatch(st -> "PENDING".equals(st) || "PROCESSING".equals(st))) {
+                ingestQueueService.drain();
+                Thread.sleep(250);
+            }
+
+            final ai.philterd.workspace.model.Document done = documentRepository.findById(mapped.getId()).orElseThrow();
+            assertFalse("FAILED".equals(done.getStatus()), done.getFailureMessage());
+            assertEquals(policy, done.getAppliedPolicyName(), "the policy Philter reports applying is recorded");
+            assertTrue(done.getAppliedPolicyVersion() != null && done.getAppliedPolicyVersion() >= 0);
+            final java.util.List<String> types = spanRepository.findByDocumentId(mapped.getId()).stream()
+                    .map(ai.philterd.workspace.model.Span::getType).toList();
+            assertEquals(java.util.List.of("email-address"), types, "only what the mapped policy finds");
+
+            final ai.philterd.workspace.model.Document flagged =
+                    documentRepository.findById(unmapped.getId()).orElseThrow();
+            assertEquals("FAILED", flagged.getStatus());
+            assertTrue(flagged.getFailureMessage().contains("no policy is mapped to case type \"criminal" + suffix),
+                    flagged.getFailureMessage());
+            assertTrue(spanRepository.findByDocumentId(unmapped.getId()).isEmpty(), "not redacted with another policy");
+        } finally {
+            final ai.philterd.workspace.model.GeneralSettings after = generalSettingsService.load();
+            after.getCaseTypePolicies().removeIf(e -> caseType.equals(e.getCaseType()));
+            generalSettingsService.save(after);
+        }
     }
 
     @Test

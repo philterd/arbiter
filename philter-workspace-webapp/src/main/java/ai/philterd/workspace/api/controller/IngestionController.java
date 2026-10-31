@@ -86,6 +86,16 @@ public class IngestionController {
                     "sizeBytes", size));
         }
 
+        // Case metadata (#16) is checked before anything is stored.
+        final ai.philterd.workspace.model.CaseMetadata caseMetadata;
+        try {
+            final ai.philterd.workspace.model.CaseMetadata given = request.caseMetadata();
+            caseMetadata = given == null ? null : ai.philterd.workspace.model.CaseMetadata.of(given.getCaseNumber(),
+                    given.getCaseType(), given.getFiler(), given.getFeeStatus(), given.getIfp());
+        } catch (ai.philterd.workspace.model.CaseMetadata.InvalidException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage(), "problems", e.problems()));
+        }
+
         // Persist a PENDING document; the background ingest-queue worker (in the webapp module)
         // will pick it up in arrival order, run Philter, and transition the document out of PENDING.
         final int priority = (request.priority() != null) ? request.priority() : 2;
@@ -98,6 +108,7 @@ public class IngestionController {
         document.setOriginalText(request.text());
         document.setContentSha512(Hashing.sha512Hex(request.text() == null ? "" : request.text()));
         document.setPriority(priority);
+        document.setCaseMetadata(caseMetadata);
         document.changeStatus("PENDING");
         documentRepository.save(document);
 
@@ -105,7 +116,9 @@ public class IngestionController {
                 Map.of(
                         "batchId", request.batchId(),
                         "name", request.name() == null ? "" : request.name(),
-                        "textLength", request.text() == null ? 0 : request.text().length()));
+                        "textLength", request.text() == null ? 0 : request.text().length(),
+                        "caseType", caseMetadata == null || caseMetadata.getCaseType() == null
+                                ? "" : caseMetadata.getCaseType()));
 
         return ResponseEntity.accepted().body(Map.of("taskId", taskId));
     }

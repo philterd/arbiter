@@ -117,7 +117,7 @@ class BatchControllerTest {
         when(userGroupsService.leadGroupIdsForEmail("user@x.com")).thenReturn(Set.of());
 
         final RedirectAttributes ra = flash();
-        controller.create("b", null, null, null, null, "g", null, "Financial", "", null, null, null, null, null, user(), ra);
+        controller.create("b", null, null, null, null, "g", null, false, "Financial", "", null, null, null, null, null, user(), ra);
         assertNotNull(error(ra));
         assertTrue(error(ra).contains("create batches in groups you lead"),
                 "expected the lead-required error, got: " + error(ra));
@@ -132,7 +132,7 @@ class BatchControllerTest {
         when(userGroupsService.leadGroupIdsForEmail("user@x.com")).thenReturn(Set.of("g1"));
 
         final RedirectAttributes ra = flash();
-        final String view = controller.create("Sample", null, 0.5, 0.2, null, "g1", null, "Healthcare", "",
+        final String view = controller.create("Sample", null, 0.5, 0.2, null, "g1", null, false, "Healthcare", "",
                 "fp1", "cp1", null, null, null, user(), ra);
 
         assertEquals("redirect:/batches", view);
@@ -148,7 +148,7 @@ class BatchControllerTest {
         when(userGroupsService.leadGroupIdsForEmail("user@x.com")).thenReturn(Set.of("g2"));
 
         final RedirectAttributes ra = flash();
-        controller.create("b", null, null, null, null, "g1", null, "Financial", "", null, null, null, null, null, user(), ra);
+        controller.create("b", null, null, null, null, "g1", null, false, "Financial", "", null, null, null, null, null, user(), ra);
         assertNotNull(error(ra));
         assertTrue(error(ra).contains("create batches in groups you lead"),
                 "expected the lead-required error, got: " + error(ra));
@@ -158,7 +158,7 @@ class BatchControllerTest {
     @Test
     void createRejectsBlankName() {
         final RedirectAttributes ra = flash();
-        controller.create(" ", null, null, null, null, "g", null, "Financial", "", null, null, null, null, null, admin(), ra);
+        controller.create(" ", null, null, null, null, "g", null, false, "Financial", "", null, null, null, null, null, admin(), ra);
         assertEquals("Batch name is required.", error(ra));
         verify(batchRepository, never()).save(any());
     }
@@ -166,7 +166,7 @@ class BatchControllerTest {
     @Test
     void createRejectsThresholdOutOfRange() {
         final RedirectAttributes ra = flash();
-        controller.create("b", null, 1.5, null, null, "g", null, "Financial", "", null, null, null, null, null, admin(), ra);
+        controller.create("b", null, 1.5, null, null, "g", null, false, "Financial", "", null, null, null, null, null, admin(), ra);
         assertEquals("PII threshold must be between 0 and 1.", error(ra));
         verify(batchRepository, never()).save(any());
     }
@@ -175,7 +175,7 @@ class BatchControllerTest {
     void createRejectsMissingGroup() {
         final RedirectAttributes ra = flash();
         when(groupRepository.existsById("missing")).thenReturn(false);
-        controller.create("b", null, null, null, null, "missing", null, "Financial", "", null, null, null, null, null, admin(), ra);
+        controller.create("b", null, null, null, null, "missing", null, false, "Financial", "", null, null, null, null, null, admin(), ra);
         assertEquals("A valid group must be selected.", error(ra));
         verify(batchRepository, never()).save(any());
     }
@@ -185,7 +185,7 @@ class BatchControllerTest {
         when(groupRepository.existsById("g1")).thenReturn(true);
 
         final RedirectAttributes ra = flash();
-        controller.create("b", null, null, null, null, "g1", null, "  ", "", null, null, null, null, null, admin(), ra);
+        controller.create("b", null, null, null, null, "g1", null, false, "  ", "", null, null, null, null, null, admin(), ra);
         assertEquals("Domain is required.", error(ra));
         verify(batchRepository, never()).save(any());
     }
@@ -195,7 +195,7 @@ class BatchControllerTest {
         when(groupRepository.existsById("g1")).thenReturn(true);
 
         final RedirectAttributes ra = flash();
-        controller.create("b", null, null, null, null, "g1", null, "Aerospace", "", null, null, null, null, null, admin(), ra);
+        controller.create("b", null, null, null, null, "g1", null, false, "Aerospace", "", null, null, null, null, null, admin(), ra);
         assertNotNull(error(ra));
         assertTrue(error(ra).contains("not a valid choice"));
         verify(batchRepository, never()).save(any());
@@ -210,7 +210,7 @@ class BatchControllerTest {
         when(batchRepository.findByName("Sample")).thenReturn(Optional.of(existing));
 
         final RedirectAttributes ra = flash();
-        controller.create("Sample", null, null, null, null, "g1", null, "Financial", "", null, null, null, null, null, admin(), ra);
+        controller.create("Sample", null, null, null, null, "g1", null, false, "Financial", "", null, null, null, null, null, admin(), ra);
         assertEquals("A batch named \"Sample\" already exists.", error(ra));
         verify(batchRepository, never()).save(any());
     }
@@ -221,7 +221,7 @@ class BatchControllerTest {
         when(batchRepository.findByName("Sample")).thenReturn(Optional.empty());
 
         final RedirectAttributes ra = flash();
-        final String view = controller.create("Sample", null, 0.5, 0.2, null, "g1", null, "Healthcare", "", "fp1", "cp1", null, null, null, admin(), ra);
+        final String view = controller.create("Sample", null, 0.5, 0.2, null, "g1", null, false, "Healthcare", "", "fp1", "cp1", null, null, null, admin(), ra);
         assertEquals("redirect:/batches", view);
         assertNull(error(ra));
         assertEquals("Batch \"Sample\" created.", success(ra));
@@ -236,7 +236,7 @@ class BatchControllerTest {
         when(batchRepository.findByName("Sample")).thenReturn(Optional.empty());
 
         final RedirectAttributes ra = flash();
-        final String view = controller.create("Sample", null, null, null, null, "g1", null,
+        final String view = controller.create("Sample", null, null, null, null, "g1", null, false,
                 "Healthcare", "", "fp1", "cp1", null, /*blindEnabled*/ null, /*blindPct*/ null, admin(), ra);
         assertEquals("redirect:/batches", view);
         assertNull(error(ra));
@@ -256,7 +256,7 @@ class BatchControllerTest {
         when(groupRepository.existsById("g1")).thenReturn(true);
         when(batchRepository.findByName("Sample")).thenReturn(Optional.empty());
 
-        controller.create("Sample", null, null, null, null, "g1", null, "Healthcare", "",
+        controller.create("Sample", null, null, null, null, "g1", null, false, "Healthcare", "",
                 "fp1", "cp1", null, /*blindEnabled*/ null, /*blindPct*/ 75, admin(), flash());
 
         final ArgumentCaptor<Batch> saved = ArgumentCaptor.forClass(Batch.class);
@@ -271,7 +271,7 @@ class BatchControllerTest {
         when(groupRepository.existsById("g1")).thenReturn(true);
         when(batchRepository.findByName("Sample")).thenReturn(Optional.empty());
 
-        controller.create("Sample", null, null, null, null, "g1", null, "Healthcare", "",
+        controller.create("Sample", null, null, null, null, "g1", null, false, "Healthcare", "",
                 "fp1", "cp1", null, /*blindEnabled*/ true, /*blindPct*/ 25, admin(), flash());
 
         final ArgumentCaptor<Batch> saved = ArgumentCaptor.forClass(Batch.class);
@@ -287,7 +287,7 @@ class BatchControllerTest {
         when(groupRepository.existsById("g1")).thenReturn(true);
         when(batchRepository.findByName("Sample")).thenReturn(Optional.empty());
 
-        controller.create("Sample", null, null, null, null, "g1", null, "Healthcare", "",
+        controller.create("Sample", null, null, null, null, "g1", null, false, "Healthcare", "",
                 "fp1", "cp1", null, /*blindEnabled*/ true, /*blindPct*/ null, admin(), flash());
 
         final ArgumentCaptor<Batch> saved = ArgumentCaptor.forClass(Batch.class);
@@ -303,7 +303,7 @@ class BatchControllerTest {
         when(batchRepository.findByName("Sample")).thenReturn(Optional.empty());
 
         final RedirectAttributes ra = flash();
-        controller.create("Sample", null, null, null, null, "g1", null, "Healthcare", "",
+        controller.create("Sample", null, null, null, null, "g1", null, false, "Healthcare", "",
                 "fp1", "cp1", null, /*blindEnabled*/ true, /*blindPct*/ 0, admin(), ra);
         assertNotNull(error(ra));
         assertTrue(error(ra).contains("between 1 and 100"),
@@ -317,7 +317,7 @@ class BatchControllerTest {
         when(batchRepository.findByName("Sample")).thenReturn(Optional.empty());
 
         final RedirectAttributes ra = flash();
-        controller.create("Sample", null, null, null, null, "g1", null, "Healthcare", "",
+        controller.create("Sample", null, null, null, null, "g1", null, false, "Healthcare", "",
                 "fp1", "cp1", null, /*blindEnabled*/ true, /*blindPct*/ 101, admin(), ra);
         assertNotNull(error(ra));
         assertTrue(error(ra).contains("between 1 and 100"));
@@ -330,7 +330,7 @@ class BatchControllerTest {
         when(batchRepository.findByName("Sample")).thenReturn(Optional.empty());
 
         final RedirectAttributes ra = flash();
-        controller.create("Sample", null, null, null, null, "g1", null, "Healthcare", "",
+        controller.create("Sample", null, null, null, null, "g1", null, false, "Healthcare", "",
                 "fp1", "cp1", null, /*blindEnabled*/ true, /*blindPct*/ -5, admin(), ra);
         assertNotNull(error(ra));
         assertTrue(error(ra).contains("between 1 and 100"));
@@ -351,7 +351,7 @@ class BatchControllerTest {
         when(userGroupsService.leadGroupIdsForEmail("user@x.com")).thenReturn(Set.of());
 
         final RedirectAttributes ra = flash();
-        controller.changePolicy("b1", null, user(), ra);
+        controller.changePolicy("b1", null, false, user(), ra);
         assertEquals("Batch not found.", error(ra));
         verify(batchRepository, never()).save(any());
     }
@@ -367,7 +367,7 @@ class BatchControllerTest {
         when(userGroupsService.leadGroupIdsForEmail("user@x.com")).thenReturn(Set.of("g1"));
 
         final RedirectAttributes ra = flash();
-        final String view = controller.changePolicy("b1", "", user(), ra);
+        final String view = controller.changePolicy("b1", "", false, user(), ra);
         assertEquals("redirect:/batches", view);
         assertNull(error(ra));
         verify(batchRepository).save(b);
@@ -378,7 +378,7 @@ class BatchControllerTest {
         when(batchRepository.findById("b1")).thenReturn(Optional.empty());
 
         final RedirectAttributes ra = flash();
-        controller.changePolicy("b1", "policy", admin(), ra);
+        controller.changePolicy("b1", "policy", false, admin(), ra);
         assertEquals("Batch not found.", error(ra));
     }
 
@@ -390,11 +390,33 @@ class BatchControllerTest {
         when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
 
         final RedirectAttributes ra = flash();
-        final String view = controller.changePolicy("b1", "", admin(), ra);
+        final String view = controller.changePolicy("b1", "", false, admin(), ra);
         assertEquals("redirect:/batches", view);
         assertTrue(success(ra).contains("Philter's default policy"));
         verify(batchRepository).save(b);
         assertNull(b.getPolicyName());
+    }
+
+    @Test
+    void aBatchCanChooseItsPolicyByCaseType() {
+        final Batch b = new Batch();
+        b.setId("b1");
+        b.setName("Filings");
+        b.setPolicyName("general");
+        when(batchRepository.findById("b1")).thenReturn(Optional.of(b));
+
+        final RedirectAttributes ra = flash();
+        controller.changePolicy("b1", "general", true, admin(), ra);
+
+        assertTrue(b.isPolicyByCaseType());
+        assertEquals("general", b.getPolicyName(), "kept, for when the switch is turned off");
+        assertTrue(success(ra).contains("the policy mapped to each document's case type"), success(ra));
+        verify(auditLogService).log(org.mockito.ArgumentMatchers.eq("BATCH_POLICY_CHANGE"), any(), any(),
+                org.mockito.ArgumentMatchers.eq(java.util.Map.of("previousPolicyName", "general",
+                        "newPolicyName", "general", "previousPolicyByCaseType", false, "policyByCaseType", true)));
+
+        controller.changePolicy("b1", "general", false, admin(), flash());
+        assertFalse(b.isPolicyByCaseType());
     }
 
     // ---------- changeGroup ----------
@@ -585,7 +607,7 @@ class BatchControllerTest {
                              final RedirectAttributes ra) {
         when(groupRepository.existsById("g1")).thenReturn(true);
         when(batchRepository.findByName("Sample")).thenReturn(Optional.empty());
-        c.create("Sample", null, pii, doc, rate, "g1", null, "Healthcare", "", "fp1", "cp1", null, null, null, admin(), ra);
+        c.create("Sample", null, pii, doc, rate, "g1", null, false, "Healthcare", "", "fp1", "cp1", null, null, null, admin(), ra);
         final ArgumentCaptor<Batch> saved = ArgumentCaptor.forClass(Batch.class);
         verify(batchRepository, org.mockito.Mockito.atMost(1)).save(saved.capture());
         return saved.getAllValues().isEmpty() ? null : saved.getValue();
@@ -667,7 +689,7 @@ class BatchControllerTest {
         final RedirectAttributes ra = flash();
 
         controller(ai.philterd.workspace.service.BatchDefaults.of(0.8, 0.25, 1.0, 1.0)).create("Sample", null, null, null,
-                0.5, "g1", null, "Healthcare", "", "fp1", "cp1", null, null, null, user(), ra);
+                0.5, "g1", null, false, "Healthcare", "", "fp1", "cp1", null, null, null, user(), ra);
 
         assertTrue(error(ra).startsWith("You can only create batches in groups you lead."), error(ra));
         verify(auditLogService, never()).log(org.mockito.ArgumentMatchers.eq("BATCH_AUDIT_SAMPLING_RATE_REFUSED"),

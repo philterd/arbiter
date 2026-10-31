@@ -60,6 +60,7 @@ public class IngestQueueService {
     private final RedactionService redactionService;
     private final RedactionPersistenceService persistenceService;
     private final DocumentQueueStore queueStore;
+    private final GeneralSettingsService generalSettingsService;
     private final AtomicBoolean processing = new AtomicBoolean(false);
 
     public IngestQueueService(final DocumentRepository documentRepository,
@@ -67,13 +68,15 @@ public class IngestQueueService {
                               final BatchRepository batchRepository,
                               final RedactionService redactionService,
                               final RedactionPersistenceService persistenceService,
-                              final DocumentQueueStore queueStore) {
+                              final DocumentQueueStore queueStore,
+                              final GeneralSettingsService generalSettingsService) {
         this.documentRepository = documentRepository;
         this.pendingUploadRepository = pendingUploadRepository;
         this.batchRepository = batchRepository;
         this.redactionService = redactionService;
         this.persistenceService = persistenceService;
         this.queueStore = queueStore;
+        this.generalSettingsService = generalSettingsService;
     }
 
     /**
@@ -81,7 +84,14 @@ public class IngestQueueService {
      * no sidecar is needed. Returns the persisted document with status {@code PENDING}.
      */
     public Document enqueueText(final Batch batch, final String filename, final String text, final int priority) {
+        return enqueueText(batch, filename, text, priority, null);
+    }
+
+    /** {@link #enqueueText(Batch, String, String, int)}, with the filing's case metadata (#16), or null. */
+    public Document enqueueText(final Batch batch, final String filename, final String text, final int priority,
+                                final ai.philterd.workspace.model.CaseMetadata caseMetadata) {
         final Document doc = new Document();
+        doc.setCaseMetadata(caseMetadata);
         doc.setId(UUID.randomUUID().toString());
         doc.setBatchId(batch.getId());
         doc.setFilename(filename);
@@ -101,7 +111,15 @@ public class IngestQueueService {
      */
     public Document enqueueFile(final Batch batch, final String filename,
                                 final byte[] bytes, final String contentType, final int priority) {
+        return enqueueFile(batch, filename, bytes, contentType, priority, null);
+    }
+
+    /** {@link #enqueueFile(Batch, String, byte[], String, int)}, with the filing's case metadata (#16), or null. */
+    public Document enqueueFile(final Batch batch, final String filename, final byte[] bytes,
+                                final String contentType, final int priority,
+                                final ai.philterd.workspace.model.CaseMetadata caseMetadata) {
         final Document doc = new Document();
+        doc.setCaseMetadata(caseMetadata);
         doc.setId(UUID.randomUUID().toString());
         doc.setBatchId(batch.getId());
         doc.setFilename(filename);
@@ -188,7 +206,17 @@ public class IngestQueueService {
                 pendingUploadRepository.deleteById(doc.getId());
                 return;
             }
-            final RedactionResponse response = runRedaction(doc, batch);
+            final String policy;
+            try {
+                policy = policyFor(doc, batch);
+            } catch (UnresolvedPolicyException e) {
+                // Flagged, not redacted with another policy. The reason names only the case type, never the
+                // filing's other metadata. Retried from Admin, Ingest Queue once the document or mapping is fixed.
+                log.info("Document {}: not redacted: {}", doc.getId(), e.getMessage());
+                markFailed(doc, e.getMessage(), null);
+                return;
+            }
+            final RedactionResponse response = runRedaction(doc, batch, policy);
             // RedactionPersistenceService.apply() sets the terminal/auto-approved/review-required
             // status, which moves the document out of PROCESSING.
             persistenceService.apply(doc, batch, response);
@@ -242,11 +270,40 @@ public class IngestQueueService {
         return full.length() <= 8000 ? full : full.substring(0, 8000) + "\n…(truncated)";
     }
 
-    private RedactionResponse runRedaction(final Document doc, final Batch batch) throws java.io.IOException {
+    /** Why a document in a batch that chooses its policy by case type has no policy (#16). */
+    static class UnresolvedPolicyException extends Exception {
+        UnresolvedPolicyException(final String message) {
+            super(message);
+        }
+    }
+
+    /**
+     * The policy to redact the document with: the batch's, or, when the batch chooses its policy by case type, the
+     * one the case-type mapping names for the document's case type.
+     */
+    String policyFor(final Document doc, final Batch batch) throws UnresolvedPolicyException {
+        if (!batch.isPolicyByCaseType()) {
+            return batch.getPolicyName();
+        }
+        final String caseType = doc.getCaseMetadata() == null ? null : doc.getCaseMetadata().getCaseType();
+        if (caseType == null) {
+            throw new UnresolvedPolicyException("The batch chooses its policy by case type, and this document has "
+                    + "no case type. Give it one, then retry it.");
+        }
+        final String policy = generalSettingsService.load().policyForCaseType(caseType);
+        if (policy == null || policy.isBlank()) {
+            throw new UnresolvedPolicyException("The batch chooses its policy by case type, and no policy is mapped "
+                    + "to case type \"" + caseType + "\". Map it under Admin, General, Case types, then retry it.");
+        }
+        return policy;
+    }
+
+    private RedactionResponse runRedaction(final Document doc, final Batch batch, final String policy)
+            throws java.io.IOException {
         final PendingUpload pu = pendingUploadRepository.findById(doc.getId()).orElse(null);
         if (pu != null && MediaType.APPLICATION_PDF_VALUE.equals(pu.getContentType())) {
             return redactionService.redactPdf(new ByteArrayInputStream(pu.getContent()),
-                    batch.getPolicyName(), batch.getContext());
+                    policy, batch.getContext());
         }
         final String text;
         if (pu != null) {
@@ -254,6 +311,6 @@ public class IngestQueueService {
         } else {
             text = doc.getOriginalText() == null ? "" : doc.getOriginalText();
         }
-        return redactionService.redactText(text, batch.getPolicyName(), batch.getContext());
+        return redactionService.redactText(text, policy, batch.getContext());
     }
 }

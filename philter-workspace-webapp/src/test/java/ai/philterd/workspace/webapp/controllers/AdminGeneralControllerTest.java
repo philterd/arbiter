@@ -69,6 +69,46 @@ class AdminGeneralControllerTest {
         final Object s = ra.getFlashAttributes().get("success"); return s == null ? null : s.toString();
     }
 
+    // ---------- case types (#16) ----------
+
+    @Test
+    void aCaseTypeIsMappedNormalizedReplacedAndRemovedWithAudits() {
+        final GeneralSettings settings = new GeneralSettings();
+        givenSettings(settings);
+
+        final RedirectAttributes added = flash();
+        controller.saveCaseTypePolicy(" Civil ", " civil-filings ", added);
+        assertEquals("Case type \"civil\" now uses policy \"civil-filings\".", success(added));
+        assertEquals("civil-filings", settings.policyForCaseType("civil"));
+
+        controller.saveCaseTypePolicy("civil", "civil-2", flash());
+        assertEquals(1, settings.getCaseTypePolicies().size(), "mapping again replaces");
+        assertEquals("civil-2", settings.policyForCaseType("civil"));
+        verify(auditLogService).log(org.mockito.ArgumentMatchers.eq("CASE_TYPE_POLICY_CHANGE"), any(), any(),
+                org.mockito.ArgumentMatchers.eq(java.util.Map.of("caseType", "civil",
+                        "previousPolicyName", "civil-filings", "policyName", "civil-2")));
+
+        final RedirectAttributes removed = flash();
+        controller.removeCaseTypePolicy("CIVIL", removed);
+        assertTrue(settings.getCaseTypePolicies().isEmpty());
+        assertEquals("Case type \"civil\" is no longer mapped.", success(removed));
+        final RedirectAttributes again = flash();
+        controller.removeCaseTypePolicy("civil", again);
+        assertEquals("That case type is not mapped.", error(again));
+    }
+
+    @Test
+    void anInvalidCaseTypeOrMissingPolicyIsRefused() {
+        givenSettings(new GeneralSettings());
+        final RedirectAttributes bad = flash();
+        controller.saveCaseTypePolicy("civil/appeal", "p", bad);
+        assertTrue(error(bad).startsWith("The case type must be"), error(bad));
+        final RedirectAttributes blank = flash();
+        controller.saveCaseTypePolicy("civil", "  ", blank);
+        assertEquals("A case type and a policy are both required.", error(blank));
+        verify(settingsService, never()).save(any());
+    }
+
     // ---------- detection rules (#39) ----------
 
     @Test

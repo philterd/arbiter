@@ -270,6 +270,51 @@
                                    type="file" name="file" id="fileInput" multiple required>
                             <p class="mt-1 text-xs text-gray-500">Hold Shift or Ctrl/Cmd to pick multiple files. Each file becomes its own document in the chosen batch.</p>
                         </div>
+                        <details class="rounded-lg border border-gray-200 p-3">
+                            <summary class="cursor-pointer text-sm font-medium text-gray-700">Case (optional)</summary>
+                            <p class="mt-2 text-xs text-gray-500">Applied to every file in this upload. In a batch that
+                                chooses its policy by case type, the case type picks the policy.
+                                <a href="/docs/reference/case-metadata/" target="_blank" rel="noopener noreferrer" class="text-brand-600 hover:underline">Case metadata</a></p>
+                            <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                                <div>
+                                    <label for="caseNumber" class="block text-xs font-medium text-gray-600 mb-1">Case number</label>
+                                    <input id="caseNumber" name="caseNumber" type="text" maxlength="100" autocomplete="off"
+                                           class="block w-full rounded-lg border border-gray-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                                </div>
+                                <div>
+                                    <label for="caseType" class="block text-xs font-medium text-gray-600 mb-1">Case type</label>
+                                    <input id="caseType" name="caseType" type="text" maxlength="64" list="caseTypeOptions" autocomplete="off"
+                                           class="block w-full rounded-lg border border-gray-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                                    <datalist id="caseTypeOptions">
+                                        <option th:each="t : ${caseTypes}" th:value="${t}">civil</option>
+                                    </datalist>
+                                </div>
+                                <div>
+                                    <label for="filer" class="block text-xs font-medium text-gray-600 mb-1">Filer</label>
+                                    <input id="filer" name="filer" type="text" maxlength="200" autocomplete="off"
+                                           class="block w-full rounded-lg border border-gray-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                                </div>
+                                <div>
+                                    <label for="feeStatus" class="block text-xs font-medium text-gray-600 mb-1">Fee status</label>
+                                    <select id="feeStatus" name="feeStatus"
+                                            class="block w-full rounded-lg border border-gray-300 p-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500">
+                                        <option value="">Not given</option>
+                                        <option value="paid">Paid</option>
+                                        <option value="unpaid">Unpaid</option>
+                                        <option value="waived">Waived</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label for="ifp" class="block text-xs font-medium text-gray-600 mb-1">In forma pauperis</label>
+                                    <select id="ifp" name="ifp"
+                                            class="block w-full rounded-lg border border-gray-300 p-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-brand-500">
+                                        <option value="">Not given</option>
+                                        <option value="true">Yes</option>
+                                        <option value="false">No</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </details>
                         <button type="submit" class="px-8 py-3 bg-brand-600 hover:bg-brand-700 text-white font-bold rounded-lg transition duration-200">
                             Upload Documents
                         </button>

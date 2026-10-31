@@ -418,6 +418,24 @@
                             </button>
                         </span>
                     </div>
+                    <!-- The filing's case metadata and the policy Philter used (#16). -->
+                    <div class="focus-hide text-sm text-gray-600 mt-1 flex items-center gap-3 flex-wrap" th:with="cm=${document.caseMetadata}">
+                        <span th:if="${cm == null}">Case: <span class="italic text-gray-500">none</span></span>
+                        <th:block th:if="${cm != null}">
+                            <span th:if="${cm.caseNumber != null}">Case <span class="font-medium" th:text="${cm.caseNumber}">1:26-cv-01234</span></span>
+                            <span th:if="${cm.caseType != null}">Type: <span class="font-medium" th:text="${cm.caseType}">civil</span></span>
+                            <span th:if="${cm.filer != null}">Filer: <span class="font-medium" th:text="${cm.filer}">filer</span></span>
+                            <span th:if="${cm.feeStatus != null}">Fee: <span class="font-medium" th:text="${cm.feeStatus}">paid</span></span>
+                            <span th:if="${cm.ifp != null}">IFP: <span class="font-medium" th:text="${cm.ifp ? 'yes' : 'no'}">no</span></span>
+                        </th:block>
+                        <span th:if="${document.appliedPolicyName != null}">Policy:
+                            <span class="font-medium" th:text="${document.appliedPolicyName}">default</span><span th:if="${document.appliedPolicyVersion != null}" th:text="| (version ${document.appliedPolicyVersion})|"> (version 1)</span></span>
+                        <button id="editCaseBtn" type="button" sec:authorize="!hasRole('AUDITOR')"
+                                th:if="${document.status != 'FINALIZED' and document.status != 'PENDING' and document.status != 'PROCESSING'}"
+                                class="px-2.5 py-1 text-xs font-medium rounded-md border border-gray-300 text-gray-700 hover:bg-gray-50">
+                            Edit case
+                        </button>
+                    </div>
                 </div>
                 <div class="flex items-center gap-2"
                      th:with="terminal=${ {'APPROVED','REJECTED','FAILED','FINALIZED'} }">
@@ -566,6 +584,94 @@
         </div>
     </div>
 
+    <div id="caseModal" class="hidden fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4"
+         th:with="cm=${document.caseMetadata}">
+        <form id="caseForm" class="bg-white rounded-xl shadow-xl border border-gray-200 w-full max-w-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-1">Case</h3>
+            <p class="text-sm text-gray-600 mb-4">Changes are recorded in the audit log. Changing the case type does
+                not redact the document again; in a batch that chooses its policy by case type, it applies when the
+                document is redacted next, such as when a failed document is retried.</p>
+            <div class="grid gap-3 sm:grid-cols-2">
+                <div>
+                    <label for="caseNumberEdit" class="block text-xs font-medium text-gray-600 mb-1">Case number</label>
+                    <input id="caseNumberEdit" type="text" maxlength="100" autocomplete="off" th:value="${cm?.caseNumber}"
+                           class="block w-full rounded-lg border border-gray-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+                <div>
+                    <label for="caseTypeEdit" class="block text-xs font-medium text-gray-600 mb-1">Case type</label>
+                    <input id="caseTypeEdit" type="text" maxlength="64" autocomplete="off" th:value="${cm?.caseType}"
+                           class="block w-full rounded-lg border border-gray-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+                <div>
+                    <label for="filerEdit" class="block text-xs font-medium text-gray-600 mb-1">Filer</label>
+                    <input id="filerEdit" type="text" maxlength="200" autocomplete="off" th:value="${cm?.filer}"
+                           class="block w-full rounded-lg border border-gray-300 p-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                </div>
+                <div>
+                    <label for="feeStatusEdit" class="block text-xs font-medium text-gray-600 mb-1">Fee status</label>
+                    <select id="feeStatusEdit" class="block w-full rounded-lg border border-gray-300 p-2 text-sm bg-white">
+                        <option value="" th:selected="${cm == null or cm.feeStatus == null}">Not given</option>
+                        <option value="paid" th:selected="${cm != null and cm.feeStatus == 'paid'}">Paid</option>
+                        <option value="unpaid" th:selected="${cm != null and cm.feeStatus == 'unpaid'}">Unpaid</option>
+                        <option value="waived" th:selected="${cm != null and cm.feeStatus == 'waived'}">Waived</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="ifpEdit" class="block text-xs font-medium text-gray-600 mb-1">In forma pauperis</label>
+                    <select id="ifpEdit" class="block w-full rounded-lg border border-gray-300 p-2 text-sm bg-white">
+                        <option value="" th:selected="${cm == null or cm.ifp == null}">Not given</option>
+                        <option value="true" th:selected="${cm != null and cm.ifp == true}">Yes</option>
+                        <option value="false" th:selected="${cm != null and cm.ifp == false}">No</option>
+                    </select>
+                </div>
+            </div>
+            <p id="caseError" class="hidden mt-3 text-sm text-red-700"></p>
+            <div class="flex items-center justify-end gap-2 mt-6">
+                <button type="button" id="caseCancelBtn"
+                        class="px-4 py-2 border border-gray-300 text-sm text-gray-700 hover:bg-gray-100 rounded-lg">Cancel</button>
+                <button type="submit"
+                        class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg">Save</button>
+            </div>
+        </form>
+    </div>
+    <script th:nonce="${cspNonce}" th:inline="javascript">
+        /*<![CDATA[*/
+        (function () {
+            const button = document.getElementById('editCaseBtn');
+            const modal = document.getElementById('caseModal');
+            const form = document.getElementById('caseForm');
+            const error = document.getElementById('caseError');
+            const docId = /*[[${document.id}]]*/ '';
+            if (!button || !modal || !form) return;
+            const value = id => document.getElementById(id).value;
+            button.addEventListener('click', () => modal.classList.remove('hidden'));
+            document.getElementById('caseCancelBtn').addEventListener('click', () => modal.classList.add('hidden'));
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                error.classList.add('hidden');
+                const ifp = value('ifpEdit');
+                const body = {
+                    caseNumber: value('caseNumberEdit'), caseType: value('caseTypeEdit'), filer: value('filerEdit'),
+                    feeStatus: value('feeStatusEdit'), ifp: ifp === '' ? null : ifp === 'true'
+                };
+                try {
+                    const response = await fetch(`/api/v1/documents/${encodeURIComponent(docId)}/case-metadata`, {
+                        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+                    });
+                    if (!response.ok) {
+                        let detail = `HTTP ${response.status}`;
+                        try { detail = (await response.json()).error || detail; } catch (_) {}
+                        throw new Error(detail);
+                    }
+                    window.location.reload();
+                } catch (err) {
+                    error.textContent = `The case was not saved: ${err.message}`;
+                    error.classList.remove('hidden');
+                }
+            });
+        })();
+        /*]]>*/
+    </script>
     <script th:nonce="${cspNonce}" th:inline="javascript">
         /*<![CDATA[*/
         const originalText = /*[[${originalText}]]*/ '';

@@ -550,6 +550,30 @@ public abstract class StoreContract {
     }
 
     @Test
+    void aDocumentsCaseNumberAndFilerAreEncryptedAndItsCaseTypeIsNot() {
+        final Document d = new Document();
+        d.setId("case-1");
+        d.setStatus("PENDING");
+        d.setCaseMetadata(ai.philterd.workspace.model.CaseMetadata.of("1:26-cv-01234", "civil", "Acme Dental LLC",
+                "paid", true));
+        d.setAppliedPolicyName("civil-filings");
+        d.setAppliedPolicyVersion(3);
+        repository(DocumentRepository.class).save(d);
+
+        final String raw = raw(Document.class, "case-1");
+        assertFalse(raw.contains("1:26-cv-01234") || raw.contains("Acme Dental"), raw);
+        assertTrue(raw.contains("civil"), "the case type stays readable for matching: " + raw);
+        final Document read = repository(DocumentRepository.class).findById("case-1").orElseThrow();
+        assertEquals("1:26-cv-01234", read.getCaseMetadata().getCaseNumber());
+        assertEquals("Acme Dental LLC", read.getCaseMetadata().getFiler());
+        assertEquals("civil", read.getCaseMetadata().getCaseType());
+        assertEquals("paid", read.getCaseMetadata().getFeeStatus());
+        assertEquals(true, read.getCaseMetadata().getIfp());
+        assertEquals("civil-filings", read.getAppliedPolicyName());
+        assertEquals(3, read.getAppliedPolicyVersion());
+    }
+
+    @Test
     void detectionRulesAreFoundByTheirKeyWithTheirValueEncrypted() {
         final ai.philterd.workspace.repository.DetectionRuleRepository rules =
                 repository(ai.philterd.workspace.repository.DetectionRuleRepository.class);

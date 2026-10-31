@@ -57,6 +57,8 @@ public class RedactionPersistenceService {
 
         document.setOriginalText(originalText);
         document.recordPhilterDocumentId(response.getPhilterDocumentId());
+        document.setAppliedPolicyName(response.getAppliedPolicyName());
+        document.setAppliedPolicyVersion(response.getAppliedPolicyVersion());
         // A retried document no longer carries the failure from its earlier attempt.
         document.setFailureMessage(null);
         // Stable random roll used by the dual-approval sampling rule. Generated once at persist

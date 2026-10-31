@@ -187,17 +187,43 @@ class S3IngestJobServiceTest {
         src.setBucketKey("docs/");
         src.setFilenameGlob("*.txt");
         primeRunFor(src);
-        when(ingestQueueService.enqueueText(any(), anyString(), anyString(), anyInt()))
+        when(ingestQueueService.enqueueText(any(), anyString(), anyString(), anyInt(), any()))
                 .thenAnswer(inv -> docFromEnqueue(inv.getArgument(1)));
 
         runNewJob(src);
 
         // Two text files enqueued; the PDF was filtered out by the *.txt glob.
         verify(ingestQueueService, atLeastOnce()).enqueueText(any(), eq("a.txt"),
-                eq("alpha"), anyInt());
+                eq("alpha"), anyInt(), any());
         verify(ingestQueueService, atLeastOnce()).enqueueText(any(), eq("c.txt"),
-                eq("charlie"), anyInt());
-        verify(ingestQueueService, never()).enqueueText(any(), eq("b.pdf"), anyString(), anyInt());
+                eq("charlie"), anyInt(), any());
+        verify(ingestQueueService, never()).enqueueText(any(), eq("b.pdf"), anyString(), anyInt(), any());
+    }
+
+    @Test
+    void aSidecarObjectGivesItsDocumentCaseMetadataAndIsNotImportedItself() {
+        // S3 lists keys in order, so a document comes just before its sidecar.
+        fakeBucket.put("docs/a.txt", "alpha".getBytes(StandardCharsets.UTF_8));
+        fakeBucket.put("docs/a.txt.case.json",
+                "{\"caseType\": \"criminal\", \"filer\": \"Acme Dental LLC\"}".getBytes(StandardCharsets.UTF_8));
+        fakeBucket.put("docs/c.txt", "charlie".getBytes(StandardCharsets.UTF_8));
+        final S3DataSource src = source("src-1");
+        src.setBucketKey("docs/");
+        src.setFilenameGlob("*");
+        primeRunFor(src);
+        when(ingestQueueService.enqueueText(any(), anyString(), anyString(), anyInt(), any()))
+                .thenAnswer(inv -> docFromEnqueue(inv.getArgument(1)));
+
+        runNewJob(src);
+
+        final org.mockito.ArgumentCaptor<ai.philterd.workspace.model.CaseMetadata> meta =
+                org.mockito.ArgumentCaptor.forClass(ai.philterd.workspace.model.CaseMetadata.class);
+        verify(ingestQueueService).enqueueText(any(), eq("a.txt"), eq("alpha"), anyInt(), meta.capture());
+        assertEquals("criminal", meta.getValue().getCaseType());
+        assertEquals("Acme Dental LLC", meta.getValue().getFiler());
+        verify(ingestQueueService).enqueueText(any(), eq("c.txt"), eq("charlie"), anyInt(),
+                org.mockito.ArgumentMatchers.isNull());
+        verify(ingestQueueService, never()).enqueueText(any(), eq("a.txt.case.json"), anyString(), anyInt(), any());
     }
 
     @Test
@@ -212,14 +238,14 @@ class S3IngestJobServiceTest {
         // require the file to live in a nested directory under the prefix.)
         src.setFilenameGlob("*.pdf");
         primeRunFor(src);
-        when(ingestQueueService.enqueueFile(any(), anyString(), any(), anyString(), anyInt()))
+        when(ingestQueueService.enqueueFile(any(), anyString(), any(), anyString(), anyInt(), any()))
                 .thenAnswer(inv -> docFromEnqueue(inv.getArgument(1)));
 
         runNewJob(src);
 
         verify(ingestQueueService).enqueueFile(any(), eq("report.pdf"), eq(pdfBytes),
-                eq("application/pdf"), anyInt());
-        verify(ingestQueueService, never()).enqueueText(any(), anyString(), anyString(), anyInt());
+                eq("application/pdf"), anyInt(), any());
+        verify(ingestQueueService, never()).enqueueText(any(), anyString(), anyString(), anyInt(), any());
     }
 
     @Test
@@ -229,7 +255,7 @@ class S3IngestJobServiceTest {
         src.setBucketKey("docs/");
         src.setFilenameGlob("*.txt");
         primeRunFor(src);
-        when(ingestQueueService.enqueueText(any(), anyString(), anyString(), anyInt()))
+        when(ingestQueueService.enqueueText(any(), anyString(), anyString(), anyInt(), any()))
                 .thenAnswer(inv -> docFromEnqueue(inv.getArgument(1)));
 
         runNewJob(src);
@@ -258,14 +284,14 @@ class S3IngestJobServiceTest {
         src.setBucketKey("docs/");
         src.setFilenameGlob("*.txt");
         primeRunFor(src);
-        when(ingestQueueService.enqueueText(any(), anyString(), anyString(), anyInt()))
+        when(ingestQueueService.enqueueText(any(), anyString(), anyString(), anyInt(), any()))
                 .thenAnswer(inv -> docFromEnqueue(inv.getArgument(1)));
 
         runNewJob(src);
 
         // Only b.txt got enqueued — a.txt was deduped.
-        verify(ingestQueueService, never()).enqueueText(any(), eq("a.txt"), anyString(), anyInt());
-        verify(ingestQueueService).enqueueText(any(), eq("b.txt"), eq("bravo"), anyInt());
+        verify(ingestQueueService, never()).enqueueText(any(), eq("a.txt"), anyString(), anyInt(), any());
+        verify(ingestQueueService).enqueueText(any(), eq("b.txt"), eq("bravo"), anyInt(), any());
 
         // The skipped row was persisted as a SKIPPED placeholder so the audit trail is honest.
         final ArgumentCaptor<Document> saved = ArgumentCaptor.forClass(Document.class);
@@ -286,13 +312,13 @@ class S3IngestJobServiceTest {
         src.setBucketKey("docs/");
         src.setFilenameGlob("**");
         primeRunFor(src);
-        when(ingestQueueService.enqueueText(any(), anyString(), anyString(), anyInt()))
+        when(ingestQueueService.enqueueText(any(), anyString(), anyString(), anyInt(), any()))
                 .thenAnswer(inv -> docFromEnqueue(inv.getArgument(1)));
 
         runNewJob(src);
 
-        verify(ingestQueueService).enqueueText(any(), eq("a.txt"), eq("alpha"), anyInt());
-        verify(ingestQueueService, never()).enqueueText(any(), eq(""), anyString(), anyInt());
+        verify(ingestQueueService).enqueueText(any(), eq("a.txt"), eq("alpha"), anyInt(), any());
+        verify(ingestQueueService, never()).enqueueText(any(), eq(""), anyString(), anyInt(), any());
     }
 
     @Test
@@ -334,16 +360,16 @@ class S3IngestJobServiceTest {
         src.setFilenameGlob("*.txt");
         primeRunFor(src);
         when(batchRepository.findById("b-1")).thenReturn(Optional.of(batch("b-1")));
-        when(ingestQueueService.enqueueText(any(), anyString(), anyString(), anyInt()))
+        when(ingestQueueService.enqueueText(any(), anyString(), anyString(), anyInt(), any()))
                 .thenAnswer(inv -> docFromEnqueue(inv.getArgument(1)));
 
         runNewJob(src);
 
         // All three text files must be enqueued — one call per file, with the
         // file's bare name (not the full key) used as the document filename.
-        verify(ingestQueueService).enqueueText(any(), eq("test.txt"), eq("alpha"), anyInt());
-        verify(ingestQueueService).enqueueText(any(), eq("test2.txt"), eq("bravo"), anyInt());
-        verify(ingestQueueService).enqueueText(any(), eq("test3.txt"), eq("charlie"), anyInt());
+        verify(ingestQueueService).enqueueText(any(), eq("test.txt"), eq("alpha"), anyInt(), any());
+        verify(ingestQueueService).enqueueText(any(), eq("test2.txt"), eq("bravo"), anyInt(), any());
+        verify(ingestQueueService).enqueueText(any(), eq("test3.txt"), eq("charlie"), anyInt(), any());
     }
 
     @Test

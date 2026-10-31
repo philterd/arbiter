@@ -256,7 +256,8 @@ public class S3IngestJobService {
             // Walk the bucket once to find candidates. Materializing into a list lets the
             // total count be known before any download starts, so the Background Jobs page
             // shows "X of Y" from the very first save.
-            final List<S3Object> candidates = collectCandidates(s3, bucket, prefix, matcher);
+            final java.util.Set<String> sidecarKeys = new java.util.HashSet<>();
+            final List<S3Object> candidates = collectCandidates(s3, bucket, prefix, matcher, sidecarKeys);
             job.setTotalDocuments(candidates.size());
             jobRepository.save(job);
 
@@ -269,15 +270,19 @@ public class S3IngestJobService {
                     continue;
                 }
                 try {
+                    // The object's case metadata (#16), from its sidecar object when it has one.
+                    final String sidecarKey = CaseMetadataSidecar.sidecarFor(key);
+                    final ai.philterd.workspace.model.CaseMetadata caseMetadata = sidecarKeys.contains(sidecarKey)
+                            ? CaseMetadataSidecar.parse(downloadObject(s3, bucket, sidecarKey)) : null;
                     final byte[] bytes = downloadObject(s3, bucket, key);
                     final boolean isPdf = isPdf(filename);
                     final ai.philterd.workspace.model.Document doc;
                     if (isPdf) {
                         doc = ingestQueueService.enqueueFile(batch, filename, bytes,
-                                "application/pdf", job.getPriority());
+                                "application/pdf", job.getPriority(), caseMetadata);
                     } else {
                         doc = ingestQueueService.enqueueText(batch, filename,
-                                new String(bytes, StandardCharsets.UTF_8), job.getPriority());
+                                new String(bytes, StandardCharsets.UTF_8), job.getPriority(), caseMetadata);
                     }
                     doc.setSourceSystem(SOURCE_SYSTEM);
                     doc.setSourceUrl(sourceUrl);
@@ -310,7 +315,8 @@ public class S3IngestJobService {
      * prefix) matches the user-supplied glob. Capped at {@link #MAX_OBJECTS_PER_RUN}.
      */
     private List<S3Object> collectCandidates(final S3Client s3, final String bucket,
-                                             final String prefix, final PathMatcher matcher) {
+                                             final String prefix, final PathMatcher matcher,
+                                             final java.util.Set<String> sidecarKeys) {
         final List<S3Object> matches = new ArrayList<>();
         String continuationToken = null;
         do {
@@ -322,12 +328,19 @@ public class S3IngestJobService {
             for (S3Object obj : resp.contents()) {
                 final String key = obj.key();
                 if (key == null || key.endsWith("/")) continue;
-                if (matchesGlob(matcher, prefix, key)) {
+                // A case sidecar describes the object beside it and is never a document itself.
+                if (CaseMetadataSidecar.isSidecar(key)) {
+                    sidecarKeys.add(key);
+                    continue;
+                }
+                if (matches.size() < MAX_OBJECTS_PER_RUN && matchesGlob(matcher, prefix, key)) {
                     matches.add(obj);
-                    if (matches.size() >= MAX_OBJECTS_PER_RUN) return matches;
                 }
             }
-            continuationToken = Boolean.TRUE.equals(resp.isTruncated()) ? resp.nextContinuationToken() : null;
+            // At the limit, the rest of this page is still read for sidecars: S3 lists "x.pdf" just before
+            // "x.pdf.case.json", so stopping mid-page could lose the last document's metadata.
+            continuationToken = matches.size() < MAX_OBJECTS_PER_RUN && Boolean.TRUE.equals(resp.isTruncated())
+                    ? resp.nextContinuationToken() : null;
         } while (continuationToken != null);
         return matches;
     }

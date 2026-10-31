@@ -143,7 +143,7 @@ class BatchControllerExistenceLeakTest {
         final RedirectAttributes missFlash = flash();
         final RedirectAttributes deniedFlash = flash();
         assertMissAndDeniedAreIndistinguishable(id -> controller.changePolicy(
-                id, "", nonLead(), id.equals("b-missing") ? missFlash : deniedFlash),
+                id, "", false, nonLead(), id.equals("b-missing") ? missFlash : deniedFlash),
                 missFlash, deniedFlash);
     }
 

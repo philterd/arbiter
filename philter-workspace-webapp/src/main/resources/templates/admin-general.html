@@ -441,6 +441,66 @@
                 </form>
             </div>
 
+            <div id="case-types" class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-3xl mb-6">
+                <h3 class="text-lg font-semibold text-gray-900 mb-1">Case types</h3>
+                <p class="text-sm text-gray-600 mb-4">
+                    In a batch set to choose its policy by case type, each document is redacted with the policy mapped
+                    to its case type. A document with no case type, or one not mapped here, is marked failed instead of
+                    being redacted with another policy, and can be retried once it is fixed.
+                    <a href="/docs/reference/case-metadata/" target="_blank" rel="noopener noreferrer" class="text-brand-600 hover:underline">Case metadata</a>
+                </p>
+                <table th:unless="${settings.caseTypePolicies.isEmpty()}" class="min-w-full text-sm mb-4">
+                    <thead>
+                    <tr class="text-left text-xs text-gray-500 uppercase tracking-wide">
+                        <th class="py-1 pr-4">Case type</th><th class="py-1 pr-4">Policy</th><th></th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    <tr th:each="m : ${settings.caseTypePolicies}" class="border-t border-gray-100">
+                        <td class="py-2 pr-4 font-medium text-gray-900" th:text="${m.caseType}">civil</td>
+                        <td class="py-2 pr-4 text-gray-700" th:text="${m.policyName}">civil-policy</td>
+                        <td class="py-2 text-right">
+                            <form th:action="@{/admin/general/case-types/remove}" method="post" class="inline">
+                                <input type="hidden" name="caseType" th:value="${m.caseType}">
+                                <button type="submit" class="text-xs text-red-600 hover:text-red-800 font-medium">Remove</button>
+                            </form>
+                        </td>
+                    </tr>
+                    </tbody>
+                </table>
+                <p th:if="${settings.caseTypePolicies.isEmpty()}" class="text-sm text-gray-500 mb-4">No case types are mapped.</p>
+                <form th:action="@{/admin/general/case-types}" method="post" class="flex flex-wrap items-end gap-3">
+                    <div>
+                        <label for="newCaseType" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Case type</label>
+                        <input id="newCaseType" name="caseType" type="text" maxlength="64" required placeholder="civil"
+                               class="block rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                    </div>
+                    <div>
+                        <label for="newCaseTypePolicy" class="block text-xs font-medium text-gray-600 mb-1 uppercase tracking-wide">Policy</label>
+                        <input id="newCaseTypePolicy" name="policyName" type="text" maxlength="255" required list="caseTypePolicyOptions"
+                               class="block rounded-lg border border-gray-300 p-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+                        <datalist id="caseTypePolicyOptions"></datalist>
+                    </div>
+                    <button type="submit"
+                            class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white font-medium rounded-lg transition duration-200">
+                        Map
+                    </button>
+                </form>
+                <p class="text-xs text-gray-500 mt-2">A policy of the Philter user that redacts batches. Mapping a
+                    case type again replaces its policy.</p>
+                <script th:nonce="${cspNonce}">
+                    // Suggest the policies batches can use, as the batch form lists them.
+                    fetch('/api/v1/policies').then(r => r.ok ? r.json() : { policies: [] }).then(data => {
+                        const list = document.getElementById('caseTypePolicyOptions');
+                        (data.policies || []).forEach(name => {
+                            const option = document.createElement('option');
+                            option.value = name;
+                            list.appendChild(option);
+                        });
+                    }).catch(() => {});
+                </script>
+            </div>
+
             <div id="detection-rules" class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 max-w-3xl mb-6">
                 <h3 class="text-lg font-semibold text-gray-900 mb-1">Detection rules</h3>
                 <p class="text-sm text-gray-600 mb-4">

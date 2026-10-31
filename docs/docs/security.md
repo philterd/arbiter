@@ -298,6 +298,7 @@ The fields encrypted at rest are:
 | `documents`        | `originalText`   | Source document text being redacted — the raw PII.                    |
 | `documents`        | `redactedText`   | Rendered redacted output persisted at finalize time.                  |
 | `documents`        | `failureMessage` | Error messages may quote spans of the source document.                |
+| `documents`        | `caseMetadata.caseNumber`, `caseMetadata.filer` | A filing's case number and filer, which can identify the people in a case. Its case type, fee status, and IFP flag are not encrypted. |
 | `spans`            | `text`           | The literal PII string detected by Philter (e.g. `alice@example.com`).|
 | `document_comments`| `text`           | Reviewer-supplied free text that may reference PII.                   |
 | `redaction_certificates` | `documentFilename` | Filenames often carry names or record numbers.          |

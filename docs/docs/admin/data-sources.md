@@ -645,6 +645,14 @@ Re-running an import is safe: the worker dedupes by
 imported from the same directory are recorded as **Skipped** and not
 re-enqueued.
 
+### Case metadata sidecars
+
+Local Directory and S3-Compatible sources read a document's case metadata from a
+sidecar file beside it, named after the document with `.case.json` added (for
+`motion.pdf`, `motion.pdf.case.json`). Sidecars are never imported as documents,
+and a document with an invalid sidecar is not imported. See
+[Case metadata](../reference/case-metadata.md#sidecar-files).
+
 ## Trust model and host allow-list
 
 Data sources are administered by users with `ROLE_ADMIN`. The product

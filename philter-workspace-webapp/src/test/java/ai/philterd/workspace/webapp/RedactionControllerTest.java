@@ -196,7 +196,16 @@ public class RedactionControllerTest {
     private ai.philterd.workspace.service.DetectionRuleService detectionRuleService;
 
     @MockBean
+    private ai.philterd.workspace.service.CaseMetadataService caseMetadataService;
+
+    @MockBean
     private GeneralSettingsService generalSettingsService;
+
+    @org.junit.jupiter.api.BeforeEach
+    void defaultSettings() {
+        // A real settings row, as GeneralSettingsService.load() always returns; tests that need others stub their own.
+        when(generalSettingsService.load()).thenReturn(new ai.philterd.workspace.model.GeneralSettings());
+    }
 
     @Test
     public void testDashboard() throws Exception {
@@ -445,6 +454,58 @@ public class RedactionControllerTest {
                 .andExpect(status().is3xxRedirection())
                 .andExpect(redirectedUrl("/upload"))
                 .andExpect(flash().attributeExists("success"));
+    }
+
+    @Test
+    public void uploadedFilesCarryTheCaseMetadataGivenWithThem() throws Exception {
+        final Batch batch = new Batch();
+        batch.setId("batch-1");
+        batch.setName("Filings");
+        when(batchRepository.findById("batch-1")).thenReturn(Optional.of(batch));
+        final GeneralSettings settings = new GeneralSettings();
+        settings.setMaxUploadFileSizeBytes(1024);
+        when(generalSettingsService.load()).thenReturn(settings);
+
+        mockMvc.perform(multipart("/redact")
+                        .file(new MockMultipartFile("file", "a.txt", "text/plain", "one".getBytes()))
+                        .file(new MockMultipartFile("file", "b.txt", "text/plain", "two".getBytes()))
+                        .param("batchId", "batch-1").param("caseNumber", "1:26-cv-01234").param("caseType", "Civil")
+                        .param("filer", "").param("feeStatus", "waived").param("ifp", "true")
+                        .with(csrf()).with(signedIn("user", "ADMIN")))
+                .andExpect(redirectedUrl("/upload"))
+                .andExpect(flash().attributeExists("success"));
+
+        final org.mockito.ArgumentCaptor<ai.philterd.workspace.model.Document> saved =
+                org.mockito.ArgumentCaptor.forClass(ai.philterd.workspace.model.Document.class);
+        org.mockito.Mockito.verify(documentRepository, org.mockito.Mockito.atLeast(2)).save(saved.capture());
+        final java.util.function.Function<String, ai.philterd.workspace.model.CaseMetadata> metadataOf = name ->
+                saved.getAllValues().stream().filter(d -> name.equals(d.getFilename())).findFirst().orElseThrow()
+                        .getCaseMetadata();
+        final ai.philterd.workspace.model.CaseMetadata first = metadataOf.apply("a.txt");
+        final ai.philterd.workspace.model.CaseMetadata second = metadataOf.apply("b.txt");
+        org.junit.jupiter.api.Assertions.assertEquals("civil", first.getCaseType());
+        org.junit.jupiter.api.Assertions.assertEquals("1:26-cv-01234", second.getCaseNumber());
+        org.junit.jupiter.api.Assertions.assertEquals("waived", second.getFeeStatus());
+        org.junit.jupiter.api.Assertions.assertEquals(true, second.getIfp());
+        org.junit.jupiter.api.Assertions.assertNull(second.getFiler());
+        org.junit.jupiter.api.Assertions.assertNotSame(first, second,
+                "each document gets its own copy, since stores encrypt in place");
+    }
+
+    @Test
+    public void invalidCaseMetadataStopsTheUpload() throws Exception {
+        final Batch batch = new Batch();
+        batch.setId("batch-1");
+        batch.setName("Filings");
+        when(batchRepository.findById("batch-1")).thenReturn(Optional.of(batch));
+
+        mockMvc.perform(multipart("/redact")
+                        .file(new MockMultipartFile("file", "a.txt", "text/plain", "one".getBytes()))
+                        .param("batchId", "batch-1").param("feeStatus", "sometimes")
+                        .with(csrf()).with(signedIn("user", "ADMIN")))
+                .andExpect(redirectedUrl("/upload"))
+                .andExpect(flash().attribute("error", "The fee status must be paid, unpaid, or waived."));
+        org.mockito.Mockito.verify(documentRepository, org.mockito.Mockito.never()).save(any());
     }
 
     // ---------------------------------------------------------------------

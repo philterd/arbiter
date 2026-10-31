@@ -224,6 +224,8 @@ public class RedactionController {
         }
         batches.sort(Comparator.comparing(Batch::getName, Comparator.nullsLast(String::compareToIgnoreCase)));
         model.addAttribute("batches", batches);
+        model.addAttribute("caseTypes", generalSettingsService.load().getCaseTypePolicies().stream()
+                .map(ai.philterd.workspace.model.CaseTypePolicy::getCaseType).toList());
 
         final org.springframework.data.domain.Page<OpenSearchDataSource> dataSourcePage =
                 dataSourceRepository.findAll(PageRequest.of(0, 500, Sort.by("name")));
@@ -358,6 +360,11 @@ public class RedactionController {
     public String redact(@RequestParam("file") final MultipartFile[] files,
                          @RequestParam("batchId") final String batchId,
                          @RequestParam(value = "priority", defaultValue = "2") final int priority,
+                         @RequestParam(value = "caseNumber", required = false) final String caseNumber,
+                         @RequestParam(value = "caseType", required = false) final String caseType,
+                         @RequestParam(value = "filer", required = false) final String filer,
+                         @RequestParam(value = "feeStatus", required = false) final String feeStatus,
+                         @RequestParam(value = "ifp", required = false) final String ifp,
                          final Authentication authentication,
                          final Model model,
                          final HttpSession session,
@@ -375,6 +382,16 @@ public class RedactionController {
         if (files == null || files.length == 0
                 || java.util.Arrays.stream(files).allMatch(MultipartFile::isEmpty)) {
             redirectAttributes.addFlashAttribute("error", "Pick at least one file to upload.");
+            return "redirect:/upload";
+        }
+
+        // The filing's case metadata (#16), applied to every file in this upload.
+        final ai.philterd.workspace.model.CaseMetadata caseMetadata;
+        try {
+            caseMetadata = ai.philterd.workspace.model.CaseMetadata.of(caseNumber, caseType, filer, feeStatus,
+                    ifp == null || ifp.isBlank() ? null : Boolean.valueOf(ifp));
+        } catch (ai.philterd.workspace.model.CaseMetadata.InvalidException e) {
+            redirectAttributes.addFlashAttribute("error", e.getMessage());
             return "redirect:/upload";
         }
 
@@ -397,10 +414,12 @@ public class RedactionController {
             final byte[] fileBytes = file.getBytes();
             final Document queued;
             if (MediaType.APPLICATION_PDF_VALUE.equals(contentType)) {
-                queued = ingestQueueService.enqueueFile(batch, originalFilename, fileBytes, contentType, safePriority);
+                queued = ingestQueueService.enqueueFile(batch, originalFilename, fileBytes, contentType, safePriority,
+                        copy(caseMetadata));
             } else {
                 final String text = new String(fileBytes, StandardCharsets.UTF_8);
-                queued = ingestQueueService.enqueueText(batch, originalFilename, text, safePriority);
+                queued = ingestQueueService.enqueueText(batch, originalFilename, text, safePriority,
+                        copy(caseMetadata));
             }
             // Filename is hashed (R2-F7) — filenames routinely carry PII
             // (patient names, MRNs, tax-form filers) and the audit log is
@@ -413,7 +432,9 @@ public class RedactionController {
                             "filenameHash", auditLogService.hashForAudit(originalFilename),
                             "filenameLength", originalFilename == null ? 0 : originalFilename.length(),
                             "contentType", contentType == null ? "" : contentType,
-                            "size", fileBytes.length));
+                            "size", fileBytes.length,
+                            "caseType", caseMetadata == null || caseMetadata.getCaseType() == null
+                                    ? "" : caseMetadata.getCaseType()));
             queuedCount++;
         }
 
@@ -618,4 +639,9 @@ public class RedactionController {
                 .body(resource);
     }
 
+    /** Each document gets its own copy, since the stores encrypt its case number and filer in place. */
+    private static ai.philterd.workspace.model.CaseMetadata copy(final ai.philterd.workspace.model.CaseMetadata m) {
+        return m == null ? null : new ai.philterd.workspace.model.CaseMetadata(m.getCaseNumber(), m.getCaseType(),
+                m.getFiler(), m.getFeeStatus(), m.getIfp());
+    }
 }

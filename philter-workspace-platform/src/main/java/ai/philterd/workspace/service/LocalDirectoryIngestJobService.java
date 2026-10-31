@@ -217,15 +217,19 @@ public class LocalDirectoryIngestJobService {
                 }
 
                 try {
+                    // The file's case metadata (#16), from its sidecar when it has one.
+                    final Path sidecar = file.resolveSibling(CaseMetadataSidecar.sidecarFor(filename));
+                    final ai.philterd.workspace.model.CaseMetadata caseMetadata = Files.isRegularFile(sidecar)
+                            ? CaseMetadataSidecar.parse(Files.readAllBytes(sidecar)) : null;
                     final byte[] bytes = Files.readAllBytes(file);
                     final boolean isPdf = isPdf(filename);
                     final ai.philterd.workspace.model.Document doc;
                     if (isPdf) {
                         doc = ingestQueueService.enqueueFile(batch, filename, bytes,
-                                "application/pdf", job.getPriority());
+                                "application/pdf", job.getPriority(), caseMetadata);
                     } else {
                         doc = ingestQueueService.enqueueText(batch, filename,
-                                new String(bytes, StandardCharsets.UTF_8), job.getPriority());
+                                new String(bytes, StandardCharsets.UTF_8), job.getPriority(), caseMetadata);
                     }
                     doc.setSourceSystem(SOURCE_SYSTEM);
                     doc.setSourceUrl(sourceIndex);
@@ -302,6 +306,9 @@ public class LocalDirectoryIngestJobService {
             while (iterator.hasNext() && matches.size() < MAX_FILES_PER_RUN) {
                 final Path candidate = iterator.next();
                 if (!Files.isRegularFile(candidate)) continue;
+                // A case sidecar describes the file beside it and is never a document itself.
+                if (candidate.getFileName() != null
+                        && CaseMetadataSidecar.isSidecar(candidate.getFileName().toString())) continue;
                 final Path relative = root.relativize(candidate);
                 // Match against the relative path so "**/*.pdf" works for nested files
                 // and "*.pdf" only matches files at the top level.

@@ -17,6 +17,7 @@ creation dialog. Fill in:
 | Name                 | —       | Required                                                                                   |
 | Group                | —       | Required; only existing groups appear in the dropdown                                      |
 | Policy               | Philter's default | A policy in Philter                                                              |
+| Choose each document's policy from its case type | unchecked | When checked, each document is redacted with the policy mapped to its case type under **Admin → General → Case types**, and a document with no case type or an unmapped one is marked `FAILED` instead. See [Case metadata](../reference/case-metadata.md#choosing-the-policy-by-case-type). |
 | Batch Finalization Policy | —  | Required; governs document retention when the batch is finalized                           |
 | Compliance Profile   | —       | Required; **cannot be changed after the batch is created**                                 |
 | Exemption Code       | checked | When checked (the default), accepting a redaction in this batch prompts the reviewer to pick an exemption code from the chosen compliance profile. Uncheck to suppress the prompt even when the profile defines codes — useful for batches where exemption-code tracking isn't required. |
@@ -49,6 +50,9 @@ Each batch row has:
   `[0.0, 1.0]`. When the deployment sets a minimum audit sampling rate, a
   lower rate is refused here and in the create dialog, and the attempt is
   recorded in the audit log as `BATCH_AUDIT_SAMPLING_RATE_REFUSED`.
+- **Change…** in the Policy column, to choose the batch's policy or have it
+  [choose each document's policy from its case type](../reference/case-metadata.md#choosing-the-policy-by-case-type);
+  the column then shows **By case type**.
 - A **Weights** link that opens the per-batch PII weight editor (see below).
 - A **Close** button (admin only) that marks the batch closed.
 - A **Closed** badge next to the name when the batch is in the closed state.

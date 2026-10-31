@@ -47,6 +47,14 @@ The document is **queued** for redaction and Philter Workspace immediately retur
 the upload page with a confirmation message. You'll see the document in the
 [Document Queue](queue.md) once a background worker has finished processing it.
 
+### Case metadata
+
+Open **Case (optional)** to give the upload a case number, case type, filer,
+fee status, and whether the filer proceeds in forma pauperis. The values apply
+to every file in the upload. In a batch that chooses its policy by case type,
+the case type picks the policy that redacts each document. See
+[Case metadata](../reference/case-metadata.md).
+
 ## What happens behind the scenes
 
 When you click Upload Document, Philter Workspace:

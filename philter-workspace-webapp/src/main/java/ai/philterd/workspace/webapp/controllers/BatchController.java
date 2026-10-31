@@ -164,6 +164,7 @@ public class BatchController {
             row.put("groupId", batch.getGroupId());
             row.put("groupName", batch.getGroupId() == null ? null : groupNamesById.get(batch.getGroupId()));
             row.put("policyName", batch.getPolicyName());
+            row.put("policyByCaseType", batch.isPolicyByCaseType());
             row.put("domain", batch.getDomain());
             row.put("context", batch.getContext());
             row.put("finalizationPolicyId", batch.getFinalizationPolicyId());
@@ -253,6 +254,7 @@ public class BatchController {
                          @RequestParam(value = "auditSamplingRate", required = false) Double auditSamplingRate,
                          @RequestParam("groupId") String groupId,
                          @RequestParam(value = "policyName", required = false) String policyName,
+                         @RequestParam(value = "policyByCaseType", defaultValue = "false") boolean policyByCaseType,
                          @RequestParam(value = "domain", required = false) String domain,
                          @RequestParam(value = "context", required = false, defaultValue = "") String context,
                          @RequestParam(value = "finalizationPolicyId", required = false) String finalizationPolicyId,
@@ -343,6 +345,7 @@ public class BatchController {
         batch.setGroupId(groupId);
         final String trimmedPolicy = policyName == null ? "" : policyName.trim();
         batch.setPolicyName(trimmedPolicy.isEmpty() ? null : trimmedPolicy);
+        batch.setPolicyByCaseType(policyByCaseType);
         batch.setDomain(trimmedDomain);
         batch.setDescription(description == null ? "" : description.trim());
         batch.setContext(context == null ? "" : context);
@@ -385,6 +388,7 @@ public class BatchController {
         auditDetails.put("name", trimmed);
         auditDetails.put("groupId", groupId);
         auditDetails.put("policyName", trimmedPolicy);
+        auditDetails.put("policyByCaseType", policyByCaseType);
         auditDetails.put("domain", trimmedDomain);
         auditDetails.put("contextLength", batch.getContext().length());
         auditDetails.put("confidenceThreshold", batch.getConfidenceThreshold());
@@ -402,6 +406,7 @@ public class BatchController {
     @PostMapping("/{batchId}/policy")
     public String changePolicy(@PathVariable final String batchId,
                                @RequestParam(value = "policyName", required = false) final String policyName,
+                               @RequestParam(value = "policyByCaseType", defaultValue = "false") final boolean policyByCaseType,
                                final Authentication authentication,
                                final RedirectAttributes redirectAttributes) {
         // Collapse lookup-miss and access-denied into a single response shape so a
@@ -416,12 +421,17 @@ public class BatchController {
         final String trimmedPolicy = policyName == null ? "" : policyName.trim();
 
         final String previousPolicy = batch.getPolicyName();
+        final boolean previousByCaseType = batch.isPolicyByCaseType();
         batch.setPolicyName(trimmedPolicy.isEmpty() ? null : trimmedPolicy);
+        batch.setPolicyByCaseType(policyByCaseType);
         batchRepository.save(batch);
         auditLogService.log("BATCH_POLICY_CHANGE", "Batch", batch.getId(),
                 Map.of("previousPolicyName", previousPolicy == null ? "" : previousPolicy,
-                        "newPolicyName", trimmedPolicy));
-        final String policyLabel = trimmedPolicy.isEmpty() ? "Philter's default policy" : "policy \"" + trimmedPolicy + "\"";
+                        "newPolicyName", trimmedPolicy,
+                        "previousPolicyByCaseType", previousByCaseType,
+                        "policyByCaseType", policyByCaseType));
+        final String policyLabel = policyByCaseType ? "the policy mapped to each document's case type"
+                : trimmedPolicy.isEmpty() ? "Philter's default policy" : "policy \"" + trimmedPolicy + "\"";
         redirectAttributes.addFlashAttribute("success",
                 "Batch \"" + batch.getName() + "\" now uses " + policyLabel + ".");
         return "redirect:/batches";

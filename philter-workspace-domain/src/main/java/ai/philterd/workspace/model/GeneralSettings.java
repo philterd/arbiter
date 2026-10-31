@@ -87,6 +87,13 @@ public class GeneralSettings {
      */
     private int ruleProposalRefusals = DEFAULT_RULE_PROPOSAL_REFUSALS;
 
+    /**
+     * The case-type mapping (#16): which Philter policy redacts documents of each case type, in batches that
+     * choose their policy by case type. A list rather than a map, since a case type can contain characters a
+     * MongoDB key cannot.
+     */
+    private java.util.List<CaseTypePolicy> caseTypePolicies = new java.util.ArrayList<>();
+
     public static final int DEFAULT_RULE_PROPOSAL_REFUSALS = 5;
     public static final int MAX_RULE_PROPOSAL_REFUSALS = 1000;
 
@@ -151,5 +158,23 @@ public class GeneralSettings {
     public int getRuleProposalRefusals() { return ruleProposalRefusals; }
     public void setRuleProposalRefusals(final int ruleProposalRefusals) {
         this.ruleProposalRefusals = ruleProposalRefusals;
+    }
+
+    public java.util.List<CaseTypePolicy> getCaseTypePolicies() {
+        if (caseTypePolicies == null) caseTypePolicies = new java.util.ArrayList<>();
+        return caseTypePolicies;
+    }
+    public void setCaseTypePolicies(final java.util.List<CaseTypePolicy> caseTypePolicies) {
+        this.caseTypePolicies = caseTypePolicies;
+    }
+
+    /** The policy the mapping names for a case type, or null. */
+    public String policyForCaseType(final String caseType) {
+        final String normalized = CaseMetadata.normalizeCaseType(caseType);
+        if (normalized == null) return null;
+        for (CaseTypePolicy entry : getCaseTypePolicies()) {
+            if (normalized.equals(entry.getCaseType())) return entry.getPolicyName();
+        }
+        return null;
     }
 }

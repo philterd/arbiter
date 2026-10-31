@@ -47,6 +47,11 @@ public class Batch {
     private Map<String, Integer> piiTypeWeights;
     private String weightSetId;
     private String policyName;
+    /**
+     * Whether each document's policy follows from its case type (#16), through the case-type mapping, instead of
+     * {@link #policyName}. A document with no case type, or one the mapping does not name, is then not redacted.
+     */
+    private boolean policyByCaseType;
     private String domain;
     private String context = "";
     /**
@@ -304,4 +309,7 @@ public class Batch {
     public void setClosedBy(final String closedBy) {
         this.closedBy = closedBy;
     }
+
+    public boolean isPolicyByCaseType() { return policyByCaseType; }
+    public void setPolicyByCaseType(final boolean policyByCaseType) { this.policyByCaseType = policyByCaseType; }
 }

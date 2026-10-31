@@ -167,9 +167,20 @@ Request body:
   "batchId":  "string",
   "name":     "string",
   "text":     "string",
-  "priority": 2
+  "priority": 2,
+  "caseMetadata": {
+    "caseNumber": "1:26-cv-01234",
+    "caseType":   "civil",
+    "filer":      "Acme Dental LLC",
+    "feeStatus":  "paid",
+    "ifp":        false
+  }
 }
 ```
+
+`caseMetadata` is optional; see [Case metadata](case-metadata.md) for its
+fields. Invalid metadata is refused with `400` and a body of
+`{"error": "...", "problems": [...]}`, before anything is stored.
 
 `priority` is optional. It accepts an integer in `1..3` (`1` Low, `2` Normal,
 `3` High); omitting it or sending `null` defaults to Normal. The value is
@@ -191,6 +202,35 @@ The returned `taskId` is the document's id. Poll
 A SHA-512 hash of the submitted `text` (UTF-8 bytes) is recorded on the
 document at ingest time — see
 [Security · Document content integrity](../security.md#document-content-integrity).
+
+### `GET /api/v1/documents/{id}/case-metadata`
+
+Session-allowed. A document's [case metadata](case-metadata.md), and the policy
+Philter last reported redacting it with:
+
+```json
+{
+  "caseMetadata": {"caseNumber": "1:26-cv-01234", "caseType": "civil", "filer": "Acme Dental LLC",
+                   "feeStatus": "paid", "ifp": false},
+  "appliedPolicyName": "civil-filings",
+  "appliedPolicyVersion": 3
+}
+```
+
+`caseMetadata` is `null` when the document has none. `404` if the document is
+missing or the caller cannot see it.
+
+### `PUT /api/v1/documents/{id}/case-metadata`
+
+Session-allowed. Replaces the document's case metadata with the body, an object
+with the [case metadata fields](case-metadata.md#schema); `{}` clears it.
+Requires `Content-Type: application/json`. The change is audited as
+`DOCUMENT_CASE_METADATA_UPDATE` and does not redact the document again.
+
+Response: `{"changed": true, "caseMetadata": {...}}`. `400` with `error` and
+`problems` for invalid values, `409` if the document is finalized, is still
+waiting to be redacted (`PENDING` or `PROCESSING`), or changed while the request
+was saved, and `404` if the document is missing or the caller cannot see it.
 
 ## Triage
 
